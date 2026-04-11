@@ -234,7 +234,7 @@ export default function GradeSpreadsheet() {
           </div>
 
         <div className="mb-6 overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="min-w-full divide-y divide-slate-200">
+          <table className="min-w-190 w-full divide-y divide-slate-200 text-sm sm:text-base">
             <thead className="bg-slate-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Student Name</th>

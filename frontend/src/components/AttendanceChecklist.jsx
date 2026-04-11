@@ -114,10 +114,10 @@ export default function AttendanceChecklist() {
 
           <div className="mb-4">
             <label className="mb-2 block text-sm font-semibold text-slate-700">Record Date</label>
-            <input className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10" type="date" value={date} onChange={e => setDate(e.target.value)} />
+            <input className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 sm:w-auto" type="date" value={date} onChange={e => setDate(e.target.value)} />
           </div>
           <div className="overflow-x-auto">
-            <table className="mb-6 w-full table-auto border-collapse overflow-hidden rounded-2xl border border-slate-200">
+            <table className="mb-6 min-w-170 w-full table-auto border-collapse overflow-hidden rounded-2xl border border-slate-200 text-sm sm:text-base">
               <thead>
                 <tr className="bg-slate-50 text-left text-xs uppercase tracking-[0.18em] text-slate-500">
                   <th className="border border-slate-200 p-3">Student Name</th>

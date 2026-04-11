@@ -207,10 +207,10 @@ export default function Bursar() {
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Paid records</p>
                   <h2 className="mt-2 text-2xl font-bold text-slate-900">Paid Students by Class</h2>
                 </div>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="flex items-center gap-3">
+                <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                     <label className="text-sm font-semibold text-slate-600">Class:</label>
-                    <select value={paidClassId} onChange={(e) => setPaidClassId(e.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                    <select value={paidClassId} onChange={(e) => setPaidClassId(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
                       <option value="">Select class</option>
                       {classes.map((klass) => (
                         <option key={klass._id} value={klass._id}>
@@ -219,9 +219,9 @@ export default function Bursar() {
                       ))}
                     </select>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
                     <label className="text-sm font-semibold text-slate-600">Month:</label>
-                    <select value={paidMonth} onChange={(e) => setPaidMonth(e.target.value)} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                    <select value={paidMonth} onChange={(e) => setPaidMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
                       {months.map((m) => <option key={`paid-${m}`} value={m}>{m}</option>)}
                     </select>
                   </div>
@@ -239,8 +239,8 @@ export default function Bursar() {
                 </div>
               )}
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
                   <thead>
                     <tr className="bg-emerald-50 text-xs uppercase tracking-[0.18em] text-emerald-700">
                       <th className="px-4 py-4">Student ID</th>
@@ -284,16 +284,16 @@ export default function Bursar() {
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-600">Outstanding</p>
                   <h2 className="mt-2 text-2xl font-bold text-slate-900">Defaulters List</h2>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <label className="text-sm font-semibold text-slate-600">Filter by Month:</label>
-                  <select value={targetMonth} onChange={e => setTargetMonth(e.target.value)} className="rounded-2xl border border-slate-200 bg-rose-50 px-4 py-2 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10">
+                  <select value={targetMonth} onChange={e => setTargetMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-rose-50 px-4 py-2 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10 sm:w-auto">
                     {months.map(m => <option key={`def-${m}`} value={m}>{m}</option>)}
                   </select>
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="min-w-150 w-full border-collapse text-left text-sm sm:text-base">
                   <thead>
                     <tr className="bg-rose-50 text-xs uppercase tracking-[0.18em] text-rose-700">
                       <th className="px-4 py-4">Student ID</th>

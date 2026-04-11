@@ -166,8 +166,8 @@ export default function Teachers() {
               <h2 className="mt-2 text-2xl font-bold text-slate-900">Registered Teachers</h2>
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-slate-200">
-              <table className="w-full border-collapse text-left">
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
                 <thead>
                   <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                     <th className="px-4 py-4">ID</th>

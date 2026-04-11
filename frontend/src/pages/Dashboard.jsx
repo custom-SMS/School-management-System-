@@ -510,8 +510,8 @@ export default function Dashboard() {
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
                 <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Grades</h3>
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full border-collapse text-left">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="min-w-[720px] w-full border-collapse text-left text-sm sm:text-base">
                     <thead>
                       <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                         <th className="px-4 py-4">Student</th>
@@ -540,8 +540,8 @@ export default function Dashboard() {
 
               <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
                 <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Attendance</h3>
-                <div className="overflow-hidden rounded-2xl border border-slate-200">
-                  <table className="w-full border-collapse text-left">
+                <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                  <table className="min-w-[640px] w-full border-collapse text-left text-sm sm:text-base">
                     <thead>
                       <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                         <th className="px-4 py-4">Class</th>
@@ -621,8 +621,8 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="min-w-[720px] w-full border-collapse text-left text-sm sm:text-base">
                   <thead>
                     <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                       <th className="px-4 py-4">Subject</th>
@@ -708,8 +708,8 @@ export default function Dashboard() {
 
             <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
               <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Attendance</h3>
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="min-w-[640px] w-full border-collapse text-left text-sm sm:text-base">
                   <thead>
                     <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                       <th className="px-4 py-4">Date</th>
@@ -738,8 +738,8 @@ export default function Dashboard() {
 
             <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
               <h3 className="mb-4 text-xl font-bold text-slate-900">Fee Ledger</h3>
-              <div className="overflow-hidden rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-left">
+              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+                <table className="min-w-[520px] w-full border-collapse text-left text-sm sm:text-base">
                   <thead>
                     <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
                       <th className="px-4 py-4">Month</th>
