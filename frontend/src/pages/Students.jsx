@@ -42,13 +42,20 @@ export default function Students() {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [studentsRes, classesRes] = await Promise.all([
-          axios.get('/students'),
-          axios.get('/classroom/options'),
-        ]);
+        const studentsRes = await axios.get('/students');
+        const allStudents = studentsRes.data || [];
+        setStudents(allStudents);
 
-        setStudents(studentsRes.data || []);
-        setClasses(classesRes.data?.classes || []);
+        const derivedClasses = Array.from(
+          new Map(
+            allStudents
+              .map((student) => String(student.grade || '').trim())
+              .filter(Boolean)
+              .map((grade) => [grade, { _id: grade, name: grade, subject: '' }]),
+          ).values(),
+        );
+
+        setClasses(derivedClasses);
       } catch (error) {
         console.error('Failed to load students page data', error);
         toast.error(error.response?.data?.message || 'Failed to load student records');
@@ -62,7 +69,7 @@ export default function Students() {
 
   const availableClasses = useMemo(() => (
     [...classes].sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' }))
-  ), [classes]);
+  ), [classes, students]);
 
   const sortedStudents = useMemo(() => (
     [...students].sort((a, b) => {

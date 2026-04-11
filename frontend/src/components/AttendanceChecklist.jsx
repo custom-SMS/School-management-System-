@@ -15,8 +15,17 @@ export default function AttendanceChecklist() {
   useEffect(() => {
     const fetchClassroomOptions = async () => {
       try {
-        const response = await axios.get('/classroom/options');
-        const availableClasses = response.data.classes || [];
+        const endpoint = user?.role === 'Admin' ? '/assignments' : '/assignments/me';
+        const response = await axios.get(endpoint);
+        const assignmentRows = response.data || [];
+        const availableClasses = Array.from(
+          new Map(
+            assignmentRows
+              .map((assignment) => assignment.class)
+              .filter(Boolean)
+              .map((klass) => [klass._id, klass]),
+          ).values(),
+        );
         setClasses(availableClasses);
 
         if (availableClasses.length > 0) {

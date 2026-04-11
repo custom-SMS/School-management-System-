@@ -25,6 +25,51 @@ const sortChartRows = (rows) => [...rows].sort((left, right) => {
   return left.label.localeCompare(right.label);
 });
 
+const buildTeacherFallbackData = (assignments = [], user = null) => {
+  const uniqueClasses = Array.from(
+    new Map(
+      assignments
+        .map((assignment) => assignment.class)
+        .filter(Boolean)
+        .map((klass) => [klass._id, klass]),
+    ).values(),
+  ).sort((left, right) => normalizeClassLabel(left.name).localeCompare(normalizeClassLabel(right.name), undefined, { numeric: true, sensitivity: 'base' }));
+
+  const classSummaries = uniqueClasses.map((klass) => ({
+    classId: klass._id,
+    className: normalizeClassLabel(klass.name),
+    subject: normalizeClassLabel(klass.subject),
+    studentCount: klass.students?.length || 0,
+    attendanceSessions: 0,
+    attendanceRate: 0,
+    gradesCount: 0,
+    averageGrade: 0,
+    latestAttendanceDate: null,
+  }));
+
+  const assignedStudentsCount = new Set(
+    uniqueClasses.flatMap((klass) => (klass.students || []).map((student) => student?._id?.toString()).filter(Boolean)),
+  ).size;
+
+  return {
+    teacher: {
+      name: user?.name || 'Teacher',
+      email: user?.email || '',
+      role: user?.role || 'Teacher',
+    },
+    teacherId: '—',
+    subject: 'Assigned Classes',
+    assignedClassesCount: uniqueClasses.length,
+    assignedStudentsCount,
+    gradesRecordedCount: 0,
+    attendanceSessionsCount: 0,
+    averageGrade: 0,
+    classSummaries,
+    recentGrades: [],
+    recentAttendance: [],
+  };
+};
+
 function AnalyticsBarCard({ title, description, rows, valueKey, valueFormatter, barClass, emptyMessage }) {
   const maxValue = rows.reduce((max, row) => Math.max(max, Number(row[valueKey] || 0)), 0);
 
@@ -36,12 +81,13 @@ function AnalyticsBarCard({ title, description, rows, valueKey, valueFormatter, 
       </div>
 
       <div className="space-y-4">
-        {rows.length > 0 ? rows.map((row) => {
+        {rows.length > 0 ? rows.map((row, index) => {
           const value = Number(row[valueKey] || 0);
           const width = maxValue > 0 ? Math.max((value / maxValue) * 100, value > 0 ? 8 : 0) : 0;
+          const rowKey = row.key || `${row.label}-${index}`;
 
           return (
-            <div key={row.label}>
+            <div key={rowKey}>
               <div className="mb-2 flex items-center justify-between gap-3 text-sm">
                 <span className="font-semibold text-slate-700">{row.label}</span>
                 <span className="font-semibold text-slate-900">{valueFormatter(value, row)}</span>
@@ -73,15 +119,16 @@ function FeeStackedCard({ title, description, rows, emptyMessage }) {
       </div>
 
       <div className="space-y-4">
-        {rows.length > 0 ? rows.map((row) => {
+        {rows.length > 0 ? rows.map((row, index) => {
           const totalAmount = Number(row.totalAmount || 0);
           const paidAmount = Number(row.paidAmount || 0);
           const pendingAmount = Number(row.pendingAmount || 0);
           const paidWidth = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
           const pendingWidth = totalAmount > 0 ? (pendingAmount / totalAmount) * 100 : 0;
+          const rowKey = row.key || `${row.label}-${index}`;
 
           return (
-            <div key={row.label}>
+            <div key={rowKey}>
               <div className="mb-2 flex items-center justify-between gap-3 text-sm">
                 <span className="font-semibold text-slate-700">{row.label}</span>
                 <span className="font-semibold text-slate-900">ETB {totalAmount}</span>
@@ -147,8 +194,8 @@ export default function Dashboard() {
           const res = await axios.get('/stats/parent/me');
           if (active) setParentData(res.data);
         } else if (user.role === 'Teacher') {
-          const res = await axios.get('/stats/teacher/me');
-          if (active) setTeacherData(res.data);
+          const assignmentsRes = await axios.get('/assignments/me');
+          if (active) setTeacherData(buildTeacherFallbackData(assignmentsRes.data || [], user));
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);

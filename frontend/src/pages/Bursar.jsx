@@ -34,8 +34,15 @@ export default function Bursar() {
   useEffect(() => {
     const fetchClasses = async () => {
       try {
-        const res = await axios.get('/classroom/options');
-        const availableClasses = res.data.classes || [];
+        const res = await axios.get('/assignments');
+        const availableClasses = Array.from(
+          new Map(
+            (res.data || [])
+              .map((assignment) => assignment.class)
+              .filter(Boolean)
+              .map((klass) => [klass._id, klass]),
+          ).values(),
+        );
         setClasses(availableClasses);
         if (availableClasses.length > 0) {
           setPaidClassId((current) => current || availableClasses[0]._id);

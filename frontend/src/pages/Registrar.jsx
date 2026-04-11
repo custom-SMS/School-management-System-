@@ -34,8 +34,11 @@ export default function Registrar() {
 
   const fetchClasses = async () => {
     try {
-      const res = await axios.get('/classroom/options');
-      setClasses(res.data.classes || []);
+      const studentsRes = await axios.get('/students');
+      const availableGrades = Array.from(
+        new Set((studentsRes.data || []).map((student) => student.grade).filter(Boolean)),
+      ).map((grade) => ({ _id: grade, name: grade, subject: '' }));
+      setClasses(availableGrades);
     } catch (error) {
       console.error('Failed to fetch classes', error);
     }

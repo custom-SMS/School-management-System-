@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import axios from '../api/axios';
+import { AuthContext } from '../context/AuthContext';
 import Navbar from './Navbar';
 
 const emptyMarks = { test: 0, midterm: 0, final: 0 };
@@ -17,6 +18,7 @@ const clampMark = (field, value) => {
 };
 
 export default function GradeSpreadsheet() {
+  const { user } = useContext(AuthContext);
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [rows, setRows] = useState([]);
@@ -48,8 +50,16 @@ export default function GradeSpreadsheet() {
       setMessage('');
 
       try {
-        const res = await axios.get('/classroom/options');
-        const availableClasses = res.data.classes || [];
+        const endpoint = user?.role === 'Admin' ? '/assignments' : '/assignments/me';
+        const res = await axios.get(endpoint);
+        const availableClasses = Array.from(
+          new Map(
+            (res.data || [])
+              .map((assignment) => assignment.class)
+              .filter(Boolean)
+              .map((klass) => [klass._id, klass]),
+          ).values(),
+        );
         setClasses(availableClasses);
 
         if (availableClasses.length > 0) {
