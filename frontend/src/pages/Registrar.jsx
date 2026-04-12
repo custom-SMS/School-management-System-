@@ -15,6 +15,8 @@ export default function Registrar() {
   const [deletingStudentId, setDeletingStudentId] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState('');
 
+  const feeClassOptions = Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`);
+
   const fetchStudents = async () => {
     try {
       const res = await axios.get('/students');
@@ -135,14 +137,17 @@ export default function Registrar() {
                   className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"
                 >
                   <option value="">Select a class</option>
-                  {availableGrades.map((grade) => (
+                  {feeClassOptions.map((grade) => (
                     <option key={grade} value={grade}>
                       {grade}
                     </option>
                   ))}
                 </select>
+                <p className="mt-2 text-sm text-slate-500">
+                  Pick a class from 1 to 12. You can update an existing fee by saving the same class again with a new amount.
+                </p>
                 {availableGrades.length === 0 && (
-                  <p className="mt-2 text-sm text-slate-500">No classes available yet.</p>
+                  <p className="mt-2 text-sm text-slate-500">No student-linked classes have been created yet, but fee classes can still be set manually.</p>
                 )}
               </div>
               <div>

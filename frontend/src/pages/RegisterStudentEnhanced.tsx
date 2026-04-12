@@ -210,7 +210,7 @@ export default function RegisterStudentEnhanced() {
                 password automatically.
               </p>
 
-              <div className="mt-8 space-y-4">
+              {/* <div className="mt-8 space-y-4">
                 {gradeFees.slice(0, 3).map((gf) => (
                   <div
                     key={gf._id}
@@ -229,7 +229,7 @@ export default function RegisterStudentEnhanced() {
                     No fee rules configured yet.
                   </div>
                 )}
-              </div>
+              </div> */}
             </div>
 
             <div className="p-6 sm:p-10 lg:p-12">
