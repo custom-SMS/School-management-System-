@@ -7,13 +7,30 @@ const Fee = require('../models/Fee');
 const Attendance = require('../models/Attendance');
 const Class = require('../models/Class');
 const TeacherAssignment = require('../models/TeacherAssignment');
+const Counter = require('../models/Counter');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 // Helper to generate IDs
-const generateStudentId = async () => {
-  const count = await Student.countDocuments();
-  return `STU-${(count + 1).toString().padStart(4, '0')}`;
+const getNextAvailableStudentId = async () => {
+  const latestStudent = await Student.findOne({ studentId: /^STU-\d{4}$/ })
+    .sort({ studentId: -1 })
+    .select('studentId');
+
+  const latestNumber = latestStudent
+    ? Number(latestStudent.studentId.split('-')[1])
+    : 0;
+
+  const counter = await Counter.findOneAndUpdate(
+    { _id: 'studentId' },
+    {
+      $setOnInsert: { seq: latestNumber },
+      $inc: { seq: 1 },
+    },
+    { new: true, upsert: true }
+  );
+
+  return `STU-${String(counter.seq).padStart(4, '0')}`;
 };
 
 const generateParentId = async () => {
@@ -207,7 +224,7 @@ const registerStudent = async (req, res) => {
     }
 
     // Generate System ID
-    const studentId = await generateStudentId();
+    const studentId = await getNextAvailableStudentId();
 
     // Create User account
     const user = await User.create({
@@ -241,13 +258,30 @@ const registerStudent = async (req, res) => {
     }
 
     // Create Student profile linked to User
-    const student = await Student.create({
-      user: user._id,
-      studentId: studentId,
-      grade,
-      personalDetails: resolvedPersonalDetails,
-      familyBackground: resolvedFamilyBackground,
-    });
+    let student;
+
+    try {
+      student = await Student.create({
+        user: user._id,
+        studentId: studentId,
+        grade,
+        personalDetails: resolvedPersonalDetails,
+        familyBackground: resolvedFamilyBackground,
+      });
+    } catch (createError) {
+      if (createError?.code === 11000 && createError?.keyPattern?.studentId) {
+        const fallbackStudentId = await getNextAvailableStudentId();
+        student = await Student.create({
+          user: user._id,
+          studentId: fallbackStudentId,
+          grade,
+          personalDetails: resolvedPersonalDetails,
+          familyBackground: resolvedFamilyBackground,
+        });
+      } else {
+        throw createError;
+      }
+    }
 
     await attachStudentToGradeClass(student, grade);
 
@@ -266,7 +300,7 @@ const registerStudent = async (req, res) => {
       student,
       feeInfo: `Your monthly tuition is ETB ${gradeSettings.amount}`,
       credentials: {
-        studentId,
+        studentId: student.studentId,
         password: studentPassword,
       },
       guardianCredentials,

@@ -13,6 +13,7 @@ export default function Registrar() {
   const [filterGrade, setFilterGrade] = useState('All');
   const [message, setMessage] = useState('');
   const [deletingStudentId, setDeletingStudentId] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
 
   const fetchStudents = async () => {
     try {
@@ -95,6 +96,12 @@ export default function Registrar() {
     ? sortedStudents
     : sortedStudents.filter((student) => student.grade === filterGrade);
 
+  const selectedStudent = filteredStudents.find((student) => student._id === selectedStudentId) || null;
+
+  const openStudentDetails = (student) => {
+    setSelectedStudentId(student._id);
+  };
+
   return (
     <div className="min-h-screen bg-transparent pb-10">
       <Navbar />
@@ -175,7 +182,42 @@ export default function Registrar() {
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <div className="space-y-3 sm:hidden">
+              {filteredStudents.map((std) => (
+                <div key={std._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                  <button
+                    type="button"
+                    onClick={() => openStudentDetails(std)}
+                    className="w-full text-left"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">ID</div>
+                        <div className="mt-1 font-semibold text-blue-700">{std.studentId}</div>
+                      </div>
+                      <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">View details</span>
+                    </div>
+                    <div className="mt-4 grid gap-2 text-sm text-slate-700">
+                      <div><span className="font-semibold text-slate-900">Name:</span> {std.user?.name}</div>
+                      <div><span className="font-semibold text-slate-900">Grade:</span> {std.grade}</div>
+                    </div>
+                  </button>
+                  <div className="mt-4 flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteStudent(std)}
+                      disabled={deletingStudentId === std._id}
+                      className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingStudentId === std._id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredStudents.length === 0 && <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">No students found for this grade.</div>}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
               <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
                 <thead>
                   <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
@@ -194,14 +236,23 @@ export default function Registrar() {
                       <td className="px-4 py-4 text-slate-500">{std.user?.email}</td>
                       <td className="px-4 py-4 font-medium text-slate-700">{std.grade}</td>
                       <td className="px-4 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteStudent(std)}
-                          disabled={deletingStudentId === std._id}
-                          className="rounded-full bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
-                        >
-                          {deletingStudentId === std._id ? 'Deleting…' : 'Delete'}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openStudentDetails(std)}
+                            className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                          >
+                            View details
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteStudent(std)}
+                            disabled={deletingStudentId === std._id}
+                            className="rounded-full bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {deletingStudentId === std._id ? 'Deleting…' : 'Delete'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -213,6 +264,73 @@ export default function Registrar() {
                 </tbody>
               </table>
             </div>
+
+            {selectedStudent && (
+              <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
+                <div className="flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">Student details</p>
+                    <h3 className="mt-1 text-xl font-bold text-slate-900">{selectedStudent.user?.name || 'Selected student'}</h3>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStudentId('')}
+                    className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                  >
+                    Close
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Student ID</div>
+                    <div className="mt-1 font-semibold text-slate-900">{selectedStudent.studentId}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Grade</div>
+                    <div className="mt-1 font-semibold text-slate-900">{selectedStudent.grade || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Email</div>
+                    <div className="mt-1 font-semibold text-slate-900">{selectedStudent.user?.email || '—'}</div>
+                  </div>
+                  <div className="rounded-2xl bg-white px-4 py-3">
+                    <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Enrollment Date</div>
+                    <div className="mt-1 font-semibold text-slate-900">
+                      {selectedStudent.enrollmentDate ? new Date(selectedStudent.enrollmentDate).toLocaleDateString() : '—'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                  <div className="rounded-2xl bg-white px-4 py-4">
+                    <div className="text-sm font-bold text-slate-900">Personal details</div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <div><span className="font-semibold text-slate-900">Gender:</span> {selectedStudent.personalDetails?.gender || '—'}</div>
+                      <div><span className="font-semibold text-slate-900">Phone:</span> {selectedStudent.personalDetails?.phone || '—'}</div>
+                      <div><span className="font-semibold text-slate-900">Address:</span> {selectedStudent.personalDetails?.address || '—'}</div>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-white px-4 py-4">
+                    <div className="text-sm font-bold text-slate-900">Family background</div>
+                    <div className="mt-3 space-y-2 text-sm text-slate-700">
+                      <div><span className="font-semibold text-slate-900">Father:</span> {selectedStudent.familyBackground?.fatherName || '—'}</div>
+                      <div><span className="font-semibold text-slate-900">Mother:</span> {selectedStudent.familyBackground?.motherName || '—'}</div>
+                      <div><span className="font-semibold text-slate-900">Guardian:</span> {selectedStudent.familyBackground?.guardianName || '—'}</div>
+                      <div><span className="font-semibold text-slate-900">Occupation:</span> {selectedStudent.familyBackground?.occupation || '—'}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedStudent.familyBackground?.notes && (
+                  <div className="mt-4 rounded-2xl bg-white px-4 py-4">
+                    <div className="text-sm font-bold text-slate-900">Notes</div>
+                    <p className="mt-2 text-sm text-slate-700">{selectedStudent.familyBackground.notes}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

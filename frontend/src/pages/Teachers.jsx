@@ -166,7 +166,34 @@ export default function Teachers() {
               <h2 className="mt-2 text-2xl font-bold text-slate-900">Registered Teachers</h2>
             </div>
 
-            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+            <div className="space-y-3 sm:hidden">
+              {teachers.map((teacher) => (
+                <div key={teacher._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">ID</div>
+                      <div className="mt-1 font-semibold text-blue-700">{teacher.teacherId}</div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteTeacher(teacher)}
+                      disabled={deletingTeacherId === teacher._id}
+                      className="rounded-full bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {deletingTeacherId === teacher._id ? 'Deleting…' : 'Delete'}
+                    </button>
+                  </div>
+                  <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                    <div><span className="font-semibold text-slate-900">Name:</span> {teacher.user?.name}</div>
+                    <div><span className="font-semibold text-slate-900">Subject:</span> {teacher.subject}</div>
+                    <div><span className="font-semibold text-slate-900">Email:</span> {teacher.user?.email || '—'}</div>
+                  </div>
+                </div>
+              ))}
+              {!hasTeachers && <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">No teachers registered yet.</div>}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
               <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
                 <thead>
                   <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">

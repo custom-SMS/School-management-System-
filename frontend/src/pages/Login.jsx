@@ -10,6 +10,12 @@ export default function Login() {
   const { login } = useContext(AuthContext);
   const navigate = useNavigate();
 
+  const testAccounts = [
+    { label: 'Student', identifier: 'STU-0002', password: 'b90fea69' },
+    { label: 'Teacher', identifier: 'TCH-0002', password: 'd1fc095d' },
+    { label: 'Admin', identifier: 'admin@sms.com', password: 'password123' },
+  ];
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -56,6 +62,26 @@ export default function Login() {
             </div>
 
             {error && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div>}
+
+            <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Test login shortcuts</div>
+              <div className="grid gap-2 sm:grid-cols-3">
+                {testAccounts.map((account) => (
+                  <button
+                    key={account.label}
+                    type="button"
+                    onClick={() => {
+                      setIdentifier(account.identifier);
+                      setPassword(account.password);
+                      setError('');
+                    }}
+                    className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    {account.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
               <div>
