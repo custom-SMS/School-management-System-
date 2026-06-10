@@ -3,7 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 
-export default function Navbar() {
+export default function Navbar({ actionsDisabled = false, onAction = () => {} } = {}) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const profileMenuRef = useRef(null);
@@ -14,6 +14,7 @@ export default function Navbar() {
   const [profileError, setProfileError] = useState('');
 
   const handleLogout = () => {
+    onAction();
     setMobileMenuOpen(false);
     logout();
     navigate('/login');
@@ -119,12 +120,21 @@ export default function Navbar() {
           </Link>
           <button
             type="button"
-            onClick={() => setMobileMenuOpen((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15"
+            onClick={() => {
+              onAction();
+              setMobileMenuOpen((current) => !current);
+            }}
+            disabled={actionsDisabled}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-nav-menu"
           >
             <span>{mobileMenuOpen ? 'Close' : 'Menu'}</span>
+            {actionsDisabled && (
+              <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/85">
+                Pending
+              </span>
+            )}
             <span aria-hidden="true">☰</span>
           </button>
         </div>
@@ -150,10 +160,19 @@ export default function Navbar() {
           <div className="relative flex items-center gap-3" ref={profileMenuRef}>
             <button
               type="button"
-              onClick={() => user.role === 'Student' && setProfileOpen((current) => !current)}
-              className={`flex h-10 items-center rounded-full border border-white/10 bg-white/10 px-4 text-sm font-medium text-white/80 transition ${user.role === 'Student' ? 'hover:bg-white/10 hover:text-white' : 'cursor-default'}`}
+              onClick={() => {
+                onAction();
+                if (user.role === 'Student') setProfileOpen((current) => !current);
+              }}
+              disabled={actionsDisabled || user.role !== 'Student'}
+              className={`flex h-10 items-center rounded-full border border-white/10 bg-white/10 px-4 text-sm font-medium text-white/80 transition ${user.role === 'Student' ? 'hover:bg-white/10 hover:text-white' : 'cursor-default'} disabled:cursor-not-allowed disabled:opacity-60`}
             >
               {user.name} <span className="text-white/50">•</span> {user.role}
+              {actionsDisabled && (
+                <span className="ml-2 rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/85">
+                  Pending
+                </span>
+              )}
             </button>
 
             {user.role === 'Student' && profileOpen && (
@@ -197,8 +216,14 @@ export default function Navbar() {
 
             <button
               onClick={handleLogout}
-              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-slate-100"
+              disabled={actionsDisabled}
+              className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
+              {actionsDisabled && (
+                <span className="mr-2 rounded-full bg-slate-900/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-700">
+                  Pending
+                </span>
+              )}
               Logout
             </button>
           </div>
@@ -217,10 +242,21 @@ export default function Navbar() {
           {user.role === 'Student' && (
             <button
               type="button"
-              onClick={() => setProfileOpen((current) => !current)}
-              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white"
+              onClick={() => {
+                onAction();
+                setProfileOpen((current) => !current);
+              }}
+              disabled={actionsDisabled}
+              className="flex w-full items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-left text-sm font-medium text-white/80 transition hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
-              <span>Student Profile</span>
+              <span className="inline-flex items-center gap-2">
+                <span>Student Profile</span>
+                {actionsDisabled && (
+                  <span className="rounded-full bg-white/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/85">
+                    Pending
+                  </span>
+                )}
+              </span>
               <span aria-hidden="true">{profileOpen ? '−' : '+'}</span>
             </button>
           )}
@@ -246,7 +282,7 @@ export default function Navbar() {
             </div>
           )}
 
-          <button onClick={handleLogout} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900">
+          <button onClick={handleLogout} disabled={actionsDisabled} className="w-full rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 disabled:cursor-not-allowed disabled:opacity-60">
             Logout
           </button>
         </div>

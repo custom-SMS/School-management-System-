@@ -85,6 +85,8 @@ export default function RegisterStudentEnhanced() {
   const [guardianCredentials, setGuardianCredentials] = useState<
     GuardianCredential[]
   >([]);
+  const [buttonsLocked, setButtonsLocked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const fetchFees = async () => {
@@ -100,6 +102,11 @@ export default function RegisterStudentEnhanced() {
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    if (buttonsLocked || isSubmitting) return;
+
+    setButtonsLocked(true);
+    setIsSubmitting(true);
     try {
       const activeGuardians = guardianContacts.filter(
         (guardian) => guardian.fullName || guardian.email || guardian.phone,
@@ -147,6 +154,8 @@ export default function RegisterStudentEnhanced() {
     } catch (err: unknown) {
       const error = err as ApiError;
       toast.error(error.response?.data?.message || "Error occurred");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -192,9 +201,18 @@ export default function RegisterStudentEnhanced() {
     );
   };
 
+  const isLocked = buttonsLocked || isSubmitting;
+
+  const lockButtons = () => {
+    setButtonsLocked(true);
+  };
+
   return (
     <div className="min-h-screen bg-transparent">
-      <Navbar />
+      <Navbar
+        actionsDisabled={buttonsLocked || isSubmitting}
+        onAction={lockButtons}
+      />
       <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="overflow-hidden rounded-4xl border border-white/50 bg-white/75 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl">
           <div className="grid lg:grid-cols-[0.95fr_1.05fr]">
@@ -210,7 +228,7 @@ export default function RegisterStudentEnhanced() {
                 password automatically.
               </p>
 
-              {/* <div className="mt-8 space-y-4">
+              <div className="mt-8 space-y-4">
                 {gradeFees.slice(0, 3).map((gf) => (
                   <div
                     key={gf._id}
@@ -229,7 +247,7 @@ export default function RegisterStudentEnhanced() {
                     No fee rules configured yet.
                   </div>
                 )}
-              </div> */}
+              </div>
             </div>
 
             <div className="p-6 sm:p-10 lg:p-12">
@@ -471,10 +489,21 @@ export default function RegisterStudentEnhanced() {
                       </h4>
                       <button
                         type="button"
-                        onClick={addGuardian}
-                        className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100"
+                        onClick={() => {
+                          lockButtons();
+                          addGuardian();
+                        }}
+                        disabled={isLocked}
+                        className="rounded-full border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
                       >
-                        Add guardian
+                        <span className="inline-flex items-center gap-2">
+                          Add guardian
+                          {isLocked && (
+                            <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+                              Pending
+                            </span>
+                          )}
+                        </span>
                       </button>
                     </div>
                   </div>
@@ -507,10 +536,21 @@ export default function RegisterStudentEnhanced() {
                           {guardianContacts.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => removeGuardian(index)}
-                              className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50"
+                              onClick={() => {
+                                lockButtons();
+                                removeGuardian(index);
+                              }}
+                              disabled={isLocked}
+                              className="rounded-full border border-rose-200 bg-white px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              Remove
+                              <span className="inline-flex items-center gap-2">
+                                Remove
+                                {isLocked && (
+                                  <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+                                    Pending
+                                  </span>
+                                )}
+                              </span>
                             </button>
                           )}
                         </div>
@@ -600,9 +640,27 @@ export default function RegisterStudentEnhanced() {
 
                 <button
                   type="submit"
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-500"
+                  onClick={lockButtons}
+                  disabled={isLocked}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  Register Student
+                  {isSubmitting ? (
+                    <span className="inline-flex items-center gap-2">
+                      Registering...
+                      <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                        Pending
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2">
+                      Register Student
+                      {buttonsLocked && (
+                        <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+                          Pending
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </button>
               </form>
             </div>
