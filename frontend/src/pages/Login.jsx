@@ -11,9 +11,9 @@ export default function Login() {
   const navigate = useNavigate();
 
   const testAccounts = [
-    { label: 'Student', identifier: 'STU-0002', password: 'b90fea69' },
+    { label: 'Student', identifier: 'STU-0001', password: '53275306' },
     { label: 'Teacher', identifier: 'TCH-0002', password: 'd1fc095d' },
-    { label: 'Admin', identifier: 'admin@sms.com', password: 'password123' },
+    { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
   ];
 
   const handleSubmit = async (e) => {
