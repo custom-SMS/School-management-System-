@@ -1,11 +1,4 @@
-const Student = require('../models/Student');
-const Fee = require('../models/Fee');
-const Attendance = require('../models/Attendance');
-const Grade = require('../models/Grade');
-const Parent = require('../models/Parent');
-const Class = require('../models/Class');
-const Teacher = require('../models/Teacher');
-const TeacherAssignment = require('../models/TeacherAssignment');
+const prisma = require('../prisma');
 
 const normalizeClassLabel = (value) => {
   const label = String(value ?? '').trim();
@@ -35,66 +28,79 @@ const compareClassLabels = (left, right) => {
 const getAdminStats = async (req, res) => {
   try {
     // 1. Total Students
-    const totalStudents = await Student.countDocuments();
+    const totalStudents = await prisma.student.count();
 
-    const studentsByClassRaw = await Student.aggregate([
-      {
-        $group: {
-          _id: '$grade',
-          count: { $sum: 1 },
-        },
-      },
-    ]);
+    const studentsByClassRaw = await prisma.student.groupBy({
+      by: ['grade'],
+      _count: {
+        _all: true
+      }
+    });
 
     const studentsByClass = studentsByClassRaw
       .map((entry) => ({
-        className: normalizeClassLabel(entry._id),
-        studentCount: entry.count,
+        className: normalizeClassLabel(entry.grade),
+        studentCount: entry._count._all,
       }))
       .sort((left, right) => compareClassLabels(left.className, right.className));
 
-    // 2. Total Revenue (sum of all fees)
-    // Using aggregation to sum the `amount` field where paid is true
-    const revenueStats = await Fee.aggregate([
-      { $match: { paid: true } },
-      { $group: { _id: null, totalRevenue: { $sum: '$amount' } } }
-    ]);
-    const totalRevenue = revenueStats.length > 0 ? revenueStats[0].totalRevenue : 0;
+    // 2. Total Revenue (sum of all fees where paid is true)
+    const revenueStats = await prisma.fee.aggregate({
+      where: { paid: true },
+      _sum: {
+        amount: true
+      }
+    });
+    const totalRevenue = revenueStats._sum.amount || 0;
 
     // 3. Today's Attendance (Let's count how many present today)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const attendancesToday = await Attendance.find({
-      date: { $gte: today }
+    const attendancesToday = await prisma.attendance.findMany({
+      where: {
+        date: { gte: today }
+      },
+      include: {
+        records: true
+      }
     });
 
     let presentCount = 0;
     let totalCount = 0;
     attendancesToday.forEach(att => {
-      att.records.forEach(record => {
+      (att.records || []).forEach(record => {
         totalCount++;
         if (record.status === 'Present') presentCount++;
       });
     });
     
-    // We can just return the raw numbers or a percentage
-    const classAttendance = await Attendance.aggregate([
-      {
-        $group: {
-          _id: '$class',
-          sessions: { $sum: 1 },
-          records: { $push: '$records' },
-        }
+    // Group attendance records by class in memory
+    const attendancesAll = await prisma.attendance.findMany({
+      include: {
+        records: true
       }
-    ]);
+    });
+
+    const classAttendanceMap = new Map();
+    attendancesAll.forEach(att => {
+      const classId = att.classId;
+      if (!classAttendanceMap.has(classId)) {
+        classAttendanceMap.set(classId, { classId, sessions: 0, records: [] });
+      }
+      const group = classAttendanceMap.get(classId);
+      group.sessions += 1;
+      group.records.push(...(att.records || []));
+    });
+
+    const classAttendance = Array.from(classAttendanceMap.values());
 
     const attendanceSummary = classAttendance.map((entry) => {
-      const records = entry.records.flat();
+      const records = entry.records;
       const checked = records.length;
       const present = records.filter((record) => record.status === 'Present').length;
       return {
-        classId: entry._id,
+        classId: entry.classId,
         className: 'Unknown class',
         sessions: entry.sessions,
         checked,
@@ -103,19 +109,28 @@ const getAdminStats = async (req, res) => {
       };
     });
 
-    const classes = await Class.find().select('name');
+    const classes = await prisma.class.findMany({
+      select: { id: true, name: true }
+    });
     const classNameById = new Map(
-      classes.map((classDoc) => [classDoc._id.toString(), normalizeClassLabel(classDoc.name)]),
+      classes.map((classDoc) => [classDoc.id, normalizeClassLabel(classDoc.name)]),
     );
 
     attendanceSummary.forEach((entry) => {
-      const className = classNameById.get(entry.classId?.toString()) || 'Unknown class';
+      const className = classNameById.get(entry.classId) || 'Unknown class';
       entry.className = className;
     });
 
     attendanceSummary.sort((left, right) => compareClassLabels(left.className, right.className));
 
-    const feeRecords = await Fee.find().populate('student', 'grade');
+    const feeRecords = await prisma.fee.findMany({
+      include: {
+        student: {
+          select: { grade: true }
+        }
+      }
+    });
+    
     const feeSummaryMap = new Map();
     let totalPendingRevenue = 0;
 
@@ -177,26 +192,38 @@ const getAdminStats = async (req, res) => {
 // @access  Private (Student)
 const getStudentPortalStats = async (req, res) => {
   try {
-    // req.user has _id from the JWT token
-    const student = await Student.findOne({ user: req.user._id })
-      .populate('user', 'name email')
-      .populate('guardianContacts.parent');
+    const student = await prisma.student.findUnique({
+      where: { userId: req.user._id },
+      include: {
+        user: { select: { id: true, name: true, email: true } }
+      }
+    });
     
     if (!student) {
       return res.status(404).json({ message: 'Student Profile not found' });
     }
 
-    const grades = await Grade.find({ student: student._id });
-    const fees = await Fee.find({ student: student._id }).sort({ createdAt: -1 });
+    const grades = await prisma.grade.findMany({
+      where: { studentId: student.id }
+    });
+    
+    const fees = await prisma.fee.findMany({
+      where: { studentId: student.id },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    // 1. Get all attendance records where this student is mentioned so the rate reflects the full data set
-    // 2. Keep a limited list for the dashboard table
-    const allAttendanceRecords = await Attendance.find({
-      'records.student': student._id,
-    }).sort({ date: -1 });
+    const allAttendanceRecords = await prisma.attendance.findMany({
+      where: {
+        records: {
+          some: { studentId: student.id }
+        }
+      },
+      include: { records: true },
+      orderBy: { date: 'desc' }
+    });
 
     const studentAttendance = allAttendanceRecords.map((record) => {
-      const myRecord = record.records.find((r) => r.student.toString() === student._id.toString());
+      const myRecord = record.records.find((r) => r.studentId === student.id);
       return {
         date: record.date,
         status: myRecord ? myRecord.status : 'Unknown',
@@ -217,13 +244,38 @@ const getStudentPortalStats = async (req, res) => {
       return fee.paid ? sum : sum + Number(fee.amount || 0);
     }, 0);
 
+    const mappedGrades = grades.map(g => ({
+      ...g,
+      _id: g.id,
+      student: g.studentId,
+      class: g.classId,
+      teacher: g.teacherId,
+      marks: {
+        test: g.test,
+        midterm: g.midterm,
+        final: g.final
+      }
+    }));
+
+    const mappedFees = fees.map(f => ({
+      ...f,
+      _id: f.id,
+      student: f.studentId
+    }));
+
+    const responseStudent = {
+      ...student,
+      _id: student.id,
+      user: student.user ? { ...student.user, _id: student.user.id } : null
+    };
+
     res.status(200).json({
-      profile: student,
+      profile: responseStudent,
       studentId: student.studentId,
       grade: student.grade,
-      grades,
+      grades: mappedGrades,
       gradesCount: grades.length,
-      fees,
+      fees: mappedFees,
       totalFees: pendingFees,
       attendance: recentAttendance,
       attendanceCount: recentAttendance.length,
@@ -247,39 +299,53 @@ const getStudentPortalStats = async (req, res) => {
 // @access  Private (Teacher)
 const getTeacherPortalStats = async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({ user: req.user._id }).populate('user', 'name email role');
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: req.user._id },
+      include: {
+        user: { select: { id: true, name: true, email: true, role: true } }
+      }
+    });
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    const assignedClassDocs = await Class.find({ teacher: teacher._id })
-      .populate({
-        path: 'students',
-        select: 'studentId grade user',
-        populate: { path: 'user', select: 'name email' },
-      })
-      .sort({ createdAt: -1 });
-
-    const assignmentDocs = await TeacherAssignment.find({ teacher: teacher._id }).populate({
-      path: 'class',
-      select: 'name subject students',
-      populate: {
-        path: 'students',
-        select: 'studentId grade user',
-        populate: { path: 'user', select: 'name email' },
+    const assignedClassDocs = await prisma.class.findMany({
+      where: { teacherId: teacher.id },
+      include: {
+        students: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
       },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const assignmentDocs = await prisma.teacherAssignment.findMany({
+      where: { teacherId: teacher.id },
+      include: {
+        class: {
+          include: {
+            students: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          }
+        }
+      }
     });
 
     const classMap = new Map();
 
     assignedClassDocs.forEach((klass) => {
-      classMap.set(klass._id.toString(), klass);
+      classMap.set(klass.id, klass);
     });
 
     assignmentDocs.forEach((assignment) => {
-      if (assignment.class?._id) {
-        classMap.set(assignment.class._id.toString(), assignment.class);
+      if (assignment.class?.id) {
+        classMap.set(assignment.class.id, assignment.class);
       }
     });
 
@@ -288,20 +354,22 @@ const getTeacherPortalStats = async (req, res) => {
     );
 
     const classSummaries = await Promise.all(classes.map(async (klass) => {
-      const attendanceRecords = await Attendance.find({ class: klass._id }).sort({ date: -1 });
-      const classGrades = await Grade.find({ class: klass._id, teacher: req.user._id })
-        .populate({
-          path: 'student',
-          select: 'studentId grade user',
-          populate: { path: 'user', select: 'name email' },
-        })
-        .sort({ createdAt: -1 });
+      const attendanceRecords = await prisma.attendance.findMany({
+        where: { classId: klass.id },
+        include: { records: true },
+        orderBy: { date: 'desc' }
+      });
+
+      const classGrades = await prisma.grade.findMany({
+        where: { classId: klass.id, teacherId: req.user._id },
+        orderBy: { createdAt: 'desc' }
+      });
 
       let attendanceTotal = 0;
       let attendancePresent = 0;
 
       attendanceRecords.forEach((record) => {
-        record.records.forEach((entry) => {
+        (record.records || []).forEach((entry) => {
           attendanceTotal += 1;
           if (entry.status === 'Present') {
             attendancePresent += 1;
@@ -314,7 +382,7 @@ const getTeacherPortalStats = async (req, res) => {
         : 0;
 
       return {
-        classId: klass._id,
+        classId: klass.id,
         className: normalizeClassLabel(klass.name),
         subject: normalizeClassLabel(klass.subject),
         studentCount: klass.students?.length || 0,
@@ -327,29 +395,37 @@ const getTeacherPortalStats = async (req, res) => {
     }));
 
     const assignedStudentsCount = new Set(
-      classes.flatMap((klass) => (klass.students || []).map((student) => student?._id?.toString()).filter(Boolean)),
+      classes.flatMap((klass) => (klass.students || []).map((student) => student?.id).filter(Boolean)),
     ).size;
 
-    const grades = await Grade.find({ teacher: req.user._id })
-      .populate({
-        path: 'student',
-        select: 'studentId grade user',
-        populate: { path: 'user', select: 'name email' },
-      })
-      .populate({
-        path: 'class',
-        select: 'name subject',
-      })
-      .sort({ createdAt: -1 })
-      .limit(8);
+    const grades = await prisma.grade.findMany({
+      where: { teacherId: req.user._id },
+      include: {
+        student: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
+        class: { select: { id: true, name: true, subject: true } }
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 8
+    });
 
-    const attendanceDocs = await Attendance.find({ class: { $in: classes.map((klass) => klass._id) } })
-      .populate('class', 'name subject')
-      .sort({ date: -1 })
-      .limit(8);
+    const attendanceDocs = await prisma.attendance.findMany({
+      where: {
+        classId: { in: classes.map((klass) => klass.id) }
+      },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        records: true
+      },
+      orderBy: { date: 'desc' },
+      take: 8
+    });
 
     const recentGrades = grades.map((grade) => ({
-      gradeId: grade._id,
+      gradeId: grade.id,
       studentName: grade.student?.user?.name || 'Student',
       studentId: grade.student?.studentId || '—',
       className: grade.class?.name || '—',
@@ -360,13 +436,13 @@ const getTeacherPortalStats = async (req, res) => {
     }));
 
     const recentAttendance = attendanceDocs.map((attendance) => {
-      const present = attendance.records.filter((record) => record.status === 'Present').length;
+      const present = (attendance.records || []).filter((record) => record.status === 'Present').length;
       return {
-        attendanceId: attendance._id,
+        attendanceId: attendance.id,
         className: attendance.class?.name || '—',
         date: attendance.date,
         present,
-        total: attendance.records.length,
+        total: (attendance.records || []).length,
       };
     });
 
@@ -377,7 +453,7 @@ const getTeacherPortalStats = async (req, res) => {
       : 0;
 
     res.status(200).json({
-      teacher: teacher.user,
+      teacher: teacher.user ? { ...teacher.user, _id: teacher.user.id } : null,
       teacherId: teacher.teacherId,
       subject: teacher.subject,
       assignedClassesCount: classes.length,
@@ -396,8 +472,12 @@ const getTeacherPortalStats = async (req, res) => {
 
 const getParentPortalStats = async (req, res) => {
   try {
-    const parent = await Parent.findOne({ user: req.user._id })
-      .populate('children');
+    const parent = await prisma.parent.findUnique({
+      where: { userId: req.user._id },
+      include: {
+        children: true
+      }
+    });
 
     if (!parent) {
       return res.status(404).json({ message: 'Parent profile not found' });
@@ -406,28 +486,73 @@ const getParentPortalStats = async (req, res) => {
     const children = [];
 
     for (const child of parent.children) {
-      const childStudent = await Student.findById(child._id).populate('user', 'name email');
+      const childStudent = await prisma.student.findUnique({
+        where: { id: child.id },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      });
       if (!childStudent) continue;
 
-      const grades = await Grade.find({ student: childStudent._id });
-      const fees = await Fee.find({ student: childStudent._id }).sort({ createdAt: -1 });
-      const attendanceRecords = await Attendance.find({ 'records.student': childStudent._id }).sort({ date: -1 }).limit(30);
+      const grades = await prisma.grade.findMany({
+        where: { studentId: childStudent.id }
+      });
+      
+      const fees = await prisma.fee.findMany({
+        where: { studentId: childStudent.id },
+        orderBy: { createdAt: 'desc' }
+      });
+      
+      const attendanceRecords = await prisma.attendance.findMany({
+        where: {
+          records: {
+            some: { studentId: childStudent.id }
+          }
+        },
+        include: { records: true },
+        orderBy: { date: 'desc' },
+        take: 30
+      });
 
       const attendance = attendanceRecords.map((record) => {
-        const myRecord = record.records.find((r) => r.student.toString() === childStudent._id.toString());
+        const myRecord = record.records.find((r) => r.studentId === childStudent.id);
         return { date: record.date, status: myRecord ? myRecord.status : 'Unknown' };
       });
 
+      const mappedGrades = grades.map(g => ({
+        ...g,
+        _id: g.id,
+        student: g.studentId,
+        class: g.classId,
+        teacher: g.teacherId,
+        marks: {
+          test: g.test,
+          midterm: g.midterm,
+          final: g.final
+        }
+      }));
+
+      const mappedFees = fees.map(f => ({
+        ...f,
+        _id: f.id,
+        student: f.studentId
+      }));
+
       children.push({
-        profile: childStudent,
-        grades,
-        fees,
+        profile: {
+          ...childStudent,
+          _id: childStudent.id,
+          user: childStudent.user ? { ...childStudent.user, _id: childStudent.user.id } : null
+        },
+        grades: mappedGrades,
+        fees: mappedFees,
         attendance,
       });
     }
 
     res.json({
-      parent,
+      parent: {
+        ...parent,
+        _id: parent.id
+      },
       children,
     });
   } catch (error) {
@@ -435,4 +560,4 @@ const getParentPortalStats = async (req, res) => {
   }
 };
 
-module.exports = { getAdminStats, getStudentPortalStats, getParentPortalStats, getTeacherPortalStats };
+module.exports = { getAdminStats, getStudentPortalStats, getParentPortalStats, getTeacherPortalStats };

@@ -1,12 +1,9 @@
-const User = require('../models/User');
-const Teacher = require('../models/Teacher');
-const Class = require('../models/Class');
-const TeacherAssignment = require('../models/TeacherAssignment');
+const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const generateTeacherId = async () => {
-  const count = await Teacher.countDocuments();
+  const count = await prisma.teacher.count();
   return `TCH-${(count + 1).toString().padStart(4, '0')}`;
 };
 
@@ -21,7 +18,9 @@ const registerTeacher = async (req, res) => {
     }
 
     if (email) {
-      const existingUser = await User.findOne({ email });
+      const existingUser = await prisma.user.findFirst({
+        where: { email }
+      });
       if (existingUser) {
         return res.status(400).json({ message: 'Email already exists' });
       }
@@ -31,22 +30,38 @@ const registerTeacher = async (req, res) => {
     const plainPassword = password || generatePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    const user = await User.create({
-      name,
-      email: email || undefined,
-      password: hashedPassword,
-      role: 'Teacher',
+    const teacher = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email: email || null,
+          password: hashedPassword,
+          role: 'Teacher',
+        }
+      });
+
+      return tx.teacher.create({
+        data: {
+          userId: user.id,
+          teacherId,
+          subject,
+        },
+        include: { user: true }
+      });
     });
 
-    const teacher = await Teacher.create({
-      user: user._id,
-      teacherId,
-      subject,
-    });
+    const responseTeacher = {
+      ...teacher,
+      _id: teacher.id,
+      user: {
+        ...teacher.user,
+        _id: teacher.user.id
+      }
+    };
 
     res.status(201).json({
       message: 'Teacher registered successfully',
-      teacher,
+      teacher: responseTeacher,
       credentials: {
         teacherId,
         password: plainPassword,
@@ -59,11 +74,29 @@ const registerTeacher = async (req, res) => {
 
 const getTeachers = async (req, res) => {
   try {
-    const teachers = await Teacher.find()
-      .populate('user', 'name email role')
-      .sort({ hireDate: -1 });
+    const teachers = await prisma.teacher.findMany({
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      },
+      orderBy: {
+        hireDate: 'desc'
+      }
+    });
 
-    res.json(teachers);
+    const responseTeachers = teachers.map(t => ({
+      ...t,
+      _id: t.id,
+      user: t.user ? { ...t.user, _id: t.user.id } : null
+    }));
+
+    res.json(responseTeachers);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -75,21 +108,38 @@ const getTeachers = async (req, res) => {
 const deleteTeacher = async (req, res) => {
   try {
     const { id } = req.params;
-    const teacher = await Teacher.findById(id).populate('user', 'name email role');
+    const teacher = await prisma.teacher.findUnique({
+      where: { id },
+      include: { user: true }
+    });
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
     }
 
-    await Promise.all([
-      Class.updateMany(
-        { teacher: teacher._id },
-        { $unset: { teacher: '' } },
-      ),
-      TeacherAssignment.deleteMany({ teacher: teacher._id }),
-    ]);
+    await prisma.$transaction(async (tx) => {
+      // Unset teacher in Class records
+      await tx.class.updateMany({
+        where: { teacherId: teacher.id },
+        data: { teacherId: null }
+      });
 
-    await Teacher.findByIdAndDelete(teacher._id);
+      // Delete teacher assignments
+      await tx.teacherAssignment.deleteMany({
+        where: { teacherId: teacher.id }
+      });
+
+      // Delete User account (which cascades and deletes Teacher)
+      if (teacher.userId) {
+        await tx.user.delete({
+          where: { id: teacher.userId }
+        });
+      } else {
+        await tx.teacher.delete({
+          where: { id: teacher.id }
+        });
+      }
+    });
 
     res.status(200).json({ message: 'Teacher deleted successfully' });
   } catch (error) {
@@ -97,4 +147,4 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-module.exports = { registerTeacher, getTeachers, deleteTeacher };
+module.exports = { registerTeacher, getTeachers, deleteTeacher };

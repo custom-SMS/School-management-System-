@@ -1,7 +1,4 @@
-const User = require('../models/User');
-const Student = require('../models/Student');
-const Teacher = require('../models/Teacher');
-const Parent = require('../models/Parent');
+const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -16,25 +13,36 @@ const login = async (req, res) => {
     let parentProfile = null;
 
     if (loginValue) {
-      user = await User.findOne({ email: loginValue });
+      user = await prisma.user.findFirst({
+        where: { email: loginValue }
+      });
     }
 
     if (!user && loginValue) {
-      studentProfile = await Student.findOne({ studentId: loginValue }).populate('user');
+      studentProfile = await prisma.student.findFirst({
+        where: { studentId: loginValue },
+        include: { user: true }
+      });
       if (studentProfile) {
         user = studentProfile.user;
       }
     }
 
     if (!user && loginValue) {
-      teacherProfile = await Teacher.findOne({ teacherId: loginValue }).populate('user');
+      teacherProfile = await prisma.teacher.findFirst({
+        where: { teacherId: loginValue },
+        include: { user: true }
+      });
       if (teacherProfile) {
         user = teacherProfile.user;
       }
     }
 
     if (!user && loginValue) {
-      parentProfile = await Parent.findOne({ parentId: loginValue }).populate('user');
+      parentProfile = await prisma.parent.findFirst({
+        where: { parentId: loginValue },
+        include: { user: true }
+      });
       if (parentProfile) {
         user = parentProfile.user;
       }
@@ -52,30 +60,36 @@ const login = async (req, res) => {
 
     // 3. Create and assign a token
     const token = jwt.sign(
-      { _id: user._id, role: user.role },
+      { _id: user.id, role: user.role },
       process.env.JWT_SECRET || 'fallback_secret_key',
       { expiresIn: '1d' }
     );
 
     const responseUser = {
-      _id: user._id,
+      _id: user.id,
       name: user.name,
       email: user.email,
       role: user.role,
     };
 
     if (user.role === 'Student') {
-      const student = studentProfile || await Student.findOne({ user: user._id });
+      const student = studentProfile || await prisma.student.findFirst({
+        where: { userId: user.id }
+      });
       if (student) responseUser.studentId = student.studentId;
     }
 
     if (user.role === 'Teacher') {
-      const teacher = teacherProfile || await Teacher.findOne({ user: user._id });
+      const teacher = teacherProfile || await prisma.teacher.findFirst({
+        where: { userId: user.id }
+      });
       if (teacher) responseUser.teacherId = teacher.teacherId;
     }
 
     if (user.role === 'Parent') {
-      const parent = parentProfile || await Parent.findOne({ user: user._id });
+      const parent = parentProfile || await prisma.parent.findFirst({
+        where: { userId: user.id }
+      });
       if (parent) responseUser.parentId = parent.parentId;
     }
 
@@ -101,25 +115,28 @@ const registerInitialAdmin = async (req, res) => {
   try {
     const { name, email, password } = req.body;
     
-    const existingUser = await User.findOne({ email });
+    const existingUser = await prisma.user.findFirst({
+      where: { email }
+    });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
     
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
     
-    const admin = new User({
-      name,
-      email,
-      password: hashedPassword,
-      role: 'Admin'
+    const admin = await prisma.user.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        role: 'Admin'
+      }
     });
     
-    await admin.save();
     res.status(201).json({ message: 'Admin user created successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = { login, logout, registerInitialAdmin };
+module.exports = { login, logout, registerInitialAdmin };

@@ -1,14 +1,37 @@
-const Teacher = require('../models/Teacher');
-const Class = require('../models/Class');
-const TeacherAssignment = require('../models/TeacherAssignment');
+const prisma = require('../prisma');
 
 const getAssignmentOptions = async (req, res) => {
   try {
-    const teachers = await Teacher.find().populate('user', 'name email');
-    const classes = await Class.find().sort({ name: 1 }).populate('teacher', 'teacherId').populate('students', 'studentId');
+    const teachers = await prisma.teacher.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } }
+      }
+    });
+
+    const classes = await prisma.class.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        teacher: { select: { teacherId: true } },
+        students: { select: { studentId: true } }
+      }
+    });
+
+    const mappedTeachers = teachers.map(t => ({
+      ...t,
+      _id: t.id,
+      user: t.user ? { ...t.user, _id: t.user.id } : null
+    }));
+
+    const mappedClasses = classes.map(c => ({
+      ...c,
+      _id: c.id,
+      teacher: c.teacher,
+      students: c.students.map(s => ({ _id: s.id, studentId: s.studentId }))
+    }));
+
     const specificClasses = Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`);
 
-    res.json({ teachers, classes, specificClasses });
+    res.json({ teachers: mappedTeachers, classes: mappedClasses, specificClasses });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -31,27 +54,35 @@ const createAssignment = async (req, res) => {
       return res.status(400).json({ message: 'At least one class is required' });
     }
 
-    const teacher = await Teacher.findById(teacherId);
+    const teacher = await prisma.teacher.findUnique({
+      where: { id: teacherId }
+    });
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
     }
 
-    const classes = normalizedClassIds.length ? await Class.find({ _id: { $in: normalizedClassIds } }) : [];
+    const classes = normalizedClassIds.length ? await prisma.class.findMany({
+      where: { id: { in: normalizedClassIds } }
+    }) : [];
     if (classes.length !== normalizedClassIds.length) {
       return res.status(404).json({ message: 'One or more classes were not found' });
     }
 
     const specificClassDocs = [];
     for (const className of normalizedSpecificClassNames) {
-      const existingClass = await Class.findOne({ name: className });
+      let existingClass = await prisma.class.findFirst({
+        where: { name: className }
+      });
       if (existingClass) {
         specificClassDocs.push(existingClass);
         continue;
       }
 
-      const createdClass = await Class.create({
-        name: className,
-        subject: 'General',
+      const createdClass = await prisma.class.create({
+        data: {
+          name: className,
+          subject: 'General',
+        }
       });
       specificClassDocs.push(createdClass);
     }
@@ -59,25 +90,39 @@ const createAssignment = async (req, res) => {
     const resolvedClasses = [...classes, ...specificClassDocs];
     const assignments = [];
     for (const selectedClass of resolvedClasses) {
-      const selectedClassId = selectedClass._id;
-      let assignment = await TeacherAssignment.findOne({ teacher: teacherId, class: selectedClassId });
+      const selectedClassId = selectedClass.id;
+      let assignment = await prisma.teacherAssignment.findFirst({
+        where: { teacherId, classId: selectedClassId }
+      });
 
       if (assignment) {
-        assignment.notes = notes;
-        await assignment.save();
+        assignment = await prisma.teacherAssignment.update({
+          where: { id: assignment.id },
+          data: { notes }
+        });
       } else {
-        assignment = await TeacherAssignment.create({
-          teacher: teacherId,
-          class: selectedClassId,
-          notes,
-          assignedBy: req.user._id,
+        assignment = await prisma.teacherAssignment.create({
+          data: {
+            teacherId,
+            classId: selectedClassId,
+            notes,
+            assignedById: req.user._id,
+          }
         });
       }
 
-      await Class.findByIdAndUpdate(selectedClassId, {
-        teacher: teacherId,
+      await prisma.class.update({
+        where: { id: selectedClassId },
+        data: { teacherId }
       });
-      assignments.push(assignment);
+      
+      assignments.push({
+        ...assignment,
+        _id: assignment.id,
+        teacher: assignment.teacherId,
+        class: assignment.classId,
+        assignedBy: assignment.assignedById
+      });
     }
 
     res.status(201).json({ message: 'Teacher assignment saved successfully', assignments });
@@ -88,23 +133,44 @@ const createAssignment = async (req, res) => {
 
 const getMyAssignments = async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({ user: req.user._id });
+    const teacher = await prisma.teacher.findUnique({
+      where: { userId: req.user._id }
+    });
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    const assignments = await TeacherAssignment.find({ teacher: teacher._id })
-      .populate({
-        path: 'class',
-        select: 'name subject schedule students',
-        populate: {
-          path: 'students',
-          select: 'studentId grade user',
-          populate: { path: 'user', select: 'name email' },
-        },
-      });
+    const assignments = await prisma.teacherAssignment.findMany({
+      where: { teacherId: teacher.id },
+      include: {
+        class: {
+          include: {
+            students: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          }
+        }
+      }
+    });
 
-    res.json(assignments);
+    const responseAssignments = assignments.map(assignment => ({
+      ...assignment,
+      _id: assignment.id,
+      teacher: assignment.teacherId,
+      class: assignment.class ? {
+        ...assignment.class,
+        _id: assignment.class.id,
+        students: (assignment.class.students || []).map(student => ({
+          ...student,
+          _id: student.id,
+          user: student.user ? { ...student.user, _id: student.user.id } : null
+        }))
+      } : null
+    }));
+
+    res.json(responseAssignments);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -112,22 +178,48 @@ const getMyAssignments = async (req, res) => {
 
 const getAllAssignments = async (req, res) => {
   try {
-    const assignments = await TeacherAssignment.find()
-      .populate({ path: 'teacher', populate: { path: 'user', select: 'name email' } })
-      .populate({
-        path: 'class',
-        select: 'name subject schedule students',
-        populate: {
-          path: 'students',
-          select: 'studentId grade user',
-          populate: { path: 'user', select: 'name email' },
+    const assignments = await prisma.teacherAssignment.find({
+      include: {
+        teacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
         },
-      });
+        class: {
+          include: {
+            students: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          }
+        }
+      }
+    });
 
-    res.json(assignments);
+    const responseAssignments = assignments.map(assignment => ({
+      ...assignment,
+      _id: assignment.id,
+      teacher: assignment.teacher ? {
+        ...assignment.teacher,
+        _id: assignment.teacher.id,
+        user: assignment.teacher.user ? { ...assignment.teacher.user, _id: assignment.teacher.user.id } : null
+      } : null,
+      class: assignment.class ? {
+        ...assignment.class,
+        _id: assignment.class.id,
+        students: (assignment.class.students || []).map(student => ({
+          ...student,
+          _id: student.id,
+          user: student.user ? { ...student.user, _id: student.user.id } : null
+        }))
+      } : null
+    }));
+
+    res.json(responseAssignments);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-module.exports = { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments };
+module.exports = { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments };

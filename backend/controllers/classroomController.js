@@ -1,76 +1,106 @@
-﻿const Attendance = require('../models/Attendance');
-const Grade = require('../models/Grade');
-const Class = require('../models/Class');
-const Teacher = require('../models/Teacher');
-const TeacherAssignment = require('../models/TeacherAssignment');
+const prisma = require('../prisma');
 
-const getTeacherProfile = async (userId) => Teacher.findOne({ user: userId });
-
-const populateClassRoster = {
-  path: 'students',
-  select: 'studentId grade user',
-  populate: {
-    path: 'user',
-    select: 'name email',
-  },
+const getTeacherProfile = async (userId) => {
+  return prisma.teacher.findUnique({
+    where: { userId }
+  });
 };
 
-const populateClassTeacher = {
-  path: 'teacher',
-  select: 'teacherId subject user',
-  populate: {
-    path: 'user',
-    select: 'name email',
+const mapGradeToResponse = (grade) => ({
+  _id: grade.id,
+  student: grade.studentId,
+  class: grade.classId,
+  subject: grade.subject,
+  teacher: grade.teacherId,
+  marks: {
+    test: grade.test,
+    midterm: grade.midterm,
+    final: grade.final
   },
-};
+  maxTotal: grade.maxTotal,
+  total: grade.total,
+  percentage: grade.percentage,
+  createdAt: grade.createdAt,
+  updatedAt: grade.updatedAt
+});
 
 const isTeacherAssignedToClass = async (teacherId, classId) => {
   if (!classId) return false;
-  const assignment = await TeacherAssignment.findOne({ teacher: teacherId, class: classId });
+  const assignment = await prisma.teacherAssignment.findFirst({
+    where: { teacherId, classId }
+  });
   if (assignment) return true;
 
-  const klass = await Class.findById(classId);
-  return !!klass && !!klass.teacher && klass.teacher.toString() === teacherId.toString();
+  const klass = await prisma.class.findUnique({
+    where: { id: classId }
+  });
+  return !!klass && !!klass.teacherId && klass.teacherId === teacherId;
 };
 
 const isTeacherAssignedToStudents = async (teacherId, studentIds = []) => {
   if (!studentIds.length) return false;
 
-  const assignments = await TeacherAssignment.find({ teacher: teacherId }).populate({
-    path: 'class',
-    select: 'students',
-    populate: {
-      path: 'students',
-      select: '_id',
-    },
+  const assignments = await prisma.teacherAssignment.findMany({
+    where: { teacherId },
+    include: {
+      class: {
+        include: {
+          students: { select: { id: true } }
+        }
+      }
+    }
   });
 
   const allowed = new Set();
   assignments.forEach((assignment) => {
     (assignment.class?.students || []).forEach((student) => {
-      if (student?._id) {
-        allowed.add(student._id.toString());
+      if (student?.id) {
+        allowed.add(student.id);
       }
     });
   });
 
-  return studentIds.every((studentId) => allowed.has(studentId.toString()));
+  return studentIds.every((studentId) => allowed.has(studentId));
 };
 
 const resolveTeacherClass = async (teacherId, classId, studentIds = []) => {
   if (classId && classId !== 'General') {
-    const klass = await Class.findById(classId);
+    const klass = await prisma.class.findUnique({
+      where: { id: classId }
+    });
     if (klass) return klass;
   }
 
-  const assignedClass = await Class.findOne({ teacher: teacherId });
+  const assignedClass = await prisma.class.findFirst({
+    where: { teacherId }
+  });
   if (assignedClass) return assignedClass;
 
-  return Class.findOneAndUpdate(
-    { name: 'Default', teacher: teacherId, subject: 'General' },
-    { name: 'Default', teacher: teacherId, subject: 'General', students: studentIds },
-    { upsert: true, new: true }
-  );
+  const defaultClass = await prisma.class.findFirst({
+    where: { name: 'Default', teacherId, subject: 'General' }
+  });
+
+  if (defaultClass) {
+    return prisma.class.update({
+      where: { id: defaultClass.id },
+      data: {
+        students: {
+          set: studentIds.map(id => ({ id }))
+        }
+      }
+    });
+  } else {
+    return prisma.class.create({
+      data: {
+        name: 'Default',
+        teacherId,
+        subject: 'General',
+        students: {
+          connect: studentIds.map(id => ({ id }))
+        }
+      }
+    });
+  }
 };
 
 // @desc    Get classroom options for grades/attendance screens
@@ -78,7 +108,7 @@ const resolveTeacherClass = async (teacherId, classId, studentIds = []) => {
 // @access  Private (Teacher/Admin)
 const getClassroomOptions = async (req, res) => {
   try {
-    let classesQuery = Class.find();
+    let where = {};
 
     if (req.user.role !== 'Admin') {
       const teacher = await getTeacherProfile(req.user._id);
@@ -86,15 +116,42 @@ const getClassroomOptions = async (req, res) => {
         return res.status(404).json({ message: 'Teacher profile not found' });
       }
 
-      classesQuery = Class.find({ teacher: teacher._id });
+      where = { teacherId: teacher.id };
     }
 
-    const classes = await classesQuery
-      .populate(populateClassTeacher)
-      .populate(populateClassRoster)
-      .sort({ createdAt: -1 });
+    const classes = await prisma.class.findMany({
+      where,
+      include: {
+        teacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
+        students: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
 
-    res.status(200).json({ classes });
+    const responseClasses = classes.map(c => ({
+      ...c,
+      _id: c.id,
+      teacher: c.teacher ? {
+        ...c.teacher,
+        _id: c.teacher.id,
+        user: c.teacher.user ? { ...c.teacher.user, _id: c.teacher.user.id } : null
+      } : null,
+      students: (c.students || []).map(student => ({
+        ...student,
+        _id: student.id,
+        user: student.user ? { ...student.user, _id: student.user.id } : null
+      }))
+    }));
+
+    res.status(200).json({ classes: responseClasses });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -109,11 +166,11 @@ const ensureTeacherAuthorization = async (req, classId, studentIds = []) => {
   }
 
   if (classId && classId !== 'General') {
-    const classAllowed = await isTeacherAssignedToClass(teacher._id, classId);
+    const classAllowed = await isTeacherAssignedToClass(teacher.id, classId);
     if (classAllowed) return { ok: true, teacher };
   }
 
-  const studentAllowed = await isTeacherAssignedToStudents(teacher._id, studentIds);
+  const studentAllowed = await isTeacherAssignedToStudents(teacher.id, studentIds);
   if (studentAllowed) return { ok: true, teacher };
 
   return { ok: false, status: 403, message: 'Access denied. Students/classes are not assigned to this teacher.' };
@@ -133,16 +190,39 @@ const recordAttendance = async (req, res) => {
     }
 
     const teacherProfile = authorization.teacher || await getTeacherProfile(req.user._id);
-    const targetClass = await resolveTeacherClass(teacherProfile?._id || teacherId, classId, studentIds);
+    const targetClass = await resolveTeacherClass(teacherProfile?.id || teacherId, classId, studentIds);
 
-    const attendance = await Attendance.create({
-      class: targetClass._id,
-      date: date || Date.now(),
-      records,
-      recordedBy: req.user._id,
+    const attendance = await prisma.attendance.create({
+      data: {
+        classId: targetClass.id,
+        date: date ? new Date(date) : new Date(),
+        recordedById: req.user._id,
+        records: {
+          create: records.map(record => ({
+            studentId: record.student,
+            status: record.status
+          }))
+        }
+      },
+      include: {
+        records: true
+      }
     });
 
-    res.status(201).json({ message: 'Attendance recorded successfully', attendance });
+    const responseAttendance = {
+      _id: attendance.id,
+      class: attendance.classId,
+      date: attendance.date,
+      recordedBy: attendance.recordedById,
+      createdAt: attendance.createdAt,
+      records: attendance.records.map(r => ({
+        _id: r.id,
+        student: r.studentId,
+        status: r.status
+      }))
+    };
+
+    res.status(201).json({ message: 'Attendance recorded successfully', attendance: responseAttendance });
   } catch (error) {
     console.error('Attendance Error:', error);
     res.status(400).json({ message: error.message });
@@ -166,28 +246,43 @@ const saveGrades = async (req, res) => {
       return res.status(authorization.status).json({ message: authorization.message });
     }
 
-    const teacherProfile = authorization.teacher || await getTeacherProfile(req.user._id);
-    
     const results = [];
 
     for (let data of gradesData) {
-      let grade = await Grade.findOne({ student: data.student, class: classId, subject });
+      const marks = data.marks || {};
+      const test = Number(marks.test || 0);
+      const midterm = Number(marks.midterm || 0);
+      const final = Number(marks.final || 0);
 
-      if (grade) {
-        grade.marks = data.marks;
-        grade.teacher = req.user._id;
-        await grade.save();
-        results.push(grade);
-      } else {
-        const newGrade = await Grade.create({
-          student: data.student,
-          class: classId,
-          subject,
-          teacher: req.user._id,
-          marks: data.marks
+      const existingGrade = await prisma.grade.findFirst({
+        where: { studentId: data.student, classId, subject }
+      });
+
+      let savedGrade;
+      if (existingGrade) {
+        savedGrade = await prisma.grade.update({
+          where: { id: existingGrade.id },
+          data: {
+            test,
+            midterm,
+            final,
+            teacherId: req.user._id
+          }
         });
-        results.push(newGrade);
+      } else {
+        savedGrade = await prisma.grade.create({
+          data: {
+            studentId: data.student,
+            classId,
+            subject,
+            teacherId: req.user._id,
+            test,
+            midterm,
+            final
+          }
+        });
       }
+      results.push(mapGradeToResponse(savedGrade));
     }
 
     res.status(200).json({ message: 'Grades saved successfully', results });
@@ -206,22 +301,40 @@ const getGrades = async (req, res) => {
     if (req.user.role !== 'Admin') {
       const teacher = await getTeacherProfile(req.user._id);
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
-      const allowed = await isTeacherAssignedToClass(teacher._id, classId);
+      const allowed = await isTeacherAssignedToClass(teacher.id, classId);
       if (!allowed) {
         return res.status(403).json({ message: 'Access denied. This class is not assigned to you.' });
       }
     }
     
-    const grades = await Grade.find({ class: classId, subject })
-      .populate({
-        path: 'student',
-        populate: { path: 'user', select: 'name email' }
-      });
+    const grades = await prisma.grade.findMany({
+      where: { classId, subject },
+      include: {
+        student: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
 
-    res.status(200).json(grades);
+    const responseGrades = grades.map(g => {
+      const mapped = mapGradeToResponse(g);
+      if (g.student) {
+        mapped.student = {
+          ...g.student,
+          _id: g.student.id,
+          user: g.student.user ? { ...g.student.user, _id: g.student.user.id } : null
+        };
+      }
+      return mapped;
+    });
+
+    res.status(200).json(responseGrades);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 module.exports = { recordAttendance, saveGrades, getGrades, getClassroomOptions };
+
