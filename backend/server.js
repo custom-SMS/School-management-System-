@@ -26,6 +26,9 @@ app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/teachers', require('./routes/teacherRoutes'));
 app.use('/api/students', require('./routes/studentRoutes'));
 app.use('/api/stats', require('./routes/statsRoutes'));
+app.use('/api/academic-years', require('./routes/academicYearRoutes'));
+app.use('/api/subjects', require('./routes/subjectRoutes'));
+app.use('/api/timetables', require('./routes/timetableRoutes'));
 
 app.get('/', (req, res) => {
   res.send('School Management System API');

@@ -110,10 +110,9 @@ const logout = (req, res) => {
   res.json({ message: 'Logged out successfully' });
 };
 
-// Temp function helper to let you seed an admin directly during setup later
 const registerInitialAdmin = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role = 'Admin' } = req.body;
     
     const existingUser = await prisma.user.findFirst({
       where: { email }
@@ -129,14 +128,72 @@ const registerInitialAdmin = async (req, res) => {
         name,
         email,
         password: hashedPassword,
-        role: 'Admin'
+        role: role
       }
     });
     
-    res.status(201).json({ message: 'Admin user created successfully' });
+    res.status(201).json({ message: `${role} user created successfully` });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-module.exports = { login, logout, registerInitialAdmin };
+const getRolePermissions = async (req, res) => {
+  try {
+    const perms = await prisma.rolePermission.findMany();
+    res.status(200).json(perms);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const updateRolePermissions = async (req, res) => {
+  try {
+    const { role, permissions } = req.body;
+    const { logActivity } = require('../middleware/auditLogger');
+
+    // Delete existing permissions for this role
+    await prisma.rolePermission.deleteMany({
+      where: { role }
+    });
+
+    // Insert new permissions
+    if (Array.isArray(permissions) && permissions.length > 0) {
+      await prisma.rolePermission.createMany({
+        data: permissions.map(permission => ({
+          role,
+          permission
+        }))
+      });
+    }
+
+    await logActivity(req.user._id, 'Update Permissions', role, `Updated permissions to: ${permissions.join(', ')}`);
+
+    res.status(200).json({ message: `Permissions for role ${role} updated successfully.` });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getCurrentUserPermissions = async (req, res) => {
+  try {
+    if (req.user.role === 'SuperAdmin') {
+      return res.json({ permissions: ["*"] });
+    }
+    const perms = await prisma.rolePermission.findMany({
+      where: { role: req.user.role }
+    });
+    res.json({ permissions: perms.map(p => p.permission) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+module.exports = { 
+  login, 
+  logout, 
+  registerInitialAdmin, 
+  getRolePermissions, 
+  updateRolePermissions, 
+  getCurrentUserPermissions 
+};

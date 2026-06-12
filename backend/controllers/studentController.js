@@ -227,12 +227,25 @@ const registerStudent = async (req, res) => {
       gender,
       phone,
       address,
+      previousSchool,
+      emergencyContacts,
       fatherName,
       motherName,
       guardianName,
       occupation,
       notes,
     } = req.body;
+
+    // Enforce active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found. Registration is closed.' });
+    }
+    if (!activeYear.registrationOpen) {
+      return res.status(400).json({ message: `Registration period for academic year ${activeYear.year} is closed.` });
+    }
 
     const normalizedStudentEmail = normalizeEmail(email);
 
@@ -246,7 +259,7 @@ const registerStudent = async (req, res) => {
     const studentPassword = generatePassword();
     const hashedPassword = await bcrypt.hash(studentPassword, 10);
 
-    const gradeSettings = await prisma.gradeFee.findUnique({
+    const gradeSettings = await prisma.gradeFee.findFirst({
       where: { grade }
     });
     if (!gradeSettings) {
@@ -271,6 +284,8 @@ const registerStudent = async (req, res) => {
       gender: personalDetails.gender || gender || undefined,
       phone: personalDetails.phone || phone || undefined,
       address: personalDetails.address || address || undefined,
+      previousSchool: personalDetails.previousSchool || previousSchool || undefined,
+      emergencyContacts: personalDetails.emergencyContacts || emergencyContacts || undefined,
     };
 
     const resolvedFamilyBackground = {
@@ -321,6 +336,16 @@ const registerStudent = async (req, res) => {
         throw createError;
       }
     }
+
+    // Create Year-specific Enrollment record separate from permanent profile
+    await prisma.enrollment.create({
+      data: {
+        studentId: student.id,
+        academicYearId: activeYear.id,
+        grade,
+        status: 'Enrolled'
+      }
+    });
 
     await attachStudentToGradeClass(student, grade);
 
@@ -425,7 +450,12 @@ const getStudents = async (req, res) => {
     const students = await prisma.student.findMany({
       include: {
         user: { select: { id: true, name: true, email: true } },
-        guardians: true
+        guardians: true,
+        enrollments: {
+          include: {
+            academicYear: true
+          }
+        }
       }
     });
 
@@ -516,6 +546,9 @@ const deleteStudent = async (req, res) => {
     });
 
     await prisma.$transaction(async (tx) => {
+      // Delete Enrollments
+      await tx.enrollment.deleteMany({ where: { studentId } });
+
       // Delete Grades
       await tx.grade.deleteMany({ where: { studentId } });
 
@@ -629,4 +662,138 @@ const deleteStudent = async (req, res) => {
   }
 };
 
-module.exports = { registerStudent, getStudents, setGradeFee, getGradeFees, deleteStudent };
+// @desc    Promote a student to next grade level / academic year
+// @route   POST /api/students/promote
+// @access  Private (Admin/SuperAdmin)
+const promoteStudent = async (req, res) => {
+  try {
+    const { studentId, nextGrade, nextAcademicYearId, sectionId } = req.body;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    const nextYear = await prisma.academicYear.findUnique({
+      where: { id: nextAcademicYearId }
+    });
+    if (!nextYear) return res.status(404).json({ message: 'Target academic year not found.' });
+
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId, academicYearId: nextAcademicYearId }
+    });
+    if (existingEnrollment) {
+      return res.status(400).json({ message: 'Student already has an enrollment/promotion record for this academic year.' });
+    }
+
+    const enrollment = await prisma.enrollment.create({
+      data: {
+        studentId,
+        academicYearId: nextAcademicYearId,
+        grade: nextGrade,
+        sectionId: sectionId || null,
+        status: 'Promoted'
+      }
+    });
+
+    // Update current grade on student's permanent profile
+    await prisma.student.update({
+      where: { id: studentId },
+      data: { grade: nextGrade }
+    });
+
+    await attachStudentToGradeClass(student, nextGrade);
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Promote Student', student.id, `Promoted student ${student.studentId} to Grade ${nextGrade} for year ${nextYear.year}`);
+
+    res.status(200).json({ message: 'Student promoted successfully', enrollment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Enroll a student to repeat same grade level / academic year
+// @route   POST /api/students/repeat
+// @access  Private (Admin/SuperAdmin)
+const repeatStudent = async (req, res) => {
+  try {
+    const { studentId, targetAcademicYearId, sectionId } = req.body;
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    const year = await prisma.academicYear.findUnique({
+      where: { id: targetAcademicYearId }
+    });
+    if (!year) return res.status(404).json({ message: 'Target academic year not found.' });
+
+    const existingEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId, academicYearId: targetAcademicYearId }
+    });
+    if (existingEnrollment) {
+      return res.status(400).json({ message: 'Student has an enrollment record for this academic year.' });
+    }
+
+    const enrollment = await prisma.enrollment.create({
+      data: {
+        studentId,
+        academicYearId: targetAcademicYearId,
+        grade: student.grade,
+        sectionId: sectionId || null,
+        status: 'Repeated'
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Repeat Student', student.id, `Set student ${student.studentId} to repeat Grade ${student.grade} for year ${year.year}`);
+
+    res.status(200).json({ message: 'Student set to repeat grade successfully', enrollment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update student/enrollment status (Transferred, Graduated, etc.)
+// @route   PATCH /api/students/:id/status
+// @access  Private (Admin/SuperAdmin)
+const setStudentStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, enrollmentId } = req.body;
+
+    if (!status) return res.status(400).json({ message: 'Status is required.' });
+
+    const student = await prisma.student.findUnique({
+      where: { id }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    if (enrollmentId) {
+      await prisma.enrollment.update({
+        where: { id: enrollmentId },
+        data: { status }
+      });
+    }
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Student Status', student.id, `Set student status to: ${status}`);
+
+    res.status(200).json({ message: `Student status updated to ${status}.` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { 
+  registerStudent, 
+  getStudents, 
+  setGradeFee, 
+  getGradeFees, 
+  deleteStudent,
+  promoteStudent,
+  repeatStudent,
+  setStudentStatus
+};

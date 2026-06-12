@@ -189,13 +189,33 @@ const recordAttendance = async (req, res) => {
       return res.status(authorization.status).json({ message: authorization.message });
     }
 
+    const attendanceDate = date ? new Date(date) : new Date();
+    const today = new Date();
+
+    // Prevent future dates
+    if (attendanceDate > today) {
+      return res.status(400).json({ message: 'Cannot record attendance for a future date.' });
+    }
+
+    // Lock check (7 days limit)
+    const diffTime = Math.abs(today - attendanceDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    if (diffDays > 7 && req.user.role !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'Attendance records older than 7 days are locked. Only SuperAdmin can modify them.' });
+    }
+
     const teacherProfile = authorization.teacher || await getTeacherProfile(req.user._id);
     const targetClass = await resolveTeacherClass(teacherProfile?.id || teacherId, classId, studentIds);
+
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
 
     const attendance = await prisma.attendance.create({
       data: {
         classId: targetClass.id,
-        date: date ? new Date(date) : new Date(),
+        academicYearId: activeYear?.id || null,
+        date: attendanceDate,
         recordedById: req.user._id,
         records: {
           create: records.map(record => ({
@@ -229,6 +249,23 @@ const recordAttendance = async (req, res) => {
   }
 };
 
+const unlockAttendance = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const attendance = await prisma.attendance.update({
+      where: { id },
+      data: { locked: false }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Unlock Attendance Session', id, `Unlocked attendance session on date: ${attendance.date}`);
+
+    res.status(200).json({ message: 'Attendance session unlocked successfully.', attendance });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Bulk save/update grades (like a spreadsheet)
 // @route   POST /api/classroom/grades
 // @access  Private (Teacher/Admin)
@@ -246,6 +283,15 @@ const saveGrades = async (req, res) => {
       return res.status(authorization.status).json({ message: authorization.message });
     }
 
+    // Fetch active grading structure weights (e.g. Quiz 10%, Assignment 20%, Midterm 30%, Final 40%)
+    const weights = await prisma.gradingStructure.findFirst({
+      where: { isActive: true }
+    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
     const results = [];
 
     for (let data of gradesData) {
@@ -253,6 +299,17 @@ const saveGrades = async (req, res) => {
       const test = Number(marks.test || 0);
       const midterm = Number(marks.midterm || 0);
       const final = Number(marks.final || 0);
+      const quiz = Number(marks.quiz || 0);
+      const assignment = Number(marks.assignment || 0);
+
+      // FR-27: Calculate final score automatically based on weights
+      const total = (quiz * (weights.quizWeight / 100)) + 
+                    (assignment * (weights.assignmentWeight / 100)) + 
+                    (test * 0) + // Test is considered legacy, but we support quiz/assignment weights
+                    (midterm * (weights.midtermWeight / 100)) + 
+                    (final * (weights.finalWeight / 100));
+
+      const percentage = total; // Weights sum to 100%
 
       const existingGrade = await prisma.grade.findFirst({
         where: { studentId: data.student, classId, subject }
@@ -263,10 +320,15 @@ const saveGrades = async (req, res) => {
         savedGrade = await prisma.grade.update({
           where: { id: existingGrade.id },
           data: {
+            quiz,
+            assignment,
             test,
             midterm,
             final,
-            teacherId: req.user._id
+            total,
+            percentage,
+            teacherId: req.user._id,
+            academicYearId: activeYear?.id || null
           }
         });
       } else {
@@ -275,10 +337,15 @@ const saveGrades = async (req, res) => {
             studentId: data.student,
             classId,
             subject,
-            teacherId: req.user._id,
+            quiz,
+            assignment,
             test,
             midterm,
-            final
+            final,
+            total,
+            percentage,
+            teacherId: req.user._id,
+            academicYearId: activeYear?.id || null
           }
         });
       }
@@ -288,6 +355,49 @@ const saveGrades = async (req, res) => {
     res.status(200).json({ message: 'Grades saved successfully', results });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+const setGradingStructure = async (req, res) => {
+  try {
+    const { quizWeight, assignmentWeight, midtermWeight, finalWeight } = req.body;
+    const totalWeight = Number(quizWeight) + Number(assignmentWeight) + Number(midtermWeight) + Number(finalWeight);
+    if (totalWeight !== 100) {
+      return res.status(400).json({ message: 'Weights must sum to 100%.' });
+    }
+
+    await prisma.gradingStructure.updateMany({
+      data: { isActive: false }
+    });
+
+    const structure = await prisma.gradingStructure.create({
+      data: {
+        quizWeight: Number(quizWeight),
+        assignmentWeight: Number(assignmentWeight),
+        midtermWeight: Number(midtermWeight),
+        finalWeight: Number(finalWeight),
+        isActive: true
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Configure Grading Structure', structure.id, `Set weights: Quiz ${quizWeight}%, Assignment ${assignmentWeight}%, Midterm ${midtermWeight}%, Final ${finalWeight}%`);
+
+    res.status(200).json(structure);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getGradingStructure = async (req, res) => {
+  try {
+    const structure = await prisma.gradingStructure.findFirst({
+      where: { isActive: true }
+    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+
+    res.status(200).json(structure);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -336,5 +446,97 @@ const getGrades = async (req, res) => {
   }
 };
 
-module.exports = { recordAttendance, saveGrades, getGrades, getClassroomOptions };
+const createClass = async (req, res) => {
+  try {
+    const { name, subject, teacherId, schedule } = req.body;
+    if (!name || !subject) {
+      return res.status(400).json({ message: 'Class name and subject are required.' });
+    }
+
+    const newClass = await prisma.class.create({
+      data: {
+        name,
+        subject,
+        teacherId: teacherId || null,
+        schedule: schedule || null
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${name} (${subject})`);
+
+    res.status(201).json(newClass);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getClasses = async (req, res) => {
+  try {
+    const classes = await prisma.class.findMany({
+      include: {
+        teacher: {
+          include: {
+            user: { select: { name: true } }
+          }
+        },
+        sections: true
+      },
+      orderBy: { name: 'asc' }
+    });
+    res.status(200).json(classes);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const createSection = async (req, res) => {
+  try {
+    const { name, classId } = req.body;
+    if (!name || !classId) {
+      return res.status(400).json({ message: 'Section name and classId are required.' });
+    }
+
+    const section = await prisma.section.create({
+      data: {
+        name,
+        classId
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Create Section', section.id, `Created section: ${name} for class ${classId}`);
+
+    res.status(201).json(section);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getSectionsByClass = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const sections = await prisma.section.findMany({
+      where: { classId },
+      orderBy: { name: 'asc' }
+    });
+    res.status(200).json(sections);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { 
+  recordAttendance, 
+  unlockAttendance,
+  saveGrades, 
+  getGrades, 
+  getClassroomOptions,
+  createClass,
+  getClasses,
+  createSection,
+  getSectionsByClass,
+  setGradingStructure,
+  getGradingStructure
+};
 

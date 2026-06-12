@@ -29,9 +29,14 @@ const recordPayment = async (req, res) => {
       }
     }
 
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
     const fee = await prisma.fee.create({
       data: {
         studentId: studentId,
+        academicYearId: activeYear?.id || null,
         amount: Number(amount),
         description,
         month,
@@ -182,8 +187,195 @@ const getPaidStudentsByClass = async (req, res) => {
   }
 };
 
+const createFeeStructure = async (req, res) => {
+  try {
+    const { grade, amount, description } = req.body;
+    if (!grade || !amount) {
+      return res.status(400).json({ message: 'Grade and amount are required.' });
+    }
+
+    const feeStructure = await prisma.feeStructure.upsert({
+      where: { grade },
+      update: { amount: Number(amount), description },
+      create: { grade, amount: Number(amount), description }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Set Fee Structure', feeStructure.id, `Set tuition for Grade ${grade} to ETB ${amount}`);
+
+    res.status(200).json(feeStructure);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getFeeStructures = async (req, res) => {
+  try {
+    const structures = await prisma.feeStructure.findMany({
+      orderBy: { grade: 'asc' }
+    });
+    res.status(200).json(structures);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const submitBankPayment = async (req, res) => {
+  try {
+    const { feeId, amount, transactionReference, bankName } = req.body;
+
+    if (!feeId || !amount || !transactionReference || !bankName) {
+      return res.status(400).json({ message: 'feeId, amount, transactionReference, and bankName are required.' });
+    }
+
+    // Check unique transaction reference
+    const existingPayment = await prisma.payment.findUnique({
+      where: { transactionReference }
+    });
+    if (existingPayment) {
+      return res.status(400).json({ message: 'This transaction reference has already been submitted.' });
+    }
+
+    const payment = await prisma.payment.create({
+      data: {
+        feeId,
+        amount: Number(amount),
+        transactionReference,
+        bankName,
+        status: 'Pending'
+      }
+    });
+
+    res.status(201).json({ message: 'Payment submitted for verification.', payment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getPendingPayments = async (req, res) => {
+  try {
+    const payments = await prisma.payment.findMany({
+      where: { status: 'Pending' },
+      include: {
+        fee: {
+          include: {
+            student: {
+              include: {
+                user: { select: { name: true, email: true } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: { paymentDate: 'asc' }
+    });
+    res.status(200).json(payments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const verifyPayment = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const { status } = req.body; // 'Verified' or 'Rejected'
+
+    if (!['Verified', 'Rejected'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status. Must be Verified or Rejected.' });
+    }
+
+    const payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: { fee: true }
+    });
+    if (!payment) {
+      return res.status(404).json({ message: 'Payment not found.' });
+    }
+
+    const updatedPayment = await prisma.$transaction(async (tx) => {
+      const p = await tx.payment.update({
+        where: { id: paymentId },
+        data: {
+          status,
+          verifiedById: req.user._id,
+          verificationDate: new Date()
+        }
+      });
+
+      if (status === 'Verified') {
+        // Update corresponding fee
+        await tx.fee.update({
+          where: { id: payment.feeId },
+          data: {
+            paid: true,
+            paymentDate: new Date()
+          }
+        });
+
+        // Generate receipt
+        const receiptNumber = `REC-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+        await tx.receipt.create({
+          data: {
+            receiptNumber,
+            paymentId,
+            issuedById: req.user._id
+          }
+        });
+      }
+
+      return p;
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, `${status} Payment`, paymentId, `${status} payment of ETB ${payment.amount} with Ref: ${payment.transactionReference}`);
+
+    res.status(200).json({ message: `Payment is now ${status}.`, payment: updatedPayment });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getReceipt = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    const receipt = await prisma.receipt.findUnique({
+      where: { paymentId },
+      include: {
+        payment: {
+          include: {
+            fee: {
+              include: {
+                student: {
+                  include: {
+                    user: { select: { name: true } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        issuedBy: { select: { name: true } }
+      }
+    });
+
+    if (!receipt) {
+      return res.status(404).json({ message: 'Receipt not found.' });
+    }
+
+    res.status(200).json(receipt);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   recordPayment,
   getDefaulters,
   getPaidStudentsByClass,
+  createFeeStructure,
+  getFeeStructures,
+  submitBankPayment,
+  getPendingPayments,
+  verifyPayment,
+  getReceipt
 };
