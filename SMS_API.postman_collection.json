@@ -1,0 +1,560 @@
+{
+  "info": {
+    "name": "School Management System API",
+    "_postman_id": "sms-api-collection-0001",
+    "description": "Full API collection for the School Management System (backend at http://localhost:8000/api).\n\nAuth is COOKIE-BASED (httpOnly). Usage:\n1. Run 'Auth > Login (SuperAdmin)' first — the server returns a Set-Cookie 'token' which Postman stores in its cookie jar and sends automatically on every subsequent request. No Authorization header is needed.\n2. Make sure Postman's cookie jar is enabled (Settings > General > 'Automatically follow redirects' off is fine; cookies are on by default). Cookies are stored for the 'localhost' domain.\n3. To switch users, run another Login request (it overwrites the cookie). Run 'Logout' to clear it.\n4. Fill the id variables (studentId, classId, subjectId, yearId, etc.) under the collection's Variables tab as you create records, or let the capture scripts set them from responses.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": { "type": "noauth" },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8000/api" },
+    { "key": "token", "value": "" },
+    { "key": "studentId", "value": "" },
+    { "key": "teacherId", "value": "" },
+    { "key": "classId", "value": "" },
+    { "key": "sectionId", "value": "" },
+    { "key": "subjectId", "value": "" },
+    { "key": "yearId", "value": "" },
+    { "key": "feeId", "value": "" },
+    { "key": "paymentId", "value": "" },
+    { "key": "reportCardId", "value": "" },
+    { "key": "attendanceId", "value": "" },
+    { "key": "notificationId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth & Permissions",
+      "item": [
+        {
+          "name": "Login (SuperAdmin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data && data.token) {",
+                  "  pm.collectionVariables.set('token', data.token);",
+                  "  console.log('Token saved to {{token}}');",
+                  "}",
+                  "if (data && data.user && data.user._id) {",
+                  "  pm.collectionVariables.set('currentUserId', data.user._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"superadmin@school.com\",\n  \"password\": \"superadmin\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login (Admin)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d.token) pm.collectionVariables.set('token', d.token);"] } }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"admin@school.com\",\n  \"password\": \"admin\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login (Cashier)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d.token) pm.collectionVariables.set('token', d.token);"] } }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"cashier@school.com\",\n  \"password\": \"cashier\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login (Generic - student/teacher/parent)",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d.token) pm.collectionVariables.set('token', d.token);"] } }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"identifier\": \"STU-0001\",\n  \"password\": \"<generated-password>\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": { "method": "POST", "header": [], "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] } }
+        },
+        {
+          "name": "Register Initial Admin",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Owner\",\n  \"email\": \"owner@school.com\",\n  \"password\": \"secret123\",\n  \"role\": \"SuperAdmin\"\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/register-admin", "host": ["{{baseUrl}}"], "path": ["auth", "register-admin"] }
+          }
+        },
+        {
+          "name": "Get Role Permissions",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/auth/permissions", "host": ["{{baseUrl}}"], "path": ["auth", "permissions"] } }
+        },
+        {
+          "name": "Update Role Permissions",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"role\": \"Admin\",\n  \"permissions\": [\"student_registration\", \"manage_academic_year\"]\n}" },
+            "url": { "raw": "{{baseUrl}}/auth/permissions", "host": ["{{baseUrl}}"], "path": ["auth", "permissions"] }
+          }
+        },
+        {
+          "name": "Get My Permissions",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/auth/permissions/me", "host": ["{{baseUrl}}"], "path": ["auth", "permissions", "me"] } }
+        }
+      ]
+    },
+    {
+      "name": "Academic Years",
+      "item": [
+        {
+          "name": "List Academic Years",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); const active = (d||[]).find(y=>y.isActive) || (d||[])[0]; if (active) pm.collectionVariables.set('yearId', active.id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/academic-years", "host": ["{{baseUrl}}"], "path": ["academic-years"] } }
+        },
+        {
+          "name": "Create Academic Year",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"year\": \"2026/2027\"\n}" },
+            "url": { "raw": "{{baseUrl}}/academic-years", "host": ["{{baseUrl}}"], "path": ["academic-years"] }
+          }
+        },
+        {
+          "name": "Set Active Academic Year",
+          "request": { "method": "PATCH", "header": [], "url": { "raw": "{{baseUrl}}/academic-years/{{yearId}}/active", "host": ["{{baseUrl}}"], "path": ["academic-years", "{{yearId}}", "active"] } }
+        },
+        {
+          "name": "Toggle Registration Period",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"registrationOpen\": true\n}" },
+            "url": { "raw": "{{baseUrl}}/academic-years/{{yearId}}/registration", "host": ["{{baseUrl}}"], "path": ["academic-years", "{{yearId}}", "registration"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Students",
+      "item": [
+        {
+          "name": "List Students",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('studentId', d[0]._id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/students", "host": ["{{baseUrl}}"], "path": ["students"] } }
+        },
+        {
+          "name": "Register Student (public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Abel Tesfaye\",\n  \"email\": \"abel@example.com\",\n  \"grade\": \"Class 1\",\n  \"personalDetails\": { \"dateOfBirth\": \"2015-03-01\", \"gender\": \"Male\", \"phone\": \"0911000000\", \"address\": \"Addis Ababa\", \"previousSchool\": \"ABC\" },\n  \"familyBackground\": { \"fatherName\": \"Tesfaye\", \"motherName\": \"Marta\", \"occupation\": \"Trader\" },\n  \"guardians\": [\n    { \"fullName\": \"Tesfaye Bekele\", \"email\": \"tesfaye@example.com\", \"phone\": \"0911000001\", \"relationship\": \"Father\", \"primary\": true }\n  ]\n}" },
+            "url": { "raw": "{{baseUrl}}/students", "host": ["{{baseUrl}}"], "path": ["students"] }
+          }
+        },
+        {
+          "name": "Set Grade Fee",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"grade\": \"Class 1\",\n  \"amount\": 500\n}" },
+            "url": { "raw": "{{baseUrl}}/students/grade-fee", "host": ["{{baseUrl}}"], "path": ["students", "grade-fee"] }
+          }
+        },
+        {
+          "name": "Get Grade Fees",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/students/grade-fee", "host": ["{{baseUrl}}"], "path": ["students", "grade-fee"] } }
+        },
+        {
+          "name": "Delete Student",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/students/{{studentId}}", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}"] } }
+        },
+        {
+          "name": "Promote Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"nextGrade\": \"Class 2\",\n  \"nextAcademicYearId\": \"{{yearId}}\",\n  \"sectionId\": null\n}" },
+            "url": { "raw": "{{baseUrl}}/students/promote", "host": ["{{baseUrl}}"], "path": ["students", "promote"] }
+          }
+        },
+        {
+          "name": "Repeat Student",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"targetAcademicYearId\": \"{{yearId}}\",\n  \"sectionId\": null\n}" },
+            "url": { "raw": "{{baseUrl}}/students/repeat", "host": ["{{baseUrl}}"], "path": ["students", "repeat"] }
+          }
+        },
+        {
+          "name": "Set Student Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"Transferred\",\n  \"enrollmentId\": \"\"\n}" },
+            "url": { "raw": "{{baseUrl}}/students/{{studentId}}/status", "host": ["{{baseUrl}}"], "path": ["students", "{{studentId}}", "status"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Teachers",
+      "item": [
+        {
+          "name": "List Teachers",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('teacherId', d[0]._id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/teachers", "host": ["{{baseUrl}}"], "path": ["teachers"] } }
+        },
+        {
+          "name": "Register Teacher",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Sara Lemma\",\n  \"email\": \"sara@school.com\",\n  \"subject\": \"Mathematics\"\n}" },
+            "url": { "raw": "{{baseUrl}}/teachers", "host": ["{{baseUrl}}"], "path": ["teachers"] }
+          }
+        },
+        {
+          "name": "Delete Teacher",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/teachers/{{teacherId}}", "host": ["{{baseUrl}}"], "path": ["teachers", "{{teacherId}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "Assignments",
+      "item": [
+        {
+          "name": "Get Assignment Options",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/assignments/options", "host": ["{{baseUrl}}"], "path": ["assignments", "options"] } }
+        },
+        {
+          "name": "Create Assignment",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"teacherId\": \"{{teacherId}}\",\n  \"classIds\": [\"{{classId}}\"],\n  \"specificClassNames\": [],\n  \"notes\": \"Mathematics\"\n}" },
+            "url": { "raw": "{{baseUrl}}/assignments", "host": ["{{baseUrl}}"], "path": ["assignments"] }
+          }
+        },
+        {
+          "name": "Get My Assignments (Teacher)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/assignments/me", "host": ["{{baseUrl}}"], "path": ["assignments", "me"] } }
+        },
+        {
+          "name": "Get All Assignments",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/assignments", "host": ["{{baseUrl}}"], "path": ["assignments"] } }
+        }
+      ]
+    },
+    {
+      "name": "Classroom",
+      "item": [
+        {
+          "name": "Get Classroom Options",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/options", "host": ["{{baseUrl}}"], "path": ["classroom", "options"] } }
+        },
+        {
+          "name": "Create Class",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d && d.id) pm.collectionVariables.set('classId', d.id);"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Class 1\",\n  \"subject\": \"General\",\n  \"teacherId\": null,\n  \"schedule\": null\n}" },
+            "url": { "raw": "{{baseUrl}}/classroom/classes", "host": ["{{baseUrl}}"], "path": ["classroom", "classes"] }
+          }
+        },
+        {
+          "name": "List Classes",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('classId', d[0].id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/classes", "host": ["{{baseUrl}}"], "path": ["classroom", "classes"] } }
+        },
+        {
+          "name": "Create Section",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d && d.id) pm.collectionVariables.set('sectionId', d.id);"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"A\",\n  \"classId\": \"{{classId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/classroom/sections", "host": ["{{baseUrl}}"], "path": ["classroom", "sections"] }
+          }
+        },
+        {
+          "name": "Get Sections By Class",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/sections/{{classId}}", "host": ["{{baseUrl}}"], "path": ["classroom", "sections", "{{classId}}"] } }
+        },
+        {
+          "name": "Record Attendance",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"date\": \"2026-06-15\",\n  \"records\": [\n    { \"student\": \"{{studentId}}\", \"status\": \"Present\" }\n  ]\n}" },
+            "url": { "raw": "{{baseUrl}}/classroom/attendance", "host": ["{{baseUrl}}"], "path": ["classroom", "attendance"] }
+          }
+        },
+        {
+          "name": "List Attendance Sessions",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('attendanceId', d[0]._id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/attendance", "host": ["{{baseUrl}}"], "path": ["classroom", "attendance"] } }
+        },
+        {
+          "name": "Unlock Attendance (SuperAdmin)",
+          "request": { "method": "PATCH", "header": [], "url": { "raw": "{{baseUrl}}/classroom/attendance/{{attendanceId}}/unlock", "host": ["{{baseUrl}}"], "path": ["classroom", "attendance", "{{attendanceId}}", "unlock"] } }
+        },
+        {
+          "name": "Save Grades",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"classId\": \"{{classId}}\",\n  \"subject\": \"Mathematics\",\n  \"gradesData\": [\n    { \"student\": \"{{studentId}}\", \"marks\": { \"quiz\": 80, \"assignment\": 90, \"midterm\": 75, \"final\": 88 } }\n  ]\n}" },
+            "url": { "raw": "{{baseUrl}}/classroom/grades", "host": ["{{baseUrl}}"], "path": ["classroom", "grades"] }
+          }
+        },
+        {
+          "name": "Get Grades (class + subject)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/grades/{{classId}}/Mathematics", "host": ["{{baseUrl}}"], "path": ["classroom", "grades", "{{classId}}", "Mathematics"] } }
+        },
+        {
+          "name": "Set Grading Structure (SuperAdmin)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"quizWeight\": 10,\n  \"assignmentWeight\": 20,\n  \"midtermWeight\": 30,\n  \"finalWeight\": 40\n}" },
+            "url": { "raw": "{{baseUrl}}/classroom/grading-structure", "host": ["{{baseUrl}}"], "path": ["classroom", "grading-structure"] }
+          }
+        },
+        {
+          "name": "Get Grading Structure",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/classroom/grading-structure", "host": ["{{baseUrl}}"], "path": ["classroom", "grading-structure"] } }
+        }
+      ]
+    },
+    {
+      "name": "Fees & Payments",
+      "item": [
+        {
+          "name": "Record Payment (paid)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"studentId\": \"{{studentId}}\",\n  \"amount\": 500,\n  \"description\": \"Monthly Tuition\",\n  \"month\": \"Meskerem\",\n  \"dueDate\": \"2026-06-15\"\n}" },
+            "url": { "raw": "{{baseUrl}}/fees", "host": ["{{baseUrl}}"], "path": ["fees"] }
+          }
+        },
+        {
+          "name": "Generate Monthly Invoices",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"month\": \"Meskerem\",\n  \"dueDate\": \"2026-06-30\",\n  \"description\": \"Monthly Tuition - Meskerem\"\n}" },
+            "url": { "raw": "{{baseUrl}}/fees/generate", "host": ["{{baseUrl}}"], "path": ["fees", "generate"] }
+          }
+        },
+        {
+          "name": "My Fees (Student)",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); const unpaid = (d||[]).find(f=>!f.paid); if (unpaid) pm.collectionVariables.set('feeId', unpaid._id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/my", "host": ["{{baseUrl}}"], "path": ["fees", "my"] } }
+        },
+        {
+          "name": "My Fees (Parent - child)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/my?childStudentId={{studentId}}", "host": ["{{baseUrl}}"], "path": ["fees", "my"], "query": [{ "key": "childStudentId", "value": "{{studentId}}" }] } }
+        },
+        {
+          "name": "Submit Bank Payment (Student/Parent)",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d && d.payment && d.payment.id) pm.collectionVariables.set('paymentId', d.payment.id);"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"feeId\": \"{{feeId}}\",\n  \"amount\": 500,\n  \"transactionReference\": \"FT123456789\",\n  \"bankName\": \"CBE\"\n}" },
+            "url": { "raw": "{{baseUrl}}/fees/bank-pay", "host": ["{{baseUrl}}"], "path": ["fees", "bank-pay"] }
+          }
+        },
+        {
+          "name": "Pending Verifications (Cashier)",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('paymentId', d[0].id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/pending-verifications", "host": ["{{baseUrl}}"], "path": ["fees", "pending-verifications"] } }
+        },
+        {
+          "name": "Verify / Reject Payment (Cashier)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"status\": \"Verified\"\n}" },
+            "url": { "raw": "{{baseUrl}}/fees/verify/{{paymentId}}", "host": ["{{baseUrl}}"], "path": ["fees", "verify", "{{paymentId}}"] }
+          }
+        },
+        {
+          "name": "Get Receipt",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/receipts/{{paymentId}}", "host": ["{{baseUrl}}"], "path": ["fees", "receipts", "{{paymentId}}"] } }
+        },
+        {
+          "name": "Get Defaulters (by month)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/defaulters/Meskerem", "host": ["{{baseUrl}}"], "path": ["fees", "defaulters", "Meskerem"] } }
+        },
+        {
+          "name": "Get Paid Students (month + class)",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/paid/Meskerem/{{classId}}", "host": ["{{baseUrl}}"], "path": ["fees", "paid", "Meskerem", "{{classId}}"] } }
+        },
+        {
+          "name": "Create Fee Structure",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"grade\": \"Class 1\",\n  \"amount\": 500,\n  \"description\": \"Tuition\"\n}" },
+            "url": { "raw": "{{baseUrl}}/fees/structures", "host": ["{{baseUrl}}"], "path": ["fees", "structures"] }
+          }
+        },
+        {
+          "name": "Get Fee Structures",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/fees/structures", "host": ["{{baseUrl}}"], "path": ["fees", "structures"] } }
+        }
+      ]
+    },
+    {
+      "name": "Subjects",
+      "item": [
+        {
+          "name": "List Subjects",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('subjectId', d[0].id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/subjects", "host": ["{{baseUrl}}"], "path": ["subjects"] } }
+        },
+        {
+          "name": "Create Subject",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d && d.id) pm.collectionVariables.set('subjectId', d.id);"] } } ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"name\": \"Physics\",\n  \"department\": \"Science\"\n}" },
+            "url": { "raw": "{{baseUrl}}/subjects", "host": ["{{baseUrl}}"], "path": ["subjects"] }
+          }
+        },
+        {
+          "name": "Delete Subject",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/subjects/{{subjectId}}", "host": ["{{baseUrl}}"], "path": ["subjects", "{{subjectId}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "Timetables",
+      "item": [
+        {
+          "name": "Get Timetable By Class + Year",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/timetables/class/{{classId}}/{{yearId}}", "host": ["{{baseUrl}}"], "path": ["timetables", "class", "{{classId}}", "{{yearId}}"] } }
+        },
+        {
+          "name": "Get Teacher Timetable",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/timetables/teacher/me", "host": ["{{baseUrl}}"], "path": ["timetables", "teacher", "me"] } }
+        },
+        {
+          "name": "Get Student Timetable",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/timetables/student/me", "host": ["{{baseUrl}}"], "path": ["timetables", "student", "me"] } }
+        },
+        {
+          "name": "Create Timetable Slot",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"academicYearId\": \"{{yearId}}\",\n  \"classId\": \"{{classId}}\",\n  \"subjectId\": \"{{subjectId}}\",\n  \"sectionId\": null,\n  \"dayOfWeek\": \"Monday\",\n  \"startTime\": \"08:30\",\n  \"endTime\": \"09:30\",\n  \"room\": \"R1\"\n}" },
+            "url": { "raw": "{{baseUrl}}/timetables", "host": ["{{baseUrl}}"], "path": ["timetables"] }
+          }
+        },
+        {
+          "name": "Delete Timetable Slot",
+          "request": { "method": "DELETE", "header": [], "url": { "raw": "{{baseUrl}}/timetables/{{timetableId}}", "host": ["{{baseUrl}}"], "path": ["timetables", "{{timetableId}}"] } }
+        }
+      ]
+    },
+    {
+      "name": "Report Cards",
+      "item": [
+        {
+          "name": "Compile Report Cards",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"academicYearId\": \"{{yearId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/report-cards/compile", "host": ["{{baseUrl}}"], "path": ["report-cards", "compile"] }
+          }
+        },
+        {
+          "name": "Publish Report Cards",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"academicYearId\": \"{{yearId}}\"\n}" },
+            "url": { "raw": "{{baseUrl}}/report-cards/publish", "host": ["{{baseUrl}}"], "path": ["report-cards", "publish"] }
+          }
+        },
+        {
+          "name": "Get Report Card (student + year)",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (d && d.reportCard && d.reportCard.id) pm.collectionVariables.set('reportCardId', d.reportCard.id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/report-cards/{{studentId}}/{{yearId}}", "host": ["{{baseUrl}}"], "path": ["report-cards", "{{studentId}}", "{{yearId}}"] } }
+        },
+        {
+          "name": "Update Report Card Comments",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"comments\": \"Great improvement this term.\"\n}" },
+            "url": { "raw": "{{baseUrl}}/report-cards/{{reportCardId}}/comments", "host": ["{{baseUrl}}"], "path": ["report-cards", "{{reportCardId}}", "comments"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "event": [ { "listen": "test", "script": { "type": "text/javascript", "exec": ["const d = pm.response.json(); if (Array.isArray(d) && d[0]) pm.collectionVariables.set('notificationId', d[0].id);"] } } ],
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/notifications", "host": ["{{baseUrl}}"], "path": ["notifications"] } }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": { "method": "PATCH", "header": [], "url": { "raw": "{{baseUrl}}/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["notifications", "{{notificationId}}", "read"] } }
+        }
+      ]
+    },
+    {
+      "name": "Audit Logs",
+      "item": [
+        {
+          "name": "Get Audit Logs",
+          "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/audit-logs?page=1&action=", "host": ["{{baseUrl}}"], "path": ["audit-logs"], "query": [{ "key": "page", "value": "1" }, { "key": "action", "value": "" }] } }
+        }
+      ]
+    },
+    {
+      "name": "Stats / Dashboards",
+      "item": [
+        { "name": "Admin Stats", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/stats/admin", "host": ["{{baseUrl}}"], "path": ["stats", "admin"] } } },
+        { "name": "Student Portal Stats", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/stats/student/me", "host": ["{{baseUrl}}"], "path": ["stats", "student", "me"] } } },
+        { "name": "Teacher Portal Stats", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/stats/teacher/me", "host": ["{{baseUrl}}"], "path": ["stats", "teacher", "me"] } } },
+        { "name": "Parent Portal Stats", "request": { "method": "GET", "header": [], "url": { "raw": "{{baseUrl}}/stats/parent/me", "host": ["{{baseUrl}}"], "path": ["stats", "parent", "me"] } } }
+      ]
+    }
+  ]
+}
