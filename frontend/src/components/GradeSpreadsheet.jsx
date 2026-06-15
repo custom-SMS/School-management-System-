@@ -3,17 +3,14 @@ import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import Navbar from './Navbar';
 
-const emptyMarks = { test: 0, midterm: 0, final: 0 };
+const emptyMarks = { quiz: 0, assignment: 0, midterm: 0, final: 0 };
 
-const clampMark = (field, value) => {
-  const min = 0;
-  const maxBound = field === 'test' ? 10 : field === 'midterm' ? 30 : 60;
+// Each component is scored out of 100; weights (which sum to 100%) determine the final total.
+const clampMark = (value) => {
   let nextValue = Number(value);
-
   if (Number.isNaN(nextValue)) nextValue = 0;
-  if (nextValue < min) nextValue = min;
-  if (nextValue > maxBound) nextValue = maxBound;
-
+  if (nextValue < 0) nextValue = 0;
+  if (nextValue > 100) nextValue = 100;
   return nextValue;
 };
 
@@ -26,15 +23,25 @@ export default function GradeSpreadsheet() {
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
 
   const selectedClass = useMemo(
     () => classes.find((klass) => klass._id === selectedClassId) || null,
     [classes, selectedClassId],
   );
 
-  const calculateTotal = (marks) => {
-    return (Number(marks?.test) || 0) + (Number(marks?.midterm) || 0) + (Number(marks?.final) || 0);
-  };
+  const components = useMemo(
+    () => [
+      { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
+      { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
+      { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
+      { field: 'final', label: 'Final', weight: weights.finalWeight },
+    ],
+    [weights],
+  );
+
+  const calculateTotal = (marks) =>
+    components.reduce((sum, c) => sum + (Number(marks?.[c.field]) || 0) * (Number(c.weight) / 100), 0);
 
   const getLetterGrade = (total) => {
     if (total >= 90) return 'A';
@@ -43,6 +50,16 @@ export default function GradeSpreadsheet() {
     if (total >= 60) return 'D';
     return 'F';
   };
+
+  // Load the active grading structure so the weights match the backend computation.
+  useEffect(() => {
+    axios
+      .get('/classroom/grading-structure')
+      .then((res) => {
+        if (res.data) setWeights(res.data);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const loadClasses = async () => {
@@ -99,10 +116,9 @@ export default function GradeSpreadsheet() {
 
         const roster = (selectedClass.students || []).map((student) => {
           const existing = gradeMap.get(student._id);
-
           return {
             student,
-            marks: existing?.marks || { ...emptyMarks },
+            marks: { ...emptyMarks, ...(existing?.marks || {}) },
           };
         });
 
@@ -129,12 +145,11 @@ export default function GradeSpreadsheet() {
   }, [selectedClass]);
 
   const handleChange = (studentId, field, value) => {
-    const numValue = clampMark(field, value);
+    const numValue = clampMark(value);
 
     setRows((current) =>
       current.map((row) => {
         if (row.student._id !== studentId) return row;
-
         return {
           ...row,
           marks: {
@@ -145,18 +160,6 @@ export default function GradeSpreadsheet() {
       }),
     );
   };
-
-  // Helper component for cells
-  const EditableCell = ({ student, field, max }) => (
-    <input 
-      type="number" 
-      min="0"
-      max={max}
-      value={student.marks[field] || ''}
-      onChange={(e) => handleChange(student.id, field, e.target.value)}
-      className="w-16 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center"
-    />
-  );
 
   const handleSave = async () => {
     if (!selectedClass) {
@@ -174,7 +177,12 @@ export default function GradeSpreadsheet() {
       subject: selectedClass.subject,
       gradesData: rows.map((row) => ({
         student: row.student._id,
-        marks: row.marks,
+        marks: {
+          quiz: row.marks.quiz,
+          assignment: row.marks.assignment,
+          midterm: row.marks.midterm,
+          final: row.marks.final,
+        },
       })),
     };
 
@@ -195,12 +203,15 @@ export default function GradeSpreadsheet() {
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="rounded-4xl border border-white/50 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8">
           <div className="mb-6 border-b border-slate-200 pb-4">
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">Classroom</p>
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Gradebook: {selectedClassName}</h2>
-            <p className="mt-2 text-sm text-slate-500">Edit real student grades for the selected class, then save them to the database.</p>
+            <p className="mt-2 text-sm text-slate-500">
+              Enter each component out of 100. Final totals are computed using the active weights
+              (Quiz {weights.quizWeight}% • Assignment {weights.assignmentWeight}% • Midterm {weights.midtermWeight}% • Final {weights.finalWeight}%).
+            </p>
           </div>
 
           {message && (
@@ -233,70 +244,75 @@ export default function GradeSpreadsheet() {
             </div>
           </div>
 
-        <div className="mb-6 overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="min-w-190 w-full divide-y divide-slate-200 text-sm sm:text-base">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Student Name</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Test (10%)</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Midterm (30%)</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Final (60%)</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total (100%)</th>
-                <th className="px-6 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Grade</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
-              {rows.map((row) => {
-                const total = calculateTotal(row.marks);
-                const percentage = total.toFixed(2);
-                const letterGrade = getLetterGrade(total);
+          <div className="mb-6 overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="min-w-200 w-full divide-y divide-slate-200 text-sm sm:text-base">
+              <thead className="bg-slate-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Student Name</th>
+                  {components.map((c) => (
+                    <th key={c.field} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                      {c.label} ({c.weight}%)
+                    </th>
+                  ))}
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total (100%)</th>
+                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Grade</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 bg-white">
+                {rows.map((row) => {
+                  const total = calculateTotal(row.marks);
+                  const percentage = total.toFixed(2);
+                  const letterGrade = getLetterGrade(total);
 
-                return (
-                  <tr key={row.student._id} className="transition hover:bg-slate-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 border-r border-slate-100">
-                      <div>{row.student.user?.name || row.student.studentId}</div>
-                      <div className="text-xs font-normal text-slate-500">{row.student.studentId}</div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <EditableCell student={{ id: row.student._id, marks: row.marks }} field="test" max={10} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                      <EditableCell student={{ id: row.student._id, marks: row.marks }} field="midterm" max={30} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-center border-r border-slate-100">
-                      <EditableCell student={{ id: row.student._id, marks: row.marks }} field="final" max={60} />
-                    </td>
-                    <td className="bg-slate-50 px-6 py-4 whitespace-nowrap text-center font-bold text-slate-700">
-                      {percentage}%
-                    </td>
-                    <td className={`bg-slate-50 px-6 py-4 whitespace-nowrap text-center font-bold ${
-                      letterGrade === 'F' ? 'text-red-600' : 'text-green-600'
-                    }`}>
-                      {letterGrade}
+                  return (
+                    <tr key={row.student._id} className="transition hover:bg-slate-50">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 border-r border-slate-100">
+                        <div>{row.student.user?.name || row.student.studentId}</div>
+                        <div className="text-xs font-normal text-slate-500">{row.student.studentId}</div>
+                      </td>
+                      {components.map((c) => (
+                        <td key={c.field} className="px-4 py-4 whitespace-nowrap text-center">
+                          <input
+                            type="number"
+                            min="0"
+                            max="100"
+                            value={row.marks[c.field] || ''}
+                            onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+                            className="w-16 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center"
+                          />
+                        </td>
+                      ))}
+                      <td className="bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold text-slate-700">
+                        {percentage}%
+                      </td>
+                      <td className={`bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold ${
+                        letterGrade === 'F' ? 'text-red-600' : 'text-green-600'
+                      }`}>
+                        {letterGrade}
+                      </td>
+                    </tr>
+                  );
+                })}
+                {!loadingGrades && rows.length === 0 && (
+                  <tr>
+                    <td colSpan={components.length + 3} className="px-6 py-8 text-center text-slate-500">
+                      No grade records available for this class.
                     </td>
                   </tr>
-                );
-              })}
-              {!loadingGrades && rows.length === 0 && (
-                <tr>
-                  <td colSpan="6" className="px-6 py-8 text-center text-slate-500">
-                    No grade records available for this class.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                )}
+              </tbody>
+            </table>
+          </div>
 
-        <div className="flex justify-end">
-          <button 
-            onClick={handleSave}
-            disabled={saving || loadingGrades || !selectedClass}
-            className="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {saving ? 'Saving…' : 'Save to Database'}
-          </button>
-        </div>
+          <div className="flex justify-end">
+            <button
+              onClick={handleSave}
+              disabled={saving || loadingGrades || !selectedClass}
+              className="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Saving…' : 'Save to Database'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

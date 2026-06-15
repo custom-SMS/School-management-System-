@@ -1,4 +1,4 @@
-﻿import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
@@ -184,7 +184,7 @@ export default function Dashboard() {
           setTeacherLoading(user.role === 'Teacher');
         }
 
-        if (user.role === 'Admin') {
+        if (user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Cashier') {
           const res = await axios.get('/stats/admin');
           setStats(res.data);
         } else if (user.role === 'Student') {
@@ -329,7 +329,7 @@ export default function Dashboard() {
           </div>
         </div>
       
-        {user.role === 'Admin' && stats && (
+        {(user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Cashier') && stats && (
           <>
             <div className="grid gap-6 md:grid-cols-3">
               <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">

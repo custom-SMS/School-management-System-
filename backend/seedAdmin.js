@@ -4,27 +4,70 @@ const bcrypt = require('bcryptjs');
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = 'admin@school.com';
-  const plainPassword = 'admin'; // Easy password for testing
-  const hashedPassword = await bcrypt.hash(plainPassword, 10);
+  const adminEmail = 'admin@school.com';
+  const superadminEmail = 'superadmin@school.com';
+  const cashierEmail = 'cashier@school.com';
+  
+  const adminHashed = await bcrypt.hash('admin', 10);
+  const superadminHashed = await bcrypt.hash('superadmin', 10);
+  const cashierHashed = await bcrypt.hash('cashier', 10);
   
   const admin = await prisma.user.upsert({
-    where: { email },
-    update: {
-      password: hashedPassword, // Reset password if user already exists
-    },
+    where: { email: adminEmail },
+    update: { password: adminHashed },
     create: {
       name: 'System Administrator',
-      email: email,
-      password: hashedPassword,
+      email: adminEmail,
+      password: adminHashed,
       role: 'Admin'
     }
   });
 
-  console.log('\n✅ Admin user is ready!\n');
+  const superAdmin = await prisma.user.upsert({
+    where: { email: superadminEmail },
+    update: { password: superadminHashed },
+    create: {
+      name: 'Super Admin User',
+      email: superadminEmail,
+      password: superadminHashed,
+      role: 'SuperAdmin'
+    }
+  });
+
+  const cashier = await prisma.user.upsert({
+    where: { email: cashierEmail },
+    update: { password: cashierHashed },
+    create: {
+      name: 'School Cashier',
+      email: cashierEmail,
+      password: cashierHashed,
+      role: 'Cashier'
+    }
+  });
+
+  // Seed default permissions for Admin role
+  const defaultAdminPermissions = ['student_registration', 'manage_academic_year'];
+  for (const perm of defaultAdminPermissions) {
+    await prisma.rolePermission.upsert({
+      where: {
+        role_permission: {
+          role: 'Admin',
+          permission: perm
+        }
+      },
+      update: {},
+      create: {
+        role: 'Admin',
+        permission: perm
+      }
+    });
+  }
+
+  console.log('\n✅ Seed data is ready!\n');
   console.log('--- Login Details ---');
-  console.log(`Email:    ${admin.email}`);
-  console.log(`Password: ${plainPassword}`);
+  console.log(`Admin Email:        ${admin.email} (Password: admin)`);
+  console.log(`SuperAdmin Email:   ${superAdmin.email} (Password: superadmin)`);
+  console.log(`Cashier Email:      ${cashier.email} (Password: cashier)`);
   console.log('---------------------\n');
 }
 

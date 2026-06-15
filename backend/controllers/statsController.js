@@ -251,6 +251,8 @@ const getStudentPortalStats = async (req, res) => {
       class: g.classId,
       teacher: g.teacherId,
       marks: {
+        quiz: g.quiz,
+        assignment: g.assignment,
         test: g.test,
         midterm: g.midterm,
         final: g.final

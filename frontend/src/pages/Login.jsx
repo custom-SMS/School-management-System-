@@ -14,6 +14,8 @@ export default function Login() {
     { label: 'Student', identifier: 'STU-0001', password: '53275306' },
     { label: 'Teacher', identifier: 'TCH-0002', password: 'd1fc095d' },
     { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
+    { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
+    { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' }
   ];
 
   const handleSubmit = async (e) => {
@@ -64,6 +66,7 @@ export default function Login() {
             {error && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div>}
 
             <div className="mb-5 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+
               <div className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Test login shortcuts</div>
               <div className="grid gap-2 sm:grid-cols-3">
                 {testAccounts.map((account) => (
