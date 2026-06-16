@@ -67,8 +67,49 @@ const deleteSubject = async (req, res) => {
   }
 };
 
+// Update a subject
+const updateSubject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, department, description } = req.body;
+
+    const subject = await prisma.subject.findUnique({
+      where: { id }
+    });
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' });
+    }
+
+    // Check if new name conflicts with existing subject
+    if (name && name !== subject.name) {
+      const existing = await prisma.subject.findUnique({
+        where: { name }
+      });
+      if (existing) {
+        return res.status(400).json({ message: 'Subject with this name already exists.' });
+      }
+    }
+
+    const updatedSubject = await prisma.subject.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(department !== undefined && { department }),
+        ...(description !== undefined && { description })
+      }
+    });
+
+    await logActivity(req.user._id, 'Update Subject', subject.id, `Updated subject: ${subject.name}`);
+
+    res.status(200).json(updatedSubject);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createSubject,
   getSubjects,
-  deleteSubject
+  deleteSubject,
+  updateSubject
 };

@@ -787,6 +787,105 @@ const setStudentStatus = async (req, res) => {
   }
 };
 
+// @desc    Update student details
+// @route   PUT /api/students/:id
+// @access  Private (Admin/SuperAdmin)
+const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      email,
+      grade,
+      personalDetails = {},
+      familyBackground = {},
+      guardianContacts = []
+    } = req.body;
+
+    const student = await prisma.student.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      // Update user if name or email provided
+      if (name || email) {
+        const userData = {};
+        if (name) userData.name = name;
+        if (email !== undefined) {
+          const normalizedEmail = normalizeEmail(email);
+          if (normalizedEmail && normalizedEmail !== student.user?.email) {
+            const existingUser = await tx.user.findFirst({
+              where: { email: normalizedEmail }
+            });
+            if (existingUser && existingUser.id !== student.userId) {
+              throw new Error('Email already exists');
+            }
+            userData.email = normalizedEmail;
+          }
+        }
+        
+        if (Object.keys(userData).length > 0) {
+          await tx.user.update({
+            where: { id: student.userId },
+            data: userData
+          });
+        }
+      }
+
+      // Update student record
+      const studentData = {};
+      if (grade) studentData.grade = grade;
+      
+      if (Object.keys(personalDetails).length > 0) {
+        studentData.personalDetails = {
+          ...(student.personalDetails || {}),
+          ...personalDetails
+        };
+      }
+      
+      if (Object.keys(familyBackground).length > 0) {
+        studentData.familyBackground = {
+          ...(student.familyBackground || {}),
+          ...familyBackground
+        };
+      }
+      
+      if (guardianContacts.length > 0) {
+        studentData.guardianContacts = guardianContacts;
+      }
+
+      const updated = await tx.student.update({
+        where: { id },
+        data: studentData,
+        include: { user: true }
+      });
+
+      return updated;
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Student', student.id, `Updated student ${student.studentId}`);
+
+    const responseStudent = {
+      ...updatedStudent,
+      _id: updatedStudent.id,
+      user: updatedStudent.user ? { ...updatedStudent.user, _id: updatedStudent.user.id } : null
+    };
+
+    res.status(200).json({
+      message: 'Student updated successfully',
+      student: responseStudent
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = { 
   registerStudent, 
   getStudents, 
@@ -795,5 +894,6 @@ module.exports = {
   deleteStudent,
   promoteStudent,
   repeatStudent,
-  setStudentStatus
-};
+  setStudentStatus,
+  updateStudent
+};

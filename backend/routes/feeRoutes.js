@@ -21,8 +21,8 @@ router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 
 router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPaidStudentsByClass);
 
 // Fee structures management by grade level (Cashier/Admin/SuperAdmin)
-router.post('/structures', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), createFeeStructure);
-router.get('/structures', verifyToken, getFeeStructures);
+router.post('/structure', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), createFeeStructure);
+router.get('/structure', verifyToken, getFeeStructures);
 
 // Generate monthly tuition invoices for all students (Cashier/Admin/SuperAdmin)
 router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), generateMonthlyFees);
@@ -32,7 +32,7 @@ router.get('/my', verifyToken, checkRole(['Student', 'Parent']), getMyFees);
 
 // Bank payment integration (Students/Parents submit, Cashier verifies)
 router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), submitBankPayment);
-router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPendingPayments);
+router.get('/pending-verifications', verifyToken, checkRole(['Cashier', 'SuperAdmin']), getPendingPayments);
 router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), verifyPayment);
 router.get('/receipts/:paymentId', verifyToken, getReceipt);
 

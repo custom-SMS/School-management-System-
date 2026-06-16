@@ -32,6 +32,7 @@ prisma.$connect()
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/classroom', require('./routes/classroomRoutes'));
+app.use('/api/classrooms', require('./routes/physicalClassroomRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
 app.use('/api/teachers', require('./routes/teacherRoutes'));
 app.use('/api/students', require('./routes/studentRoutes'));
@@ -50,4 +51,4 @@ app.get('/', (req, res) => {
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
+});

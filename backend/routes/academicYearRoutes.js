@@ -4,7 +4,9 @@ const {
   createAcademicYear,
   getAcademicYears,
   setActiveAcademicYear,
-  toggleRegistrationPeriod
+  toggleRegistrationPeriod,
+  updateAcademicYear,
+  deleteAcademicYear
 } = require('../controllers/academicYearController');
 const { verifyToken, checkPermission } = require('../middleware/authMiddleware');
 
@@ -13,6 +15,8 @@ router.get('/', verifyToken, getAcademicYears);
 
 // Only users with 'manage_academic_year' permission or SuperAdmin can modify
 router.post('/', verifyToken, checkPermission('manage_academic_year'), createAcademicYear);
+router.put('/:id', verifyToken, checkPermission('manage_academic_year'), updateAcademicYear);
+router.delete('/:id', verifyToken, checkPermission('manage_academic_year'), deleteAcademicYear);
 router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year'), setActiveAcademicYear);
 router.patch('/:id/registration', verifyToken, checkPermission('manage_academic_year'), toggleRegistrationPeriod);
 

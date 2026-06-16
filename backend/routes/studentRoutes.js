@@ -8,7 +8,8 @@ const {
   deleteStudent,
   promoteStudent,
   repeatStudent,
-  setStudentStatus
+  setStudentStatus,
+  updateStudent
 } = require('../controllers/studentController');
 const { verifyToken, checkRole, checkPermission } = require('../middleware/authMiddleware');
 
@@ -17,6 +18,9 @@ router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), getS
 
 // Register a new student (Now public so students can register themselves)
 router.post('/', registerStudent);
+
+// Update student details
+router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateStudent);
 
 // Manage grade fee rules
 router.post('/grade-fee', verifyToken, checkPermission('student_registration'), setGradeFee);

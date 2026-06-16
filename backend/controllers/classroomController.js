@@ -566,6 +566,187 @@ const getSectionsByClass = async (req, res) => {
   }
 };
 
+// @desc    Update a class
+// @route   PUT /api/classroom/classes/:id
+// @access  Private (Admin/SuperAdmin)
+const updateClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, subject, teacherId, schedule } = req.body;
+
+    const existingClass = await prisma.class.findUnique({
+      where: { id }
+    });
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    const updatedClass = await prisma.class.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(subject && { subject }),
+        ...(teacherId !== undefined && { teacherId }),
+        ...(schedule !== undefined && { schedule })
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Class', existingClass.id, `Updated class: ${existingClass.name}`);
+
+    res.status(200).json(updatedClass);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a class with integrity checks
+// @route   DELETE /api/classroom/classes/:id
+// @access  Private (Admin/SuperAdmin)
+const deleteClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        students: { select: { id: true } },
+        timetables: { select: { id: true } },
+        attendances: { select: { id: true } },
+        grades: { select: { id: true } }
+      }
+    });
+
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found' });
+    }
+
+    // Integrity checks
+    if (existingClass.students.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete class with enrolled students. Please reassign or remove students first.' });
+    }
+
+    if (existingClass.timetables.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete class with scheduled timetables. Please remove timetables first.' });
+    }
+
+    if (existingClass.attendances.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete class with attendance records. Please remove attendance records first.' });
+    }
+
+    if (existingClass.grades.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete class with recorded grades. Please remove grades first.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      // Delete sections
+      await tx.section.deleteMany({
+        where: { classId: id }
+      });
+
+      // Delete teacher assignments
+      await tx.teacherAssignment.deleteMany({
+        where: { classId: id }
+      });
+
+      // Delete the class
+      await tx.class.delete({
+        where: { id }
+      });
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Delete Class', id, `Deleted class: ${existingClass.name}`);
+
+    res.status(200).json({ message: 'Class deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Update a section
+// @route   PUT /api/classroom/sections/:id
+// @access  Private (Admin/SuperAdmin)
+const updateSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, classId } = req.body;
+
+    const existingSection = await prisma.section.findUnique({
+      where: { id }
+    });
+    if (!existingSection) {
+      return res.status(404).json({ message: 'Section not found' });
+    }
+
+    // If changing class, verify new class exists
+    if (classId && classId !== existingSection.classId) {
+      const targetClass = await prisma.class.findUnique({
+        where: { id: classId }
+      });
+      if (!targetClass) {
+        return res.status(404).json({ message: 'Target class not found' });
+      }
+    }
+
+    const updatedSection = await prisma.section.update({
+      where: { id },
+      data: {
+        ...(name && { name }),
+        ...(classId && { classId })
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Section', existingSection.id, `Updated section: ${existingSection.name}`);
+
+    res.status(200).json(updatedSection);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Delete a section with integrity checks
+// @route   DELETE /api/classroom/sections/:id
+// @access  Private (Admin/SuperAdmin)
+const deleteSection = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingSection = await prisma.section.findUnique({
+      where: { id },
+      include: {
+        enrollments: { select: { id: true } },
+        timetables: { select: { id: true } }
+      }
+    });
+
+    if (!existingSection) {
+      return res.status(404).json({ message: 'Section not found' });
+    }
+
+    // Integrity checks
+    if (existingSection.enrollments.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete section with enrolled students. Please reassign students first.' });
+    }
+
+    if (existingSection.timetables.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete section with scheduled timetables. Please remove timetables first.' });
+    }
+
+    await prisma.section.delete({
+      where: { id }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Delete Section', id, `Deleted section: ${existingSection.name}`);
+
+    res.status(200).json({ message: 'Section deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   recordAttendance,
   getAttendanceSessions,
@@ -575,8 +756,12 @@ module.exports = {
   getClassroomOptions,
   createClass,
   getClasses,
+  updateClass,
+  deleteClass,
   createSection,
   getSectionsByClass,
+  updateSection,
+  deleteSection,
   setGradingStructure,
   getGradingStructure
 };

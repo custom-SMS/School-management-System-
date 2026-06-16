@@ -147,4 +147,81 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-module.exports = { registerTeacher, getTeachers, deleteTeacher };
+// @desc    Update teacher details
+// @route   PUT /api/teachers/:id
+// @access  Private (Admin/SuperAdmin)
+const updateTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, phone, subject, status, qualification, department } = req.body;
+
+    const teacher = await prisma.teacher.findUnique({
+      where: { id },
+      include: { user: true }
+    });
+
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    const updatedTeacher = await prisma.$transaction(async (tx) => {
+      // Update user if name or email provided
+      if (name || email) {
+        const userData = {};
+        if (name) userData.name = name;
+        if (email !== undefined) {
+          const normalizedEmail = String(email || '').trim().toLowerCase();
+          if (normalizedEmail && normalizedEmail !== teacher.user?.email) {
+            const existingUser = await tx.user.findFirst({
+              where: { email: normalizedEmail }
+            });
+            if (existingUser && existingUser.id !== teacher.userId) {
+              throw new Error('Email already exists');
+            }
+            userData.email = normalizedEmail;
+          }
+        }
+        
+        if (Object.keys(userData).length > 0) {
+          await tx.user.update({
+            where: { id: teacher.userId },
+            data: userData
+          });
+        }
+      }
+
+      // Update teacher record
+      const teacherData = {};
+      if (subject) teacherData.subject = subject;
+      if (status) teacherData.status = status;
+      if (qualification) teacherData.qualification = qualification;
+      if (department) teacherData.department = department;
+
+      const updated = await tx.teacher.update({
+        where: { id },
+        data: teacherData,
+        include: { user: true }
+      });
+
+      return updated;
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Teacher', teacher.id, `Updated teacher ${teacher.teacherId}`);
+
+    const responseTeacher = {
+      ...updatedTeacher,
+      _id: updatedTeacher.id,
+      user: updatedTeacher.user ? { ...updatedTeacher.user, _id: updatedTeacher.user.id } : null
+    };
+
+    res.status(200).json({
+      message: 'Teacher updated successfully',
+      teacher: responseTeacher
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { registerTeacher, getTeachers, deleteTeacher, updateTeacher };
