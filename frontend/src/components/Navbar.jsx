@@ -108,7 +108,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
   const navItems = [
     { to: '/dashboard', label: 'Dashboard', end: true },
     { to: '/timetable', label: 'Timetable' },
-    ...(user.role === 'Student' ? [{ to: '/report-card', label: 'Report Card', end: true }, { to: '/my-fees', label: 'My Fees' }] : []),
+    ...(user.role === 'Student' ? [{ to: '/student/dashboard', label: 'Student Portal' }, { to: '/report-card', label: 'Report Card', end: true }, { to: '/my-fees', label: 'My Fees' }] : []),
     ...(user.role === 'Parent' ? [{ to: '/my-fees', label: 'My Fees' }] : []),
     ...((user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Teacher')
       ? [

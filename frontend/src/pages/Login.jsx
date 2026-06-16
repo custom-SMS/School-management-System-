@@ -12,7 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   const testAccounts = [
-    { label: 'Student', identifier: 'STU-0001', password: '53275306' },
+    { label: 'Student', identifier: 'STU-0001', password: 'student' },
     { label: 'Teacher', identifier: 'TCH-0001', password: 'teacher' },
     { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
@@ -27,6 +27,7 @@ export default function Login() {
       const landingByRole = {
         Cashier: '/finance/dashboard',
         Teacher: '/teacher/dashboard',
+        Student: '/student/dashboard',
       };
       navigate(landingByRole[loggedInUser?.role] || '/dashboard');
     } catch (err) {
