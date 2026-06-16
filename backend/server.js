@@ -1,4 +1,5 @@
 const express = require('express');
+const path = require('path');
 const prisma = require('./prisma');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
@@ -42,6 +43,10 @@ app.use('/api/timetables', require('./routes/timetableRoutes'));
 app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/report-cards', require('./routes/reportCardRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
+app.use('/api/uploads', require('./routes/uploadRoutes'));
+
+// Serve uploaded documents statically.
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.get('/', (req, res) => {
   res.send('School Management System API');

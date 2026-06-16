@@ -71,6 +71,61 @@ async function main() {
     }
   });
 
+  // Seed a known Student account (User + Student profile) for testing the Student Portal.
+  const studentEmail = 'student@school.com';
+  const studentId = 'STU-0001';
+  const studentHashed = await bcrypt.hash('student', 10);
+
+  const studentUser = await prisma.user.upsert({
+    where: { email: studentEmail },
+    update: { password: studentHashed, role: 'Student' },
+    create: {
+      name: 'Abebe Balcha',
+      email: studentEmail,
+      password: studentHashed,
+      role: 'Student'
+    }
+  });
+
+  const student = await prisma.student.upsert({
+    where: { studentId },
+    update: { userId: studentUser.id, grade: 'Grade 10' },
+    create: {
+      userId: studentUser.id,
+      studentId,
+      grade: 'Grade 10'
+    }
+  });
+
+  // Seed a known Parent account (User + Parent profile). Children are linked in seedSampleData.js.
+  const parentEmail = 'parent@school.com';
+  const parentId = 'PAR-0001';
+  const parentHashed = await bcrypt.hash('parent', 10);
+
+  const parentUser = await prisma.user.upsert({
+    where: { email: parentEmail },
+    update: { password: parentHashed, role: 'Parent' },
+    create: {
+      name: 'Balcha Demissie',
+      email: parentEmail,
+      password: parentHashed,
+      role: 'Parent'
+    }
+  });
+
+  const parent = await prisma.parent.upsert({
+    where: { parentId },
+    update: { userId: parentUser.id, fullName: 'Balcha Demissie' },
+    create: {
+      userId: parentUser.id,
+      parentId,
+      fullName: 'Balcha Demissie',
+      email: parentEmail,
+      phone: '+251 911 223 344',
+      relationship: 'Father'
+    }
+  });
+
   // Seed default permissions for Admin role
   const defaultAdminPermissions = ['student_registration', 'manage_academic_year'];
   for (const perm of defaultAdminPermissions) {
@@ -95,6 +150,8 @@ async function main() {
   console.log(`SuperAdmin Email:   ${superAdmin.email} (Password: superadmin)`);
   console.log(`Cashier Email:      ${cashier.email} (Password: cashier)`);
   console.log(`Teacher Login:      ${teacher.teacherId} or ${teacherUser.email} (Password: teacher)`);
+  console.log(`Student Login:      ${student.studentId} or ${studentUser.email} (Password: student)`);
+  console.log(`Parent Login:       ${parent.parentId} or ${parentUser.email} (Password: parent)`);
   console.log('---------------------\n');
 }
 

@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import Login from "./pages/Login";
-import RegisterStudent from "./pages/RegisterStudentEnhanced";
+import RegisterStudent from "./pages/StudentRegistrationWizard";
 import Assignments from "./pages/Assignments";
 import Dashboard from "./pages/Dashboard";
 import AttendanceChecklist from "./pages/AttendanceChecklist";
@@ -34,6 +34,11 @@ import TeacherGradebook from "./pages/teacher/Gradebook";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import StudentProfile from "./pages/teacher/StudentProfile";
 import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
+import StudentDashboard from "./pages/student/StudentDashboard";
+import StudentAttendancePortal from "./pages/student/StudentAttendance";
+import StudentAcademics from "./pages/student/StudentAcademics";
+import StudentFinance from "./pages/student/StudentFinance";
+import StudentReports from "./pages/student/StudentReports";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -294,6 +299,48 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
                 <TeacherTimetable />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* SchoolERP — Student Portal */}
+          <Route
+            path="/student/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                <StudentDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/attendance"
+            element={
+              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                <StudentAttendancePortal />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/academics"
+            element={
+              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                <StudentAcademics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/finance"
+            element={
+              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                <StudentFinance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/reports"
+            element={
+              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                <StudentReports />
               </ProtectedRoute>
             }
           />
