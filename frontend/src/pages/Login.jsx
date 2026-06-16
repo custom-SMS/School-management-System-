@@ -28,6 +28,7 @@ export default function Login() {
         Cashier: '/finance/dashboard',
         Teacher: '/teacher/dashboard',
         Student: '/student/dashboard',
+        Parent: '/parent/dashboard',
       };
       navigate(landingByRole[loggedInUser?.role] || '/dashboard');
     } catch (err) {
