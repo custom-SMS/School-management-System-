@@ -220,12 +220,187 @@ const getFeeStructures = async (req, res) => {
   }
 };
 
+// @desc    Generate monthly tuition invoices (unpaid Fee records) for all students
+// @route   POST /api/fees/generate
+// @access  Private (Admin/SuperAdmin/Cashier)
+const generateMonthlyFees = async (req, res) => {
+  try {
+    const { month, dueDate, description } = req.body;
+    if (!month) {
+      return res.status(400).json({ message: 'month is required.' });
+    }
+
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    const gradeFees = await prisma.gradeFee.findMany();
+    const feeByGrade = new Map(gradeFees.map((gf) => [String(gf.grade), gf.amount]));
+
+    const students = await prisma.student.findMany({
+      select: { id: true, grade: true }
+    });
+
+    // Skip students who already have a fee record for this month
+    const existingFees = await prisma.fee.findMany({
+      where: { month },
+      select: { studentId: true }
+    });
+    const alreadyInvoiced = new Set(existingFees.map((fee) => fee.studentId));
+
+    const resolvedDueDate = dueDate ? new Date(dueDate) : new Date();
+    const feeDescription = description || `Monthly Tuition - ${month}`;
+
+    let created = 0;
+    let skippedNoFee = 0;
+
+    for (const student of students) {
+      if (alreadyInvoiced.has(student.id)) continue;
+
+      const amount = feeByGrade.get(String(student.grade));
+      if (amount === undefined) {
+        skippedNoFee += 1;
+        continue;
+      }
+
+      await prisma.fee.create({
+        data: {
+          studentId: student.id,
+          academicYearId: activeYear?.id || null,
+          amount: Number(amount),
+          description: feeDescription,
+          month,
+          dueDate: resolvedDueDate,
+          paid: false
+        }
+      });
+      created += 1;
+    }
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Generate Monthly Invoices', month, `Generated ${created} tuition invoices for ${month}`);
+
+    res.status(201).json({
+      message: `Generated ${created} invoice(s) for ${month}.`,
+      created,
+      skippedExisting: alreadyInvoiced.size,
+      skippedNoFeeConfigured: skippedNoFee
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get the logged-in student's (or a linked child's) fees with payment status
+// @route   GET /api/fees/my
+// @access  Private (Student/Parent)
+const getMyFees = async (req, res) => {
+  try {
+    let studentId;
+
+    if (req.user.role === 'Student') {
+      const student = await prisma.student.findUnique({
+        where: { userId: req.user._id },
+        select: { id: true }
+      });
+      if (!student) return res.status(404).json({ message: 'Student profile not found.' });
+      studentId = student.id;
+    } else if (req.user.role === 'Parent') {
+      const { childStudentId } = req.query;
+      if (!childStudentId) {
+        return res.status(400).json({ message: 'childStudentId query parameter is required for parents.' });
+      }
+      const parent = await prisma.parent.findFirst({
+        where: { userId: req.user._id },
+        include: { children: { select: { id: true } } }
+      });
+      if (!parent) return res.status(404).json({ message: 'Parent profile not found.' });
+      const isLinked = parent.children.some((child) => child.id === childStudentId);
+      if (!isLinked) {
+        return res.status(403).json({ message: 'You can only view fees for your linked students.' });
+      }
+      studentId = childStudentId;
+    } else {
+      return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const fees = await prisma.fee.findMany({
+      where: { studentId },
+      include: {
+        payments: {
+          orderBy: { paymentDate: 'desc' }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const response = fees.map((fee) => {
+      const latestPayment = fee.payments[0] || null;
+      let status = 'Unpaid';
+      if (fee.paid) {
+        status = 'Paid';
+      } else if (latestPayment?.status === 'Pending') {
+        status = 'Pending Verification';
+      } else if (latestPayment?.status === 'Rejected') {
+        status = 'Rejected';
+      }
+
+      return {
+        _id: fee.id,
+        amount: fee.amount,
+        description: fee.description,
+        month: fee.month,
+        dueDate: fee.dueDate,
+        paid: fee.paid,
+        status,
+        latestPayment: latestPayment
+          ? {
+              status: latestPayment.status,
+              transactionReference: latestPayment.transactionReference,
+              bankName: latestPayment.bankName
+            }
+          : null
+      };
+    });
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const submitBankPayment = async (req, res) => {
   try {
     const { feeId, amount, transactionReference, bankName } = req.body;
 
     if (!feeId || !amount || !transactionReference || !bankName) {
       return res.status(400).json({ message: 'feeId, amount, transactionReference, and bankName are required.' });
+    }
+
+    // Verify the fee exists and belongs to the requesting student/parent
+    const fee = await prisma.fee.findUnique({
+      where: { id: feeId },
+      include: { student: { select: { id: true, userId: true } } }
+    });
+    if (!fee) {
+      return res.status(404).json({ message: 'Fee record not found.' });
+    }
+    if (fee.paid) {
+      return res.status(400).json({ message: 'This fee has already been paid.' });
+    }
+
+    if (req.user.role === 'Student' && fee.student?.userId !== req.user._id) {
+      return res.status(403).json({ message: 'You can only pay your own fees.' });
+    }
+    if (req.user.role === 'Parent') {
+      const parent = await prisma.parent.findFirst({
+        where: { userId: req.user._id },
+        include: { children: { select: { id: true } } }
+      });
+      const isLinked = parent?.children.some((child) => child.id === fee.student?.id);
+      if (!isLinked) {
+        return res.status(403).json({ message: 'You can only pay fees for your linked students.' });
+      }
     }
 
     // Check unique transaction reference
@@ -374,6 +549,8 @@ module.exports = {
   getPaidStudentsByClass,
   createFeeStructure,
   getFeeStructures,
+  generateMonthlyFees,
+  getMyFees,
   submitBankPayment,
   getPendingPayments,
   verifyPayment,

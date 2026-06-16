@@ -178,7 +178,7 @@ const getMyAssignments = async (req, res) => {
 
 const getAllAssignments = async (req, res) => {
   try {
-    const assignments = await prisma.teacherAssignment.find({
+    const assignments = await prisma.teacherAssignment.findMany({
       include: {
         teacher: {
           include: {

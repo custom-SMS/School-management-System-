@@ -6,6 +6,8 @@ const {
   getPaidStudentsByClass,
   createFeeStructure,
   getFeeStructures,
+  generateMonthlyFees,
+  getMyFees,
   submitBankPayment,
   getPendingPayments,
   verifyPayment,
@@ -21,6 +23,12 @@ router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
 // Fee structures management by grade level (Cashier/Admin/SuperAdmin)
 router.post('/structures', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), createFeeStructure);
 router.get('/structures', verifyToken, getFeeStructures);
+
+// Generate monthly tuition invoices for all students (Cashier/Admin/SuperAdmin)
+router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), generateMonthlyFees);
+
+// Student/Parent fee portal
+router.get('/my', verifyToken, checkRole(['Student', 'Parent']), getMyFees);
 
 // Bank payment integration (Students/Parents submit, Cashier verifies)
 router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), submitBankPayment);

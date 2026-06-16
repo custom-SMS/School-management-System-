@@ -2,6 +2,18 @@ const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Shared options for the auth cookie. In production cookies must be Secure + SameSite=None
+// to be sent on cross-site requests; in local dev SameSite=Lax over http works.
+const AUTH_COOKIE = 'token';
+const cookieOptions = {
+  httpOnly: true,
+  secure: isProduction,
+  sameSite: isProduction ? 'none' : 'lax',
+  maxAge: 24 * 60 * 60 * 1000, // 1 day, matches the JWT expiry
+};
+
 const login = async (req, res) => {
   try {
     const { identifier, email, studentId, password } = req.body;
@@ -93,10 +105,10 @@ const login = async (req, res) => {
       if (parent) responseUser.parentId = parent.parentId;
     }
 
-    // 4. Return token and user details to frontend
+    // 4. Store the JWT in an httpOnly cookie and return the (non-sensitive) user details
+    res.cookie(AUTH_COOKIE, token, cookieOptions);
     res.json({
       message: 'Logged in successfully',
-      token,
       user: responseUser,
     });
   } catch (err) {
@@ -105,8 +117,12 @@ const login = async (req, res) => {
 };
 
 const logout = (req, res) => {
-  // In a stateless JWT authentication, we don't store tokens on the server.
-  // The frontend handles destruction of the token. We'll simulate a success response.
+  // Clear the auth cookie. Options (except maxAge) must match those used when setting it.
+  res.clearCookie(AUTH_COOKIE, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+  });
   res.json({ message: 'Logged out successfully' });
 };
 

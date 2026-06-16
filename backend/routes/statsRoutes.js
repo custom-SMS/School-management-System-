@@ -4,7 +4,7 @@ const { getAdminStats, getStudentPortalStats, getParentPortalStats, getTeacherPo
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
 // Get Director/Admin 3-Card Dashboard Stats
-router.get('/admin', verifyToken, checkRole(['Admin']), getAdminStats);
+router.get('/admin', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getAdminStats);
 
 // Get current student portal profile, grades, and fee log
 router.get('/student/me', verifyToken, checkRole(['Student']), getStudentPortalStats);

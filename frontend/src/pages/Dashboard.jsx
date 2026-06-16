@@ -1,192 +1,69 @@
-﻿import { useContext, useState, useEffect } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import Navbar from '../components/Navbar';
+import AdminLayout from '../components/AdminLayout';
 
-const normalizeClassLabel = (value) => {
-  const label = String(value ?? '').trim();
-  return label || 'Unassigned';
+const normalizeClassLabel = (value) => String(value ?? '').trim() || 'Unassigned';
+
+const ACTIVITY_LOGS = [
+  { id: '#TRX-8921-S', user: 'Tewodros Melaku', initials: 'TM', color: 'bg-blue-500', type: 'Fee Collection – Grade 10', status: 'COMPLETED', time: '10:42 AM' },
+  { id: '#TRX-8919-A', user: 'Abebe Kebede', initials: 'AK', color: 'bg-purple-500', type: 'Curriculum Update – Biology', status: 'MODIFIED', time: '09:15 AM' },
+  { id: '#TRX-8915-P', user: 'Helen Assefa', initials: 'HA', color: 'bg-orange-500', type: 'New Staff Onboarding', status: 'PENDING', time: '08:02 AM' },
+  { id: '#TRX-8910-E', user: 'Dawit Alemu', initials: 'DA', color: 'bg-red-500', type: 'System Backup Failure', status: 'FAILED', time: 'Yesterday' },
+];
+
+const STATUS_STYLES = {
+  COMPLETED: 'bg-teal-50 text-teal-700',
+  MODIFIED: 'bg-gray-200 text-gray-700',
+  PENDING: 'bg-orange-50 text-orange-700',
+  FAILED: 'bg-red-50 text-red-700',
 };
-
-const classSortWeight = (value) => {
-  const label = normalizeClassLabel(value);
-  const match = label.match(/\d+/);
-  return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
-};
-
-const sortChartRows = (rows) => [...rows].sort((left, right) => {
-  const leftWeight = classSortWeight(left.label);
-  const rightWeight = classSortWeight(right.label);
-
-  if (leftWeight !== rightWeight) {
-    return leftWeight - rightWeight;
-  }
-
-  return left.label.localeCompare(right.label);
-});
 
 const buildTeacherFallbackData = (assignments = [], user = null) => {
   const uniqueClasses = Array.from(
     new Map(
-      assignments
-        .map((assignment) => assignment.class)
-        .filter(Boolean)
-        .map((klass) => [klass._id, klass]),
-    ).values(),
-  ).sort((left, right) => normalizeClassLabel(left.name).localeCompare(normalizeClassLabel(right.name), undefined, { numeric: true, sensitivity: 'base' }));
-
-  const classSummaries = uniqueClasses.map((klass) => ({
-    classId: klass._id,
-    className: normalizeClassLabel(klass.name),
-    subject: normalizeClassLabel(klass.subject),
-    studentCount: klass.students?.length || 0,
-    attendanceSessions: 0,
-    attendanceRate: 0,
-    gradesCount: 0,
-    averageGrade: 0,
-    latestAttendanceDate: null,
-  }));
-
-  const assignedStudentsCount = new Set(
-    uniqueClasses.flatMap((klass) => (klass.students || []).map((student) => student?._id?.toString()).filter(Boolean)),
-  ).size;
-
+      assignments.map((a) => a.class).filter(Boolean).map((k) => [k._id, k])
+    ).values()
+  );
   return {
-    teacher: {
-      name: user?.name || 'Teacher',
-      email: user?.email || '',
-      role: user?.role || 'Teacher',
-    },
-    teacherId: '—',
-    subject: 'Assigned Classes',
     assignedClassesCount: uniqueClasses.length,
-    assignedStudentsCount,
+    assignedStudentsCount: new Set(
+      uniqueClasses.flatMap((k) => (k.students || []).map((s) => s?._id?.toString()).filter(Boolean))
+    ).size,
     gradesRecordedCount: 0,
-    attendanceSessionsCount: 0,
     averageGrade: 0,
-    classSummaries,
+    classSummaries: uniqueClasses.map((k) => ({
+      classId: k._id,
+      className: normalizeClassLabel(k.name),
+      subject: normalizeClassLabel(k.subject),
+      studentCount: k.students?.length || 0,
+      attendanceRate: 0,
+      averageGrade: 0,
+      gradesCount: 0,
+    })),
     recentGrades: [],
     recentAttendance: [],
   };
 };
 
-function AnalyticsBarCard({ title, description, rows, valueKey, valueFormatter, barClass, emptyMessage }) {
-  const maxValue = rows.reduce((max, row) => Math.max(max, Number(row[valueKey] || 0)), 0);
-
-  return (
-    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-      <div className="mb-5">
-        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </div>
-
-      <div className="space-y-4">
-        {rows.length > 0 ? rows.map((row, index) => {
-          const value = Number(row[valueKey] || 0);
-          const width = maxValue > 0 ? Math.max((value / maxValue) * 100, value > 0 ? 8 : 0) : 0;
-          const rowKey = row.key || `${row.label}-${index}`;
-
-          return (
-            <div key={rowKey}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                <span className="font-semibold text-slate-700">{row.label}</span>
-                <span className="font-semibold text-slate-900">{valueFormatter(value, row)}</span>
-              </div>
-              <div className="h-3 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className={`h-full rounded-full ${barClass}`}
-                  style={{ width: `${width}%` }}
-                  aria-hidden="true"
-                />
-              </div>
-              {row.caption && <p className="mt-2 text-xs text-slate-500">{row.caption}</p>}
-            </div>
-          );
-        }) : (
-          <p className="text-sm text-slate-500">{emptyMessage}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function FeeStackedCard({ title, description, rows, emptyMessage }) {
-  return (
-    <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-      <div className="mb-5">
-        <h3 className="text-xl font-bold text-slate-900">{title}</h3>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </div>
-
-      <div className="space-y-4">
-        {rows.length > 0 ? rows.map((row, index) => {
-          const totalAmount = Number(row.totalAmount || 0);
-          const paidAmount = Number(row.paidAmount || 0);
-          const pendingAmount = Number(row.pendingAmount || 0);
-          const paidWidth = totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0;
-          const pendingWidth = totalAmount > 0 ? (pendingAmount / totalAmount) * 100 : 0;
-          const rowKey = row.key || `${row.label}-${index}`;
-
-          return (
-            <div key={rowKey}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                <span className="font-semibold text-slate-700">{row.label}</span>
-                <span className="font-semibold text-slate-900">ETB {totalAmount}</span>
-              </div>
-              <div className="flex h-3 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  className="h-full bg-emerald-500"
-                  style={{ width: `${paidWidth}%` }}
-                  aria-hidden="true"
-                />
-                <div
-                  className="h-full bg-rose-400"
-                  style={{ width: `${pendingWidth}%` }}
-                  aria-hidden="true"
-                />
-              </div>
-              <div className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-500">
-                <span>Paid: ETB {paidAmount}</span>
-                <span>Pending: ETB {pendingAmount}</span>
-              </div>
-            </div>
-          );
-        }) : (
-          <p className="text-sm text-slate-500">{emptyMessage}</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard() {
-  const { user } = useContext(AuthContext);
+  const { user, permissions } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [teacherData, setTeacherData] = useState(null);
   const [studentData, setStudentData] = useState(null);
   const [parentData, setParentData] = useState(null);
-  const [portalLoading, setPortalLoading] = useState(false);
-  const [teacherLoading, setTeacherLoading] = useState(false);
-  const [portalError, setPortalError] = useState('');
-  const [teacherError, setTeacherError] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let active = true;
-
     const fetchData = async () => {
       try {
         if (!user) return;
-
-        if (active) {
-          setPortalError('');
-          setTeacherError('');
-          setPortalLoading(user.role === 'Student');
-          setTeacherLoading(user.role === 'Teacher');
-        }
-
-        if (user.role === 'Admin') {
+        if (user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Cashier') {
           const res = await axios.get('/stats/admin');
-          setStats(res.data);
+          if (active) setStats(res.data);
         } else if (user.role === 'Student') {
           const res = await axios.get('/stats/student/me');
           if (active) setStudentData(res.data);
@@ -199,617 +76,238 @@ export default function Dashboard() {
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
-        if (active && user?.role === 'Student') {
-          setPortalError(err.response?.data?.message || 'Unable to load your student portal right now.');
-        } else if (active && user?.role === 'Teacher') {
-          setTeacherError(err.response?.data?.message || 'Unable to load your teacher dashboard right now.');
-        }
       } finally {
-        if (active) setPortalLoading(false);
-        if (active) setTeacherLoading(false);
+        if (active) setLoading(false);
       }
     };
     fetchData();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [user]);
 
-  const studentProfile = studentData?.profile ?? {};
-  const studentId = studentData?.studentId || studentProfile.studentId || '—';
-  const studentGrade = studentData?.grade || studentProfile.grade || '—';
-  const guardianContacts = studentProfile.guardianContacts || [];
-  const attendanceCount =
-    studentData?.attendanceCount ?? studentData?.attendance?.length ?? 0;
-  const gradeEntries = studentData?.grades || [];
-  const gradesCount = studentData?.gradesCount ?? gradeEntries.length ?? 0;
-  const attendanceEntries = studentData?.attendance || [];
-  const attendancePresentCount = attendanceEntries.filter((entry) => entry.status === 'Present').length;
-  const attendanceAbsentCount = attendanceEntries.filter((entry) => entry.status === 'Absent').length;
-  const attendanceLateCount = attendanceEntries.filter((entry) => entry.status === 'Late').length;
-  const attendanceRate = Number(studentData?.attendanceRate ?? (attendanceCount > 0 ? ((attendancePresentCount / attendanceCount) * 100).toFixed(2) : 0));
+  const isAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Cashier';
 
-  const normalizedGradeEntries = gradeEntries.map((grade) => ({
-    ...grade,
-    percentageValue: Number(grade.percentage ?? 0),
-    totalValue: Number(grade.total ?? ((grade.marks?.test || 0) + (grade.marks?.midterm || 0) + (grade.marks?.final || 0))),
-  }));
-  const gradeAverage = normalizedGradeEntries.length > 0
-    ? Math.round(
-        normalizedGradeEntries.reduce((sum, grade) => sum + grade.percentageValue, 0) /
-          normalizedGradeEntries.length,
+  if (!isAdmin) {
+    // Non-admin users: redirect to old behavior or show simple view
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.name}</h1>
+          <p className="mt-2 text-gray-500">You are logged in as <strong>{user?.role}</strong></p>
+        </div>
+      </div>
+    );
+  }
+
+  const STAT_CARDS = [
+    {
+      label: 'Total Students',
+      value: stats?.totalStudents?.toLocaleString() || '—',
+      badge: '+12%',
+      badgeColor: 'text-green-600',
+      icon: (
+        <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
+          <path d="M18 2a10 10 0 1 0 0 20A10 10 0 0 0 18 2zM4 34c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#000" strokeWidth="2"/>
+        </svg>
       )
-    : 0;
-  const bestSubject = normalizedGradeEntries.reduce((best, grade) => {
-    if (!best || grade.percentageValue > best.percentageValue) return grade;
-    return best;
-  }, null);
-  const latestGradeEntries = [...normalizedGradeEntries].sort(
-    (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0),
-  );
-
-  const feeEntries = studentData?.fees || [];
-  const paidFeeAmount = feeEntries.reduce((sum, fee) => (fee.paid ? sum + Number(fee.amount || 0) : sum), 0);
-  const pendingFeeAmount =
-    studentData?.totalFees ??
-    feeEntries.reduce(
-      (sum, fee) => (fee.paid ? sum : sum + Number(fee.amount || 0)),
-      0,
-    ) ?? 0;
-  const paidFeeCount = feeEntries.filter((fee) => fee.paid).length;
-  const pendingFeeCount = feeEntries.filter((fee) => !fee.paid).length;
-
-  const studentsByClass = sortChartRows(
-    (stats?.studentsByClass || []).map((entry) => ({
-      label: normalizeClassLabel(entry.className),
-      studentCount: Number(entry.studentCount || 0),
-    })),
-  );
-
-  const attendanceByClass = sortChartRows(
-    (stats?.attendanceSummary || []).map((entry) => ({
-      label: normalizeClassLabel(entry.className),
-      attendanceRate: Number(entry.attendanceRate || 0),
-      caption: `${entry.present || 0} present out of ${entry.checked || 0} check-ins`,
-    })),
-  );
-
-  const feeSummaryByClass = sortChartRows(
-    (stats?.feeSummaryByClass || []).map((entry) => ({
-      label: normalizeClassLabel(entry.className),
-      totalAmount: Number(entry.totalAmount || 0),
-      paidAmount: Number(entry.paidAmount || 0),
-      pendingAmount: Number(entry.pendingAmount || 0),
-    })),
-  );
-
-  const teacherClassSummaries = sortChartRows(
-    (teacherData?.classSummaries || []).map((entry) => ({
-      label: normalizeClassLabel(entry.className),
-      studentCount: Number(entry.studentCount || 0),
-      attendanceRate: Number(entry.attendanceRate || 0),
-      averageGrade: Number(entry.averageGrade || 0),
-      caption: `${entry.subject || 'General'} • ${entry.gradesCount || 0} grade${entry.gradesCount === 1 ? '' : 's'}`,
-    })),
-  );
-
-  const teacherStudentsByClass = teacherClassSummaries.map((entry) => ({
-    label: entry.label,
-    studentCount: entry.studentCount,
-    caption: entry.caption,
-  }));
-
-  const teacherAttendanceByClass = teacherClassSummaries.map((entry) => ({
-    label: entry.label,
-    attendanceRate: entry.attendanceRate,
-    caption: `${entry.attendanceRate}% attendance • ${entry.subject || 'General'}`,
-  }));
-
-  const teacherGradeByClass = teacherClassSummaries.map((entry) => ({
-    label: entry.label,
-    averageGrade: entry.averageGrade,
-    caption: `${entry.gradesCount || 0} grade${entry.gradesCount === 1 ? '' : 's'} recorded`,
-  }));
+    },
+    {
+      label: 'Attendance Rate',
+      value: `${stats?.avgAttendance || 0}%`,
+      badge: 'Optimal',
+      badgeColor: 'text-green-600',
+      icon: (
+        <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
+          <circle cx="18" cy="18" r="14" stroke="#000" strokeWidth="2"/>
+          <path d="m11 18 5 5 9-10" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      )
+    },
+    {
+      label: 'Revenue (ETB)',
+      value: stats?.totalRevenue ? `${(stats.totalRevenue / 1000000).toFixed(1)}M` : '—',
+      badge: 'Q4 Actual',
+      badgeColor: 'text-gray-500',
+      icon: (
+        <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
+          <rect x="3" y="7" width="30" height="22" rx="2" stroke="#000" strokeWidth="2"/>
+          <path d="M3 13h30M12 13v16M24 13v16" stroke="#000" strokeWidth="2"/>
+        </svg>
+      )
+    },
+    {
+      label: 'Outstanding Balances',
+      value: stats?.totalPendingRevenue ? `${Math.round(stats.totalPendingRevenue / 1000)}K` : '0',
+      badge: 'Action Required',
+      badgeColor: 'text-red-600',
+      danger: true,
+      icon: (
+        <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
+          <path d="M18 3L33 30H3L18 3z" stroke="#000" strokeWidth="2" strokeLinejoin="round"/>
+          <path d="M18 14v7M18 25h.01" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
+        </svg>
+      )
+    },
+  ];
 
   return (
-    <div className="min-h-screen bg-transparent">
-      <Navbar />
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 overflow-hidden rounded-4xl border border-white/50 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Overview</p>
-              <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">Welcome, {user.name}</h1>
-              <p className="mt-2 text-sm text-slate-500">Signed in as <span className="font-semibold text-slate-700">{user.role}</span></p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-600">
-              Secure session active <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            </div>
-          </div>
-        </div>
-      
-        {user.role === 'Admin' && stats && (
-          <>
-            <div className="grid gap-6 md:grid-cols-3">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Total Students</h3>
-                <p className="text-4xl font-black tracking-tight text-slate-900">{stats.totalStudents}</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Total Revenue</h3>
-                <p className="text-4xl font-black tracking-tight text-emerald-600">ETB {stats.totalRevenue}</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Avg Attendance</h3>
-                <p className="text-4xl font-black tracking-tight text-blue-600">{stats.avgAttendance}%</p>
-              </div>
-            </div>
-
-            <div className="mt-8 space-y-6">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <h2 className="text-2xl font-black tracking-tight text-slate-900">Admin Analytics</h2>
-                    <p className="mt-1 text-sm text-slate-500">Quick visual insights across classes, attendance, and fees.</p>
-                  </div>
-                  <div className="rounded-full bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-                    {stats.totalPendingRevenue ? `Outstanding fees: ETB ${stats.totalPendingRevenue}` : 'All fee collections are up to date'}
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid gap-6 xl:grid-cols-3">
-                <AnalyticsBarCard
-                  title="Students by Class"
-                  description="Student distribution across the available classes."
-                  rows={studentsByClass}
-                  valueKey="studentCount"
-                  valueFormatter={(value) => `${value} student${value === 1 ? '' : 's'}`}
-                  barClass="bg-blue-500"
-                  emptyMessage="No student distribution data is available yet."
-                />
-
-                <AnalyticsBarCard
-                  title="Attendance by Class"
-                  description="Average attendance percentage recorded for each class."
-                  rows={attendanceByClass}
-                  valueKey="attendanceRate"
-                  valueFormatter={(value) => `${value}%`}
-                  barClass="bg-emerald-500"
-                  emptyMessage="No attendance analytics are available yet."
-                />
-
-                <FeeStackedCard
-                  title="Fee Collection by Class"
-                  description="Paid and pending fee amounts summarized by class."
-                  rows={feeSummaryByClass}
-                  emptyMessage="No fee analytics are available yet."
-                />
-              </div>
-            </div>
-          </>
+    <AdminLayout pageTitle="System Management" headerAction={
+      <div className="flex gap-3">
+        {(user?.role === 'SuperAdmin' || permissions.includes('student_registration')) && (
+          <button
+            onClick={() => navigate('/register-student')}
+            className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            Add Student
+          </button>
         )}
+        <button
+          onClick={() => navigate('/teachers')}
+          className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          Assign Teacher
+        </button>
+        <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          Print Reports
+        </button>
+      </div>
+    }>
+      {/* Page Title */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900">Principal's Dashboard</h2>
+        <p className="text-sm text-gray-500">St. George Academy – Academic Session 2023/24</p>
+      </div>
 
-        {user.role === 'Teacher' && teacherLoading && (
-          <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-            <h3 className="mb-2 text-xl font-bold text-slate-900">Loading teacher dashboard…</h3>
-            <p className="text-slate-600">Fetching your classes, grades, and attendance summaries.</p>
-          </div>
-        )}
+      {loading && <div className="py-12 text-center text-sm text-gray-500">Loading dashboard data…</div>}
 
-        {user.role === 'Teacher' && teacherError && !teacherLoading && (
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-            <h3 className="mb-2 text-xl font-bold text-rose-900">Teacher dashboard unavailable</h3>
-            <p className="text-rose-700">{teacherError}</p>
-          </div>
-        )}
-
-        {user.role === 'Teacher' && teacherData && !teacherLoading && !teacherError && (
-          <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Assigned Classes</h3>
-                <p className="text-4xl font-black tracking-tight text-slate-900">{teacherData.assignedClassesCount}</p>
-                <p className="mt-2 text-sm text-slate-500">Classes currently linked to you.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Students You Reach</h3>
-                <p className="text-4xl font-black tracking-tight text-blue-600">{teacherData.assignedStudentsCount}</p>
-                <p className="mt-2 text-sm text-slate-500">Unique learners across your classes.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Grades Recorded</h3>
-                <p className="text-4xl font-black tracking-tight text-emerald-600">{teacherData.gradesRecordedCount}</p>
-                <p className="mt-2 text-sm text-slate-500">Recent subject marks submitted by you.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Average Grade</h3>
-                <p className="text-4xl font-black tracking-tight text-violet-600">{teacherData.averageGrade}%</p>
-                <p className="mt-2 text-sm text-slate-500">Average of your recorded marks.</p>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-end sm:justify-between">
-                <div>
-                  <h2 className="text-2xl font-black tracking-tight text-slate-900">Teacher Overview</h2>
-                  <p className="mt-1 text-sm text-slate-500">A quick look at your classes, student load, and recent classroom activity.</p>
+      {!loading && (
+        <div className="space-y-6">
+          {/* Stat Cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {STAT_CARDS.map((card, i) => (
+              <div key={i} className="relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="absolute right-4 top-4 h-16 w-16">
+                  {card.icon}
                 </div>
-                <div className="rounded-full bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-600">
-                  {teacherData.teacherId} • {teacherData.subject}
-                </div>
-              </div>
-
-              <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-                {teacherData.classSummaries.length > 0 ? teacherData.classSummaries.map((klass) => (
-                  <div key={klass.classId} className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900">{klass.className}</h3>
-                        <p className="mt-1 text-sm text-slate-500">{klass.subject}</p>
-                      </div>
-                      <div className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                        {klass.studentCount} student{klass.studentCount === 1 ? '' : 's'}
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-2xl bg-white px-4 py-3">
-                        <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Attendance</div>
-                        <div className="mt-1 text-xl font-black text-emerald-600">{klass.attendanceRate}%</div>
-                      </div>
-                      <div className="rounded-2xl bg-white px-4 py-3">
-                        <div className="text-xs uppercase tracking-[0.16em] text-slate-400">Average Grade</div>
-                        <div className="mt-1 text-xl font-black text-blue-600">{klass.averageGrade}%</div>
-                      </div>
-                    </div>
-
-                    <p className="mt-4 text-xs uppercase tracking-[0.16em] text-slate-400">
-                      {klass.gradesCount} grade{klass.gradesCount === 1 ? '' : 's'} • {klass.attendanceSessions} attendance session{klass.attendanceSessions === 1 ? '' : 's'}
-                    </p>
-                  </div>
-                )) : (
-                  <p className="text-sm text-slate-500">No class assignments are available yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid gap-6 xl:grid-cols-3">
-              <AnalyticsBarCard
-                title="Students per Class"
-                description="How many students are in each of your classes."
-                rows={teacherStudentsByClass}
-                valueKey="studentCount"
-                valueFormatter={(value) => `${value} student${value === 1 ? '' : 's'}`}
-                barClass="bg-blue-500"
-                emptyMessage="No class roster data available yet."
-              />
-
-              <AnalyticsBarCard
-                title="Attendance Rate by Class"
-                description="Attendance percentage across your assigned classes."
-                rows={teacherAttendanceByClass}
-                valueKey="attendanceRate"
-                valueFormatter={(value) => `${value}%`}
-                barClass="bg-emerald-500"
-                emptyMessage="No attendance records available yet."
-              />
-
-              <AnalyticsBarCard
-                title="Average Grade by Class"
-                description="Your classroom performance by average score."
-                rows={teacherGradeByClass}
-                valueKey="averageGrade"
-                valueFormatter={(value) => `${value}%`}
-                barClass="bg-violet-500"
-                emptyMessage="No grade records available yet."
-              />
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Grades</h3>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="min-w-[720px] w-full border-collapse text-left text-sm sm:text-base">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                        <th className="px-4 py-4">Student</th>
-                        <th className="px-4 py-4">Class</th>
-                        <th className="px-4 py-4">Subject</th>
-                        <th className="px-4 py-4">%</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {teacherData.recentGrades.length > 0 ? teacherData.recentGrades.map((grade) => (
-                        <tr key={grade.gradeId} className="transition hover:bg-slate-50">
-                          <td className="px-4 py-4 font-semibold text-slate-900">{grade.studentName}</td>
-                          <td className="px-4 py-4 text-slate-600">{grade.className}</td>
-                          <td className="px-4 py-4 text-slate-600">{grade.subject}</td>
-                          <td className="px-4 py-4 font-semibold text-slate-900">{grade.percentage}%</td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan="4" className="px-4 py-8 text-center text-slate-500">No recent grades yet.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Attendance</h3>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                  <table className="min-w-[640px] w-full border-collapse text-left text-sm sm:text-base">
-                    <thead>
-                      <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                        <th className="px-4 py-4">Class</th>
-                        <th className="px-4 py-4">Date</th>
-                        <th className="px-4 py-4">Present</th>
-                        <th className="px-4 py-4">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {teacherData.recentAttendance.length > 0 ? teacherData.recentAttendance.map((session) => (
-                        <tr key={session.attendanceId} className="transition hover:bg-slate-50">
-                          <td className="px-4 py-4 font-semibold text-slate-900">{session.className}</td>
-                          <td className="px-4 py-4 text-slate-600">{new Date(session.date).toLocaleDateString()}</td>
-                          <td className="px-4 py-4 text-slate-600">{session.present}</td>
-                          <td className="px-4 py-4 text-slate-600">{session.total}</td>
-                        </tr>
-                      )) : (
-                        <tr>
-                          <td colSpan="4" className="px-4 py-8 text-center text-slate-500">No recent attendance sessions yet.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {user.role === 'Student' && portalLoading && (
-          <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-            <h3 className="mb-2 text-xl font-bold text-slate-900">Loading student portal…</h3>
-            <p className="text-slate-600">Fetching your profile, attendance, and fee summary.</p>
-          </div>
-        )}
-
-        {user.role === 'Student' && portalError && !portalLoading && (
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-            <h3 className="mb-2 text-xl font-bold text-rose-900">Student portal unavailable</h3>
-            <p className="text-rose-700">{portalError}</p>
-          </div>
-        )}
-
-        {user.role === 'Student' && !portalLoading && !portalError && (
-          <div className="space-y-6">
-            <div className="grid gap-6 md:grid-cols-4">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Attendance Rate</h3>
-                <p className="text-4xl font-black tracking-tight text-blue-600">{attendanceRate}%</p>
-                <p className="mt-2 text-sm text-slate-500">Based on your recorded attendance logs.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Paid Fees</h3>
-                <p className="text-4xl font-black tracking-tight text-emerald-600">ETB {paidFeeAmount}</p>
-                <p className="mt-2 text-sm text-slate-500">{paidFeeCount} payment record{paidFeeCount === 1 ? '' : 's'}.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Pending Fees</h3>
-                <p className="text-4xl font-black tracking-tight text-rose-600">ETB {pendingFeeAmount}</p>
-                <p className="mt-2 text-sm text-slate-500">{pendingFeeCount} unpaid item{pendingFeeCount === 1 ? '' : 's'}.</p>
-              </div>
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-2 text-sm font-semibold uppercase tracking-[0.2em] text-slate-500">Grade Average</h3>
-                <p className="text-4xl font-black tracking-tight text-slate-900">{gradeAverage}%</p>
-                <p className="mt-2 text-sm text-slate-500">Across {gradesCount} subject{gradesCount === 1 ? '' : 's'}.</p>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <div className="mb-4 flex items-center justify-between gap-4 border-b border-slate-200 pb-4">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-900">Grade Details</h3>
-                  <p className="mt-1 text-sm text-slate-500">Subject-by-subject marks and performance breakdown.</p>
-                </div>
-                <div className="rounded-full bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">
-                  Average Score: {gradeAverage}%
-                </div>
-              </div>
-
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="min-w-[720px] w-full border-collapse text-left text-sm sm:text-base">
-                  <thead>
-                    <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      <th className="px-4 py-4">Subject</th>
-                      <th className="px-4 py-4">Test</th>
-                      <th className="px-4 py-4">Midterm</th>
-                      <th className="px-4 py-4">Final</th>
-                      <th className="px-4 py-4">Total</th>
-                      <th className="px-4 py-4">%</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {latestGradeEntries.length > 0 ? latestGradeEntries.map((grade) => (
-                      <tr key={grade._id} className="transition hover:bg-slate-50">
-                        <td className="px-4 py-4 font-semibold text-slate-900">{grade.subject}</td>
-                        <td className="px-4 py-4 text-slate-700">{grade.marks?.test ?? 0}</td>
-                        <td className="px-4 py-4 text-slate-700">{grade.marks?.midterm ?? 0}</td>
-                        <td className="px-4 py-4 text-slate-700">{grade.marks?.final ?? 0}</td>
-                        <td className="px-4 py-4 font-semibold text-slate-900">{grade.totalValue}</td>
-                        <td className="px-4 py-4">
-                          <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${grade.percentageValue >= 75 ? 'bg-emerald-100 text-emerald-700' : grade.percentageValue >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
-                            {grade.percentageValue}%
-                          </span>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="6" className="px-4 py-8 text-center text-slate-500">No grade records available yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-4 text-xl font-bold text-slate-900">Attendance Breakdown</h3>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-2xl bg-emerald-50 px-4 py-3">
-                    <div className="text-sm font-semibold text-emerald-700">Present</div>
-                    <div className="text-2xl font-black text-emerald-700">{attendancePresentCount}</div>
-                  </div>
-                  <div className="rounded-2xl bg-rose-50 px-4 py-3">
-                    <div className="text-sm font-semibold text-rose-700">Absent</div>
-                    <div className="text-2xl font-black text-rose-700">{attendanceAbsentCount}</div>
-                  </div>
-                  <div className="rounded-2xl bg-amber-50 px-4 py-3">
-                    <div className="text-sm font-semibold text-amber-700">Late</div>
-                    <div className="text-2xl font-black text-amber-700">{attendanceLateCount}</div>
-                  </div>
-                </div>
-                <p className="mt-4 text-sm text-slate-500">Attendance total: {attendanceCount} session{attendanceCount === 1 ? '' : 's'}.</p>
-              </div>
-
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <h3 className="mb-4 text-xl font-bold text-slate-900">Guardians</h3>
-                {guardianContacts.length > 0 ? (
-                  <div className="space-y-3">
-                    {guardianContacts.map((guardian, index) => (
-                      <div key={`${guardian.parent?._id || guardian.fullName || index}`} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="font-semibold text-slate-900">{guardian.fullName}</div>
-                            <div className="text-sm text-slate-500">{guardian.relationship || 'Guardian'}</div>
-                          </div>
-                          {guardian.primary && (
-                            <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">Primary</span>
-                          )}
-                        </div>
-                        <div className="mt-2 space-y-1 text-sm text-slate-600">
-                          {guardian.email && <div>Email: {guardian.email}</div>}
-                          {guardian.phone && <div>Phone: {guardian.phone}</div>}
-                          {guardian.address && <div>Address: {guardian.address}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-sm text-slate-500">No guardian details linked yet.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <h3 className="mb-4 text-xl font-bold text-slate-900">Recent Attendance</h3>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="min-w-[640px] w-full border-collapse text-left text-sm sm:text-base">
-                  <thead>
-                    <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      <th className="px-4 py-4">Date</th>
-                      <th className="px-4 py-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {attendanceEntries.length > 0 ? attendanceEntries.map((entry) => (
-                      <tr key={entry.date} className="transition hover:bg-slate-50">
-                        <td className="px-4 py-4 text-slate-700">{new Date(entry.date).toLocaleDateString()}</td>
-                        <td className="px-4 py-4">
-                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${entry.status === 'Present' ? 'bg-emerald-100 text-emerald-700' : entry.status === 'Late' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
-                            {entry.status}
-                          </span>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="2" className="px-4 py-8 text-center text-slate-500">No attendance records available yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <h3 className="mb-4 text-xl font-bold text-slate-900">Fee Ledger</h3>
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="min-w-[520px] w-full border-collapse text-left text-sm sm:text-base">
-                  <thead>
-                    <tr className="bg-slate-50 text-xs uppercase tracking-[0.18em] text-slate-500">
-                      <th className="px-4 py-4">Month</th>
-                      <th className="px-4 py-4">Amount</th>
-                      <th className="px-4 py-4">Status</th>
-                      <th className="px-4 py-4">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
-                    {feeEntries.length > 0 ? feeEntries.map((fee) => (
-                      <tr key={fee._id} className="transition hover:bg-slate-50">
-                        <td className="px-4 py-4 text-slate-700">{fee.month}</td>
-                        <td className="px-4 py-4 font-semibold text-slate-900">ETB {fee.amount}</td>
-                        <td className="px-4 py-4">
-                          <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] ${fee.paid ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
-                            {fee.paid ? 'Paid' : 'Pending'}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4 text-slate-600">
-                          {fee.paid
-                            ? new Date(fee.paymentDate || fee.createdAt).toLocaleDateString()
-                            : new Date(fee.dueDate || fee.createdAt).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="4" className="px-4 py-8 text-center text-slate-500">No fee records available yet.</td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {user.role === 'Parent' && parentData && (
-          <div className="space-y-6">
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <h3 className="mb-3 text-xl font-bold text-slate-900">Parent Portal</h3>
-              <p className="text-slate-600">Track your linked children’s attendance, progress, and fee payments.</p>
-            </div>
-
-            {parentData.children?.map((child) => (
-              <div key={child.profile._id} className="grid gap-6 md:grid-cols-2">
-                <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                  <h4 className="mb-4 text-lg font-bold text-slate-900">{child.profile.user?.name}</h4>
-                  <p className="text-slate-600"><strong className="text-slate-900">Student ID:</strong> {child.profile.studentId}</p>
-                  <p className="mt-2 text-slate-600"><strong className="text-slate-900">Grade:</strong> {child.profile.grade}</p>
-                  <p className="mt-2 text-slate-600"><strong className="text-slate-900">Grades:</strong> {child.grades.length}</p>
-                  <p className="mt-2 text-slate-600"><strong className="text-slate-900">Payments:</strong> {child.fees.length}</p>
-                </div>
-
-                <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                  <h4 className="mb-4 text-lg font-bold text-slate-900">Recent Attendance</h4>
-                  <div className="space-y-2">
-                    {child.attendance.slice(0, 5).map((entry) => (
-                      <div key={`${child.profile._id}-${entry.date}`} className="flex items-center justify-between rounded-2xl bg-slate-50 px-4 py-3 text-sm">
-                        <span className="text-slate-600">{new Date(entry.date).toLocaleDateString()}</span>
-                        <span className="font-semibold text-slate-900">{entry.status}</span>
-                      </div>
-                    ))}
-                    {child.attendance.length === 0 && <div className="text-sm text-slate-500">No attendance records yet.</div>}
-                  </div>
-                </div>
+                <div className={`mb-1 text-xs font-bold uppercase tracking-wider ${card.badgeColor}`}>{card.badge}</div>
+                <div className="mb-1 text-xs font-semibold text-gray-500">{card.label}</div>
+                <div className={`text-4xl font-bold tracking-tight ${card.danger ? 'text-red-600' : 'text-gray-900'}`}>{card.value}</div>
               </div>
             ))}
           </div>
-        )}
-      </div>
-    </div>
+
+          {/* Middle Row: Chart + School Status */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
+            {/* Daily Attendance Trend */}
+            <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-start justify-between">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Daily Attendance Trend</h3>
+                  <p className="text-sm text-gray-500">Comparative analysis of past 7 days</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-black"></span><span className="text-gray-700 font-semibold">This Week</span></div>
+                  <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-300"></span><span className="text-gray-500">Target</span></div>
+                </div>
+              </div>
+
+              {/* Mini Bar Chart */}
+              <div className="relative h-48">
+                <div className="flex h-full items-end justify-between gap-2 px-2">
+                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
+                    const heights = [72, 88, 64, 94, 80, 56, 78];
+                    return (
+                      <div key={day} className="flex flex-1 flex-col items-center gap-2">
+                        <div className="w-full rounded-t bg-black/90 transition-all" style={{ height: `${heights[i]}%` }}></div>
+                        <span className="text-xs text-gray-500">{day}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+
+            {/* School Status Dark Card */}
+            <div className="flex flex-col justify-between rounded-xl bg-black p-6 text-white shadow-sm">
+              <div>
+                <h3 className="mb-1 text-xl font-bold">School Status</h3>
+                <p className="mb-6 text-sm text-gray-400">Real-time system health and operational capacity.</p>
+                <div className="space-y-4">
+                  {[
+                    { label: 'LMS Server', status: 'ONLINE', color: 'text-green-400' },
+                    { label: 'Exam Portal', status: 'STABLE', color: 'text-green-400' },
+                    { label: 'Staff Connectivity', status: 'DEGRADED', color: 'text-red-400' },
+                  ].map((item) => (
+                    <div key={item.label} className="flex items-center justify-between border-b border-white/10 pb-4">
+                      <span className="text-sm text-gray-300">{item.label}</span>
+                      <span className={`text-sm font-bold ${item.color}`}>{item.status}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button className="mt-6 w-full rounded-lg border border-white/20 py-3 text-sm font-bold text-white transition hover:bg-white/10">
+                View Full Network Log
+              </button>
+            </div>
+          </div>
+
+          {/* Recent Admin Activity */}
+          <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="flex items-center justify-between border-b border-gray-100 p-6">
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Recent Administrative Activity</h3>
+                <p className="text-sm text-gray-500">Last 10 system-wide modifications</p>
+              </div>
+              <button className="text-sm font-bold text-gray-700 hover:underline">Download CSV</button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
+                  <tr>
+                    <th className="px-6 py-4">Transaction ID</th>
+                    <th className="px-6 py-4">Administrative User</th>
+                    <th className="px-6 py-4">Activity Type</th>
+                    <th className="px-6 py-4">Status</th>
+                    <th className="px-6 py-4 text-right">Timestamp</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {ACTIVITY_LOGS.map((log) => (
+                    <tr key={log.id} className="transition hover:bg-gray-50">
+                      <td className="px-6 py-4 font-bold text-gray-900">{log.id}</td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${log.color}`}>{log.initials}</div>
+                          <span className="font-semibold text-gray-900">{log.user}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">{log.type}</td>
+                      <td className="px-6 py-4">
+                        <span className={`inline-flex rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${STATUS_STYLES[log.status]}`}>{log.status}</span>
+                      </td>
+                      <td className="px-6 py-4 text-right text-gray-500">{log.time}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="rounded-xl bg-gray-900 px-8 py-6">
+            <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+              <p className="text-sm text-gray-400">© 2024 Institutional Intelligence Platform. All rights reserved.</p>
+              <div className="flex gap-6 text-sm text-gray-400">
+                <button className="hover:text-gray-200">Privacy Policy</button>
+                <button className="hover:text-gray-200">Security Standards</button>
+                <button className="hover:text-gray-200">Help Center</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </AdminLayout>
   );
 }

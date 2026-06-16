@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  recordAttendance, 
-  saveGrades, 
-  getGrades, 
+const {
+  recordAttendance,
+  getAttendanceSessions,
+  saveGrades,
+  getGrades,
   getClassroomOptions,
   createClass,
   getClasses,
@@ -15,6 +16,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 // Protect routes: Teachers and Admins can manage classroom tasks
 router.get('/options', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getClassroomOptions);
 router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), recordAttendance);
+router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAttendanceSessions);
 router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), saveGrades);
 router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getGrades);
 

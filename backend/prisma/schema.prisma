@@ -17,24 +17,26 @@ enum Role {
 }
 
 model User {
-  id                 String              @id @default(uuid())
-  name               String
-  email              String?             @unique
-  password           String
-  role               Role
-  createdAt          DateTime            @default(now())
+  id                      String                    @id @default(uuid())
+  name                    String
+  email                   String?                   @unique
+  password                String
+  role                    Role
+  createdAt               DateTime                  @default(now())
   
   // Relations
-  studentProfile     Student?
-  teacherProfile     Teacher?
-  parentProfile      Parent?
-  recordedAttendance Attendance[]
-  assignedBy         TeacherAssignment[] @relation("AssignedBy")
-  gradedEntries      Grade[]
-  verifiedPayments   Payment[]           @relation("VerifiedPayments")
-  issuedReceipts     Receipt[]           @relation("IssuedReceipts")
-  notifications      Notification[]
-  auditLogs          AuditLog[]
+  studentProfile          Student?
+  teacherProfile          Teacher?
+  parentProfile           Parent?
+  recordedAttendance      Attendance[]
+  assignedBy              TeacherAssignment[]       @relation("AssignedBy")
+  gradedEntries           Grade[]
+  verifiedPayments        Payment[]                 @relation("VerifiedPayments")
+  issuedReceipts          Receipt[]                 @relation("IssuedReceipts")
+  notifications           Notification[]
+  auditLogs               AuditLog[]
+  unlockRequestsRequested AttendanceUnlockRequest[] @relation("UnlockRequester")
+  unlockRequestsApproved  AttendanceUnlockRequest[] @relation("UnlockApprover")
 }
 
 model RolePermission {
@@ -186,7 +188,8 @@ model Attendance {
   createdAt      DateTime           @default(now())
 
   // Relations
-  records      AttendanceRecord[]
+  records        AttendanceRecord[]
+  unlockRequests AttendanceUnlockRequest[]
 }
 
 model AttendanceRecord {
@@ -239,6 +242,8 @@ model Timetable {
   startTime      String       // e.g. "08:30"
   endTime        String       // e.g. "09:30"
   room           String?
+  classroomId    String?
+  classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now())
 }
 
@@ -366,4 +371,30 @@ model GradeFee {
 model Counter {
   id  String @id
   seq Int    @default(0)
+}
+
+model Classroom {
+  id         String      @id @default(uuid())
+  name       String
+  number     String      @unique
+  capacity   Int
+  building   String
+  status     String      @default("Active") // "Active", "Inactive"
+  createdAt  DateTime    @default(now())
+  timetables Timetable[]
+}
+
+model AttendanceUnlockRequest {
+  id              String     @id @default(uuid())
+  attendanceId    String
+  attendance      Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
+  teacherId       String
+  teacher         User       @relation("UnlockRequester", fields: [teacherId], references: [id], onDelete: Cascade)
+  reason          String
+  status          String     @default("Pending") // "Pending", "Approved", "Rejected"
+  approverId      String?
+  approver        User?      @relation("UnlockApprover", fields: [approverId], references: [id], onDelete: SetNull)
+  rejectionReason String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 }

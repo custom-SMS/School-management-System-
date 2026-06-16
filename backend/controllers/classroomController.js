@@ -13,6 +13,8 @@ const mapGradeToResponse = (grade) => ({
   subject: grade.subject,
   teacher: grade.teacherId,
   marks: {
+    quiz: grade.quiz,
+    assignment: grade.assignment,
     test: grade.test,
     midterm: grade.midterm,
     final: grade.final
@@ -249,6 +251,44 @@ const recordAttendance = async (req, res) => {
   }
 };
 
+// @desc    List attendance sessions (for SuperAdmin lock management)
+// @route   GET /api/classroom/attendance
+// @access  Private (Admin/SuperAdmin)
+const getAttendanceSessions = async (req, res) => {
+  try {
+    const sessions = await prisma.attendance.findMany({
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        recordedBy: { select: { id: true, name: true } },
+        _count: { select: { records: true } }
+      },
+      orderBy: { date: 'desc' },
+      take: 200
+    });
+
+    const now = new Date();
+    const response = sessions.map((session) => {
+      const diffDays = Math.ceil(Math.abs(now - new Date(session.date)) / (1000 * 60 * 60 * 24));
+      // A session is effectively locked once it is older than 7 days, unless explicitly unlocked.
+      const effectivelyLocked = diffDays > 7 && session.locked !== false ? true : session.locked;
+      return {
+        _id: session.id,
+        className: session.class?.name || 'Unknown class',
+        subject: session.class?.subject || '',
+        date: session.date,
+        recordedBy: session.recordedBy?.name || '—',
+        recordCount: session._count?.records || 0,
+        ageDays: diffDays,
+        locked: effectivelyLocked
+      };
+    });
+
+    res.status(200).json(response);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const unlockAttendance = async (req, res) => {
   try {
     const { id } = req.params;
@@ -296,20 +336,20 @@ const saveGrades = async (req, res) => {
 
     for (let data of gradesData) {
       const marks = data.marks || {};
-      const test = Number(marks.test || 0);
-      const midterm = Number(marks.midterm || 0);
-      const final = Number(marks.final || 0);
+      // Each component is scored out of 100 and combined using the configurable weights.
       const quiz = Number(marks.quiz || 0);
       const assignment = Number(marks.assignment || 0);
+      const midterm = Number(marks.midterm || 0);
+      const final = Number(marks.final || 0);
+      const test = Number(marks.test || 0); // legacy column, retained but unweighted
 
-      // FR-27: Calculate final score automatically based on weights
-      const total = (quiz * (weights.quizWeight / 100)) + 
-                    (assignment * (weights.assignmentWeight / 100)) + 
-                    (test * 0) + // Test is considered legacy, but we support quiz/assignment weights
-                    (midterm * (weights.midtermWeight / 100)) + 
+      // FR-27: Calculate final score automatically based on weights (which sum to 100%)
+      const total = (quiz * (weights.quizWeight / 100)) +
+                    (assignment * (weights.assignmentWeight / 100)) +
+                    (midterm * (weights.midtermWeight / 100)) +
                     (final * (weights.finalWeight / 100));
 
-      const percentage = total; // Weights sum to 100%
+      const percentage = Number(total.toFixed(2)); // Weights sum to 100%, so total is already a percentage
 
       const existingGrade = await prisma.grade.findFirst({
         where: { studentId: data.student, classId, subject }
@@ -526,10 +566,11 @@ const getSectionsByClass = async (req, res) => {
   }
 };
 
-module.exports = { 
-  recordAttendance, 
+module.exports = {
+  recordAttendance,
+  getAttendanceSessions,
   unlockAttendance,
-  saveGrades, 
+  saveGrades,
   getGrades, 
   getClassroomOptions,
   createClass,

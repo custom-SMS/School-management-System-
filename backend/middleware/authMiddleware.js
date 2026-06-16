@@ -2,12 +2,12 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../prisma');
 
 const verifyToken = (req, res, next) => {
-  const authHeader = req.header('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  // Auth token is delivered via an httpOnly cookie set at login.
+  const token = req.cookies?.token;
+  if (!token) {
     return res.status(401).json({ message: 'Access Denied. No valid token provided.' });
   }
 
-  const token = authHeader.replace('Bearer ', '');
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
     req.user = verified; // { _id, role, etc. }
