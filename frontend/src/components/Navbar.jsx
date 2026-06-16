@@ -112,6 +112,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
     ...(user.role === 'Parent' ? [{ to: '/my-fees', label: 'My Fees' }] : []),
     ...((user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Teacher')
       ? [
+          { to: '/teacher/dashboard', label: 'Teacher Portal' },
           { to: '/register-student', label: 'Registration' },
           { to: '/classroom/attendance', label: 'Attendance' },
           { to: '/classroom/grades', label: 'Grades' },
@@ -129,6 +130,11 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
         ]
       : []),
     ...(user.role === 'SuperAdmin' ? [{ to: '/settings', label: 'Settings' }] : []),
+    ...((user.role === 'Cashier' || user.role === 'Admin' || user.role === 'SuperAdmin')
+      ? [
+          { to: '/finance/dashboard', label: 'Finance Suite' },
+        ]
+      : []),
     ...(user.role === 'Cashier'
       ? [
           { to: '/bursar', label: 'Fees' },

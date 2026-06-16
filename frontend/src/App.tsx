@@ -21,6 +21,19 @@ import Academics from "./pages/Academics";
 import ReportCards from "./pages/ReportCards";
 import Settings from "./pages/Settings";
 import StudentFees from "./pages/StudentFees";
+import FinanceDashboard from "./pages/finance/FinanceDashboard";
+import FinancePayments from "./pages/finance/Payments";
+import FinanceVerification from "./pages/finance/Verification";
+import FinanceAnalytics from "./pages/finance/Analytics";
+import FinanceFees from "./pages/finance/Fees";
+import TeacherDashboard from "./pages/teacher/TeacherDashboard";
+import TeacherClasses from "./pages/teacher/AssignedClasses";
+import TeacherStudents from "./pages/teacher/AssignedStudents";
+import TeacherAttendance from "./pages/teacher/TeacherAttendance";
+import TeacherGradebook from "./pages/teacher/Gradebook";
+import TeacherTimetable from "./pages/teacher/TeacherTimetable";
+import StudentProfile from "./pages/teacher/StudentProfile";
+import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -173,6 +186,114 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentFees />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Finance Suite — Cashier Portal */}
+          <Route
+            path="/finance/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+                <FinanceDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/payments"
+            element={
+              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+                <FinancePayments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/verification"
+            element={
+              <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
+                <FinanceVerification />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/analytics"
+            element={
+              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+                <FinanceAnalytics />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/finance/fees"
+            element={
+              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+                <FinanceFees />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Ethio-Edu ERP — Teacher Portal */}
+          <Route
+            path="/teacher/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/classes"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherClasses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherStudents />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students/:studentId/attendance"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <StudentAttendanceDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students/:studentId"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <StudentProfile />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/attendance"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherAttendance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/grades"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherGradebook />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/timetable"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+                <TeacherTimetable />
               </ProtectedRoute>
             }
           />

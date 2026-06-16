@@ -13,7 +13,7 @@ export default function Login() {
 
   const testAccounts = [
     { label: 'Student', identifier: 'STU-0001', password: '53275306' },
-    { label: 'Teacher', identifier: 'TCH-0002', password: 'd1fc095d' },
+    { label: 'Teacher', identifier: 'TCH-0001', password: 'teacher' },
     { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
     { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' }
@@ -22,8 +22,13 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login(identifier, password);
-      navigate('/dashboard');
+      const loggedInUser = await login(identifier, password);
+      // Route each role to its dedicated portal; everyone else on the main dashboard.
+      const landingByRole = {
+        Cashier: '/finance/dashboard',
+        Teacher: '/teacher/dashboard',
+      };
+      navigate(landingByRole[loggedInUser?.role] || '/dashboard');
     } catch (err) {
       setError(err.response?.data?.message || 'Login failed');
     }

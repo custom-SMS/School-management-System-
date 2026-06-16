@@ -45,6 +45,32 @@ async function main() {
     }
   });
 
+  // Seed a known Teacher account (User + Teacher profile) so the Teacher Portal is testable.
+  const teacherEmail = 'teacher@school.com';
+  const teacherId = 'TCH-0001';
+  const teacherHashed = await bcrypt.hash('teacher', 10);
+
+  const teacherUser = await prisma.user.upsert({
+    where: { email: teacherEmail },
+    update: { password: teacherHashed, role: 'Teacher' },
+    create: {
+      name: 'Abebe Kebede',
+      email: teacherEmail,
+      password: teacherHashed,
+      role: 'Teacher'
+    }
+  });
+
+  const teacher = await prisma.teacher.upsert({
+    where: { teacherId },
+    update: { userId: teacherUser.id, subject: 'Mathematics' },
+    create: {
+      userId: teacherUser.id,
+      teacherId,
+      subject: 'Mathematics'
+    }
+  });
+
   // Seed default permissions for Admin role
   const defaultAdminPermissions = ['student_registration', 'manage_academic_year'];
   for (const perm of defaultAdminPermissions) {
@@ -68,6 +94,7 @@ async function main() {
   console.log(`Admin Email:        ${admin.email} (Password: admin)`);
   console.log(`SuperAdmin Email:   ${superAdmin.email} (Password: superadmin)`);
   console.log(`Cashier Email:      ${cashier.email} (Password: cashier)`);
+  console.log(`Teacher Login:      ${teacher.teacherId} or ${teacherUser.email} (Password: teacher)`);
   console.log('---------------------\n');
 }
 
