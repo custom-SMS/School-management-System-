@@ -56,10 +56,9 @@ async function main() {
     subjects[name] = await prisma.subject.upsert({ where: { name }, update: {}, create: { name, department: 'General' } });
   }
 
-  // --- Grade fees + fee structures ---
+  // --- Fee structures ---
   const gradeAmounts = { 'Grade 9': 11000, 'Grade 10': 12000, 'Grade 11': 13500, 'Grade 12': 14500 };
   for (const [grade, amount] of Object.entries(gradeAmounts)) {
-    await prisma.gradeFee.upsert({ where: { grade }, update: { amount }, create: { grade, amount } });
     await prisma.feeStructure.upsert({ where: { grade }, update: { amount, description: 'Annual Tuition' }, create: { grade, amount, description: 'Annual Tuition' } });
   }
 

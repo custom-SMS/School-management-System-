@@ -3,37 +3,34 @@ import { Link, useParams } from 'react-router-dom';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 
-const TERMS = ['Term 1', 'Term 2', 'Term 3', 'Term 4'];
-
 export default function StudentProfile() {
   const { studentId } = useParams();
   const [student, setStudent] = useState(null);
+  const [perf, setPerf] = useState(null);
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    axios
-      .get('/students')
-      .then((r) => setStudent((r.data || []).find((s) => (s._id || s.id) === studentId) || null))
-      .catch(() => setStudent(null))
+    setLoading(true);
+    Promise.all([
+      axios.get('/students').then((r) => (r.data || []).find((s) => (s._id || s.id) === studentId) || null).catch(() => null),
+      axios.get(`/students/${studentId}/performance`).then((r) => r.data).catch(() => null),
+    ])
+      .then(([found, performance]) => {
+        setStudent(found || (performance?.student ? { ...performance.student, user: { name: performance.student.name, email: performance.student.email } } : null));
+        setPerf(performance);
+      })
       .finally(() => setLoading(false));
   }, [studentId]);
 
-  // Representative academic visuals (no per-student teacher analytics endpoint yet).
-  const trend = useMemo(() => [62, 71, 80, 92], []);
+  const trend = perf?.trend || [];
   const subjects = useMemo(
-    () => [
-      { name: 'Amharic Literature', score: 92 },
-      { name: 'Advanced Mathematics', score: 88 },
-      { name: 'Physics', score: 95 },
-      { name: 'Ethiopian History', score: 78 },
-      { name: 'ICT & Programming', score: 98 },
-    ],
-    [],
+    () => (perf?.subjects || []).map((s) => ({ name: s.subject, score: s.percentage })),
+    [perf],
   );
-  const months = ['September', 'October', 'November', 'December'];
+  const attendanceCalendar = perf?.attendanceCalendar || [];
 
-  const name = student?.user?.name || 'Student';
+  const name = student?.user?.name || perf?.student?.name || 'Student';
   const initials = name.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase();
 
   if (loading) {
@@ -77,18 +74,18 @@ export default function StudentProfile() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs font-semibold uppercase text-slate-400">Current GPA</div>
-          <div className="mt-1 text-3xl font-black text-slate-900">3.82</div>
-          <div className="mt-1 text-xs font-semibold text-emerald-600">↗ +0.15 from Term 1</div>
+          <div className="mt-1 text-3xl font-black text-slate-900">{perf ? perf.gpa.toFixed(2) : '—'}</div>
+          <div className="mt-1 text-xs font-semibold text-slate-400">Average {perf?.studentAverage ?? 0}% · 4.0 scale</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs font-semibold uppercase text-slate-400">Attendance %</div>
-          <div className="mt-1 text-3xl font-black text-slate-900">96.4%</div>
-          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-900" style={{ width: '96%' }} /></div>
+          <div className="mt-1 text-3xl font-black text-slate-900">{perf?.attendance?.rate ?? 0}%</div>
+          <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-slate-900" style={{ width: `${perf?.attendance?.rate ?? 0}%` }} /></div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs font-semibold uppercase text-slate-400">Class Rank</div>
-          <div className="mt-1 text-3xl font-black text-slate-900">04 / 42</div>
-          <div className="mt-1 text-xs text-slate-400">Top 10% Percentile</div>
+          <div className="mt-1 text-3xl font-black text-slate-900">{perf?.classRank?.rank ? `${String(perf.classRank.rank).padStart(2, '0')} / ${perf.classRank.total}` : '—'}</div>
+          <div className="mt-1 text-xs text-slate-400">By average across Grade {perf?.student?.grade || student?.grade || '—'}</div>
         </div>
       </div>
 
@@ -96,22 +93,27 @@ export default function StudentProfile() {
         {/* Academic trend */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">Academic Trend</h2>
-          <div className="mt-6 flex h-48 items-end gap-6">
-            {trend.map((v, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
-                  <div className="w-full max-w-16 rounded-t-lg bg-slate-900" style={{ height: `${v}%`, opacity: 0.35 + i * 0.18 }} />
+          {trend.length === 0 ? (
+            <div className="mt-6 flex h-48 items-center justify-center text-sm text-slate-400">No grades recorded yet.</div>
+          ) : (
+            <div className="mt-6 flex h-48 items-end gap-6">
+              {trend.map((t, i) => (
+                <div key={`${t.label}-${i}`} className="flex flex-1 flex-col items-center gap-2">
+                  <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
+                    <div className="w-full max-w-16 rounded-t-lg bg-slate-900" style={{ height: `${t.percentage}%`, opacity: 0.4 + (i / Math.max(1, trend.length)) * 0.5 }} />
+                  </div>
+                  <span className="text-xs font-medium text-slate-400">{t.label}</span>
                 </div>
-                <span className="text-xs font-medium text-slate-400">{TERMS[i]}</span>
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-center text-xs text-slate-400">GPA based on 4.0 weighted scale</p>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-center text-xs text-slate-400">Average percentage per month</p>
         </section>
 
         {/* Subject breakdown */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">Subject Breakdown</h2>
+          {subjects.length === 0 && <p className="mt-4 text-sm text-slate-400">No subject grades recorded yet.</p>}
           <div className="mt-5 space-y-4">
             {subjects.map((s) => (
               <div key={s.name}>
@@ -137,28 +139,24 @@ export default function StudentProfile() {
               <span className="flex items-center gap-1"><span className="h-3 w-3 rounded bg-slate-900" /> Present</span>
             </div>
           </div>
-          <div className="grid grid-cols-4 gap-4">
-            {months.map((m, mi) => (
-              <div key={m}>
-                <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-slate-400">{m.slice(0, 3)}</div>
-                <div className="grid grid-cols-5 gap-1">
-                  {Array.from({ length: 20 }).map((_, i) => {
-                    const r = (i * 7 + mi * 3) % 11;
-                    const tone = r === 0 ? 'bg-slate-200' : r === 1 ? 'bg-slate-400' : 'bg-slate-900';
-                    return <span key={i} className={`h-3.5 w-3.5 rounded-sm ${tone}`} />;
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
+          {attendanceCalendar.length === 0 ? (
+            <p className="text-sm text-slate-400">No attendance recorded yet.</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {attendanceCalendar.map((rec, i) => {
+                const tone = rec.status === 'Present' ? 'bg-slate-900' : rec.status === 'Late' ? 'bg-slate-400' : 'bg-slate-200';
+                return <span key={i} title={`${new Date(rec.date).toLocaleDateString()} · ${rec.status}`} className={`h-4 w-4 rounded-sm ${tone}`} />;
+              })}
+            </div>
+          )}
         </section>
 
         {/* Teacher observations */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">Teacher's Observations</h2>
           <div className="mt-4 rounded-xl bg-slate-50 p-4 text-sm text-slate-600">
-            <div className="text-xs font-semibold uppercase text-slate-400">Recent Remark</div>
-            <p className="mt-1">{name.split(' ')[0]} shows strong aptitude in STEM subjects. Encourage more focus on presentation skills.</p>
+            <div className="text-xs font-semibold uppercase text-slate-400">Latest Grade Remark</div>
+            <p className="mt-1">{perf?.latestComment || 'No remarks recorded yet.'}</p>
           </div>
           <textarea
             value={note}

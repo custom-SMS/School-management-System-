@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  registerStudent, 
-  getStudents, 
-  setGradeFee, 
-  getGradeFees, 
+const {
+  registerStudent,
+  getStudents,
+  getStudentPerformance,
+  setGradeFee,
+  getGradeFees,
   deleteStudent,
   promoteStudent,
   repeatStudent,
@@ -14,6 +15,9 @@ const { verifyToken, checkRole, checkPermission } = require('../middleware/authM
 
 // Get students (teachers see only assigned students, admins see all)
 router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), getStudents);
+
+// Aggregated performance (grades + attendance) for one student
+router.get('/:id/performance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getStudentPerformance);
 
 // Register a new student (Now public so students can register themselves)
 router.post('/', registerStudent);

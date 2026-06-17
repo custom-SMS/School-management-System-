@@ -11,10 +11,12 @@ export default function Analytics() {
   const [targetMonth, setTargetMonth] = useState('Meskerem');
   const [defaulters, setDefaulters] = useState([]);
   const [structures, setStructures] = useState([]);
+  const [stats, setStats] = useState(null);
   const [filter, setFilter] = useState('all');
 
   useEffect(() => {
     axios.get('/fees/structures').then((r) => setStructures(r.data || [])).catch(() => {});
+    axios.get('/stats/admin').then((r) => setStats(r.data)).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -33,7 +35,14 @@ export default function Analytics() {
     [defaulters, structures],
   );
 
-  const trend = [55, 68, 80, 72, 88, 96];
+  // Real collection rate = paid / (paid + outstanding) from the admin aggregate.
+  const totalRevenue = stats?.totalRevenue ?? 0;
+  const billed = totalRevenue + (stats?.totalPendingRevenue ?? 0);
+  const collectionRate = billed > 0 ? Number(((totalRevenue / billed) * 100).toFixed(1)) : 0;
+
+  // Real paid-vs-outstanding split per grade for the chart.
+  const byGrade = stats?.feeSummaryByClass ?? [];
+  const maxGradeTotal = Math.max(1, ...byGrade.map((g) => Number(g.totalAmount || 0)));
 
   return (
     <CashierLayout searchPlaceholder="Search student records...">
@@ -61,7 +70,6 @@ export default function Analytics() {
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 7h20v10H2V7zm2 2v6h16V9H4z" /></svg>
             </span>
-            <span className="text-xs font-bold text-rose-600">↗ 12.5%</span>
           </div>
           <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">Total Arrears (ETB)</p>
           <p className="mt-1 text-2xl font-black text-slate-900">{etb(totalArrears)}</p>
@@ -86,11 +94,10 @@ export default function Analytics() {
             <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M7 17 17 7M8 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2zm8 8a1 1 0 1 0 0-2 1 1 0 0 0 0 2z" /></svg>
             </span>
-            <span className="text-xs font-bold text-emerald-600">↘ 2.1%</span>
           </div>
           <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-slate-400">Collection Rate %</p>
-          <p className="mt-1 text-2xl font-black text-slate-900">84.2%</p>
-          <p className="mt-2 text-xs text-slate-400">Goal: 95.0% by semester end</p>
+          <p className="mt-1 text-2xl font-black text-slate-900">{collectionRate}%</p>
+          <p className="mt-2 text-xs text-slate-400">Paid vs total billed to date</p>
         </div>
       </div>
 
@@ -98,35 +105,47 @@ export default function Analytics() {
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">Collection Efficiency Trend</h2>
-            <select className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600">
-              <option>Last 6 Months</option>
-            </select>
+            <h2 className="text-xl font-bold text-slate-900">Collection by Grade</h2>
+            <div className="flex items-center gap-3 text-xs font-semibold text-slate-500">
+              <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-slate-900" /> Paid</span>
+              <span className="flex items-center gap-1"><span className="h-2.5 w-2.5 rounded-full bg-rose-300" /> Outstanding</span>
+            </div>
           </div>
-          <div className="mt-8 flex h-56 items-end gap-3 sm:gap-6">
-            {trend.map((v, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
-                  <div className="w-full max-w-12 rounded-t-lg bg-slate-900" style={{ height: `${v}%`, opacity: 0.4 + (i * 0.1) }} />
-                </div>
-                <span className="text-xs font-medium text-slate-400">{months[i].slice(0, 3).toUpperCase()}</span>
-              </div>
-            ))}
-          </div>
+          {byGrade.length === 0 ? (
+            <div className="mt-8 flex h-56 items-center justify-center text-sm text-slate-400">No billing data yet.</div>
+          ) : (
+            <div className="mt-8 flex h-56 items-end gap-3 sm:gap-6">
+              {byGrade.map((g) => {
+                const total = Number(g.totalAmount || 0);
+                const heightPct = (total / maxGradeTotal) * 100;
+                const paidShare = total > 0 ? (Number(g.paidAmount) / total) * 100 : 0;
+                return (
+                  <div key={g.className} className="flex flex-1 flex-col items-center gap-2">
+                    <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
+                      <div className="flex w-full max-w-12 flex-col justify-end overflow-hidden rounded-t-lg bg-rose-300" style={{ height: `${heightPct}%` }}>
+                        <div className="bg-slate-900" style={{ height: `${paidShare}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-xs font-medium text-slate-400">{g.className}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </section>
 
         <section className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
           <h2 className="text-xl font-bold">Urgent Actions</h2>
           <div className="mt-5 space-y-3">
             <div className="rounded-xl bg-white/5 p-4">
-              <div className="flex items-center gap-2 font-bold"><span className="text-rose-400">!</span> 12 Critical Accounts</div>
-              <p className="mt-1 text-sm text-slate-400">Balances exceeding 50,000 ETB</p>
+              <div className="flex items-center gap-2 font-bold"><span className="text-rose-400">!</span> {defaulters.length} Defaulting Account{defaulters.length === 1 ? '' : 's'}</div>
+              <p className="mt-1 text-sm text-slate-400">Unpaid for {targetMonth}</p>
             </div>
             <div className="rounded-xl bg-white/5 p-4">
               <div className="flex items-center gap-2 font-bold">
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h16v12H7l-3 3V4z" /></svg> Payment Due Date
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2 7h20v10H2V7zm2 2v6h16V9H4z" /></svg> ETB {etb(totalArrears)} Outstanding
               </div>
-              <p className="mt-1 text-sm text-slate-400">Batch reminders scheduled for tomorrow</p>
+              <p className="mt-1 text-sm text-slate-400">Estimated arrears for {targetMonth}</p>
             </div>
           </div>
           <button className="mt-6 w-full rounded-xl bg-white py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100">

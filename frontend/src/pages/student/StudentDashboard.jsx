@@ -13,7 +13,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     axios.get('/stats/student/me').then((r) => setStats(r.data)).catch(() => {});
-    axios.get('/timetable/student/me').then((r) => setTimetable(r.data?.timetable || [])).catch(() => {});
+    axios.get('/timetables/student/me').then((r) => setTimetable(r.data?.timetable || [])).catch(() => {});
   }, []);
 
   const name = stats?.profile?.user?.name || 'Student';

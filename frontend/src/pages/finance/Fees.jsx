@@ -6,6 +6,8 @@ import CashierLayout from '../../components/CashierLayout';
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
+const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+
 export default function Fees() {
   const [structures, setStructures] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -13,6 +15,10 @@ export default function Fees() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('Monthly Tuition');
   const [saving, setSaving] = useState(false);
+
+  const [genMonth, setGenMonth] = useState('Meskerem');
+  const [genDueDate, setGenDueDate] = useState('');
+  const [generating, setGenerating] = useState(false);
 
   const fetchStructures = async () => {
     try {
@@ -47,6 +53,31 @@ export default function Fees() {
       toast.error(err.response?.data?.message || 'Failed to save fee structure.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleGenerate = async (e) => {
+    e.preventDefault();
+    if (structures.length === 0) {
+      toast.error('Configure at least one grade fee before generating invoices.');
+      return;
+    }
+    setGenerating(true);
+    try {
+      const res = await axios.post('/fees/generate', {
+        month: genMonth,
+        dueDate: genDueDate || undefined,
+        description: `Monthly Tuition - ${genMonth}`,
+      });
+      const { created = 0, skippedExisting = 0, skippedNoFeeConfigured = 0 } = res.data || {};
+      toast.success(`${created} invoice(s) generated for ${genMonth}.`);
+      if (skippedExisting || skippedNoFeeConfigured) {
+        toast.info(`Skipped ${skippedExisting} already invoiced, ${skippedNoFeeConfigured} without a configured fee.`);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to generate invoices.');
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -151,6 +182,45 @@ export default function Fees() {
           </div>
         </section>
       </div>
+
+      {/* Generate monthly invoices */}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-xl font-bold text-slate-900">Generate Monthly Invoices</h2>
+          <p className="text-sm text-slate-500">
+            Creates an unpaid tuition invoice for every student, priced from the grade fee above. Students already
+            invoiced for the chosen month are skipped.
+          </p>
+        </div>
+        <form className="mt-5 flex flex-wrap items-end gap-4" onSubmit={handleGenerate}>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Month</label>
+            <select
+              value={genMonth}
+              onChange={(e) => setGenMonth(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+            >
+              {months.map((m) => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-slate-700">Due Date</label>
+            <input
+              type="date"
+              value={genDueDate}
+              onChange={(e) => setGenDueDate(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={generating}
+            className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+          >
+            {generating ? 'Generating…' : 'Generate Invoices'}
+          </button>
+        </form>
+      </section>
     </CashierLayout>
   );
 }

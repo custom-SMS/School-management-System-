@@ -22,7 +22,7 @@ export default function TeacherTimetable() {
 
   useEffect(() => {
     axios
-      .get('/timetable/teacher/me')
+      .get('/timetables/teacher/me')
       .then((r) => {
         setSlots(r.data?.timetable || []);
         setAcademicYear(r.data?.academicYear || null);

@@ -234,8 +234,8 @@ const generateMonthlyFees = async (req, res) => {
       where: { isActive: true }
     });
 
-    const gradeFees = await prisma.gradeFee.findMany();
-    const feeByGrade = new Map(gradeFees.map((gf) => [String(gf.grade), gf.amount]));
+    const feeStructures = await prisma.feeStructure.findMany();
+    const feeByGrade = new Map(feeStructures.map((fs) => [String(fs.grade), fs.amount]));
 
     const students = await prisma.student.findMany({
       select: { id: true, grade: true }
@@ -427,6 +427,93 @@ const submitBankPayment = async (req, res) => {
   }
 };
 
+// @desc    List unpaid invoices (outstanding fees) for the cashier to collect
+// @route   GET /api/fees/outstanding
+// @access  Private (Admin/SuperAdmin/Cashier)
+const getOutstandingFees = async (req, res) => {
+  try {
+    const { month } = req.query;
+
+    const fees = await prisma.fee.findMany({
+      where: {
+        paid: false,
+        ...(month ? { month } : {}),
+      },
+      include: {
+        student: {
+          select: {
+            id: true,
+            studentId: true,
+            grade: true,
+            user: { select: { name: true, email: true } },
+          },
+        },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+    });
+
+    res.status(200).json(fees);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Mark an existing invoice as paid in cash at the desk (issues a receipt)
+// @route   PATCH /api/fees/:feeId/pay
+// @access  Private (Admin/SuperAdmin/Cashier)
+const markFeePaidInCash = async (req, res) => {
+  try {
+    const { feeId } = req.params;
+
+    const fee = await prisma.fee.findUnique({ where: { id: feeId } });
+    if (!fee) {
+      return res.status(404).json({ message: 'Invoice not found.' });
+    }
+    if (fee.paid) {
+      return res.status(400).json({ message: 'This invoice has already been paid.' });
+    }
+
+    const transactionReference = `CASH-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const receiptNumber = `REC-${Date.now()}-${Math.floor(100 + Math.random() * 900)}`;
+
+    const result = await prisma.$transaction(async (tx) => {
+      await tx.fee.update({
+        where: { id: feeId },
+        data: { paid: true, paymentDate: new Date() },
+      });
+
+      const payment = await tx.payment.create({
+        data: {
+          feeId,
+          amount: fee.amount,
+          transactionReference,
+          bankName: 'Cash',
+          status: 'Verified',
+          verifiedById: req.user._id,
+          verificationDate: new Date(),
+        },
+      });
+
+      const receipt = await tx.receipt.create({
+        data: {
+          receiptNumber,
+          paymentId: payment.id,
+          issuedById: req.user._id,
+        },
+      });
+
+      return { payment, receipt };
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Record Cash Payment', feeId, `Collected ETB ${fee.amount} cash for ${fee.month || 'fee'} (Receipt ${receiptNumber})`);
+
+    res.status(200).json({ message: 'Cash payment recorded.', ...result });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const getPendingPayments = async (req, res) => {
   try {
     const payments = await prisma.payment.findMany({
@@ -552,6 +639,8 @@ module.exports = {
   generateMonthlyFees,
   getMyFees,
   submitBankPayment,
+  getOutstandingFees,
+  markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
   getReceipt

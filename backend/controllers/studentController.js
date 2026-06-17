@@ -259,7 +259,7 @@ const registerStudent = async (req, res) => {
     const studentPassword = generatePassword();
     const hashedPassword = await bcrypt.hash(studentPassword, 10);
 
-    const gradeSettings = await prisma.gradeFee.findFirst({
+    const gradeSettings = await prisma.feeStructure.findFirst({
       where: { grade }
     });
     if (!gradeSettings) {
@@ -451,10 +451,12 @@ const getStudents = async (req, res) => {
       include: {
         user: { select: { id: true, name: true, email: true } },
         guardians: true,
+        fees: true,
         enrollments: {
           include: {
             academicYear: true
-          }
+          },
+          orderBy: { createdAt: 'desc' }
         }
       }
     });
@@ -475,16 +477,145 @@ const getStudents = async (req, res) => {
   }
 };
 
+// @desc    Aggregated academic + attendance performance for a single student
+// @route   GET /api/students/:id/performance
+// @access  Private (Teacher/Admin/SuperAdmin)
+const MONTH_LABELS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+const getStudentPerformance = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const student = await prisma.student.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, name: true, email: true } } }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId: id },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    // Average percentage per subject.
+    const subjectMap = new Map();
+    grades.forEach((g) => {
+      const key = g.subject || 'General';
+      const cur = subjectMap.get(key) || { subject: key, sum: 0, count: 0 };
+      cur.sum += Number(g.percentage || 0);
+      cur.count += 1;
+      subjectMap.set(key, cur);
+    });
+    const subjects = Array.from(subjectMap.values()).map((s) => ({
+      subject: s.subject,
+      percentage: Math.round(s.sum / s.count),
+      count: s.count,
+    }));
+
+    const studentAverage = grades.length
+      ? Math.round(grades.reduce((sum, g) => sum + Number(g.percentage || 0), 0) / grades.length)
+      : 0;
+    const gpa = Number(((studentAverage / 100) * 4).toFixed(2));
+
+    // Chronological trend, averaged per calendar month (last 6 buckets).
+    const trendMap = new Map();
+    grades.forEach((g) => {
+      const d = new Date(g.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
+      const cur = trendMap.get(key) || { label: MONTH_LABELS[d.getMonth()], sum: 0, count: 0 };
+      cur.sum += Number(g.percentage || 0);
+      cur.count += 1;
+      trendMap.set(key, cur);
+    });
+    const trend = Array.from(trendMap.values())
+      .slice(-6)
+      .map((t) => ({ label: t.label, percentage: Math.round(t.sum / t.count) }));
+
+    // Attendance summary + recent register.
+    const attendanceRecords = await prisma.attendanceRecord.findMany({
+      where: { studentId: id },
+      include: { attendance: { select: { date: true } } }
+    });
+    let present = 0;
+    let late = 0;
+    let absent = 0;
+    attendanceRecords.forEach((r) => {
+      if (r.status === 'Present') present += 1;
+      else if (r.status === 'Late') late += 1;
+      else if (r.status === 'Absent') absent += 1;
+    });
+    const totalAttendance = attendanceRecords.length;
+    const attendanceRate = totalAttendance ? Number(((present / totalAttendance) * 100).toFixed(1)) : 0;
+    const attendanceCalendar = attendanceRecords
+      .map((r) => ({ date: r.attendance?.date, status: r.status }))
+      .filter((r) => r.date)
+      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .slice(-35);
+
+    // Class rank within the same grade level, by average percentage.
+    const classmates = await prisma.student.findMany({
+      where: { grade: student.grade },
+      select: { id: true }
+    });
+    const classmateIds = classmates.map((c) => c.id);
+    const classmateGrades = await prisma.grade.findMany({
+      where: { studentId: { in: classmateIds } },
+      select: { studentId: true, percentage: true }
+    });
+    const avgByStudent = new Map();
+    classmateGrades.forEach((g) => {
+      const cur = avgByStudent.get(g.studentId) || { sum: 0, count: 0 };
+      cur.sum += Number(g.percentage || 0);
+      cur.count += 1;
+      avgByStudent.set(g.studentId, cur);
+    });
+    const ranked = classmateIds
+      .map((sid) => {
+        const a = avgByStudent.get(sid);
+        return { studentId: sid, avg: a && a.count ? a.sum / a.count : 0 };
+      })
+      .sort((a, b) => b.avg - a.avg);
+    const rankIndex = ranked.findIndex((r) => r.studentId === id);
+    const classRank = { rank: rankIndex >= 0 ? rankIndex + 1 : null, total: classmateIds.length };
+    const classAverage = ranked.length
+      ? Math.round(ranked.reduce((sum, r) => sum + r.avg, 0) / ranked.length)
+      : 0;
+
+    const latestComment = [...grades].reverse().find((g) => g.comments)?.comments || null;
+
+    res.status(200).json({
+      student: {
+        _id: student.id,
+        studentId: student.studentId,
+        name: student.user?.name || 'Student',
+        email: student.user?.email || null,
+        grade: student.grade,
+      },
+      gpa,
+      studentAverage,
+      classAverage,
+      classRank,
+      subjects,
+      trend,
+      attendance: { present, late, absent, total: totalAttendance, rate: attendanceRate },
+      attendanceCalendar,
+      latestComment,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Set fee amount for a specific grade
 // @route   POST /api/students/grade-fee
 // @access  Private (Admin/Registrar)
 const setGradeFee = async (req, res) => {
   try {
-    const { grade, amount } = req.body;
-    const gradeFee = await prisma.gradeFee.upsert({
+    const { grade, amount, description } = req.body;
+    const gradeFee = await prisma.feeStructure.upsert({
       where: { grade },
-      update: { amount: Number(amount) },
-      create: { grade, amount: Number(amount) }
+      update: { amount: Number(amount), description },
+      create: { grade, amount: Number(amount), description }
     });
 
     res.status(200).json({
@@ -504,7 +635,7 @@ const setGradeFee = async (req, res) => {
 // @access  Public
 const getGradeFees = async (req, res) => {
   try {
-    const fees = await prisma.gradeFee.findMany();
+    const fees = await prisma.feeStructure.findMany();
     res.status(200).json(fees.map(f => ({ ...f, _id: f.id })));
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -788,9 +919,10 @@ const setStudentStatus = async (req, res) => {
 };
 
 module.exports = { 
-  registerStudent, 
-  getStudents, 
-  setGradeFee, 
+  registerStudent,
+  getStudents,
+  getStudentPerformance,
+  setGradeFee,
   getGradeFees, 
   deleteStudent,
   promoteStudent,

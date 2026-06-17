@@ -9,6 +9,8 @@ const {
   generateMonthlyFees,
   getMyFees,
   submitBankPayment,
+  getOutstandingFees,
+  markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
   getReceipt
@@ -26,6 +28,10 @@ router.get('/structures', verifyToken, getFeeStructures);
 
 // Generate monthly tuition invoices for all students (Cashier/Admin/SuperAdmin)
 router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), generateMonthlyFees);
+
+// Cashier desk: list outstanding invoices and collect cash against them
+router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getOutstandingFees);
+router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), markFeePaidInCash);
 
 // Student/Parent fee portal
 router.get('/my', verifyToken, checkRole(['Student', 'Parent']), getMyFees);

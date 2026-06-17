@@ -6,8 +6,6 @@ import CashierLayout from '../../components/CashierLayout';
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(n || 0));
 
-const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
-
 function StatCard({ label, value, badge, badgeTone = 'emerald', sub }) {
   const tones = {
     emerald: 'bg-emerald-50 text-emerald-600',
@@ -34,7 +32,6 @@ function StatCard({ label, value, badge, badgeTone = 'emerald', sub }) {
 export default function FinanceDashboard() {
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
-  const [period, setPeriod] = useState('Month');
 
   useEffect(() => {
     axios.get('/stats/admin').then((r) => setStats(r.data)).catch(() => {});
@@ -42,11 +39,13 @@ export default function FinanceDashboard() {
   }, []);
 
   const totalRevenue = stats?.totalRevenue ?? 0;
-  const attendanceRate = stats?.attendanceRate ?? stats?.attendance?.rate ?? null;
-  const collectionRate = stats?.collectionRate ?? 83.4;
+  const outstanding = stats?.totalPendingRevenue ?? 0;
+  const billed = totalRevenue + outstanding;
+  const collectionRate = billed > 0 ? Number(((totalRevenue / billed) * 100).toFixed(1)) : 0;
 
-  // A representative 6-month revenue curve for the chart (visual only).
-  const trend = [62, 70, 66, 85, 78, 92];
+  // Real paid-revenue breakdown by grade (from the admin stats aggregate).
+  const revenueByGrade = (stats?.feeSummaryByClass ?? []).filter((g) => Number(g.paidAmount) > 0);
+  const maxGradeRevenue = Math.max(1, ...revenueByGrade.map((g) => Number(g.paidAmount || 0)));
 
   return (
     <CashierLayout searchPlaceholder="Search students, receipts...">
@@ -57,46 +56,42 @@ export default function FinanceDashboard() {
 
       {/* KPI cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Revenue" value={`ETB ${etb(totalRevenue)}`} badge="↗ 12%" badgeTone="emerald" />
-        <StatCard label="Outstanding Balance" value={`ETB ${etb(stats?.outstanding ?? 845200)}`} badge="↗ 4%" badgeTone="rose" />
+        <StatCard label="Total Revenue" value={`ETB ${etb(totalRevenue)}`} />
+        <StatCard label="Outstanding Balance" value={`ETB ${etb(outstanding)}`} badgeTone="rose" />
         <StatCard label="Pending Verifications" value={`${pending.length} Students`} badge={`${pending.length} New`} badgeTone="slate" sub="Awaiting bank confirmation" />
-        <StatCard label="Collection Rate" value={`${collectionRate}%`} badge="+2.5%" badgeTone="emerald" sub="Target: 90% • ETB 5M Goal" />
+        <StatCard label="Collection Rate" value={`${collectionRate}%`} sub={`ETB ${etb(totalRevenue)} of ${etb(billed)} billed`} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
-        {/* Revenue vs target */}
+        {/* Revenue by grade */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
-              <h2 className="text-xl font-bold text-slate-900">Revenue vs Target</h2>
-              <p className="text-sm text-slate-500">Monthly collection performance</p>
-            </div>
-            <div className="flex rounded-lg border border-slate-200 p-1 text-sm font-semibold">
-              {['Week', 'Month'].map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPeriod(p)}
-                  className={`rounded-md px-3 py-1.5 transition ${period === p ? 'bg-slate-900 text-white' : 'text-slate-500'}`}
-                >
-                  {p}
-                </button>
-              ))}
+              <h2 className="text-xl font-bold text-slate-900">Collected Revenue by Grade</h2>
+              <p className="text-sm text-slate-500">Paid tuition across grade levels</p>
             </div>
           </div>
 
-          <div className="mt-8 flex h-64 items-end gap-3 sm:gap-6">
-            {trend.map((v, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
-                  <div
-                    className="w-full max-w-12 rounded-t-lg bg-slate-900 transition-all"
-                    style={{ height: `${v}%` }}
-                  />
+          {revenueByGrade.length === 0 ? (
+            <div className="mt-8 flex h-64 items-center justify-center text-sm text-slate-400">
+              No revenue collected yet.
+            </div>
+          ) : (
+            <div className="mt-8 flex h-64 items-end gap-3 sm:gap-6">
+              {revenueByGrade.map((g) => (
+                <div key={g.className} className="flex flex-1 flex-col items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-500">{etb(g.paidAmount)}</span>
+                  <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
+                    <div
+                      className="w-full max-w-12 rounded-t-lg bg-slate-900 transition-all"
+                      style={{ height: `${(Number(g.paidAmount) / maxGradeRevenue) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium text-slate-400">{g.className}</span>
                 </div>
-                <span className="text-xs font-medium text-slate-400">{months[i].slice(0, 3)}</span>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Live transactions */}
