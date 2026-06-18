@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 
@@ -10,6 +11,7 @@ export default function StudentAttendanceDetail() {
   const [student, setStudent] = useState(null);
   const [perf, setPerf] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [notifyingParent, setNotifyingParent] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -48,6 +50,26 @@ export default function StudentAttendanceDetail() {
     off: 'bg-slate-50 text-slate-300',
   };
 
+  const notifyParent = async () => {
+    const defaultMessage = `${name}'s attendance is currently ${attendance.rate}%. Please check the attendance section for details.`;
+    const message = window.prompt(`Message to ${name}'s parent`, defaultMessage);
+    if (!message?.trim()) return;
+
+    setNotifyingParent(true);
+    try {
+      const res = await axios.post('/notifications/parents', {
+        studentIds: [studentId],
+        title: 'Attendance update',
+        message: message.trim(),
+      });
+      toast.success(res.data?.message || 'Notification sent to parent.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to notify parent.');
+    } finally {
+      setNotifyingParent(false);
+    }
+  };
+
   if (loading) {
     return <TeacherLayout><div className="py-20 text-center text-slate-400">Loading…</div></TeacherLayout>;
   }
@@ -72,9 +94,13 @@ export default function StudentAttendanceDetail() {
           <span>›</span>
           <span className="font-semibold text-slate-900">Attendance</span>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">
+        <button
+          onClick={notifyParent}
+          disabled={notifyingParent}
+          className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+        >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2 6 12 13 22 6v12H2V6zm2-1h16l-8 5-8-5z" /></svg>
-          Notify Parent
+          {notifyingParent ? 'Sending...' : 'Notify Parent'}
         </button>
       </div>
 

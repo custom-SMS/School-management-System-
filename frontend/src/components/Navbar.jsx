@@ -204,7 +204,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
                           className={`rounded-xl p-2 text-[11px] transition cursor-pointer ${notif.read ? 'bg-white/5 text-white/60' : 'bg-white/10 text-white'}`}
                         >
                           <div className="font-semibold">{notif.title}</div>
-                          <p>{notif.message}</p>
+                          <p className="whitespace-pre-line">{notif.message}</p>
                         </div>
                       ))
                     ) : (
@@ -284,7 +284,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
                           className={`rounded-2xl p-3 text-xs transition cursor-pointer ${notif.read ? 'bg-white/5 text-white/60' : 'bg-white/10 text-white hover:bg-white/15'}`}
                         >
                           <div className="font-semibold mb-1">{notif.title}</div>
-                          <p className="mb-2 text-white/80">{notif.message}</p>
+                          <p className="mb-2 whitespace-pre-line text-white/80">{notif.message}</p>
                           <div className="text-[10px] text-white/40 flex justify-between items-center">
                             <span>{new Date(notif.createdAt).toLocaleDateString()}</span>
                             {!notif.read && <span className="text-blue-400 font-bold hover:underline">Mark as read</span>}

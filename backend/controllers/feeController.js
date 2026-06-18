@@ -1,5 +1,38 @@
 const prisma = require('../prisma');
 
+const normalizeGradeKey = (grade) => {
+  const number = String(grade || '').match(/\d+/)?.[0];
+  return number || String(grade || '').trim().toLowerCase();
+};
+
+const notifyFeeAudience = async ({ student, title, message, type = 'Fee' }) => {
+  const notifications = [];
+
+  if (student.user?.id) {
+    notifications.push({
+      userId: student.user.id,
+      title,
+      message,
+      type
+    });
+  }
+
+  (student.guardians || []).forEach((guardian) => {
+    if (guardian.user?.id) {
+      notifications.push({
+        userId: guardian.user.id,
+        title,
+        message: `${student.user?.name || student.studentId}: ${message}`,
+        type
+      });
+    }
+  });
+
+  if (notifications.length) {
+    await prisma.notification.createMany({ data: notifications });
+  }
+};
+
 // @desc    Record a new payment
 // @route   POST /api/fees
 // @access  Private (Admin/Bursar)
@@ -235,10 +268,20 @@ const generateMonthlyFees = async (req, res) => {
     });
 
     const feeStructures = await prisma.feeStructure.findMany();
-    const feeByGrade = new Map(feeStructures.map((fs) => [String(fs.grade), fs.amount]));
+    const feeByGrade = new Map(feeStructures.map((fs) => [normalizeGradeKey(fs.grade), fs.amount]));
 
     const students = await prisma.student.findMany({
-      select: { id: true, grade: true }
+      select: {
+        id: true,
+        studentId: true,
+        grade: true,
+        user: { select: { id: true, name: true } },
+        guardians: {
+          include: {
+            user: { select: { id: true } }
+          }
+        }
+      }
     });
 
     // Skip students who already have a fee record for this month
@@ -257,7 +300,7 @@ const generateMonthlyFees = async (req, res) => {
     for (const student of students) {
       if (alreadyInvoiced.has(student.id)) continue;
 
-      const amount = feeByGrade.get(String(student.grade));
+      const amount = feeByGrade.get(normalizeGradeKey(student.grade));
       if (amount === undefined) {
         skippedNoFee += 1;
         continue;
@@ -274,6 +317,12 @@ const generateMonthlyFees = async (req, res) => {
           paid: false
         }
       });
+      await notifyFeeAudience({
+        student,
+        title: 'New Tuition Invoice',
+        message: `${feeDescription} invoice for ${month} has been issued. Amount: ETB ${Number(amount).toFixed(2)}. Due date: ${resolvedDueDate.toLocaleDateString()}.`,
+        type: 'Invoice'
+      });
       created += 1;
     }
 
@@ -285,6 +334,82 @@ const generateMonthlyFees = async (req, res) => {
       created,
       skippedExisting: alreadyInvoiced.size,
       skippedNoFeeConfigured: skippedNoFee
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const sendBulkFeeReminders = async (req, res) => {
+  try {
+    const { month, message } = req.body;
+    if (!month) {
+      return res.status(400).json({ message: 'month is required.' });
+    }
+
+    const fees = await prisma.fee.findMany({
+      where: {
+        month,
+        paid: false
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { id: true, name: true } },
+            guardians: {
+              include: {
+                user: { select: { id: true } }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }]
+    });
+
+    if (!fees.length) {
+      return res.status(404).json({ message: `No unpaid invoices found for ${month}. Generate invoices first if needed.` });
+    }
+
+    const notifications = [];
+    const fallbackMessage = `Please settle your unpaid ${month} tuition invoice. Contact the cashier office if you already paid.`;
+
+    fees.forEach((fee) => {
+      const text = `${message || fallbackMessage} Amount due: ETB ${Number(fee.amount || 0).toFixed(2)}.`;
+      if (fee.student?.user?.id) {
+        notifications.push({
+          userId: fee.student.user.id,
+          title: 'Tuition Payment Reminder',
+          message: text,
+          type: 'FeeReminder'
+        });
+      }
+
+      (fee.student?.guardians || []).forEach((guardian) => {
+        if (guardian.user?.id) {
+          notifications.push({
+            userId: guardian.user.id,
+            title: 'Tuition Payment Reminder',
+            message: `${fee.student?.user?.name || 'Student'}: ${text}`,
+            type: 'FeeReminder'
+          });
+        }
+      });
+    });
+
+    if (!notifications.length) {
+      return res.status(404).json({ message: 'No student or parent portal accounts are linked to these unpaid invoices.' });
+    }
+
+    await prisma.notification.createMany({ data: notifications });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Send Bulk Fee Reminders', month, `Sent ${notifications.length} fee reminder notifications for ${month}`);
+
+    res.status(201).json({
+      message: `Sent ${notifications.length} reminder notification${notifications.length === 1 ? '' : 's'} for ${fees.length} unpaid invoice${fees.length === 1 ? '' : 's'}.`,
+      notifications: notifications.length,
+      invoices: fees.length
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -380,7 +505,16 @@ const submitBankPayment = async (req, res) => {
     // Verify the fee exists and belongs to the requesting student/parent
     const fee = await prisma.fee.findUnique({
       where: { id: feeId },
-      include: { student: { select: { id: true, userId: true } } }
+      include: {
+        student: {
+          select: {
+            id: true,
+            userId: true,
+            studentId: true,
+            user: { select: { name: true } }
+          }
+        }
+      }
     });
     if (!fee) {
       return res.status(404).json({ message: 'Fee record not found.' });
@@ -420,6 +554,22 @@ const submitBankPayment = async (req, res) => {
         status: 'Pending'
       }
     });
+
+    const cashiers = await prisma.user.findMany({
+      where: { role: { in: ['Cashier', 'Admin', 'SuperAdmin'] } },
+      select: { id: true }
+    });
+
+    if (cashiers.length) {
+      await prisma.notification.createMany({
+        data: cashiers.map((cashier) => ({
+          userId: cashier.id,
+          title: 'Payment Verification Needed',
+          message: `From: ${fee.student?.user?.name || 'Student'} (${fee.student?.studentId || ''})\nInvoice: ${fee.description || 'Tuition'} - ${fee.month || ''}\nAmount: ETB ${Number(amount).toFixed(2)}\nBank: ${bankName}\nReference: ${transactionReference}`,
+          type: 'PaymentVerification'
+        }))
+      });
+    }
 
     res.status(201).json({ message: 'Payment submitted for verification.', payment });
   } catch (error) {
@@ -637,6 +787,7 @@ module.exports = {
   createFeeStructure,
   getFeeStructures,
   generateMonthlyFees,
+  sendBulkFeeReminders,
   getMyFees,
   submitBankPayment,
   getOutstandingFees,
@@ -644,4 +795,4 @@ module.exports = {
   getPendingPayments,
   verifyPayment,
   getReceipt
-};
+};

@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
+import { downloadTranscriptCsv } from '../../utils/studentDocuments';
 
 const letterFor = (p) => (p >= 90 ? 'A+' : p >= 85 ? 'A' : p >= 80 ? 'A-' : p >= 75 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 
@@ -31,6 +33,16 @@ export default function StudentAcademics() {
   const avgPct = grades.length ? grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length : 0;
   const gpa = (avgPct / 100 * 4).toFixed(2);
 
+  const handleDownloadTranscript = () => {
+    if (!stats) {
+      toast.info('Academic records are still loading.');
+      return;
+    }
+
+    downloadTranscriptCsv(stats);
+    toast.success('Transcript exported.');
+  };
+
   return (
     <StudentLayout searchPlaceholder="Search records...">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -38,7 +50,12 @@ export default function StudentAcademics() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Academic Performance</h1>
           <p className="text-sm text-slate-500">Student ID: {stats?.studentId || '—'} · {stats?.grade || ''}</p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700">
+        <button
+          type="button"
+          onClick={handleDownloadTranscript}
+          disabled={!stats}
+          className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50"
+        >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" /></svg>
           Transcript
         </button>

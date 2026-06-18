@@ -1,10 +1,12 @@
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function ParentFinance() {
+  const navigate = useNavigate();
   const { children, childId, setChildId, selectedChild, loading } = useParentChildren();
   const fees = selectedChild?.fees || [];
   const name = selectedChild?.profile?.user?.name || 'Child';
@@ -21,6 +23,12 @@ export default function ParentFinance() {
 
   const paidCount = fees.filter((f) => f.paid).length;
   const pendingCount = fees.filter((f) => !f.paid).length;
+
+  const handlePayNow = () => {
+    if (!selectedChild) return;
+    const firstUnpaid = fees.find((f) => !f.paid);
+    navigate('/parent/finance/pay', { state: { feeId: firstUnpaid?._id } });
+  };
 
   const statusPill = (f) => {
     if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
@@ -53,7 +61,13 @@ export default function ParentFinance() {
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Balance Due</div>
               <div className="mt-1 text-3xl font-black text-slate-900">{etb(totals.due)} <span className="text-base font-bold text-slate-400">ETB</span></div>
               {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ Payment outstanding</div>}
-              <button disabled={totals.due === 0} className="mt-4 w-full rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-50 disabled:opacity-40">Pay Now</button>
+              <button
+                onClick={handlePayNow}
+                disabled={totals.due === 0}
+                className="mt-4 w-full rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-50 disabled:opacity-40"
+              >
+                Pay Now
+              </button>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Annual Progress</div>

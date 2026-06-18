@@ -408,6 +408,12 @@ export default function Students() {
                               >View profile</button>
                               {canManage && (
                                 <button
+                                  onClick={() => { setMenuOpenId(null); navigate(`/students/${student._id}/edit`); }}
+                                  className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                                >Edit</button>
+                              )}
+                              {canManage && (
+                                <button
                                   onClick={() => handleDelete(student)}
                                   className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
                                 >Delete</button>

@@ -6,6 +6,8 @@ const {
   getStudentPerformance,
   setGradeFee,
   getGradeFees,
+  getRegistrationClasses,
+  updateStudent,
   deleteStudent,
   promoteStudent,
   repeatStudent,
@@ -25,6 +27,9 @@ router.post('/', registerStudent);
 // Manage grade fee rules
 router.post('/grade-fee', verifyToken, checkPermission('student_registration'), setGradeFee);
 router.get('/grade-fee', getGradeFees);
+router.get('/classes', verifyToken, checkPermission('student_registration'), getRegistrationClasses);
+router.get('/:id', verifyToken, checkPermission('student_registration'), getStudents);
+router.put('/:id', verifyToken, checkPermission('student_registration'), updateStudent);
 router.delete('/:id', verifyToken, checkPermission('student_registration'), deleteStudent);
 
 // Promotion & Status routes

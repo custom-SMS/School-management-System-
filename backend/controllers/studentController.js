@@ -74,6 +74,20 @@ const attachStudentToGradeClass = async (student, grade) => {
   }
 };
 
+// Place the student into one explicit class chosen at registration. Returns
+// false when the class id is missing/invalid so the caller can fall back to
+// grade-based placement.
+const attachStudentToClassId = async (studentId, classId) => {
+  if (!classId) return false;
+  const klass = await prisma.class.findUnique({ where: { id: classId } });
+  if (!klass) return false;
+  await prisma.class.update({
+    where: { id: classId },
+    data: { students: { connect: { id: studentId } } },
+  });
+  return true;
+};
+
 const buildGuardianContacts = (reqBody) => {
   const contacts = Array.isArray(reqBody.guardians) ? reqBody.guardians : [];
 
@@ -221,6 +235,7 @@ const registerStudent = async (req, res) => {
       name,
       email,
       grade,
+      classId,
       personalDetails = {},
       familyBackground = {},
       dateOfBirth,
@@ -347,7 +362,10 @@ const registerStudent = async (req, res) => {
       }
     });
 
-    await attachStudentToGradeClass(student, grade);
+    const placedByClassId = await attachStudentToClassId(student.id, classId);
+    if (!placedByClassId) {
+      await attachStudentToGradeClass(student, grade);
+    }
 
     const guardianCredentials = [];
     for (const contact of guardianContacts) {
@@ -389,6 +407,40 @@ const registerStudent = async (req, res) => {
 // @access  Private (Admin/Teacher)
 const getStudents = async (req, res) => {
   try {
+    const { id } = req.params || {};
+    if (id) {
+      const student = await prisma.student.findUnique({
+        where: { id },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          guardians: true,
+          fees: true,
+          classes: { select: { id: true, name: true } },
+          enrollments: {
+            include: {
+              academicYear: true
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+
+      if (!student) {
+        return res.status(404).json({ message: 'Student not found' });
+      }
+
+      return res.status(200).json({
+        ...student,
+        _id: student.id,
+        classes: (student.classes || []).map((c) => ({ ...c, _id: c.id })),
+        user: student.user ? { ...student.user, _id: student.user.id } : null,
+        guardians: (student.guardians || []).map((g) => ({
+          ...g,
+          _id: g.id
+        }))
+      });
+    }
+
     if (req.user?.role === 'Teacher') {
       const teacher = await prisma.teacher.findUnique({
         where: { userId: req.user._id }
@@ -642,9 +694,169 @@ const getGradeFees = async (req, res) => {
   }
 };
 
+// @desc    Class list for the registration class-placement dropdown
+// @route   GET /api/students/classes
+// @access  Private (student_registration permission)
+const getRegistrationClasses = async (req, res) => {
+  try {
+    const classes = await prisma.class.findMany({
+      orderBy: { name: 'asc' },
+      include: { teacher: { include: { user: { select: { name: true } } } } },
+    });
+    res.status(200).json(
+      classes.map((c) => ({
+        id: c.id,
+        _id: c.id,
+        name: c.name,
+        subject: c.subject,
+        teacherName: c.teacher?.user?.name || null,
+      })),
+    );
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Delete a student and their dependent records
 // @route   DELETE /api/students/:id
 // @access  Private (Admin)
+const updateStudent = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const {
+      name,
+      email,
+      grade,
+      classId,
+      personalDetails,
+      familyBackground
+    } = req.body;
+    const guardianContacts = buildGuardianContacts(req.body);
+
+    const existingStudent = await prisma.student.findUnique({
+      where: { id },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        guardians: true
+      }
+    });
+
+    if (!existingStudent) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (email) {
+      const duplicateUser = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id: existingStudent.userId }
+        }
+      });
+
+      if (duplicateUser) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
+    const updatedStudent = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: existingStudent.userId },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(email !== undefined ? { email: email || null } : {})
+        }
+      });
+
+      let nextGuardianContacts;
+      if (guardianContacts.length) {
+        const contact = guardianContacts[0];
+        const primaryGuardian = existingStudent.guardians?.[0];
+
+        if (primaryGuardian) {
+          const updatedGuardian = await tx.parent.update({
+            where: { id: primaryGuardian.id },
+            data: {
+              fullName: contact.fullName || primaryGuardian.fullName,
+              email: normalizeEmail(contact.email) || primaryGuardian.email,
+              phone: contact.phone || primaryGuardian.phone,
+              relationship: contact.relationship || primaryGuardian.relationship,
+              address: contact.address || primaryGuardian.address
+            }
+          });
+
+          nextGuardianContacts = [{
+            parent: updatedGuardian.id,
+            fullName: updatedGuardian.fullName,
+            email: updatedGuardian.email || '',
+            phone: updatedGuardian.phone || '',
+            relationship: updatedGuardian.relationship || 'Guardian',
+            address: updatedGuardian.address || '',
+            primary: true
+          }];
+        } else {
+          nextGuardianContacts = guardianContacts;
+        }
+      }
+
+      return tx.student.update({
+        where: { id },
+        data: {
+          ...(grade !== undefined ? { grade } : {}),
+          ...(personalDetails !== undefined ? { personalDetails } : {}),
+          ...(familyBackground !== undefined ? { familyBackground } : {}),
+          ...(nextGuardianContacts !== undefined ? { guardianContacts: nextGuardianContacts } : {})
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          guardians: true,
+          fees: true,
+          enrollments: {
+            include: {
+              academicYear: true
+            },
+            orderBy: { createdAt: 'desc' }
+          }
+        }
+      });
+    });
+
+    // Re-place the student into the chosen class (single placement: replace any
+    // existing class membership) when a class is explicitly selected.
+    if (classId) {
+      const klass = await prisma.class.findUnique({ where: { id: classId } });
+      if (klass) {
+        await prisma.student.update({
+          where: { id },
+          data: { classes: { set: [{ id: classId }] } },
+        });
+      }
+    }
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Update Student',
+      updatedStudent.id,
+      `Updated student ${updatedStudent.studentId} (${updatedStudent.user?.name || 'Unknown'})`
+    );
+
+    res.status(200).json({
+      message: 'Student updated successfully',
+      student: {
+        ...updatedStudent,
+        _id: updatedStudent.id,
+        user: updatedStudent.user ? { ...updatedStudent.user, _id: updatedStudent.user.id } : null,
+        guardians: (updatedStudent.guardians || []).map((g) => ({
+          ...g,
+          _id: g.id
+        }))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
@@ -923,9 +1135,11 @@ module.exports = {
   getStudents,
   getStudentPerformance,
   setGradeFee,
-  getGradeFees, 
+  getGradeFees,
+  getRegistrationClasses,
+  updateStudent,
   deleteStudent,
   promoteStudent,
   repeatStudent,
   setStudentStatus
-};
+};

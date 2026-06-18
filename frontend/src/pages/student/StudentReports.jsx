@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
+import { downloadStudentReportPdf, downloadTranscriptCsv } from '../../utils/studentDocuments';
 
 export default function StudentReports() {
   const [stats, setStats] = useState(null);
+  const [submittingRequest, setSubmittingRequest] = useState(false);
 
   useEffect(() => {
     axios.get('/stats/student/me').then((r) => setStats(r.data)).catch(() => {});
@@ -30,6 +33,41 @@ export default function StudentReports() {
     return vals;
   }, [grades, avgPct]);
 
+  const handleExportTranscript = () => {
+    if (!stats) {
+      toast.info('Academic records are still loading.');
+      return;
+    }
+
+    downloadTranscriptCsv(stats);
+    toast.success('Transcript exported.');
+  };
+
+  const handleDownloadPdf = () => {
+    if (!stats) {
+      toast.info('Academic report is still loading.');
+      return;
+    }
+
+    downloadStudentReportPdf(stats);
+    toast.success('PDF downloaded.');
+  };
+
+  const handleSubmitRequest = async () => {
+    const reason = window.prompt('Describe what you want reviewed in your academic record');
+    if (!reason?.trim()) return;
+
+    setSubmittingRequest(true);
+    try {
+      const res = await axios.post('/notifications/student-request', { reason: reason.trim() });
+      toast.success(res.data?.message || 'Request submitted.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to submit request.');
+    } finally {
+      setSubmittingRequest(false);
+    }
+  };
+
   return (
     <StudentLayout searchPlaceholder="Search records...">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -37,7 +75,12 @@ export default function StudentReports() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Student Reports</h1>
           <p className="text-sm text-slate-500">View, track, and download official academic records.</p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">
+        <button
+          type="button"
+          onClick={handleExportTranscript}
+          disabled={!stats}
+          className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+        >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" /></svg>
           Export Transcript
         </button>
@@ -63,11 +106,11 @@ export default function StudentReports() {
             </div>
           </div>
           <div className="mt-6 flex gap-3">
-            <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white">
+            <button type="button" onClick={handleDownloadPdf} disabled={!stats} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white disabled:opacity-50">
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 5a7 7 0 1 0 0 14 7 7 0 0 0 0-14zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10zm0 1.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" /></svg>
               View Detailed Report
             </button>
-            <button className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700">Download PDF</button>
+            <button type="button" onClick={handleDownloadPdf} disabled={!stats} className="flex items-center gap-2 rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-bold text-slate-700 disabled:opacity-50">Download PDF</button>
           </div>
         </section>
 
@@ -93,7 +136,14 @@ export default function StudentReports() {
           <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
             <h3 className="text-lg font-bold">Request Re-evaluation</h3>
             <p className="mt-1 text-sm text-slate-400">Discrepancy in your marks? Open a formal review ticket.</p>
-            <button className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-100">Submit Request</button>
+            <button
+              type="button"
+              onClick={handleSubmitRequest}
+              disabled={submittingRequest}
+              className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-100 disabled:opacity-60"
+            >
+              {submittingRequest ? 'Submitting...' : 'Submit Request'}
+            </button>
           </div>
         </aside>
       </div>

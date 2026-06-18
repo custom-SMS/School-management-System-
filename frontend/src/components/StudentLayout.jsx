@@ -1,5 +1,6 @@
-import { useContext, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
+import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 
 const icons = {
@@ -26,15 +27,56 @@ const navItems = [
 export default function StudentLayout({ children, searchPlaceholder = 'Search records...' }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
   const handleLogout = async () => { await logout(); navigate('/login'); };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get('/notifications');
+      setNotifications(res.data || []);
+    } catch (error) {
+      console.error('Failed to fetch notifications', error);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return undefined;
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    const closeOnOutsideClick = (event) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setNotificationsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, []);
+
+  const markAsRead = async (id) => {
+    try {
+      await axios.patch(`/notifications/${id}/read`);
+      fetchNotifications();
+    } catch (error) {
+      console.error('Failed to mark notification as read', error);
+    }
+  };
 
   const linkClass = ({ isActive }) =>
     ['flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition',
       isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'].join(' ');
 
   const initials = (user?.name || 'S').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
+  const unreadCount = notifications.filter((notification) => !notification.read).length;
 
   const sidebar = (
     <div className="flex h-full flex-col">
@@ -84,10 +126,49 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
               <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.5 10.9l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" /></svg>
               <input type="search" placeholder={searchPlaceholder} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-12 pr-4 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5" />
             </div>
-            <button type="button" className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100" aria-label="Notifications">
-              <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-1.7 1.7c-.6.6-.2 1.7.7 1.7h14c.9 0 1.3-1.1.7-1.7L18 16z" /></svg>
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-rose-500" />
-            </button>
+            <div className="relative" ref={notificationsRef}>
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen((current) => !current)}
+                className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                aria-label="Notifications"
+              >
+                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-1.7 1.7c-.6.6-.2 1.7.7 1.7h14c.9 0 1.3-1.1.7-1.7L18 16z" /></svg>
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <span className="text-sm font-black text-slate-900">Notifications</span>
+                    {unreadCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>}
+                  </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
+                    {notifications.length > 0 ? (
+                      notifications.map((notification) => (
+                        <button
+                          type="button"
+                          key={notification.id}
+                          onClick={() => markAsRead(notification.id)}
+                          className={`w-full rounded-xl p-3 text-left text-xs transition ${notification.read ? 'bg-slate-50 text-slate-500' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                        >
+                          <span className="block font-bold">{notification.title}</span>
+                          <span className={`mt-1 block whitespace-pre-line ${notification.read ? 'text-slate-500' : 'text-white/80'}`}>{notification.message}</span>
+                          <span className={`mt-2 block text-[10px] ${notification.read ? 'text-slate-400' : 'text-white/50'}`}>
+                            {new Date(notification.createdAt).toLocaleString()}
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="py-6 text-center text-sm text-slate-400">No notifications yet.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{initials}</span>
           </header>
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>

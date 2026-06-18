@@ -16,7 +16,8 @@ export default function Login() {
     { label: 'Teacher', identifier: 'TCH-0001', password: 'teacher' },
     { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
-    { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' }
+    { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' },
+    { label: 'Parent', identifier: 'lyhu@mailinator.com', password: '1c25db75' }
   ];
 
   const handleSubmit = async (e) => {

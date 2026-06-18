@@ -9,14 +9,16 @@ const DEPT_TAGS = { Mathematics: 'bg-gray-100 text-gray-700', Science: 'bg-gray-
 const deptStyle = (dept) => DEPT_TAGS[dept] || 'bg-gray-100 text-gray-600';
 
 const initialForm = { name: '', email: '', password: '', subject: '' };
+const initialToast = { type: '', text: '' };
 
 export default function Teachers() {
   const [formData, setFormData] = useState(initialForm);
   const [teachers, setTeachers] = useState([]);
   const [credentials, setCredentials] = useState(null);
-  const [message, setMessage] = useState('');
+  const [toast, setToast] = useState(initialToast);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editingTeacherId, setEditingTeacherId] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
   const [deletingTeacherId, setDeletingTeacherId] = useState('');
@@ -26,26 +28,58 @@ export default function Teachers() {
       const res = await axios.get('/teachers');
       setTeachers(res.data || []);
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Failed to load teachers');
+      setToast({ type: 'error', text: error.response?.data?.message || 'Failed to load teachers' });
     }
   };
 
   useEffect(() => { loadTeachers(); }, []);
 
+  const openCreateModal = () => {
+    setCredentials(null);
+    setToast(initialToast);
+    setEditingTeacherId('');
+    setFormData(initialForm);
+    setShowForm(true);
+  };
+
+  const openEditModal = (teacher) => {
+    setCredentials(null);
+    setToast(initialToast);
+    setEditingTeacherId(teacher._id);
+    setFormData({
+      name: teacher.user?.name || '',
+      email: teacher.user?.email || '',
+      password: '',
+      subject: teacher.subject || '',
+    });
+    setShowForm(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    setMessage('');
+    setToast(initialToast);
     try {
       const payload = { ...formData, password: formData.password || undefined };
-      const res = await axios.post('/teachers', payload);
-      setCredentials(res.data.credentials || null);
-      setMessage(res.data.message || 'Teacher registered successfully');
+      const isEditing = Boolean(editingTeacherId);
+      const res = isEditing
+        ? await axios.put(`/teachers/${editingTeacherId}`, payload)
+        : await axios.post('/teachers', payload);
+
+      setCredentials(isEditing ? null : (res.data.credentials || null));
+      setToast({
+        type: 'success',
+        text: res.data.message || (isEditing ? 'Teacher updated successfully' : 'Teacher registered successfully')
+      });
       setFormData(initialForm);
+      setEditingTeacherId('');
       setShowForm(false);
       await loadTeachers();
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Failed to register teacher');
+      setToast({
+        type: 'error',
+        text: error.response?.data?.message || (editingTeacherId ? 'Failed to update teacher' : 'Failed to register teacher')
+      });
     } finally {
       setLoading(false);
     }
@@ -56,9 +90,10 @@ export default function Teachers() {
     setDeletingTeacherId(teacher._id);
     try {
       await axios.delete(`/teachers/${teacher._id}`);
+      setToast({ type: 'success', text: 'Teacher deleted successfully' });
       await loadTeachers();
     } catch (error) {
-      setMessage(error.response?.data?.message || 'Failed to delete teacher');
+      setToast({ type: 'error', text: error.response?.data?.message || 'Failed to delete teacher' });
     } finally {
       setDeletingTeacherId('');
     }
@@ -82,7 +117,7 @@ export default function Teachers() {
   return (
     <AdminLayout pageTitle="System Management" headerAction={
       <button
-        onClick={() => setShowForm(true)}
+        onClick={openCreateModal}
         className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v14m-7-7h14"/></svg>
@@ -93,8 +128,12 @@ export default function Teachers() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
-            <h2 className="mb-6 text-xl font-bold text-gray-900">Register New Teacher</h2>
-            {message && <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600">{message}</div>}
+            <h2 className="mb-6 text-xl font-bold text-gray-900">{editingTeacherId ? 'Edit Teacher' : 'Register New Teacher'}</h2>
+            {toast.text && showForm && (
+              <div className={`mb-4 rounded-lg border p-3 text-sm ${toast.type === 'error' ? 'border-red-200 bg-red-50 text-red-600' : 'border-green-200 bg-green-50 text-green-700'}`}>
+                {toast.text}
+              </div>
+            )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div><label className="mb-1 block text-sm font-semibold text-gray-700">Full Name</label>
                 <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" /></div>
@@ -105,8 +144,8 @@ export default function Teachers() {
               <div><label className="mb-1 block text-sm font-semibold text-gray-700">Password (optional)</label>
                 <input type="text" placeholder="Leave blank to auto-generate" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" /></div>
               <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowForm(false)} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={loading} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{loading ? 'Saving…' : 'Register Teacher'}</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingTeacherId(''); setFormData(initialForm); }} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={loading} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{loading ? 'Saving…' : (editingTeacherId ? 'Save Changes' : 'Register Teacher')}</button>
               </div>
             </form>
           </div>
@@ -119,7 +158,11 @@ export default function Teachers() {
           <div>Teacher ID: {credentials.teacherId} | Password: {credentials.password}</div>
         </div>
       )}
-      {message && !showForm && <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-700">{message}</div>}
+      {toast.text && !showForm && (
+        <div className={`mb-4 rounded-lg border p-3 text-sm ${toast.type === 'error' ? 'border-red-200 bg-red-50 text-red-600' : 'border-blue-200 bg-blue-50 text-blue-700'}`}>
+          {toast.text}
+        </div>
+      )}
 
       {/* Page Title */}
       <div className="mb-6 flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
@@ -181,13 +224,13 @@ export default function Teachers() {
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <button title="Email" className="text-gray-400 hover:text-gray-700">
+                        <button onClick={() => openEditModal(teacher)} title="Edit Teacher" className="text-gray-400 hover:text-gray-700">
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5h2m-1-1v2m-7 6h14M5 19h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                        </button>
+                        <button title="Teacher Email" className="text-gray-400 hover:text-gray-700">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                         </button>
-                        <button title="Schedule" className="text-gray-400 hover:text-gray-700">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" strokeWidth="2"/><line x1="8" y1="2" x2="8" y2="6" strokeWidth="2"/><line x1="3" y1="10" x2="21" y2="10" strokeWidth="2"/></svg>
-                        </button>
-                        <button onClick={() => handleDeleteTeacher(teacher)} disabled={deletingTeacherId === teacher._id} title="More options" className="text-gray-400 hover:text-gray-700">⋮</button>
+                        <button onClick={() => handleDeleteTeacher(teacher)} disabled={deletingTeacherId === teacher._id} title="Delete Teacher" className="text-gray-400 hover:text-gray-700">{deletingTeacherId === teacher._id ? '…' : '⋮'}</button>
                       </div>
                     </td>
                   </tr>

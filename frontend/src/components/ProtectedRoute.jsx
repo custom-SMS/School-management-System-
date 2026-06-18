@@ -2,7 +2,8 @@ import { Navigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-export default function ProtectedRoute({ children, allowedRoles, requiredPermission }) {
+export default function ProtectedRoute(props) {
+  const { children, allowedRoles, requiredPermission = null } = props;
   const { user, permissions, loading } = useContext(AuthContext);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-medium">Loading...</div>;

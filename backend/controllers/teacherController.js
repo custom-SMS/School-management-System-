@@ -102,6 +102,90 @@ const getTeachers = async (req, res) => {
   }
 };
 
+const updateTeacher = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, email, subject } = req.body;
+
+    const existingTeacher = await prisma.teacher.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    if (!existingTeacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    if (email) {
+      const duplicateUser = await prisma.user.findFirst({
+        where: {
+          email,
+          NOT: { id: existingTeacher.userId }
+        }
+      });
+
+      if (duplicateUser) {
+        return res.status(400).json({ message: 'Email already exists' });
+      }
+    }
+
+    const updatedTeacher = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: existingTeacher.userId },
+        data: {
+          ...(name !== undefined ? { name } : {}),
+          ...(email !== undefined ? { email: email || null } : {})
+        }
+      });
+
+      return tx.teacher.update({
+        where: { id },
+        data: {
+          ...(subject !== undefined ? { subject } : {})
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true
+            }
+          }
+        }
+      });
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Update Teacher',
+      updatedTeacher.id,
+      `Updated teacher ${updatedTeacher.teacherId} (${updatedTeacher.user?.name || 'Unknown'})`
+    );
+
+    res.status(200).json({
+      message: 'Teacher updated successfully',
+      teacher: {
+        ...updatedTeacher,
+        _id: updatedTeacher.id,
+        user: updatedTeacher.user ? { ...updatedTeacher.user, _id: updatedTeacher.user.id } : null
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Delete a teacher and clean up assignments
 // @route   DELETE /api/teachers/:id
 // @access  Private (Admin)
@@ -147,4 +231,4 @@ const deleteTeacher = async (req, res) => {
   }
 };
 
-module.exports = { registerTeacher, getTeachers, deleteTeacher };
+module.exports = { registerTeacher, getTeachers, updateTeacher, deleteTeacher };

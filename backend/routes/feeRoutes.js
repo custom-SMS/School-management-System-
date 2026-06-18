@@ -7,6 +7,7 @@ const {
   createFeeStructure,
   getFeeStructures,
   generateMonthlyFees,
+  sendBulkFeeReminders,
   getMyFees,
   submitBankPayment,
   getOutstandingFees,
@@ -28,6 +29,7 @@ router.get('/structures', verifyToken, getFeeStructures);
 
 // Generate monthly tuition invoices for all students (Cashier/Admin/SuperAdmin)
 router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), generateMonthlyFees);
+router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), sendBulkFeeReminders);
 
 // Cashier desk: list outstanding invoices and collect cash against them
 router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getOutstandingFees);

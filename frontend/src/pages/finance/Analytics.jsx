@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import CashierLayout from '../../components/CashierLayout';
 
@@ -13,6 +14,7 @@ export default function Analytics() {
   const [structures, setStructures] = useState([]);
   const [stats, setStats] = useState(null);
   const [filter, setFilter] = useState('all');
+  const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => {
     axios.get('/fees/structures').then((r) => setStructures(r.data || [])).catch(() => {});
@@ -44,6 +46,62 @@ export default function Analytics() {
   const byGrade = stats?.feeSummaryByClass ?? [];
   const maxGradeTotal = Math.max(1, ...byGrade.map((g) => Number(g.totalAmount || 0)));
 
+  const exportReport = () => {
+    const rows = [
+      ['Debt Oversight Report'],
+      ['Month', targetMonth],
+      ['Collection Rate', `${collectionRate}%`],
+      ['Total Arrears', totalArrears],
+      ['Defaulters', defaulters.length],
+      [],
+      ['Student Name', 'Student ID', 'Grade', 'Email', 'Estimated Balance', 'Status'],
+      ...defaulters.map((student) => [
+        student.user?.name || '',
+        student.studentId || '',
+        student.grade || '',
+        student.user?.email || '',
+        feeForGrade(student.grade),
+        `UNPAID - ${targetMonth}`,
+      ]),
+      [],
+      ['Grade', 'Paid Amount', 'Outstanding Amount', 'Total Amount'],
+      ...byGrade.map((grade) => [
+        grade.className || '',
+        grade.paidAmount || 0,
+        Number(grade.totalAmount || 0) - Number(grade.paidAmount || 0),
+        grade.totalAmount || 0,
+      ]),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((cell) => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `debt-report-${targetMonth}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+    toast.success('Debt report exported.');
+  };
+
+  const sendBulkReminders = async () => {
+    if (!window.confirm(`Send tuition reminders for all unpaid ${targetMonth} invoices?`)) return;
+
+    setSendingReminders(true);
+    try {
+      const res = await axios.post('/fees/reminders', { month: targetMonth });
+      toast.success(res.data?.message || 'Bulk reminders sent.');
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to send reminders.');
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
   return (
     <CashierLayout searchPlaceholder="Search student records...">
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
@@ -52,13 +110,22 @@ export default function Analytics() {
           <p className="text-sm text-slate-500">Real-time monitoring of institutional arrears and collection efficiency.</p>
         </div>
         <div className="flex gap-3">
-          <button className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">
+          <button
+            type="button"
+            onClick={exportReport}
+            className="flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600"
+          >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" /></svg>
             Export Report
           </button>
-          <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white">
+          <button
+            type="button"
+            onClick={sendBulkReminders}
+            disabled={sendingReminders}
+            className="flex items-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-bold text-white disabled:opacity-50"
+          >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="m3 3 18 9-18 9 4-9-4-9zm4 9H3" /></svg>
-            Bulk Reminders
+            {sendingReminders ? 'Sending...' : 'Bulk Reminders'}
           </button>
         </div>
       </div>

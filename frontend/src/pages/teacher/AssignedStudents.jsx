@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 
@@ -9,6 +10,7 @@ export default function AssignedStudents() {
   const [gradeFilter, setGradeFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
   const [selected, setSelected] = useState(() => new Set());
+  const [sending, setSending] = useState(false);
 
   useEffect(() => {
     axios
@@ -62,6 +64,26 @@ export default function AssignedStudents() {
       return next;
     });
 
+  const messageSelectedParents = async () => {
+    const message = window.prompt('Message to send to selected parents');
+    if (!message?.trim()) return;
+
+    setSending(true);
+    try {
+      const res = await axios.post('/notifications/parents', {
+        studentIds: Array.from(selected),
+        title: 'Message from teacher',
+        message: message.trim(),
+      });
+      toast.success(res.data?.message || 'Notification sent to parents.');
+      setSelected(new Set());
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to notify parents.');
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
     <TeacherLayout searchPlaceholder="Search student name or ID...">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
@@ -70,11 +92,12 @@ export default function AssignedStudents() {
           <p className="text-sm text-slate-500">Directory of students across your current academic workload.</p>
         </div>
         <button
-          disabled={selected.size === 0}
+          onClick={messageSelectedParents}
+          disabled={selected.size === 0 || sending}
           className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
         >
           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2 6 12 13 22 6v12H2V6zm2-1h16l-8 5-8-5z" /></svg>
-          Message Selected Parents{selected.size ? ` (${selected.size})` : ''}
+          {sending ? 'Sending...' : `Message Selected Parents${selected.size ? ` (${selected.size})` : ''}`}
         </button>
       </div>
 

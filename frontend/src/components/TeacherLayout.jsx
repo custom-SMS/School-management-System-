@@ -31,7 +31,7 @@ const navItems = [
   { to: '/teacher/timetable', label: 'Timetable', icon: 'timetable' },
 ];
 
-export default function TeacherLayout({ children, schoolName = "St. Mary's Academy", searchPlaceholder = 'Search students or records...' }) {
+export default function TeacherLayout({ children, schoolName = "Hawinet Academy", searchPlaceholder = 'Search students or records...' }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);

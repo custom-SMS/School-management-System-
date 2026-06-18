@@ -38,11 +38,13 @@ import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentAttendancePortal from "./pages/student/StudentAttendance";
 import StudentAcademics from "./pages/student/StudentAcademics";
 import StudentFinance from "./pages/student/StudentFinance";
+import StudentPayment from "./pages/student/StudentPayment";
 import StudentReports from "./pages/student/StudentReports";
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import ParentAcademics from "./pages/parent/ParentAcademics";
 import ParentAttendance from "./pages/parent/ParentAttendance";
 import ParentFinance from "./pages/parent/ParentFinance";
+import ParentPayment from "./pages/parent/ParentPayment";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -63,21 +65,45 @@ function App() {
         />
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route 
-            path="/register-student" 
+          <Route
+            path="/register-student"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="student_registration">
+              <ProtectedRoute
+                allowedRoles={["Admin", "SuperAdmin"]}
+                requiredPermission="student_registration"
+              >
                 <RegisterStudent />
               </ProtectedRoute>
-            } 
+            }
           />
-          <Route path="/parent-portal" element={<Navigate to="/parent/dashboard" replace />} />
+          <Route
+            path="/students/:id/edit"
+            element={
+              <ProtectedRoute
+                allowedRoles={["Admin", "SuperAdmin"]}
+                requiredPermission="student_registration"
+              >
+                <RegisterStudent />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent-portal"
+            element={<Navigate to="/parent/dashboard" replace />}
+          />
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin", "Cashier"]}
+                allowedRoles={[
+                  "Admin",
+                  "Teacher",
+                  "Student",
+                  "Parent",
+                  "SuperAdmin",
+                  "Cashier",
+                ]}
               >
                 <Dashboard />
               </ProtectedRoute>
@@ -143,7 +169,13 @@ function App() {
             path="/report-card"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin"]}
+                allowedRoles={[
+                  "Admin",
+                  "Teacher",
+                  "Student",
+                  "Parent",
+                  "SuperAdmin",
+                ]}
               >
                 <ReportCard />
               </ProtectedRoute>
@@ -153,7 +185,13 @@ function App() {
             path="/timetable"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin"]}
+                allowedRoles={[
+                  "Admin",
+                  "Teacher",
+                  "Student",
+                  "Parent",
+                  "SuperAdmin",
+                ]}
               >
                 <Timetables />
               </ProtectedRoute>
@@ -304,7 +342,9 @@ function App() {
           <Route
             path="/student/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
                 <StudentDashboard />
               </ProtectedRoute>
             }
@@ -312,7 +352,9 @@ function App() {
           <Route
             path="/student/attendance"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
                 <StudentAttendancePortal />
               </ProtectedRoute>
             }
@@ -320,7 +362,9 @@ function App() {
           <Route
             path="/student/academics"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
                 <StudentAcademics />
               </ProtectedRoute>
             }
@@ -328,15 +372,29 @@ function App() {
           <Route
             path="/student/finance"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
                 <StudentFinance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/student/finance/pay"
+            element={
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
+                <StudentPayment />
               </ProtectedRoute>
             }
           />
           <Route
             path="/student/reports"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute
+                allowedRoles={["Student", "Parent", "SuperAdmin"]}
+              >
                 <StudentReports />
               </ProtectedRoute>
             }
@@ -372,6 +430,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
                 <ParentFinance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/finance/pay"
+            element={
+              <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                <ParentPayment />
               </ProtectedRoute>
             }
           />
