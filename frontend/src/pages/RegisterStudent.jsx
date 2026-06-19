@@ -1,4 +1,4 @@
-﻿import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { toast } from 'react-toastify';
@@ -83,7 +83,7 @@ export default function RegisterStudent() {
                     </select>
                   </div>
                 </div>
-                <button type="submit" className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-500">
+                <button type="submit" className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-indigo-500">
                   Register Student
                 </button>
               </form>
@@ -94,3 +94,4 @@ export default function RegisterStudent() {
     </div>
   );
 }
+

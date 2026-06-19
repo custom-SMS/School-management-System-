@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import Navbar from './Navbar';
@@ -144,10 +144,11 @@ export default function AttendanceChecklist() {
               </tbody>
             </table>
           </div>
-          <button type="submit" className="rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5">Save Attendance</button>
+          <button type="submit" className="rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5">Save Attendance</button>
         </form>
         </div>
       </div>
     </div>
   );
 }
+

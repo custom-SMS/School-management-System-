@@ -24,7 +24,7 @@ const matchesClass = (studentGrade, className) => {
   );
 };
 
-const AVATAR_COLORS = ['bg-gray-500', 'bg-blue-500', 'bg-purple-500', 'bg-green-500', 'bg-orange-500', 'bg-teal-500'];
+const AVATAR_COLORS = ['bg-gray-500', 'bg-blue-500', 'bg-teal-500', 'bg-green-500', 'bg-orange-500', 'bg-teal-500'];
 const avatarColor = (name) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
 const ACTIVE_ENROLLMENT_STATUSES = new Set(['Enrolled', 'Promoted', 'Repeated']);
@@ -482,3 +482,4 @@ export default function Students() {
     </AdminLayout>
   );
 }
+

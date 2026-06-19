@@ -167,7 +167,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
         <div className="flex items-center justify-between gap-4 sm:hidden">
           <Link
             to="/dashboard"
-            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500 to-violet-500 text-base font-black text-white shadow-lg shadow-blue-500/25"
+            className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500 to-indigo-500 text-base font-black text-white shadow-lg shadow-blue-500/25"
           >
             SMS
           </Link>
@@ -236,7 +236,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
           <div className="flex items-center gap-4">
             <Link
               to="/dashboard"
-              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500 to-violet-500 text-base font-black text-white shadow-lg shadow-blue-500/25"
+              className="flex h-11 w-11 items-center justify-center rounded-2xl bg-linear-to-br from-blue-500 to-indigo-500 text-base font-black text-white shadow-lg shadow-blue-500/25"
             >
               SMS
             </Link>
@@ -418,3 +418,4 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
     </nav>
   );
 }
+

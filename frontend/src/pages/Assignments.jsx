@@ -3,7 +3,7 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
 
-const AVATAR_COLORS = ['bg-gray-700', 'bg-blue-600', 'bg-purple-600', 'bg-green-700', 'bg-orange-600'];
+const AVATAR_COLORS = ['bg-gray-700', 'bg-blue-600', 'bg-teal-600', 'bg-green-700', 'bg-orange-600'];
 const avatarColor = (name) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_COLORS.length];
 
 export default function Assignments() {

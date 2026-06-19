@@ -8,7 +8,7 @@ const normalizeClassLabel = (value) => String(value ?? '').trim() || 'Unassigned
 
 const ACTIVITY_LOGS = [
   { id: '#TRX-8921-S', user: 'Tewodros Melaku', initials: 'TM', color: 'bg-blue-500', type: 'Fee Collection – Grade 10', status: 'COMPLETED', time: '10:42 AM' },
-  { id: '#TRX-8919-A', user: 'Abebe Kebede', initials: 'AK', color: 'bg-purple-500', type: 'Curriculum Update – Biology', status: 'MODIFIED', time: '09:15 AM' },
+  { id: '#TRX-8919-A', user: 'Abebe Kebede', initials: 'AK', color: 'bg-teal-500', type: 'Curriculum Update – Biology', status: 'MODIFIED', time: '09:15 AM' },
   { id: '#TRX-8915-P', user: 'Helen Assefa', initials: 'HA', color: 'bg-orange-500', type: 'New Staff Onboarding', status: 'PENDING', time: '08:02 AM' },
   { id: '#TRX-8910-E', user: 'Dawit Alemu', initials: 'DA', color: 'bg-red-500', type: 'System Backup Failure', status: 'FAILED', time: 'Yesterday' },
 ];
@@ -311,3 +311,4 @@ export default function Dashboard() {
     </AdminLayout>
   );
 }
+

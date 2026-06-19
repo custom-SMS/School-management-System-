@@ -235,7 +235,7 @@ export default function Bursar() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 rounded-4xl border border-white/50 bg-white/75 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-violet-600">Finance</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600">Finance</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Bursar (Fee Management)</h1>
           <p className="mt-2 text-sm text-slate-500">Record payments and verify transaction references.</p>
         </div>
@@ -244,7 +244,7 @@ export default function Bursar() {
         <div className="mb-8 flex border-b border-slate-200">
           <button
             onClick={() => setActiveTab('payments')}
-            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'payments' ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'payments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Direct Payments & Defaulters
           </button>
@@ -253,7 +253,7 @@ export default function Bursar() {
               setActiveTab('verifications');
               fetchPendingPayments();
             }}
-            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'verifications' ? 'border-violet-600 text-violet-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'verifications' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Bank Verifications Queue ({pendingPayments.length})
           </button>

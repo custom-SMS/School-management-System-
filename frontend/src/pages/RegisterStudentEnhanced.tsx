@@ -642,7 +642,7 @@ export default function RegisterStudentEnhanced() {
                   type="submit"
                   onClick={lockButtons}
                   disabled={isLocked}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-violet-500 disabled:cursor-not-allowed disabled:opacity-70"
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-linear-to-r from-blue-600 to-indigo-600 px-4 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5 hover:from-blue-500 hover:to-indigo-500 disabled:cursor-not-allowed disabled:opacity-70"
                 >
                   {isSubmitting ? (
                     <span className="inline-flex items-center gap-2">
@@ -670,3 +670,4 @@ export default function RegisterStudentEnhanced() {
     </div>
   );
 }
+

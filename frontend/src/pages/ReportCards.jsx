@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
-import Navbar from '../components/Navbar';
+import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
 
 export default function ReportCards() {
@@ -83,84 +83,91 @@ export default function ReportCards() {
     }
   };
 
-  const inputClass = 'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10';
+  const inputClass = 'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-4 focus:ring-gray-500/10';
   const card = preview?.reportCard;
   const grades = preview?.grades || [];
 
   return (
-    <div className="min-h-screen bg-transparent pb-10">
-      <Navbar />
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-4xl border border-white/50 bg-white/75 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600">Academics</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Report Cards</h1>
-          <p className="mt-2 text-sm text-slate-500">Compile averages, ranks and attendance, then publish to students and parents.</p>
-        </div>
+    <AdminLayout pageTitle="Report Cards Management">
+      <div className="mb-6">
+        <h2 className="text-2xl font-black tracking-tight text-slate-900">Report Cards</h2>
+        <p className="text-sm font-medium text-slate-500">Compile averages, ranks and attendance, then publish to students and parents.</p>
+      </div>
 
-        <div className="mb-6 rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-          <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700">Academic Year</span>
-              <select className={inputClass} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-                {years.map((y) => <option key={y.id} value={y.id}>{y.year} {y.isActive ? '(Active)' : ''}</option>)}
-              </select>
-            </label>
-            <button onClick={handleCompile} disabled={!selectedYear || busy === 'compile'} className="rounded-2xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-700 transition disabled:opacity-50">
-              {busy === 'compile' ? 'Compiling…' : 'Compile Report Cards'}
-            </button>
-            <button onClick={handlePublish} disabled={!selectedYear || busy === 'publish'} className="rounded-2xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-700 transition disabled:opacity-50">
-              {busy === 'publish' ? 'Publishing…' : 'Publish to Students'}
-            </button>
-          </div>
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+          <label className="block">
+            <span className="mb-2 block text-sm font-bold text-slate-700">Academic Year</span>
+            <select className={inputClass} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+              {years.map((y) => <option key={y.id} value={y.id}>{y.year} {y.isActive ? '(Active)' : ''}</option>)}
+            </select>
+          </label>
+          <button onClick={handleCompile} disabled={!selectedYear || busy === 'compile'} className="rounded-lg bg-black px-5 py-3 font-bold text-white hover:bg-slate-800 transition disabled:opacity-50 shadow-sm">
+            {busy === 'compile' ? 'Compiling…' : 'Compile Report Cards'}
+          </button>
+          <button onClick={handlePublish} disabled={!selectedYear || busy === 'publish'} className="rounded-lg bg-slate-800 px-5 py-3 font-bold text-white hover:bg-slate-900 transition disabled:opacity-50 shadow-sm">
+            {busy === 'publish' ? 'Publishing…' : 'Publish to Students'}
+          </button>
         </div>
+      </div>
 
-        <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-          <h2 className="text-xl font-bold text-slate-900 mb-4">Preview a Student's Report Card</h2>
+      <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-slate-100 bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-900">Preview a Student's Report Card</h3>
+        </div>
+        
+        <div className="p-6">
           <select className={`${inputClass} mb-6 max-w-md`} value={selectedStudent} onChange={(e) => handleStudentChange(e.target.value)}>
             <option value="">Select a student</option>
             {students.map((s) => <option key={s._id} value={s._id}>{s.user?.name} ({s.studentId}) — {s.grade}</option>)}
           </select>
 
-          {previewError && <p className="text-sm text-amber-700 bg-amber-50 rounded-2xl px-4 py-3">{previewError}</p>}
+          {previewError && <p className="text-sm font-semibold text-zinc-700 bg-zinc-50 border border-zinc-100 rounded-lg px-4 py-3 mb-6">{previewError}</p>}
 
           {card && (
             <div className="space-y-6">
               <div className="grid gap-4 sm:grid-cols-4">
-                <div className="rounded-2xl bg-slate-50 px-4 py-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-400">Average</div><div className="mt-1 text-2xl font-black text-slate-900">{Math.round(card.averageScore)}%</div></div>
-                <div className="rounded-2xl bg-violet-50 px-4 py-4"><div className="text-xs uppercase tracking-[0.16em] text-violet-500">Rank</div><div className="mt-1 text-2xl font-black text-violet-800">{card.rank ? `#${card.rank}` : '—'}</div></div>
-                <div className="rounded-2xl bg-blue-50 px-4 py-4"><div className="text-xs uppercase tracking-[0.16em] text-blue-500">Attendance</div><div className="mt-1 text-2xl font-black text-blue-800">{Math.round(card.attendancePercentage)}%</div></div>
-                <div className="rounded-2xl bg-slate-50 px-4 py-4"><div className="text-xs uppercase tracking-[0.16em] text-slate-400">Status</div><div className={`mt-1 text-lg font-black ${card.published ? 'text-emerald-700' : 'text-amber-700'}`}>{card.published ? 'Published' : 'Draft'}</div></div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Average</div><div className="mt-1 text-2xl font-black text-slate-900">{Math.round(card.averageScore)}%</div></div>
+                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><div className="text-xs font-bold uppercase tracking-wider text-black">Rank</div><div className="mt-1 text-2xl font-black text-indigo-900">{card.rank ? `#${card.rank}` : '—'}</div></div>
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-gray-600">Attendance</div><div className="mt-1 text-2xl font-black text-gray-900">{Math.round(card.attendancePercentage)}%</div></div>
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</div><div className={`mt-1 text-lg font-black ${card.published ? 'text-slate-600' : 'text-gray-600'}`}>{card.published ? 'Published' : 'Draft'}</div></div>
               </div>
 
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
-                <table className="w-full border-collapse text-center text-sm">
-                  <thead>
-                    <tr className="bg-slate-900 text-white">
-                      <th className="px-4 py-3">Subject</th><th className="px-4 py-3">Quiz</th><th className="px-4 py-3">Assign.</th><th className="px-4 py-3">Midterm</th><th className="px-4 py-3">Final</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">%</th>
+              <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
+                <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Subject</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Quiz</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Assign.</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Midterm</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Final</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Total</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">%</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-200 bg-white">
+                  <tbody className="divide-y divide-slate-100 bg-white">
                     {grades.length > 0 ? grades.map((g) => (
-                      <tr key={g.id}>
-                        <td className="px-4 py-3 text-left font-semibold text-slate-900">{g.subject}</td>
-                        <td className="px-4 py-3">{g.quiz}</td>
-                        <td className="px-4 py-3">{g.assignment}</td>
-                        <td className="px-4 py-3">{g.midterm}</td>
-                        <td className="px-4 py-3">{g.final}</td>
-                        <td className="px-4 py-3 font-bold">{g.total}</td>
-                        <td className="px-4 py-3 font-bold">{g.percentage}%</td>
+                      <tr key={g.id} className="hover:bg-slate-50 transition">
+                        <td className="px-6 py-4 font-bold text-slate-900">{g.subject}</td>
+                        <td className="px-6 py-4 text-slate-600">{g.quiz}</td>
+                        <td className="px-6 py-4 text-slate-600">{g.assignment}</td>
+                        <td className="px-6 py-4 text-slate-600">{g.midterm}</td>
+                        <td className="px-6 py-4 text-slate-600">{g.final}</td>
+                        <td className="px-6 py-4 font-black text-slate-900">{g.total}</td>
+                        <td className="px-6 py-4 font-black text-black">{g.percentage}%</td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="7" className="px-4 py-6 text-slate-500">No grades recorded.</td></tr>
+                      <tr><td colSpan="7" className="px-6 py-6 text-center font-medium text-slate-500">No grades recorded.</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Teacher Comments</label>
+                <label className="mb-2 block text-sm font-bold text-slate-700">Teacher Comments</label>
                 <textarea className={inputClass} rows={3} value={comments} onChange={(e) => setComments(e.target.value)} placeholder="Add comments for this report card…" />
-                <button onClick={handleSaveComments} disabled={busy === 'comments'} className="mt-3 rounded-2xl bg-slate-900 px-5 py-2.5 font-semibold text-white hover:bg-slate-800 transition disabled:opacity-50">
+                <button onClick={handleSaveComments} disabled={busy === 'comments'} className="mt-3 rounded-lg bg-black px-5 py-2.5 font-bold text-white hover:bg-slate-800 transition disabled:opacity-50 shadow-sm">
                   {busy === 'comments' ? 'Saving…' : 'Save Comments'}
                 </button>
               </div>
@@ -168,6 +175,7 @@ export default function ReportCards() {
           )}
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
+

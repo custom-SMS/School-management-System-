@@ -44,6 +44,7 @@ app.use('/api/notifications', require('./routes/notificationRoutes'));
 app.use('/api/report-cards', require('./routes/reportCardRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
 app.use('/api/uploads', require('./routes/uploadRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
 
 // Serve uploaded documents statically.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

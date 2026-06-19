@@ -12,7 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   const testAccounts = [
-    { label: 'Student', identifier: 'STU-0001', password: 'student' },
+    { label: 'Student', identifier: 'STU-0010', password: 'b560ed51' },
     { label: 'Teacher', identifier: 'TCH-0001', password: 'teacher' },
     { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
@@ -26,6 +26,8 @@ export default function Login() {
       const loggedInUser = await login(identifier, password);
       // Route each role to its dedicated portal; everyone else on the main dashboard.
       const landingByRole = {
+        SuperAdmin: '/super-admin/dashboard',
+        Admin: '/admin/dashboard',
         Cashier: '/finance/dashboard',
         Teacher: '/teacher/dashboard',
         Student: '/student/dashboard',

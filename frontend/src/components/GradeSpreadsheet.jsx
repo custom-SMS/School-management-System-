@@ -308,7 +308,7 @@ export default function GradeSpreadsheet() {
             <button
               onClick={handleSave}
               disabled={saving || loadingGrades || !selectedClass}
-              className="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-2xl bg-linear-to-r from-indigo-600 to-indigo-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Saving…' : 'Save to Database'}
             </button>
@@ -318,3 +318,4 @@ export default function GradeSpreadsheet() {
     </div>
   );
 }
+

@@ -178,9 +178,9 @@ export default function ReportCard() {
             </div>
 
             <div className="print-row mb-8 grid gap-4 lg:grid-cols-3">
-              <div className="print-card rounded-3xl bg-violet-50 px-5 py-4">
-                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-violet-700">Class Rank</div>
-                <div className="mt-1 text-xl font-black text-violet-800">
+              <div className="print-card rounded-3xl bg-indigo-50 px-5 py-4">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-indigo-700">Class Rank</div>
+                <div className="mt-1 text-xl font-black text-indigo-800">
                   {card?.rank ? `#${card.rank}` : 'Not ranked yet'}
                 </div>
               </div>
@@ -261,3 +261,4 @@ export default function ReportCard() {
     </div>
   );
 }
+

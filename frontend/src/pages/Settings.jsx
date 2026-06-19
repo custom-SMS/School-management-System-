@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
-import AdminLayout from '../components/AdminLayout';
+import SuperAdminLayout from '../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 
 export default function Settings() {
@@ -122,7 +122,7 @@ export default function Settings() {
   ];
 
   return (
-    <AdminLayout 
+    <SuperAdminLayout 
       pageTitle="System Settings" 
       headerAction={
         <button 
@@ -532,6 +532,6 @@ export default function Settings() {
 
         </div>
       </div>
-    </AdminLayout>
+    </SuperAdminLayout>
   );
 }

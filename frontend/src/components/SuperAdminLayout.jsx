@@ -47,7 +47,7 @@ const ActivityIcon = () => (
 const SettingsIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 const SearchIcon = () => (
@@ -62,11 +62,10 @@ const BellIcon = () => (
     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
   </svg>
 );
-const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
+const FinanceIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+    <line x1="12" y1="1" x2="12" y2="23" />
+    <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
   </svg>
 );
 const SystemIcon = () => (
@@ -78,24 +77,19 @@ const SystemIcon = () => (
 );
 
 const navItems = [
-  { to: '/admin/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/admin/students', label: 'Students', icon: <UsersIcon /> },
-  { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
-  { to: '/admin/subjects', label: 'Subjects', icon: <CalendarIcon /> },
-  { to: '/admin/classes', label: 'Classes', icon: <SystemIcon /> },
-  { to: '/admin/sections', label: 'Sections', icon: <SystemIcon /> },
-  { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
-  { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
-  { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },
-  { to: '/admin/academic-reports', label: 'Academic Reports', icon: <ActivityIcon /> },
-  { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon /> },
-  { to: '/roles', label: 'Role Management', icon: <RoleIcon /> },
-  { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon /> },
-  { to: '/audit', label: 'Audit Logs', icon: <ActivityIcon /> },
-  { to: '/settings', label: 'System Settings', icon: <SettingsIcon /> },
+  { to: '/super-admin/dashboard', label: 'Executive Dashboard', icon: <DashboardIcon /> },
+  { to: '/super-admin/users', label: 'User Management', icon: <UsersIcon /> },
+  { to: '/super-admin/roles', label: 'Roles & Permissions', icon: <RoleIcon /> },
+  { to: '/super-admin/academic-years', label: 'Academic Years', icon: <CalendarIcon /> },
+  { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
+  { to: '/super-admin/financial-oversight', label: 'Financial Oversight', icon: <FinanceIcon /> },
+  { to: '/super-admin/analytics', label: 'System Analytics', icon: <ActivityIcon /> },
+  { to: '/super-admin/notifications', label: 'Notifications', icon: <BellIcon /> },
+  { to: '/super-admin/audit-logs', label: 'Audit Logs', icon: <ActivityIcon /> },
+  { to: '/super-admin/settings', label: 'System Settings', icon: <SettingsIcon /> },
 ];
 
-export default function AdminLayout({ children, pageTitle, headerAction }) {
+export default function SuperAdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
 
@@ -104,14 +98,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
     navigate('/login');
   };
 
-  const initials = (user?.name || 'A').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-
-  const filteredNavItems = navItems.filter(item => {
-    // Only SuperAdmin can see System Settings, Role Management, Permission Management, and Audit Logs
-    if (['/settings', '/roles', '/permissions', '/audit'].includes(item.to)) {
-      return user?.role === 'SuperAdmin' ;    }
-    return true;
-  });
+  const initials = (user?.name || 'SA').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
@@ -119,24 +106,24 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
       <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
         {/* Brand */}
         <div className="px-6 py-6 border-b border-slate-100">
-          <div className="mb-1 text-lg font-black tracking-tight text-slate-900">
-            Admin Console
+          <div className="mb-1 text-lg font-black text-indigo-700 tracking-tight">
+            EduManage Gov
           </div>
           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Institutional Portal
+            Super Admin Console
           </div>
         </div>
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
-          {filteredNavItems.map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
                   isActive || window.location.pathname.startsWith(item.to)
-                    ? 'bg-slate-100 font-bold text-black'
+                    ? 'bg-indigo-50 font-bold text-indigo-700'
                     : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`
               }
@@ -150,7 +137,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
         {/* User Profile */}
         <div className="border-t border-slate-200 p-4 bg-slate-50">
           <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-200 cursor-pointer" onClick={handleLogout}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 shadow-md text-sm font-bold text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black shadow-md text-sm font-bold text-white">
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
               ) : (
@@ -158,8 +145,8 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               )}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Abebe Kebede'}</div>
-              <div className="text-[10px] font-bold uppercase text-slate-500">System Super Admin</div>
+              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Super Admin'}</div>
+              <div className="text-[10px] font-bold uppercase text-slate-500">Log Out</div>
             </div>
           </div>
         </div>
@@ -171,7 +158,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 shadow-sm">
           <div className="flex items-center gap-3">
             <SystemIcon />
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">{pageTitle || 'System Management'}</h1>
+            <h1 className="text-lg font-bold tracking-tight text-slate-900">{pageTitle || 'Governance Console'}</h1>
           </div>
 
           <div className="flex items-center gap-6">
@@ -181,12 +168,12 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               </span>
               <input
                 type="text"
-                placeholder="Search records..."
-                className="w-64 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-slate-500"
+                placeholder="Global search..."
+                className="w-64 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-black"
               />
             </div>
 
-            <button className="relative text-slate-400 hover:text-black transition">
+            <button className="relative text-slate-400 hover:text-indigo-600 transition">
               <BellIcon />
               <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
             </button>
