@@ -123,7 +123,7 @@ export default function AcademicYears() {
                 className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
             </div>
             <button type="submit" disabled={creating}
-              className="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition disabled:opacity-60 text-sm">
+              className="w-full bg-emerald-900 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-800 transition  disabled:opacity-60 text-sm">
               {creating ? 'Creating…' : '+ Create Academic Year'}
             </button>
           </form>

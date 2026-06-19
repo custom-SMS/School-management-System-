@@ -106,7 +106,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
       <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
         {/* Brand */}
         <div className="px-6 py-6 border-b border-slate-100">
-          <div className="mb-1 text-lg font-black text-indigo-700 tracking-tight">
+          <div className="mb-1 text-lg font-black  tracking-tight">
             EduManage Gov
           </div>
           <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
@@ -123,7 +123,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
                   isActive || window.location.pathname.startsWith(item.to)
-                    ? 'bg-indigo-50 font-bold text-indigo-700'
+                    ? 'bg-indigo-50 font-bold '
                     : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`
               }
