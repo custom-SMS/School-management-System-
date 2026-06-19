@@ -148,9 +148,9 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
         </nav>
 
         {/* User Profile */}
-        <div className="border-t border-slate-200 p-4 bg-slate-50">
+         <div className="border-t border-slate-200 p-4 bg-slate-50">
           <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-200 cursor-pointer" onClick={handleLogout}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 shadow-md text-sm font-bold text-white">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black shadow-md text-sm font-bold text-white">
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
               ) : (
@@ -158,8 +158,8 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               )}
             </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Abebe Kebede'}</div>
-              <div className="text-[10px] font-bold uppercase text-slate-500">System Super Admin</div>
+              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Super Admin'}</div>
+              <div className="text-[10px] font-bold uppercase text-slate-500">Log Out</div>
             </div>
           </div>
         </div>
