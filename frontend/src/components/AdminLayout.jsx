@@ -1,198 +1,450 @@
-import { useContext } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
-// ── Icons ──────────────────────────────────────────────────────────────────
+const iconClass = 'h-5 w-5 shrink-0';
+
 const DashboardIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="14" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M4 13h7V4H4v9Zm9 7h7v-7h-7v7Zm0-16v5h7V4h-7ZM4 20h7v-3H4v3Z" />
   </svg>
 );
+
+const BranchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M3 21h18M5 21V8l7-4 7 4v13M9 12h.01M15 12h.01M9 16h.01M15 16h.01" />
+  </svg>
+);
+
 const UsersIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
     <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+    <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
   </svg>
 );
-const RoleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-6-5-6 5V4H4a2 2 0 0 0-2 2v14z" />
-    <path d="M14 14h-4v-4h4v4z" />
-  </svg>
-);
+
 const ShieldIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3Z" />
     <path d="m9 12 2 2 4-4" />
   </svg>
 );
+
 const CalendarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M8 2v4M16 2v4M3 10h18M5 5h14a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2Z" />
   </svg>
 );
-const ActivityIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+
+const LockIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <rect x="4" y="11" width="16" height="10" rx="2" />
+    <path d="M8 11V8a4 4 0 1 1 8 0v3" />
   </svg>
 );
-const SettingsIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+
+const AnalyticsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M4 20V10M10 20V4M16 20v-7M22 20v-4" />
   </svg>
 );
-const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-gray-500">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+
+const AuditIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M12 8v4l3 3" />
+    <circle cx="12" cy="12" r="9" />
   </svg>
 );
+
 const BellIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-gray-600">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
   </svg>
 );
-const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-const SystemIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-    <line x1="8" y1="21" x2="16" y2="21" />
-    <line x1="12" y1="17" x2="12" y2="21" />
+
+const SettingsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M12 8.5A3.5 3.5 0 1 0 12 15.5 3.5 3.5 0 1 0 12 8.5z" />
+    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1.04 1.56V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.56-1.04H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.65 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 9 4.54 1.7 1.7 0 0 0 10.04 3H10a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 8.9c.1.34.45.58.81.58H21a2 2 0 1 1 0 4h-.79c-.36 0-.71.24-.81.58Z" />
   </svg>
 );
 
-const navItems = [
+const StudentsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 11 19 13 15 11 19 9l4 2Z" />
+    <path d="M17 13v3" />
+  </svg>
+);
+
+const TeachersIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="m12 3 9 4.5-9 4.5L3 7.5 12 3Z" />
+    <path d="M7 10.5V15c0 1.7 2.2 3 5 3s5-1.3 5-3v-4.5" />
+    <path d="M21 9v6" />
+  </svg>
+);
+
+const SubjectIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+    <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2Z" />
+  </svg>
+);
+
+const ClassesIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M3 5h18v14H3z" />
+    <path d="M3 10h18M8 5v14M16 5v14" />
+  </svg>
+);
+
+const SectionsIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M4 6h7v5H4zM13 6h7v5h-7zM4 13h7v5H4zM13 13h7v5h-7z" />
+  </svg>
+);
+
+const AssignmentIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M9 11l3 3L22 4" />
+    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+  </svg>
+);
+
+const TimetableIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M8 2v4M16 2v4M3 10h18M5 5h14a2 2 0 0 1 2 2v12H3V7a2 2 0 0 1 2-2Z" />
+    <path d="M8 14h3v3H8zM13 14h3M13 17h5" />
+  </svg>
+);
+
+const ReportCardIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16l4-2 4 2 4-2 4 2V8z" />
+    <path d="M14 2v6h6" />
+  </svg>
+);
+
+const ReportIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M12 20V10M18 20V4M6 20v-6" />
+  </svg>
+);
+
+const RegistrationIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className={iconClass}>
+    <path d="M8 7V3m8 4V3M4 11h16M5 5h14a2 2 0 0 1 2 2v12H3V7a2 2 0 0 1 2-2Z" />
+    <path d="M9 15h6M9 18h4" />
+  </svg>
+);
+
+const SearchIcon = () => (
+  <svg viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4">
+    <path d="M10 4a6 6 0 1 0 3.53 10.85l4.3 4.3 1.41-1.41-4.3-4.3A6 6 0 0 0 10 4Zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z" />
+  </svg>
+);
+
+const SunIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <circle cx="12" cy="12" r="4" />
+    <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+  </svg>
+);
+
+const MoonIcon = () => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+    <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8Z" />
+  </svg>
+);
+
+const adminNavItems = [
   { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/students', label: 'User Management', icon: <UsersIcon /> }, // Mapped to students for this project
-  { to: '/roles', label: 'Role Management', icon: <RoleIcon /> },
-  { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon /> },
-  { to: '/academics', label: 'Academic Years', icon: <CalendarIcon /> },
-  { to: '/audit', label: 'Audit Logs', icon: <ActivityIcon /> },
-  { to: '/settings', label: 'System Settings', icon: <SettingsIcon /> },
+  { to: '/students', label: 'Students', icon: <StudentsIcon /> },
+  { to: '/teachers', label: 'Teachers', icon: <TeachersIcon /> },
+  { to: '/academics', label: 'Subjects', icon: <SubjectIcon /> },
+  { to: '/classroom/grades', label: 'Classes', icon: <ClassesIcon /> },
+  { to: '/classroom/attendance', label: 'Sections', icon: <SectionsIcon /> },
+  { to: '/assignments', label: 'Academic Years', icon: <AssignmentIcon /> },
+  { to: '/timetable', label: 'Timetables', icon: <TimetableIcon /> },
+  { to: '/report-cards-admin', label: 'Report Cards', icon: <ReportCardIcon /> },
+  { to: '/registrar', label: 'Registration Management', icon: <RegistrationIcon /> },
 ];
 
-export default function AdminLayout({ children, pageTitle, headerAction }) {
+const superAdminNavItems = [
+  { to: '/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/super-admin/users', label: 'User Management', icon: <UsersIcon /> },
+  { to: '/super-admin/roles', label: 'Roles & Permissions', icon: <ShieldIcon /> },
+  { to: '/super-admin/analytics', label: 'Analytics', icon: <AnalyticsIcon /> },
+  { to: '/super-admin/audit-logs', label: 'Audit Logs', icon: <AuditIcon /> },
+  { to: '/super-admin/notifications', label: 'Notifications', icon: <BellIcon /> },
+  { to: '/super-admin/settings', label: 'System Settings', icon: <SettingsIcon /> },
+];
+
+const getRoleMeta = (role) => {
+  if (role === 'SuperAdmin') {
+    return {
+      title: 'Super Admin Command',
+      subtitle: 'Single-organization governance',
+      accent: 'from-violet-600 via-slate-900 to-slate-950',
+      badge: 'Executive Access',
+      contextLabel: 'Organization Scope',
+      contextValue: 'Entire School',
+      navItems: superAdminNavItems,
+    };
+  }
+
+  return {
+    title: 'Admin Workspace',
+    subtitle: 'Operational school management',
+    accent: 'from-emerald-600 via-slate-900 to-slate-950',
+    badge: 'School Operations',
+    contextLabel: 'Organization Scope',
+    contextValue: 'Entire School',
+    navItems: adminNavItems,
+  };
+};
+
+export default function AdminLayout({
+  children,
+  pageTitle,
+  pageSubtitle,
+  headerAction,
+  searchPlaceholder = 'Search records, users, branches, or activities...',
+}) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const location = useLocation();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [darkMode, setDarkMode] = useState(false);
+  const sidebarRef = useRef(null);
 
-  const handleLogout = () => {
-    logout();
+  const role = user?.role === 'SuperAdmin' ? 'SuperAdmin' : 'Admin';
+  const roleMeta = useMemo(() => getRoleMeta(role), [role]);
+
+  const initials = (user?.name || roleMeta.title)
+    .split(' ')
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+
+  const handleLogout = async () => {
+    await logout();
     navigate('/login');
   };
 
-  const initials = (user?.name || 'A').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-
-  const filteredNavItems = navItems.filter(item => {
-    // Only SuperAdmin can see System Settings, Role Management, Permission Management, and Audit Logs
-    if (['/settings', '/roles', '/permissions', '/audit'].includes(item.to)) {
-      return user?.role === 'SuperAdmin';
+  useEffect(() => {
+    const savedSidebarScroll = window.sessionStorage.getItem('admin-layout-sidebar-scroll');
+    if (savedSidebarScroll && sidebarRef.current) {
+      sidebarRef.current.scrollTop = Number(savedSidebarScroll) || 0;
     }
-    return true;
-  });
+  }, []);
+
+  const handleSidebarScroll = () => {
+    if (!sidebarRef.current) return;
+    window.sessionStorage.setItem('admin-layout-sidebar-scroll', String(sidebarRef.current.scrollTop));
+  };
+
+  const containerClass = darkMode
+    ? 'min-h-screen bg-slate-950 text-slate-100'
+    : 'min-h-screen bg-slate-100/80 text-slate-900';
+
+  const surfaceClass = darkMode
+    ? 'border-slate-800 bg-slate-900 text-slate-100'
+    : 'border-slate-200 bg-white text-slate-900';
+
+  const mutedClass = darkMode ? 'text-slate-400' : 'text-slate-500';
+
+  const activeNavClass = darkMode
+    ? 'bg-white/10 text-white shadow-sm'
+    : 'bg-slate-900 text-white shadow-sm';
+
+  const inactiveNavClass = darkMode
+    ? 'text-slate-400 hover:bg-white/5 hover:text-white'
+    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900';
+
+  const navLinkClass = ({ isActive }) =>
+    [
+      'group flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-semibold transition-all duration-200',
+      isActive ? activeNavClass : inactiveNavClass,
+    ].join(' ');
+
+  const sidebar = (
+    <div className="flex h-full flex-col">
+      <div className={`rounded-3xl bg-gradient-to-br ${roleMeta.accent} p-[1px]`}>
+        <div className={`rounded-[calc(1.5rem-1px)] ${darkMode ? 'bg-slate-950/90' : 'bg-white/95'} p-5 backdrop-blur`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className={`inline-flex rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.22em] ${darkMode ? 'bg-white/10 text-slate-200' : 'bg-slate-900 text-white'}`}>
+                {roleMeta.badge}
+              </div>
+              <h1 className="mt-4 text-xl font-black tracking-tight">{roleMeta.title}</h1>
+              <p className={`mt-1 text-sm ${mutedClass}`}>{roleMeta.subtitle}</p>
+            </div>
+            <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${darkMode ? 'bg-white/10 text-white' : 'bg-slate-900 text-white'}`}>
+              {role === 'SuperAdmin' ? <ShieldIcon /> : <UsersIcon />}
+            </div>
+          </div>
+
+          <div className={`mt-5 rounded-2xl border p-4 ${darkMode ? 'border-white/10 bg-white/5' : 'border-slate-200 bg-slate-50'}`}>
+            <div className={`text-[11px] font-bold uppercase tracking-[0.2em] ${mutedClass}`}>{roleMeta.contextLabel}</div>
+            <div className="mt-2 text-sm font-bold">
+              {roleMeta.contextValue}
+            </div>
+              <div className={`mt-1 text-xs ${mutedClass}`}>
+                {role === 'SuperAdmin'
+                  ? 'System-wide governance, oversight, compliance visibility, and policy control'
+                  : 'Daily school operations across students, academics, registration, and staff'}
+              </div>
+          </div>
+        </div>
+      </div>
+
+      <nav className="mt-8 flex-1 space-y-1.5">
+        {roleMeta.navItems.map((item) => (
+          <NavLink key={`${item.to}-${item.label}`} to={item.to} className={navLinkClass} onClick={() => setMobileOpen(false)}>
+            {item.icon}
+            <span>{item.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className={`mt-8 rounded-3xl border p-4 ${surfaceClass}`}>
+        <div className="flex items-center gap-3">
+          <div className={`flex h-11 w-11 items-center justify-center rounded-2xl font-black ${darkMode ? 'bg-white/10 text-white' : 'bg-slate-900 text-white'}`}>
+            {initials}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-bold">{user?.name || 'Administrator'}</div>
+            <div className={`truncate text-xs uppercase tracking-[0.18em] ${mutedClass}`}>
+              {user?.role || role}
+            </div>
+          </div>
+        </div>
+
+        <div className={`mt-4 flex items-center justify-between rounded-2xl px-3 py-2 ${darkMode ? 'bg-white/5' : 'bg-slate-50'}`}>
+          <div>
+            <div className="text-xs font-semibold">Theme</div>
+            <div className={`text-[11px] ${mutedClass}`}>{darkMode ? 'Dark mode enabled' : 'Light mode enabled'}</div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setDarkMode((prev) => !prev)}
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl transition ${darkMode ? 'bg-white/10 text-white hover:bg-white/15' : 'bg-white text-slate-700 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50'}`}
+            aria-label="Toggle theme"
+          >
+            {darkMode ? <SunIcon /> : <MoonIcon />}
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`mt-4 w-full rounded-2xl px-4 py-3 text-sm font-bold transition ${darkMode ? 'bg-white text-slate-900 hover:bg-slate-200' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+        >
+          Sign Out
+        </button>
+      </div>
+    </div>
+  );
 
   return (
-    <div className="flex min-h-screen bg-[#F4F6F8] font-sans text-gray-900">
-      {/* ── Sidebar ── */}
-      <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-gray-200 bg-[#EAECEF]">
-        {/* Brand */}
-        <div className="px-6 py-6">
-          <div className="mb-1 text-lg font-bold text-gray-900">
-            Admin Console
-          </div>
-          <div className="text-xs font-semibold uppercase tracking-widest text-gray-500">
-            Institutional Portal
-          </div>
-        </div>
+    <div className={containerClass}>
+      <div className="mx-auto flex h-screen w-full overflow-hidden">
+        <aside
+          ref={sidebarRef}
+          onScroll={handleSidebarScroll}
+          className={`sticky top-0 hidden h-screen w-[308px] shrink-0 overflow-y-auto border-r px-5 py-6 lg:flex ${darkMode ? 'border-slate-800 bg-slate-950' : 'border-slate-200 bg-white/80 backdrop-blur'}`}
+        >
+          {sidebar}
+        </aside>
 
-        {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-4 py-2">
-          {filteredNavItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-4 py-3 text-sm transition-all duration-200 ${
-                  isActive || window.location.pathname.startsWith(item.to)
-                    ? 'bg-gray-200/60 font-bold text-black border-l-4 border-black'
-                    : 'font-semibold text-gray-600 border-l-4 border-transparent hover:bg-gray-200/40 hover:text-gray-900'
-                }`
-              }
-            >
-              {item.icon}
-              <span>{item.label}</span>
-            </NavLink>
-          ))}
-        </nav>
+        {mobileOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div
+              className={`absolute inset-0 ${darkMode ? 'bg-slate-950/80' : 'bg-slate-950/40'}`}
+              onClick={() => setMobileOpen(false)}
+            />
+            <aside className={`absolute left-0 top-0 h-full w-[308px] overflow-y-auto px-5 py-6 ${darkMode ? 'bg-slate-950' : 'bg-white'}`}>
+              {sidebar}
+            </aside>
+          </div>
+        )}
 
-        {/* User Profile */}
-        <div className="border-t border-gray-300 p-4">
-          <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-gray-200/50 cursor-pointer" onClick={handleLogout}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-800 text-sm font-bold text-white">
-              {user?.profileImage ? (
-                <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
-              ) : (
-                 initials
-              )}
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className={`sticky top-0 z-40 border-b backdrop-blur ${darkMode ? 'border-slate-800 bg-slate-950/85' : 'border-slate-200 bg-white/85'}`}>
+            <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 xl:px-8">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMobileOpen(true)}
+                  className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl border lg:hidden ${darkMode ? 'border-slate-800 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-700'}`}
+                  aria-label="Open navigation"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
+                    <path d="M4 7h16v2H4V7Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
+                  </svg>
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <div className={`text-[11px] font-bold uppercase tracking-[0.24em] ${mutedClass}`}>
+                    {role === 'SuperAdmin' ? 'Executive Workspace' : 'School Operations'}
+                  </div>
+                  <h2 className="truncate text-xl font-black tracking-tight sm:text-2xl">
+                    {pageTitle || (role === 'SuperAdmin' ? 'Super Admin Dashboard' : 'Admin Dashboard')}
+                  </h2>
+                  {pageSubtitle && <p className={`mt-1 text-sm ${mutedClass}`}>{pageSubtitle}</p>}
+                </div>
+
+                <div className="hidden items-center gap-3 xl:flex">
+                  <button type="button" className={`relative inline-flex h-11 w-11 items-center justify-center rounded-2xl border transition ${darkMode ? 'border-slate-800 bg-slate-900 text-slate-200 hover:bg-slate-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
+                    <BellIcon />
+                    <span className="absolute right-3 top-3 h-2.5 w-2.5 rounded-full bg-rose-500" />
+                  </button>
+                    <div className={`rounded-2xl border px-4 py-2.5 ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                      <div className="text-sm font-bold">{roleMeta.contextValue}</div>
+                      <div className={`text-xs ${mutedClass}`}>
+                        {role === 'SuperAdmin' ? 'Governance-only visibility across the organization' : 'Operational visibility across the organization'}
+                      </div>
+                    </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <div className="relative w-full max-w-xl">
+                  <span className={`pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 ${mutedClass}`}>
+                    <SearchIcon />
+                  </span>
+                  <input
+                    type="search"
+                    placeholder={searchPlaceholder}
+                    className={`w-full rounded-2xl border py-3 pl-11 pr-4 text-sm outline-none transition ${
+                      darkMode
+                        ? 'border-slate-800 bg-slate-900 text-slate-100 placeholder:text-slate-500 focus:border-slate-700 focus:ring-4 focus:ring-white/5'
+                        : 'border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5'
+                    }`}
+                  />
+                </div>
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className={`rounded-2xl border px-4 py-2.5 ${darkMode ? 'border-slate-800 bg-slate-900' : 'border-slate-200 bg-white'}`}>
+                    <div className="text-xs font-semibold">Current Route</div>
+                    <div className={`mt-1 text-sm ${mutedClass}`}>{location.pathname}</div>
+                  </div>
+                  {headerAction && <div className="flex flex-wrap items-center gap-3">{headerAction}</div>}
+                </div>
+              </div>
             </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-gray-900">{user?.name || 'Abebe Kebede'}</div>
-              <div className="text-xs font-medium text-gray-500">System Super Admin</div>
-            </div>
-          </div>
+          </header>
+
+          <main className="flex-1 overflow-y-auto px-4 py-6 sm:px-6 xl:px-8 xl:py-8">{children}</main>
         </div>
-      </aside>
-
-      {/* ── Main Content ── */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-white">
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-gray-100 bg-white px-8">
-          <div className="flex items-center gap-3">
-            <SystemIcon />
-            <h1 className="text-lg font-bold text-gray-900">{pageTitle || 'System Management'}</h1>
-          </div>
-
-          <div className="flex items-center gap-6">
-            <div className="relative flex items-center">
-              <span className="absolute left-3">
-                <SearchIcon />
-              </span>
-              <input
-                type="text"
-                placeholder="Search records..."
-                className="w-64 rounded-lg bg-gray-100 py-2 pl-9 pr-4 text-sm outline-none transition focus:bg-gray-200"
-              />
-            </div>
-
-            <button className="relative text-gray-500 hover:text-gray-700">
-              <BellIcon />
-              <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
-            
-            {headerAction && <div className="ml-2 border-l border-gray-200 pl-4">{headerAction}</div>}
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <div className="flex-1 overflow-y-auto bg-[#F9FAFB] p-8">
-          {children}
-        </div>
-      </main>
+      </div>
     </div>
   );
 }

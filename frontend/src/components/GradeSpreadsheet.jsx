@@ -1,11 +1,10 @@
 import { useEffect, useMemo, useState, useContext } from 'react';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
-import Navbar from './Navbar';
+import AdminLayout from './AdminLayout';
 
 const emptyMarks = { quiz: 0, assignment: 0, midterm: 0, final: 0 };
 
-// Each component is scored out of 100; weights (which sum to 100%) determine the final total.
 const clampMark = (value) => {
   let nextValue = Number(value);
   if (Number.isNaN(nextValue)) nextValue = 0;
@@ -51,7 +50,6 @@ export default function GradeSpreadsheet() {
     return 'F';
   };
 
-  // Load the active grading structure so the weights match the backend computation.
   useEffect(() => {
     axios
       .get('/classroom/grading-structure')
@@ -90,7 +88,7 @@ export default function GradeSpreadsheet() {
     };
 
     loadClasses();
-  }, []);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!selectedClass) {
@@ -199,32 +197,74 @@ export default function GradeSpreadsheet() {
   };
 
   const selectedClassName = selectedClass ? `${selectedClass.name} • ${selectedClass.subject}` : 'No class selected';
+  const totalStudents = selectedClass?.students?.length || 0;
+  const statusTone = message.toLowerCase().includes('success')
+    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+    : 'border-amber-200 bg-amber-50 text-amber-700';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Navbar />
-      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="rounded-4xl border border-white/50 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8">
-          <div className="mb-6 border-b border-slate-200 pb-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-indigo-600">Classroom</p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Gradebook: {selectedClassName}</h2>
-            <p className="mt-2 text-sm text-slate-500">
-              Enter each component out of 100. Final totals are computed using the active weights
-              (Quiz {weights.quizWeight}% • Assignment {weights.assignmentWeight}% • Midterm {weights.midtermWeight}% • Final {weights.finalWeight}%).
+    <AdminLayout
+      pageTitle="Class Gradebook"
+      pageSubtitle="Manage class assessment entries using the shared academic workspace design."
+      searchPlaceholder="Search classes, students, or grade entries..."
+      headerAction={
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5">
+            <div className="text-xs font-semibold">Active Weights</div>
+            <div className="mt-1 text-sm text-slate-500">
+              Quiz {weights.quizWeight}% · Assignment {weights.assignmentWeight}% · Midterm {weights.midtermWeight}% · Final {weights.finalWeight}%
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || loadingGrades || !selectedClass}
+            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {saving ? 'Saving…' : 'Save grades'}
+          </button>
+        </div>
+      }
+    >
+      <div className="space-y-6">
+        <section className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.6fr)]">
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Classroom</p>
+            <h3 className="mt-3 text-3xl font-black tracking-tight text-slate-900">{selectedClassName}</h3>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-500">
+              Enter each component out of 100. Final totals are computed from the active grading structure and match the backend calculation.
             </p>
+
+            {message && (
+              <div className={`mt-5 rounded-2xl border px-4 py-3 text-sm font-semibold ${statusTone}`}>
+                {message}
+              </div>
+            )}
           </div>
 
-          {message && (
-            <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-700">
-              {message}
+          <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-500">Class info</div>
+            <div className="mt-3 text-2xl font-black tracking-tight text-slate-900">
+              {selectedClass ? totalStudents : 0}
             </div>
-          )}
+            <p className="mt-1 text-sm text-slate-500">
+              {selectedClass ? 'Students currently available for grade entry' : 'Choose a class to begin grade entry'}
+            </p>
+            {selectedClass && (
+              <div className="mt-4 rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                <div className="font-semibold text-slate-900">{selectedClass.name}</div>
+                <div className="mt-1">{selectedClass.subject}</div>
+              </div>
+            )}
+          </div>
+        </section>
 
-          <div className="mb-6 grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px] lg:items-end">
             <label className="block">
               <span className="mb-2 block text-sm font-semibold text-slate-700">Select Class</span>
               <select
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
                 value={selectedClassId}
                 onChange={(e) => setSelectedClassId(e.target.value)}
                 disabled={loadingClasses}
@@ -239,23 +279,27 @@ export default function GradeSpreadsheet() {
             </label>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
-              <div className="font-semibold text-slate-900">Class info</div>
-              <div>{selectedClass ? `${selectedClass.students?.length || 0} students` : 'Choose a class to begin'}</div>
+              <div className="font-semibold text-slate-900">Grade summary</div>
+              <div className="mt-1">
+                {selectedClass ? `${totalStudents} students ready for grading` : 'No class selected'}
+              </div>
             </div>
           </div>
+        </section>
 
-          <div className="mb-6 overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="min-w-200 w-full divide-y divide-slate-200 text-sm sm:text-base">
+        <section className="rounded-3xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-slate-200 text-sm">
               <thead className="bg-slate-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Student Name</th>
+                  <th className="px-6 py-4 text-left text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Student Name</th>
                   {components.map((c) => (
-                    <th key={c.field} className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <th key={c.field} className="px-4 py-4 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">
                       {c.label} ({c.weight}%)
                     </th>
                   ))}
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Total (100%)</th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Grade</th>
+                  <th className="px-4 py-4 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Total</th>
+                  <th className="px-4 py-4 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-slate-500">Grade</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 bg-white">
@@ -265,37 +309,54 @@ export default function GradeSpreadsheet() {
                   const letterGrade = getLetterGrade(total);
 
                   return (
-                    <tr key={row.student._id} className="transition hover:bg-slate-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900 border-r border-slate-100">
-                        <div>{row.student.user?.name || row.student.studentId}</div>
-                        <div className="text-xs font-normal text-slate-500">{row.student.studentId}</div>
+                    <tr key={row.student._id} className="hover:bg-slate-50/80">
+                      <td className="whitespace-nowrap px-6 py-4 align-middle">
+                        <div className="font-semibold text-slate-900">{row.student.user?.name || row.student.studentId}</div>
+                        <div className="mt-1 text-xs text-slate-500">{row.student.studentId}</div>
                       </td>
                       {components.map((c) => (
-                        <td key={c.field} className="px-4 py-4 whitespace-nowrap text-center">
+                        <td key={c.field} className="px-4 py-4 text-center align-middle">
                           <input
                             type="number"
                             min="0"
                             max="100"
                             value={row.marks[c.field] || ''}
                             onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
-                            className="w-16 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center"
+                            className="w-20 rounded-xl border border-slate-200 bg-white px-3 py-2 text-center text-sm text-slate-800 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
                           />
                         </td>
                       ))}
-                      <td className="bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold text-slate-700">
-                        {percentage}%
+                      <td className="whitespace-nowrap px-4 py-4 text-center align-middle">
+                        <span className="inline-flex rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-700">
+                          {percentage}%
+                        </span>
                       </td>
-                      <td className={`bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold ${
-                        letterGrade === 'F' ? 'text-red-600' : 'text-green-600'
-                      }`}>
-                        {letterGrade}
+                      <td className="whitespace-nowrap px-4 py-4 text-center align-middle">
+                        <span
+                          className={`inline-flex min-w-10 justify-center rounded-full px-3 py-1 text-sm font-bold ${
+                            letterGrade === 'F'
+                              ? 'bg-rose-50 text-rose-600'
+                              : 'bg-emerald-50 text-emerald-600'
+                          }`}
+                        >
+                          {letterGrade}
+                        </span>
                       </td>
                     </tr>
                   );
                 })}
+
+                {loadingGrades && (
+                  <tr>
+                    <td colSpan={components.length + 3} className="px-6 py-10 text-center text-slate-500">
+                      Loading grades…
+                    </td>
+                  </tr>
+                )}
+
                 {!loadingGrades && rows.length === 0 && (
                   <tr>
-                    <td colSpan={components.length + 3} className="px-6 py-8 text-center text-slate-500">
+                    <td colSpan={components.length + 3} className="px-6 py-10 text-center text-slate-500">
                       No grade records available for this class.
                     </td>
                   </tr>
@@ -303,18 +364,8 @@ export default function GradeSpreadsheet() {
               </tbody>
             </table>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={handleSave}
-              disabled={saving || loadingGrades || !selectedClass}
-              className="rounded-2xl bg-linear-to-r from-indigo-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-indigo-500/20 transition hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? 'Saving…' : 'Save to Database'}
-            </button>
-          </div>
-        </div>
+        </section>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

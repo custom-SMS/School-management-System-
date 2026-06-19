@@ -8,7 +8,7 @@ const {
   updateRolePermissions,
   getCurrentUserPermissions
 } = require('../controllers/authController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, checkSuperAdminOnly } = require('../middleware/authMiddleware');
 
 router.post('/login', login);
 router.post('/logout', logout);
@@ -18,8 +18,8 @@ router.post('/logout', logout);
 router.post('/register-admin', registerInitialAdmin);
 
 // Permissions management
-router.get('/permissions', verifyToken, checkRole(['SuperAdmin', 'Admin']), getRolePermissions);
-router.post('/permissions', verifyToken, checkRole(['SuperAdmin']), updateRolePermissions);
+router.get('/permissions', verifyToken, checkSuperAdminOnly, getRolePermissions);
+router.post('/permissions', verifyToken, checkSuperAdminOnly, updateRolePermissions);
 router.get('/permissions/me', verifyToken, getCurrentUserPermissions);
 
 module.exports = router;

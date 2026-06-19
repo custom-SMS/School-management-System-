@@ -20,6 +20,10 @@ import Timetables from "./pages/Timetables";
 import Academics from "./pages/Academics";
 import ReportCards from "./pages/ReportCards";
 import Settings from "./pages/Settings";
+import SuperAdminUsers from "./pages/SuperAdminUsers";
+import SuperAdminRoles from "./pages/SuperAdminRoles";
+import SuperAdminAnalytics from "./pages/SuperAdminAnalytics";
+import SuperAdminSettings from "./pages/SuperAdminSettings";
 import StudentFees from "./pages/StudentFees";
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
 import FinancePayments from "./pages/finance/Payments";
@@ -62,7 +66,7 @@ function App() {
           <Route 
             path="/register-student" 
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="student_registration">
+              <ProtectedRoute allowedRoles={["Admin"]} requiredPermission="student_registration">
                 <RegisterStudent />
               </ProtectedRoute>
             } 
@@ -80,7 +84,7 @@ function App() {
             path="/dashboard"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin", "Cashier"]}
+                allowedRoles={["Admin", "SuperAdmin", "Teacher", "Student", "Parent", "Cashier"]}
               >
                 <Dashboard />
               </ProtectedRoute>
@@ -89,7 +93,7 @@ function App() {
           <Route
             path="/assignments"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <Assignments />
               </ProtectedRoute>
             }
@@ -97,7 +101,7 @@ function App() {
           <Route
             path="/registrar"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <Registrar />
               </ProtectedRoute>
             }
@@ -105,7 +109,7 @@ function App() {
           <Route
             path="/students"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <Students />
               </ProtectedRoute>
             }
@@ -113,7 +117,7 @@ function App() {
           <Route
             path="/teachers"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <Teachers />
               </ProtectedRoute>
             }
@@ -121,7 +125,7 @@ function App() {
           <Route
             path="/bursar"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin", "Cashier"]}>
+              <ProtectedRoute allowedRoles={["Admin", "Cashier"]}>
                 <Bursar />
               </ProtectedRoute>
             }
@@ -129,7 +133,7 @@ function App() {
           <Route
             path="/classroom/grades"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "Teacher", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin", "Teacher"]}>
                 <GradeSpreadsheet />
               </ProtectedRoute>
             }
@@ -137,7 +141,7 @@ function App() {
           <Route
             path="/classroom/attendance"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "Teacher", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin", "Teacher"]}>
                 <AttendanceChecklist />
               </ProtectedRoute>
             }
@@ -146,7 +150,7 @@ function App() {
             path="/report-card"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin"]}
+                allowedRoles={["Student", "Parent"]}
               >
                 <ReportCard />
               </ProtectedRoute>
@@ -156,7 +160,7 @@ function App() {
             path="/timetable"
             element={
               <ProtectedRoute
-                allowedRoles={["Admin", "Teacher", "Student", "Parent", "SuperAdmin"]}
+                allowedRoles={["Student", "Parent"]}
               >
                 <Timetables />
               </ProtectedRoute>
@@ -165,7 +169,7 @@ function App() {
           <Route
             path="/academics"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <Academics />
               </ProtectedRoute>
             }
@@ -173,8 +177,32 @@ function App() {
           <Route
             path="/report-cards-admin"
             element={
-              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Admin"]}>
                 <ReportCards />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/users"
+            element={
+              <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                <SuperAdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/roles"
+            element={
+              <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                <SuperAdminRoles />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/analytics"
+            element={
+              <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                <SuperAdminAnalytics />
               </ProtectedRoute>
             }
           />
@@ -182,7 +210,15 @@ function App() {
             path="/settings"
             element={
               <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                <Settings />
+                <SuperAdminSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/settings"
+            element={
+              <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                <SuperAdminSettings />
               </ProtectedRoute>
             }
           />
@@ -199,7 +235,7 @@ function App() {
           <Route
             path="/finance/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Cashier"]}>
                 <FinanceDashboard />
               </ProtectedRoute>
             }
@@ -207,7 +243,7 @@ function App() {
           <Route
             path="/finance/payments"
             element={
-              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Cashier"]}>
                 <FinancePayments />
               </ProtectedRoute>
             }
@@ -215,7 +251,7 @@ function App() {
           <Route
             path="/finance/verification"
             element={
-              <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Cashier"]}>
                 <FinanceVerification />
               </ProtectedRoute>
             }
@@ -223,7 +259,7 @@ function App() {
           <Route
             path="/finance/analytics"
             element={
-              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Cashier"]}>
                 <FinanceAnalytics />
               </ProtectedRoute>
             }
@@ -231,7 +267,7 @@ function App() {
           <Route
             path="/finance/fees"
             element={
-              <ProtectedRoute allowedRoles={["Cashier", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Cashier"]}>
                 <FinanceFees />
               </ProtectedRoute>
             }
@@ -241,7 +277,7 @@ function App() {
           <Route
             path="/teacher/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherDashboard />
               </ProtectedRoute>
             }
@@ -249,7 +285,7 @@ function App() {
           <Route
             path="/teacher/classes"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherClasses />
               </ProtectedRoute>
             }
@@ -257,7 +293,7 @@ function App() {
           <Route
             path="/teacher/students"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherStudents />
               </ProtectedRoute>
             }
@@ -265,7 +301,7 @@ function App() {
           <Route
             path="/teacher/students/:studentId/attendance"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <StudentAttendanceDetail />
               </ProtectedRoute>
             }
@@ -273,7 +309,7 @@ function App() {
           <Route
             path="/teacher/students/:studentId"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <StudentProfile />
               </ProtectedRoute>
             }
@@ -281,7 +317,7 @@ function App() {
           <Route
             path="/teacher/attendance"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherAttendance />
               </ProtectedRoute>
             }
@@ -289,7 +325,7 @@ function App() {
           <Route
             path="/teacher/grades"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherGradebook />
               </ProtectedRoute>
             }
@@ -297,7 +333,7 @@ function App() {
           <Route
             path="/teacher/timetable"
             element={
-              <ProtectedRoute allowedRoles={["Teacher", "Admin", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Teacher"]}>
                 <TeacherTimetable />
               </ProtectedRoute>
             }
@@ -307,7 +343,7 @@ function App() {
           <Route
             path="/student/dashboard"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentDashboard />
               </ProtectedRoute>
             }
@@ -315,7 +351,7 @@ function App() {
           <Route
             path="/student/attendance"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentAttendancePortal />
               </ProtectedRoute>
             }
@@ -323,7 +359,7 @@ function App() {
           <Route
             path="/student/academics"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentAcademics />
               </ProtectedRoute>
             }
@@ -331,7 +367,7 @@ function App() {
           <Route
             path="/student/finance"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentFinance />
               </ProtectedRoute>
             }
@@ -339,7 +375,7 @@ function App() {
           <Route
             path="/student/reports"
             element={
-              <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+              <ProtectedRoute allowedRoles={["Student", "Parent"]}>
                 <StudentReports />
               </ProtectedRoute>
             }

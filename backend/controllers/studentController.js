@@ -263,7 +263,7 @@ const registerStudent = async (req, res) => {
       where: { grade }
     });
     if (!gradeSettings) {
-      return res.status(400).json({ message: `Registrar has not configured settings for Grade: ${grade}` });
+        return res.status(400).json({ message: `Grade fee settings have not been configured for Grade: ${grade}` });
     }
 
     // Generate System ID
@@ -384,9 +384,9 @@ const registerStudent = async (req, res) => {
   }
 };
 
-// @desc    Get all students
+// @desc    Get students (teachers see only assigned students, admins see all)
 // @route   GET /api/students
-// @access  Private (Admin/Teacher)
+// @access  Private (Admin/Teacher/SuperAdmin)
 const getStudents = async (req, res) => {
   try {
     if (req.user?.role === 'Teacher') {
@@ -475,9 +475,44 @@ const getStudents = async (req, res) => {
   }
 };
 
+
+
+// @desc    Get all students from the database without teacher-based filtering
+// @route   GET /api/students/all
+// @access  Private (Admin/SuperAdmin)
+const getAllStudents = async (req, res) => {
+  try {
+    const students = await prisma.student.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        guardians: true,
+        enrollments: {
+          include: {
+            academicYear: true
+          }
+        }
+      }
+    });
+
+    const responseStudents = students.map(student => ({
+      ...student,
+      _id: student.id,
+      user: student.user ? { ...student.user, _id: student.user.id } : null,
+      guardians: (student.guardians || []).map(g => ({
+        ...g,
+        _id: g.id
+      }))
+    }));
+
+    res.status(200).json(responseStudents);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Set fee amount for a specific grade
 // @route   POST /api/students/grade-fee
-// @access  Private (Admin/Registrar)
+// @access  Private (Admin or role with student_registration permission)
 const setGradeFee = async (req, res) => {
   try {
     const { grade, amount } = req.body;
@@ -888,7 +923,8 @@ const updateStudent = async (req, res) => {
 
 module.exports = { 
   registerStudent, 
-  getStudents, 
+  getStudents,
+  getAllStudents,
   setGradeFee, 
   getGradeFees, 
   deleteStudent,

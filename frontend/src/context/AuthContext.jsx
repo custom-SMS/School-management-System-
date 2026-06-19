@@ -3,10 +3,13 @@ import api from '../api/axios';
 
 export const AuthContext = createContext();
 
+const DEFAULT_ORGANIZATION_SCOPE = 'organization';
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [organizationScope, setOrganizationScopeState] = useState(DEFAULT_ORGANIZATION_SCOPE);
 
   const fetchPermissions = async () => {
     try {
@@ -17,13 +20,21 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const setOrganizationScope = (scope = DEFAULT_ORGANIZATION_SCOPE) => {
+    setOrganizationScopeState(scope);
+  };
+
   // The JWT lives in an httpOnly cookie (not readable by JS). We persist only the
   // non-sensitive user object so the UI can restore state on reload.
   useEffect(() => {
     const loadState = async () => {
       const storedUser = localStorage.getItem('user');
+
+      setOrganizationScopeState(DEFAULT_ORGANIZATION_SCOPE);
+
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
         try {
           const res = await api.get('/auth/permissions/me');
           setPermissions(res.data.permissions || []);
@@ -63,10 +74,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('user');
     setUser(null);
     setPermissions([]);
+    setOrganizationScopeState(DEFAULT_ORGANIZATION_SCOPE);
   };
 
   return (
-    <AuthContext.Provider value={{ user, permissions, login, logout, loading }}>
+    <AuthContext.Provider value={{ user, permissions, login, logout, loading, organizationScope, setOrganizationScope }}>
       {children}
     </AuthContext.Provider>
   );

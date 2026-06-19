@@ -32,16 +32,12 @@ const checkPermission = (permission) => {
       return res.status(401).json({ message: 'Access Denied. No authenticated user.' });
     }
 
-    if (req.user.role === 'SuperAdmin') {
-      return next();
-    }
-
     try {
       const rolePerm = await prisma.rolePermission.findUnique({
         where: {
           role_permission: {
             role: req.user.role,
-            permission: permission
+            permission
           }
         }
       });
@@ -57,4 +53,45 @@ const checkPermission = (permission) => {
   };
 };
 
-module.exports = { verifyToken, checkRole, checkPermission };
+const checkSuperAdminOnly = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Access Denied. No authenticated user.' });
+  }
+
+  if (req.user.role !== 'SuperAdmin') {
+    return res.status(403).json({ message: 'Access Denied. This governance endpoint is restricted to Super Admin only.' });
+  }
+
+  return next();
+};
+
+const requireRegistrationAccess = async (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ message: 'Access Denied. No authenticated user.' });
+  }
+
+  try {
+    if (req.user.role === 'Admin') {
+      return next();
+    }
+
+    const rolePerm = await prisma.rolePermission.findUnique({
+      where: {
+        role_permission: {
+          role: req.user.role,
+          permission: 'student_registration'
+        }
+      }
+    });
+
+    if (!rolePerm) {
+      return res.status(403).json({ message: 'Access Denied. Registration access requires the student_registration permission.' });
+    }
+
+    return next();
+  } catch (err) {
+    return res.status(500).json({ message: 'Error checking registration access', error: err.message });
+  }
+};
+
+module.exports = { verifyToken, checkRole, checkPermission, checkSuperAdminOnly, requireRegistrationAccess };

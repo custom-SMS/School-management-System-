@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useContext } from 'react';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
-import Navbar from './Navbar';
+import AdminLayout from './AdminLayout';
 import { toast } from 'react-toastify';
 
 export default function AttendanceChecklist() {
@@ -82,72 +82,116 @@ export default function AttendanceChecklist() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent pb-10">
-      <Navbar />
-      <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="rounded-4xl border border-white/50 bg-white/75 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:p-8">
-          <div className="mb-6 border-b border-slate-200 pb-4">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-blue-600">Classroom</p>
-            <h2 className="mt-2 text-2xl font-bold text-slate-900">Attendance Checklist</h2>
-          </div>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Class</label>
-            <select
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-            >
-              <option value="">Select a class</option>
-              {classes.map((klass) => (
-                <option key={klass._id} value={klass._id}>
-                  {klass.name} {klass.subject ? `- ${klass.subject}` : ''}
-                </option>
-              ))}
-            </select>
-            {selectedClass && (
-              <p className="mt-2 text-sm text-slate-500">
-                Showing students for <span className="font-semibold text-slate-700">{selectedClass.name}</span>.
+    <AdminLayout
+      pageTitle="System Management"
+      pageSubtitle="Review classes and record attendance with the current admin workspace."
+      searchPlaceholder="Search classes, students, or attendance records..."
+    >
+      <section className="space-y-6">
+        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-blue-600">Classroom operations</p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight text-slate-900">Attendance Checklist</h2>
+              <p className="mt-2 max-w-2xl text-sm text-slate-500">
+                Select a class, confirm the date, and capture attendance using the updated admin layout.
               </p>
-            )}
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Classes Loaded</div>
+                <div className="mt-1 text-2xl font-black text-slate-900">{classes.length}</div>
+              </div>
+              <div className="rounded-2xl bg-slate-50 px-4 py-3">
+                <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Students Visible</div>
+                <div className="mt-1 text-2xl font-black text-slate-900">{students.length}</div>
+              </div>
+            </div>
           </div>
 
-          <div className="mb-4">
-            <label className="mb-2 block text-sm font-semibold text-slate-700">Record Date</label>
-            <input className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10 sm:w-auto" type="date" value={date} onChange={e => setDate(e.target.value)} />
-          </div>
-          <div className="overflow-x-auto">
-            <table className="mb-6 min-w-170 w-full table-auto border-collapse overflow-hidden rounded-2xl border border-slate-200 text-sm sm:text-base">
-              <thead>
-                <tr className="bg-slate-50 text-left text-xs uppercase tracking-[0.18em] text-slate-500">
-                  <th className="border border-slate-200 p-3">Student Name</th>
-                  <th className="border border-slate-200 p-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white">
-                {students.map(s => (
-                  <tr key={s._id} className="transition hover:bg-slate-50">
-                    <td className="border border-slate-200 p-3 font-medium text-slate-800">{s.user?.name || 'Unknown'} - {s.studentId}</td>
-                    <td className="border border-slate-200 p-3">
-                      <select 
-                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
-                        value={attendance[s._id]} 
-                        onChange={e => setAttendance({...attendance, [s._id]: e.target.value})}
-                      >
-                        <option value="Present">Present</option>
-                        <option value="Absent">Absent</option>
-                        <option value="Late">Late</option>
-                      </select>
-                    </td>
+          <form onSubmit={handleSubmit} className="mt-6 space-y-6">
+            <div className="grid gap-4 lg:grid-cols-[1.4fr_0.8fr]">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Class</label>
+                <select
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                  value={selectedClassId}
+                  onChange={(e) => setSelectedClassId(e.target.value)}
+                >
+                  <option value="">Select a class</option>
+                  {classes.map((klass) => (
+                    <option key={klass._id} value={klass._id}>
+                      {klass.name} {klass.subject ? `- ${klass.subject}` : ''}
+                    </option>
+                  ))}
+                </select>
+                {selectedClass && (
+                  <p className="mt-2 text-sm text-slate-500">
+                    Showing students for <span className="font-semibold text-slate-700">{selectedClass.name}</span>.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Record Date</label>
+                <input
+                  className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                  type="date"
+                  value={date}
+                  onChange={e => setDate(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <table className="min-w-170 w-full table-auto border-collapse text-sm sm:text-base">
+                <thead>
+                  <tr className="bg-slate-50 text-left text-xs uppercase tracking-[0.18em] text-slate-500">
+                    <th className="border-b border-slate-200 p-4">Student Name</th>
+                    <th className="border-b border-slate-200 p-4">Student ID</th>
+                    <th className="border-b border-slate-200 p-4">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <button type="submit" className="rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5">Save Attendance</button>
-        </form>
+                </thead>
+                <tbody className="bg-white">
+                  {students.length > 0 ? students.map(s => (
+                    <tr key={s._id} className="transition hover:bg-slate-50">
+                      <td className="border-b border-slate-100 p-4 font-medium text-slate-800">{s.user?.name || 'Unknown'}</td>
+                      <td className="border-b border-slate-100 p-4 text-slate-500">{s.studentId}</td>
+                      <td className="border-b border-slate-100 p-4">
+                        <select
+                          className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                          value={attendance[s._id]}
+                          onChange={e => setAttendance({ ...attendance, [s._id]: e.target.value })}
+                        >
+                          <option value="Present">Present</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Late">Late</option>
+                        </select>
+                      </td>
+                    </tr>
+                  )) : (
+                    <tr>
+                      <td colSpan="3" className="p-8 text-center text-slate-500">
+                        Select a class to begin recording attendance.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-slate-500">
+                Attendance is saved for the selected class and date using the current teacher/admin identity.
+              </p>
+              <button type="submit" className="rounded-2xl bg-linear-to-r from-blue-600 to-violet-600 px-6 py-3 font-semibold text-white shadow-lg shadow-blue-500/25 transition hover:-translate-y-0.5">
+                Save Attendance
+              </button>
+            </div>
+          </form>
         </div>
-      </div>
-    </div>
+      </section>
+    </AdminLayout>
   );
 }

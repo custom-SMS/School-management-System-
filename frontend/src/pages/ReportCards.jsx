@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import axios from '../api/axios';
-import Navbar from '../components/Navbar';
+import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
 
 export default function ReportCards() {
@@ -88,13 +88,28 @@ export default function ReportCards() {
   const grades = preview?.grades || [];
 
   return (
-    <div className="min-h-screen bg-transparent pb-10">
-      <Navbar />
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-4xl border border-white/50 bg-white/75 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600">Academics</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Report Cards</h1>
-          <p className="mt-2 text-sm text-slate-500">Compile averages, ranks and attendance, then publish to students and parents.</p>
+    <AdminLayout
+      pageTitle="Report Cards"
+      pageSubtitle="Compile performance, preview student report cards, and publish results with the shared admin workspace."
+      searchPlaceholder="Search report cards, students, grades, or comments..."
+    >
+      <div className="space-y-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Academic Years</div>
+            <div className="mt-2 text-3xl font-black text-slate-900">{years.length}</div>
+            <p className="mt-2 text-sm text-slate-500">Available year windows for report card compilation and publication.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Students Loaded</div>
+            <div className="mt-2 text-3xl font-black text-slate-900">{students.length}</div>
+            <p className="mt-2 text-sm text-slate-500">Students available for preview in the selected report card workspace.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Preview Status</div>
+            <div className="mt-2 text-2xl font-black text-slate-900">{card ? (card.published ? 'Published' : 'Draft') : 'No Preview'}</div>
+            <p className="mt-2 text-sm text-slate-500">Current state of the selected student's report card preview.</p>
+          </div>
         </div>
 
         <div className="mb-6 rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
@@ -168,6 +183,6 @@ export default function ReportCards() {
           )}
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

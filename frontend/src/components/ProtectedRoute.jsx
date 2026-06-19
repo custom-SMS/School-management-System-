@@ -2,7 +2,14 @@ import { Navigate } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-export default function ProtectedRoute({ children, allowedRoles, requiredPermission }) {
+/**
+ * @param {{
+ *   children: import('react').ReactNode,
+ *   allowedRoles?: string[],
+ *   requiredPermission?: string | null
+ * }} props
+ */
+export default function ProtectedRoute({ children, allowedRoles, requiredPermission = null }) {
   const { user, permissions, loading } = useContext(AuthContext);
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-slate-500 font-medium">Loading...</div>;
@@ -11,6 +18,11 @@ export default function ProtectedRoute({ children, allowedRoles, requiredPermiss
     // Not logged in -> redirect to login page
     return <Navigate to="/login" replace />;
   }
+
+  const hasRequiredPermission = !requiredPermission
+    || permissions.includes('*')
+    || permissions.includes(requiredPermission)
+    || (requiredPermission === 'student_registration' && user.role === 'Admin');
 
   // Check role restriction
   if (allowedRoles && !allowedRoles.includes(user.role)) {
@@ -33,8 +45,7 @@ export default function ProtectedRoute({ children, allowedRoles, requiredPermiss
 
   // Check specific permission restriction (e.g. "student_registration")
   if (requiredPermission) {
-    const hasPermission = permissions.includes('*') || permissions.includes(requiredPermission);
-    if (!hasPermission) {
+    if (!hasRequiredPermission) {
       return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
           <div className="max-w-md w-full bg-white rounded-2xl border border-amber-100 p-8 text-center shadow-lg shadow-amber-500/5">

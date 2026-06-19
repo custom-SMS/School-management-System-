@@ -1,6 +1,6 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from '../api/axios';
-import Navbar from '../components/Navbar';
+import AdminLayout from '../components/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
 
@@ -164,14 +164,28 @@ export default function Timetables() {
   const isAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin';
 
   return (
-    <div className="min-h-screen bg-transparent pb-10">
-      <Navbar />
-
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <div className="mb-8 rounded-4xl border border-white/50 bg-white/75 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-blue-600">Schedules</p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">School Timetable</h1>
-          <p className="mt-2 text-sm text-slate-500">Track weekly classes, subjects, rooms, and schedules.</p>
+    <AdminLayout
+      pageTitle="School Timetable"
+      pageSubtitle="Track weekly classes, subjects, rooms, and schedules."
+      searchPlaceholder="Search schedules, classes, sections, subjects, or rooms..."
+    >
+      <div className="space-y-8">
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Academic Years</div>
+            <div className="mt-2 text-3xl font-black text-slate-900">{academicYears.length}</div>
+            <p className="mt-2 text-sm text-slate-500">Available year windows for timetable planning and publishing.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Classes Loaded</div>
+            <div className="mt-2 text-3xl font-black text-slate-900">{classes.length}</div>
+            <p className="mt-2 text-sm text-slate-500">Classes available for filtering and schedule assignment.</p>
+          </div>
+          <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Visible Slots</div>
+            <div className="mt-2 text-3xl font-black text-slate-900">{timetableSlots.length}</div>
+            <p className="mt-2 text-sm text-slate-500">Current timetable entries shown in the weekly calendar view.</p>
+          </div>
         </div>
 
         {/* Dashboard filter / selector */}
@@ -321,6 +335,6 @@ export default function Timetables() {
           )}
         </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }

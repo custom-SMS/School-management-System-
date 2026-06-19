@@ -17,13 +17,13 @@ enum Role {
 }
 
 model User {
-  id                      String                    @id @default(uuid())
-  name                    String
-  email                   String?                   @unique
-  password                String
-  role                    Role
-  createdAt               DateTime                  @default(now())
-  
+  id        String   @id @default(uuid())
+  name      String
+  email     String?  @unique
+  password  String
+  role      Role
+  createdAt DateTime @default(now())
+
   // Relations
   studentProfile          Student?
   teacherProfile          Teacher?
@@ -42,38 +42,38 @@ model User {
 model RolePermission {
   id         String   @id @default(uuid())
   role       Role
-  permission String   // e.g. "student_registration", "manage_users", "manage_academic_year"
+  permission String // e.g. "student_registration", "manage_users", "manage_academic_year"
   createdAt  DateTime @default(now())
 
   @@unique([role, permission])
 }
 
 model AcademicYear {
-  id               String       @id @default(uuid())
-  year             String       @unique // e.g. "2025/2026"
-  isActive         Boolean      @default(false)
-  registrationOpen Boolean      @default(false)
-  createdAt        DateTime     @default(now())
+  id               String   @id @default(uuid())
+  year             String   @unique // e.g. "2025/2026"
+  isActive         Boolean  @default(false)
+  registrationOpen Boolean  @default(false)
+  createdAt        DateTime @default(now())
 
   // Relations
-  enrollments      Enrollment[]
-  attendances      Attendance[]
-  grades           Grade[]
-  fees             Fee[]
-  timetables       Timetable[]
-  reportCards      ReportCard[]
+  enrollments Enrollment[]
+  attendances Attendance[]
+  grades      Grade[]
+  fees        Fee[]
+  timetables  Timetable[]
+  reportCards ReportCard[]
 }
 
 model Student {
-  id                String              @id @default(uuid())
-  userId            String              @unique
-  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  studentId         String              @unique
-  grade             String // Current grade level
-  personalDetails   Json?               // { dateOfBirth, gender, phone, address, admissionDate, previousSchool, emergencyContacts }
-  familyBackground  Json?               // { fatherName, motherName, guardianName, occupation, notes }
-  guardianContacts  Json?               // Array of embedded guardian contact details
-  enrollmentDate    DateTime            @default(now())
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentId        String   @unique
+  grade            String // Current grade level
+  personalDetails  Json? // { dateOfBirth, gender, phone, address, admissionDate, previousSchool, emergencyContacts }
+  familyBackground Json? // { fatherName, motherName, guardianName, occupation, notes }
+  guardianContacts Json? // Array of embedded guardian contact details
+  enrollmentDate   DateTime @default(now())
 
   // Relations
   guardians         Parent[]            @relation("StudentGuardians")
@@ -87,19 +87,19 @@ model Student {
 }
 
 model Parent {
-  id           String    @id @default(uuid())
-  userId       String?   @unique
-  user         User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parentId     String    @unique
+  id           String   @id @default(uuid())
+  userId       String?  @unique
+  user         User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId     String   @unique
   fullName     String
   email        String?
   phone        String?
-  relationship String    @default("Parent")
+  relationship String   @default("Parent")
   address      String?
-  createdAt    DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   // Relations
-  children     Student[] @relation("StudentGuardians")
+  children Student[] @relation("StudentGuardians")
 }
 
 model Enrollment {
@@ -118,11 +118,11 @@ model Enrollment {
 }
 
 model Section {
-  id          String       @id @default(uuid())
-  name        String       // "A", "B", "C"
-  classId     String
-  class       Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
-  createdAt   DateTime     @default(now())
+  id        String   @id @default(uuid())
+  name      String // "A", "B", "C"
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 
   // Relations
   enrollments Enrollment[]
@@ -130,10 +130,10 @@ model Section {
 }
 
 model Subject {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  department  String?
-  createdAt   DateTime     @default(now())
+  id         String   @id @default(uuid())
+  name       String   @unique
+  department String?
+  createdAt  DateTime @default(now())
 
   // Relations
   teacherAssignments TeacherAssignment[]
@@ -176,16 +176,16 @@ model Class {
 }
 
 model Attendance {
-  id             String             @id @default(uuid())
+  id             String        @id @default(uuid())
   classId        String
-  class          Class              @relation(fields: [classId], references: [id], onDelete: Cascade)
-  date           DateTime           @default(now())
+  class          Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  date           DateTime      @default(now())
   recordedById   String
-  recordedBy     User               @relation(fields: [recordedById], references: [id])
+  recordedBy     User          @relation(fields: [recordedById], references: [id])
   academicYearId String?
-  academicYear   AcademicYear?      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
-  locked         Boolean            @default(false)
-  createdAt      DateTime           @default(now())
+  academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  locked         Boolean       @default(false)
+  createdAt      DateTime      @default(now())
 
   // Relations
   records        AttendanceRecord[]
@@ -198,24 +198,24 @@ model AttendanceRecord {
   attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  status       String     // "Present", "Absent", "Late"
+  status       String // "Present", "Absent", "Late"
 }
 
 model TeacherAssignment {
-  id         String    @id @default(uuid())
-  teacherId  String
-  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  classId    String?
-  class      Class?    @relation(fields: [classId], references: [id])
-  subjectId  String?
-  subject    Subject?  @relation(fields: [subjectId], references: [id])
-  notes      String?
-  assignedBy User      @relation("AssignedBy", fields: [assignedById], references: [id])
+  id           String   @id @default(uuid())
+  teacherId    String
+  teacher      Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classId      String?
+  class        Class?   @relation(fields: [classId], references: [id])
+  subjectId    String?
+  subject      Subject? @relation(fields: [subjectId], references: [id])
+  notes        String?
+  assignedBy   User     @relation("AssignedBy", fields: [assignedById], references: [id])
   assignedById String
-  createdAt  DateTime  @default(now())
+  createdAt    DateTime @default(now())
 
   // Relations
-  students   Student[] @relation("TeacherAssignmentStudents")
+  students Student[] @relation("TeacherAssignmentStudents")
 }
 
 model GradingStructure {
@@ -238,9 +238,9 @@ model Timetable {
   section        Section?     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   subjectId      String
   subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  dayOfWeek      String       // "Monday", "Tuesday", etc.
-  startTime      String       // e.g. "08:30"
-  endTime        String       // e.g. "09:30"
+  dayOfWeek      String // "Monday", "Tuesday", etc.
+  startTime      String // e.g. "08:30"
+  endTime        String // e.g. "09:30"
   room           String?
   classroomId    String?
   classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
@@ -248,16 +248,16 @@ model Timetable {
 }
 
 model Payment {
-  id                   String     @id @default(uuid())
+  id                   String    @id @default(uuid())
   feeId                String
-  fee                  Fee        @relation(fields: [feeId], references: [id], onDelete: Cascade)
+  fee                  Fee       @relation(fields: [feeId], references: [id], onDelete: Cascade)
   amount               Float
-  transactionReference String     @unique
+  transactionReference String    @unique
   bankName             String
-  status               String     @default("Pending") // "Pending", "Verified", "Rejected"
+  status               String    @default("Pending") // "Pending", "Verified", "Rejected"
   verifiedById         String?
-  verifiedBy           User?      @relation("VerifiedPayments", fields: [verifiedById], references: [id])
-  paymentDate          DateTime   @default(now())
+  verifiedBy           User?     @relation("VerifiedPayments", fields: [verifiedById], references: [id])
+  paymentDate          DateTime  @default(now())
   verificationDate     DateTime?
   receipt              Receipt?
 }
@@ -287,7 +287,7 @@ model Fee {
   createdAt      DateTime      @default(now())
 
   // Relations
-  payments       Payment[]
+  payments Payment[]
 }
 
 model FeeStructure {
@@ -330,7 +330,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String   // "LowAttendance", "OverdueFee", "ReportCard"
+  type      String // "LowAttendance", "OverdueFee", "ReportCard"
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
