@@ -1,4 +1,4 @@
-import { useContext } from 'react';
+import { useContext, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -76,6 +76,19 @@ const SystemIcon = () => (
     <line x1="12" y1="17" x2="12" y2="21" />
   </svg>
 );
+const MenuIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+const CloseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
@@ -98,6 +111,7 @@ const navItems = [
 export default function AdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleLogout = () => {
     logout();
@@ -115,16 +129,38 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
 
   return (
     <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
+      {/* ── Mobile overlay ── */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
       {/* ── Sidebar ── */}
-      <aside className="sticky top-0 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
         {/* Brand */}
-        <div className="px-6 py-6 border-b border-slate-100">
-          <div className="mb-1 text-lg font-black tracking-tight text-slate-900">
-            Admin Console
+        <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
+          <div>
+            <div className="mb-1 text-lg font-black tracking-tight text-slate-900">
+              Admin Console
+            </div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+              Institutional Portal
+            </div>
           </div>
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-            Institutional Portal
-          </div>
+          <button
+            className="text-slate-400 hover:text-slate-900 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close menu"
+          >
+            <CloseIcon />
+          </button>
         </div>
 
         {/* Navigation */}
@@ -133,6 +169,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
             <NavLink
               key={item.to}
               to={item.to}
+              onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
                   isActive || window.location.pathname.startsWith(item.to)
@@ -168,21 +205,28 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
       {/* ── Main Content ── */}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-8 shadow-sm">
-          <div className="flex items-center gap-3">
-            <SystemIcon />
-            <h1 className="text-lg font-bold tracking-tight text-slate-900">{pageTitle || 'System Management'}</h1>
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              className="text-slate-600 hover:text-black lg:hidden"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open menu"
+            >
+              <MenuIcon />
+            </button>
+            <span className="hidden sm:inline-flex"><SystemIcon /></span>
+            <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">{pageTitle || 'System Management'}</h1>
           </div>
 
-          <div className="flex items-center gap-6">
-            <div className="relative flex items-center">
+          <div className="flex items-center gap-3 sm:gap-6">
+            <div className="relative hidden items-center md:flex">
               <span className="absolute left-3">
                 <SearchIcon />
               </span>
               <input
                 type="text"
                 placeholder="Search records..."
-                className="w-64 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-slate-500"
+                className="w-48 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-slate-500 lg:w-64"
               />
             </div>
 
@@ -190,13 +234,13 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               <BellIcon />
               <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
             </button>
-            
-            {headerAction && <div className="ml-2 border-l border-slate-200 pl-4">{headerAction}</div>}
+
+            {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4">{headerAction}</div>}
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-8">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>

@@ -67,11 +67,16 @@ export default function UserManagement() {
 
   const fetchUsers = async () => {
     try {
+      console.log("GET /api/users called");
       const res = await axios.get('/users');
       setUsers(res.data);
-    } catch {
+    } catch (error) {
+      console.log("Error response:", error.response?.data);
+      console.log("Full error:", error);
       toast.error('Failed to load users');
-    } finally {
+}
+    
+    finally {
       setLoading(false);
     }
   };

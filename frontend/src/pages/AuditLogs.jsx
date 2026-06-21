@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-// import axios from '../../api/axios';
-// import SuperAdminLayout from '../../components/SuperAdminLayout';
+import axios from '../api/axios';
+import SuperAdminLayout from '../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 
 const STATUS_STYLES = {

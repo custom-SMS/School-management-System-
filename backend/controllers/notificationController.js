@@ -186,6 +186,82 @@ const submitStudentRecordRequest = async (req, res) => {
   }
 };
 
+const BROADCAST_AUDIENCES = ['all', 'Admin', 'Cashier', 'Teacher', 'Student', 'Parent', 'SuperAdmin'];
+
+// Broadcast a notification to every user in an audience (a single role, or "all").
+const broadcastNotification = async (req, res) => {
+  try {
+    const title = String(req.body.title || '').trim();
+    const message = String(req.body.message || '').trim();
+    const audience = String(req.body.audience || 'all').trim();
+
+    if (!title) return res.status(400).json({ message: 'Title is required.' });
+    if (!message) return res.status(400).json({ message: 'Message is required.' });
+    if (!BROADCAST_AUDIENCES.includes(audience)) {
+      return res.status(400).json({ message: 'Invalid audience.' });
+    }
+
+    const where = audience === 'all' ? { isActive: true } : { role: audience, isActive: true };
+    const recipients = await prisma.user.findMany({ where, select: { id: true } });
+
+    if (recipients.length === 0) {
+      return res.status(404).json({ message: 'No active users match this audience.' });
+    }
+
+    await prisma.notification.createMany({
+      data: recipients.map((u) => ({
+        userId: u.id,
+        title,
+        message,
+        type: 'Broadcast',
+      })),
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Broadcast Notification',
+      null,
+      `Sent "${title}" to ${audience === 'all' ? 'all users' : audience + 's'} (${recipients.length} recipients)`
+    );
+
+    res.status(201).json({
+      message: `Notification sent to ${recipients.length} user${recipients.length === 1 ? '' : 's'}.`,
+      recipients: recipients.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// System-wide notification feed for SuperAdmin oversight.
+const getAllNotifications = async (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit, 10) || 30);
+    const skip = (page - 1) * limit;
+
+    const [notifications, total] = await Promise.all([
+      prisma.notification.findMany({
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+        include: { user: { select: { id: true, name: true, email: true, role: true } } },
+      }),
+      prisma.notification.count(),
+    ]);
+
+    res.status(200).json({
+      notifications,
+      total,
+      page,
+      totalPages: Math.ceil(total / limit) || 1,
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // Retrieve notifications for current user
 const getNotifications = async (req, res) => {
   try {
@@ -224,6 +300,8 @@ module.exports = {
   sendNotification,
   sendParentNotifications,
   submitStudentRecordRequest,
+  broadcastNotification,
+  getAllNotifications,
   getNotifications,
   markAsRead
 };

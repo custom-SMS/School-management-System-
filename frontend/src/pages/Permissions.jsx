@@ -1,74 +1,201 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import axios from '../api/axios';
+import { toast } from 'react-toastify';
 import SuperAdminLayout from '../components/SuperAdminLayout';
+import {
+  ROLES,
+  EDITABLE_ROLES,
+  PERMISSION_CATALOG,
+  PERMISSION_CATEGORIES,
+} from '../constants/accessControl';
 
 export default function Permissions() {
-  const [permissions, setPermissions] = useState([
-    { id: 1, name: 'student_registration', description: 'Register and manage students', roles: ['SuperAdmin', 'Admin'] },
-    { id: 2, name: 'teacher_management', description: 'Manage teacher accounts and assignments', roles: ['SuperAdmin', 'Admin'] },
-    { id: 3, name: 'grade_management', description: 'View and edit student grades', roles: ['SuperAdmin', 'Admin', 'Teacher'] },
-    { id: 4, name: 'attendance_management', description: 'Manage student attendance', roles: ['SuperAdmin', 'Admin', 'Teacher'] },
-    { id: 5, name: 'finance_management', description: 'Manage fees and payments', roles: ['SuperAdmin', 'Admin', 'Cashier'] },
-    { id: 6, name: 'report_generation', description: 'Generate reports and analytics', roles: ['SuperAdmin', 'Admin'] },
-    { id: 7, name: 'system_settings', description: 'Configure system settings', roles: ['SuperAdmin'] },
-    { id: 8, name: 'user_management', description: 'Manage user accounts', roles: ['SuperAdmin'] },
-  ]);
+  // grants: { [role]: Set<permissionKey> } for editable roles only.
+  const [grants, setGrants] = useState({});
+  const [initial, setInitial] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const fetchPermissions = async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get('/auth/permissions');
+      const map = {};
+      EDITABLE_ROLES.forEach((r) => { map[r] = new Set(); });
+      (res.data || []).forEach((p) => {
+        if (map[p.role]) map[p.role].add(p.permission);
+      });
+      setGrants(map);
+      // Snapshot for dirty-checking (serialize sets to sorted arrays).
+      setInitial(serialize(map));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load permissions.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchPermissions(); }, []);
+
+  const serialize = (map) => {
+    const out = {};
+    Object.keys(map).forEach((r) => { out[r] = [...map[r]].sort().join(','); });
+    return out;
+  };
+
+  const dirtyRoles = useMemo(() => {
+    const current = serialize(grants);
+    return EDITABLE_ROLES.filter((r) => current[r] !== initial[r]);
+  }, [grants, initial]);
+
+  const isDirty = dirtyRoles.length > 0;
+
+  const toggle = (role, permKey) => {
+    if (!EDITABLE_ROLES.includes(role)) return;
+    setGrants((prev) => {
+      const next = { ...prev, [role]: new Set(prev[role]) };
+      if (next[role].has(permKey)) next[role].delete(permKey);
+      else next[role].add(permKey);
+      return next;
+    });
+  };
+
+  const handleSave = async () => {
+    if (!isDirty) return;
+    setSaving(true);
+    try {
+      // The backend replaces the full permission set per role, so only POST changed roles.
+      await Promise.all(
+        dirtyRoles.map((role) =>
+          axios.post('/auth/permissions', { role, permissions: [...grants[role]] })
+        )
+      );
+      toast.success(`Permissions updated for ${dirtyRoles.join(', ')}.`);
+      setInitial(serialize(grants));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save permissions.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleReset = () => {
+    // Rebuild sets from the last-saved snapshot.
+    const map = {};
+    EDITABLE_ROLES.forEach((r) => {
+      map[r] = new Set(initial[r] ? initial[r].split(',').filter(Boolean) : []);
+    });
+    setGrants(map);
+  };
+
+  const isChecked = (role, permKey) => {
+    if (role === 'SuperAdmin') return true;
+    return grants[role]?.has(permKey) || false;
+  };
 
   return (
-    <SuperAdminLayout pageTitle="Permission Management">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Permission Management</h2>
-            <p className="text-sm text-gray-500">Configure system permissions and role access</p>
-          </div>
-          <button className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
-            </svg>
-            Add Permission
+    <SuperAdminLayout
+      pageTitle="Permission Management"
+      headerAction={
+        <div className="flex items-center gap-2">
+          {isDirty && (
+            <button
+              onClick={handleReset}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+            >
+              Discard
+            </button>
+          )}
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || saving}
+            className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
+          >
+            {saving ? 'Saving…' : isDirty ? `Save Changes (${dirtyRoles.length})` : 'Saved'}
           </button>
         </div>
-
-        <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="bg-gray-50 text-xs font-semibold uppercase text-gray-500">
-                <tr>
-                  <th className="px-6 py-4">Permission Name</th>
-                  <th className="px-6 py-4">Description</th>
-                  <th className="px-6 py-4">Assigned Roles</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {permissions.map((permission) => (
-                  <tr key={permission.id} className="transition hover:bg-gray-50">
-                    <td className="px-6 py-4 font-bold text-gray-900">{permission.name}</td>
-                    <td className="px-6 py-4 text-gray-600">{permission.description}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-2">
-                        {permission.roles.map((role) => (
-                          <span
-                            key={role}
-                            className="inline-flex rounded-full bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-700"
-                          >
-                            {role}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-right">
-                      <button className="text-sm font-semibold text-gray-600 hover:text-gray-900">
-                        Edit
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      }
+    >
+      <div className="space-y-6">
+        <div>
+          <h2 className="text-2xl font-black tracking-tight text-slate-900">Permission Management</h2>
+          <p className="text-sm text-slate-500">
+            Grant or revoke capabilities per role. SuperAdmin always has full access.
+          </p>
         </div>
+
+        {loading ? (
+          <div className="py-12 text-center text-sm font-semibold text-slate-500">Loading permissions…</div>
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-slate-200 bg-slate-50">
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Permission</th>
+                    {ROLES.map((role) => (
+                      <th key={role} className="px-4 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
+                        {role}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {PERMISSION_CATEGORIES.map((category) => {
+                    const perms = PERMISSION_CATALOG.filter((p) => p.category === category);
+                    if (perms.length === 0) return null;
+                    return (
+                      <FragmentRows
+                        key={category}
+                        category={category}
+                        perms={perms}
+                        roleCount={ROLES.length}
+                        isChecked={isChecked}
+                        toggle={toggle}
+                      />
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
       </div>
     </SuperAdminLayout>
+  );
+}
+
+function FragmentRows({ category, perms, roleCount, isChecked, toggle }) {
+  return (
+    <>
+      <tr className="bg-slate-50/60">
+        <td colSpan={roleCount + 1} className="px-6 py-2 text-xs font-black uppercase tracking-wider text-slate-400">
+          {category}
+        </td>
+      </tr>
+      {perms.map((perm) => (
+        <tr key={perm.key} className="transition hover:bg-slate-50">
+          <td className="px-6 py-4">
+            <div className="font-bold text-slate-900">{perm.label}</div>
+            <div className="text-xs text-slate-500">{perm.description}</div>
+          </td>
+          {ROLES.map((role) => {
+            const checked = isChecked(role, perm.key);
+            const locked = role === 'SuperAdmin';
+            return (
+              <td key={role} className="px-4 py-4 text-center">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={locked}
+                  onChange={() => toggle(role, perm.key)}
+                  className={`h-4 w-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 ${locked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+                />
+              </td>
+            );
+          })}
+        </tr>
+      ))}
+    </>
   );
 }

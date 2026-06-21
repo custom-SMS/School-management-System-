@@ -7,6 +7,7 @@ export default function Settings() {
   // --- Existing Logic/States ---
   const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
   const [savingWeights, setSavingWeights] = useState(false);
+  const [savingAll, setSavingAll] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [unlockingId, setUnlockingId] = useState('');
 
@@ -56,9 +57,41 @@ export default function Settings() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const res = await axios.get('/settings');
+      const s = res.data || {};
+      if (s.security) {
+        setSessionTimeout(String(s.security.sessionTimeout ?? '30'));
+        setPasswordComplexity(s.security.passwordComplexity ?? passwordComplexity);
+        setTwoFactor(Boolean(s.security.twoFactor));
+      }
+      if (s.notifications) {
+        setGradeAlerts(Boolean(s.notifications.gradeAlerts));
+        setReceiptSummaries(Boolean(s.notifications.receiptSummaries));
+        setMaintenanceBroadcasts(Boolean(s.notifications.maintenanceBroadcasts));
+      }
+      if (s.localization) {
+        setCurrency(s.localization.currency ?? currency);
+        setTimezone(s.localization.timezone ?? timezone);
+        setDateFormat(s.localization.dateFormat ?? dateFormat);
+        setCalendarType(s.localization.calendarType ?? calendarType);
+      }
+      if (s.branding) {
+        setInstitutionNameEn(s.branding.institutionNameEn ?? institutionNameEn);
+        setInstitutionNameAm(s.branding.institutionNameAm ?? institutionNameAm);
+        setBrandColor(s.branding.brandColor ?? brandColor);
+        setHeaderTitle(s.branding.headerTitle ?? headerTitle);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchWeights();
     fetchSessions();
+    fetchSettings();
   }, []);
 
   const total = Number(weights.quizWeight) + Number(weights.assignmentWeight) + Number(weights.midtermWeight) + Number(weights.finalWeight);
@@ -103,13 +136,39 @@ export default function Settings() {
     }
   };
 
-  const handleSaveChangesAll = () => {
-    if (total !== 100) {
-      toast.error(`Please correct grading weights to sum to 100% (currently ${total}%).`);
-      return;
+  const handleSaveChangesAll = async () => {
+    setSavingAll(true);
+    try {
+      await axios.put('/settings', {
+        security: {
+          sessionTimeout,
+          passwordComplexity,
+          twoFactor,
+        },
+        notifications: {
+          gradeAlerts,
+          receiptSummaries,
+          maintenanceBroadcasts,
+        },
+        localization: {
+          currency,
+          timezone,
+          dateFormat,
+          calendarType,
+        },
+        branding: {
+          institutionNameEn,
+          institutionNameAm,
+          brandColor,
+          headerTitle,
+        },
+      });
+      toast.success('Settings saved successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save settings.');
+    } finally {
+      setSavingAll(false);
     }
-    // Simulate other settings save
-    toast.success('All settings and configurations saved successfully!');
   };
 
   const menuItems = [
@@ -125,14 +184,15 @@ export default function Settings() {
     <SuperAdminLayout 
       pageTitle="System Settings" 
       headerAction={
-        <button 
-          onClick={handleSaveChangesAll} 
-          className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition"
+        <button
+          onClick={handleSaveChangesAll}
+          disabled={savingAll}
+          className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800 transition disabled:opacity-50"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
           </svg>
-          Save Changes
+          {savingAll ? 'Saving…' : 'Save Changes'}
         </button>
       }
     >

@@ -23,6 +23,9 @@ model User {
   password                String
   role                    Role
   createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
+  isActive                Boolean                   @default(true)
+
   
   // Relations
   studentProfile          Student?
@@ -371,6 +374,12 @@ model GradeFee {
 model Counter {
   id  String @id
   seq Int    @default(0)
+}
+
+model SystemSetting {
+  key       String   @id // e.g. "security", "notifications", "localization", "branding"
+  value     Json
+  updatedAt DateTime @updatedAt
 }
 
 model Classroom {

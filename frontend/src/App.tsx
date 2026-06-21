@@ -22,6 +22,7 @@ import Settings from "./pages/Settings";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
 import AuditLogs from "./pages/AuditLogs";
+import SystemNotifications from "./pages/superadmin/SystemNotifications";
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -165,7 +166,7 @@ function App() {
             path="/super-admin/notifications"
             element={
               <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                <div className="p-8 text-center">Notifications feature coming soon</div>
+                <SystemNotifications />
               </ProtectedRoute>
             }
           />
