@@ -1,29 +1,112 @@
 import { useState, useEffect } from 'react';
+import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
 
 export default function Classes() {
   const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // Create-class modal
+  const [showModal, setShowModal] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState('');
+  const [subject, setSubject] = useState('');
+  const [teacherId, setTeacherId] = useState('');
+
+  const fetchClasses = () => {
+    return axios.get('/classroom/classes')
+      .then(res => setClasses(res.data || []))
+      .catch(err => console.error(err));
+  };
+
   useEffect(() => {
-    axios.get('/classroom/classes')
-      .then(res => setClasses(res.data))
-      .catch(err => console.error(err))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetchClasses(),
+      axios.get('/teachers').then(res => setTeachers(res.data || [])).catch(console.error),
+      axios.get('/subjects').then(res => setSubjects(res.data || [])).catch(console.error),
+    ]).finally(() => setLoading(false));
   }, []);
+
+  const resetForm = () => { setName(''); setSubject(''); setTeacherId(''); };
+
+  const handleCreateClass = async (e) => {
+    e.preventDefault();
+    if (!name.trim() || !subject.trim()) {
+      toast.error('Class name and subject are required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.post('/classroom/classes', {
+        name: name.trim(),
+        subject: subject.trim(),
+        teacherId: teacherId || undefined,
+      });
+      toast.success(`Class "${name}" created.`);
+      resetForm();
+      setShowModal(false);
+      await fetchClasses();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create class.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   if (loading) return <AdminLayout pageTitle="Classes Management"><div className="p-4">Loading...</div></AdminLayout>;
 
   return (
     <AdminLayout pageTitle="Classes Management">
+      {/* Create Class Modal */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-900">Add New Class</h2>
+              <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
+            </div>
+            <form onSubmit={handleCreateClass} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Class Name</label>
+                <input type="text" required placeholder="e.g. Class 1" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Subject</label>
+                {subjects.length > 0 ? (
+                  <select required value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
+                    <option value="">Select a subject</option>
+                    {subjects.map((s) => <option key={s.id} value={s.name}>{s.name}</option>)}
+                  </select>
+                ) : (
+                  <input type="text" required placeholder="e.g. General" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
+                )}
+              </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher (optional)</label>
+                <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
+                  <option value="">None</option>
+                  {teachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
+                </select>
+              </div>
+              <div className="flex justify-end gap-3 mt-2">
+                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{saving ? 'Creating…' : 'Create Class'}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
             <p className="text-sm font-medium text-gray-500">View and manage all active classes.</p>
           </div>
-          <button className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm">
+          <button onClick={() => { resetForm(); setShowModal(true); }} className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm">
             + New Class
           </button>
         </div>

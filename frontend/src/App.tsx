@@ -36,6 +36,7 @@ import Assignments from "./pages/Assignments";
 import Timetables from "./pages/Timetables";
 import ReportCards from "./pages/ReportCards";
 import AcademicReports from "./pages/admin/AcademicReports";
+import ReportView from "./pages/admin/ReportView";
 import Registrar from "./pages/Registrar";
 
 // Finance (Cashier)
@@ -274,6 +275,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                 <AcademicReports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports/:type"
+            element={
+              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                <ReportView />
               </ProtectedRoute>
             }
           />

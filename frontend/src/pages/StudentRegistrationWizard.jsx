@@ -45,8 +45,13 @@ export default function StudentRegistrationWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingStudent, setLoadingStudent] = useState(false);
   const [credentials, setCredentials] = useState(null);
+  const [activeYear, setActiveYear] = useState(null);
   // Uploaded document metadata, keyed by document type.
   const [docs, setDocs] = useState({});
+
+  // Registration is blocked when there is no active year or its window is closed.
+  // Editing an existing student is always allowed (it does not create a new enrollment).
+  const registrationClosed = !isEditMode && !(activeYear && activeYear.registrationOpen);
 
   const uploadDoc = async (key, file) => {
     if (!file) return;
@@ -68,6 +73,9 @@ export default function StudentRegistrationWizard() {
   useEffect(() => {
     axios.get('/students/grade-fee').then((r) => setGradeFees(r.data || [])).catch(() => {});
     axios.get('/students/classes').then((r) => setClasses(r.data || [])).catch(() => setClasses([]));
+    axios.get('/academic-years')
+      .then((r) => setActiveYear((r.data || []).find((y) => y.isActive) || null))
+      .catch(() => setActiveYear(null));
   }, []);
 
   useEffect(() => {
@@ -135,6 +143,13 @@ export default function StudentRegistrationWizard() {
   };
 
   const handleSubmit = async () => {
+    if (registrationClosed) {
+      return toast.error(
+        activeYear
+          ? `Registration for ${activeYear.year} is currently closed.`
+          : 'No active academic year. Registration is closed.'
+      );
+    }
     if (!form.consent) return toast.error('Please confirm the declaration before submitting.');
     setSubmitting(true);
     try {
@@ -211,7 +226,7 @@ export default function StudentRegistrationWizard() {
             </span>
               <div>
                 <div className="text-base font-black leading-tight">{isEditMode ? 'Edit Student' : 'Student Registration'}</div>
-                <div className="text-xs text-slate-400">Academic Year 2024/25</div>
+                <div className="text-xs text-slate-400">Academic Year {activeYear?.year || '—'}</div>
               </div>
           </div>
           <nav className="mt-8 flex-1 space-y-1.5">
@@ -244,6 +259,16 @@ export default function StudentRegistrationWizard() {
           </header>
 
           <main className="mx-auto w-full max-w-4xl flex-1 px-6 py-8">
+            {registrationClosed && (
+              <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 px-5 py-4">
+                <div className="text-sm font-bold text-amber-900">Registration is closed</div>
+                <div className="mt-0.5 text-xs text-amber-800">
+                  {activeYear
+                    ? `The registration period for ${activeYear.year} is not currently open. Submissions are disabled until a SuperAdmin opens or extends the registration window.`
+                    : 'There is no active academic year. A SuperAdmin must activate a year and open its registration window before new students can be registered.'}
+                </div>
+              </div>
+            )}
             {/* Step progress (mobile) */}
             <div className="mb-6 flex gap-2 lg:hidden">
               {STEPS.map((s, i) => (
@@ -354,7 +379,7 @@ export default function StudentRegistrationWizard() {
                   {step.key === 'enrollment' && (
                     <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
                       <Card title="Academic Placement">
-                        <Field label="Academic Year"><select className={inputCls} disabled><option>2024/25 Academic Year</option></select></Field>
+                        <Field label="Academic Year"><select className={inputCls} disabled><option>{activeYear?.year ? `${activeYear.year} Academic Year` : 'No active academic year'}</option></select></Field>
                         <div className="mt-5">
                           <span className={labelCls}>Grade Level Selection</span>
                           <div className="grid grid-cols-4 gap-3">
@@ -493,7 +518,7 @@ export default function StudentRegistrationWizard() {
                 {isLast ? (
                   <button
                     onClick={handleSubmit}
-                    disabled={submitting || !form.consent}
+                    disabled={submitting || !form.consent || registrationClosed}
                     className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
                   >
                     {submitting ? (isEditMode ? 'Saving…' : 'Submitting…') : (isEditMode ? 'Save Changes' : 'Submit Registration')} →

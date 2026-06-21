@@ -52,11 +52,13 @@ model RolePermission {
 }
 
 model AcademicYear {
-  id               String       @id @default(uuid())
-  year             String       @unique // e.g. "2025/2026"
-  isActive         Boolean      @default(false)
-  registrationOpen Boolean      @default(false)
-  createdAt        DateTime     @default(now())
+  id                String       @id @default(uuid())
+  year              String       @unique // e.g. "2025/2026"
+  isActive          Boolean      @default(false)
+  registrationOpen  Boolean      @default(false) // legacy flag; effective state is derived from the dates below
+  registrationStart DateTime?    // registration window opens
+  registrationEnd   DateTime?    // registration window closes
+  createdAt         DateTime     @default(now())
 
   // Relations
   enrollments      Enrollment[]

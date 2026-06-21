@@ -93,8 +93,8 @@ export default function Academics() {
     ? { 'All Subjects': subjects }
     : { 'Grade 9': [], 'Grade 10': [] };
 
-  const mandatoryCount = subjects.filter((s) => !s.isElective).length || 36;
-  const electiveCount = subjects.filter((s) => s.isElective).length || 6;
+  const mandatoryCount = subjects.filter((s) => !s.isElective).length;
+  const electiveCount = subjects.filter((s) => s.isElective).length;
 
   const openModal = (mode) => { setModalMode(mode); setShowModal(true); };
 
@@ -188,7 +188,7 @@ export default function Academics() {
       {/* Summary Cards */}
       <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
         {[
-          { label: 'Total Subjects', value: subjects.length || 42, color: 'text-gray-900' },
+          { label: 'Total Subjects', value: subjects.length, color: 'text-gray-900' },
           { label: 'Mandatory', value: mandatoryCount, color: 'text-green-600' },
           { label: 'Electives', value: electiveCount, color: 'text-orange-600' },
           { label: 'Avg Credit Hours', value: '4.2', color: 'text-gray-600' },
@@ -200,8 +200,39 @@ export default function Academics() {
         ))}
       </div>
 
-      {/* Subjects grouped by Class/Grade */}
-      {Object.entries(groupedByGrade).length > 0 ? (
+      {/* All Subjects — always shown so newly added subjects appear immediately */}
+      {subjects.length > 0 && (
+        <div className="mb-8">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="h-6 w-1 rounded-full bg-black"></div>
+            <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
+            <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">{subjects.length} Subjects</span>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {subjects.map((s) => (
+              <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <div className="font-bold text-gray-900">{s.name}</div>
+                    <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${s.isElective ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'}`}>
+                    {s.isElective ? 'Elective' : 'Mandatory'}
+                  </span>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Classes grouped by Grade */}
+      {Object.entries(groupedByGrade).length > 0 && (
         Object.entries(groupedByGrade).map(([grade, classItems]) => (
           <div key={grade} className="mb-8">
             <div className="mb-4 flex items-center gap-3">
@@ -242,42 +273,14 @@ export default function Academics() {
             </div>
           </div>
         ))
-      ) : (
-        // Show subjects when no classes
-        subjects.length > 0 ? (
-          <div className="mb-8">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="h-6 w-1 rounded-full bg-black"></div>
-              <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
-              <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">{subjects.length} Subjects</span>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {subjects.map((s) => (
-                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-gray-900">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.department || 'General'}</div>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${s.isElective ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'}`}>
-                      {s.isElective ? 'Elective' : 'Mandatory'}
-                    </span>
-                  </div>
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="mb-8 rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
-            <p className="text-gray-500">No subjects or classes configured yet.</p>
-            <button onClick={() => openModal('subject')} className="mt-4 rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900">Add First Subject</button>
-          </div>
-        )
+      )}
+
+      {/* Empty state when nothing configured */}
+      {subjects.length === 0 && Object.entries(groupedByGrade).length === 0 && (
+        <div className="mb-8 rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
+          <p className="text-gray-500">No subjects or classes configured yet.</p>
+          <button onClick={() => openModal('subject')} className="mt-4 rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900">Add First Subject</button>
+        </div>
       )}
 
       {/* Expanding Curriculum Dark Banner */}

@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { isRegistrationOpen } = require('../utils/academicYear');
 
 // Helper to generate IDs
 const getNextAvailableStudentId = async () => {
@@ -258,7 +259,7 @@ const registerStudent = async (req, res) => {
     if (!activeYear) {
       return res.status(400).json({ message: 'No active academic year found. Registration is closed.' });
     }
-    if (!activeYear.registrationOpen) {
+    if (!isRegistrationOpen(activeYear)) {
       return res.status(400).json({ message: `Registration period for academic year ${activeYear.year} is closed.` });
     }
 
