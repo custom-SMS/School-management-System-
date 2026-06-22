@@ -45,6 +45,7 @@ export default function StudentRegistrationWizard() {
   const [submitting, setSubmitting] = useState(false);
   const [loadingStudent, setLoadingStudent] = useState(false);
   const [credentials, setCredentials] = useState(null);
+  const [emailStatus, setEmailStatus] = useState([]);
   const [activeYear, setActiveYear] = useState(null);
   // Uploaded document metadata, keyed by document type.
   const [docs, setDocs] = useState({});
@@ -199,6 +200,7 @@ export default function StudentRegistrationWizard() {
         parentCredentials: res.data?.parentCredentials || null,
         guardianCredentials: res.data?.guardianCredentials || [],
       });
+      setEmailStatus(res.data?.guardianEmailStatus || []);
       toast.success('Registration submitted successfully!');
     } catch (err) {
       toast.error(err.response?.data?.message || (isEditMode ? 'Student update failed.' : 'Registration failed.'));
@@ -313,7 +315,24 @@ export default function StudentRegistrationWizard() {
 
                     <div className="mt-2 rounded-md bg-emerald-50 px-3 py-2 text-center text-sm font-semibold text-emerald-700">Please change the password after first login.</div>
                   </div>
-                  <button onClick={() => { setForm(blank); setCredentials(null); setStepIdx(0); }} className="mt-6 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white">Register Another</button>
+                  <button onClick={() => { setForm(blank); setCredentials(null); setEmailStatus([]); setStepIdx(0); }} className="mt-6 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white">Register Another</button>
+
+                  {emailStatus.length > 0 && (
+                    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 text-left text-sm shadow-sm">
+                      <div className="mb-3 text-xs font-black uppercase tracking-wide text-slate-500">Guardian email delivery status</div>
+                      <div className="space-y-3">
+                        {emailStatus.map((status, index) => (
+                          <div key={index} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                            <div className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-900">
+                              <span>{status.email || 'No guardian email'}</span>
+                              <span className={status.status === 'sent' ? 'text-emerald-600' : status.status === 'failed' ? 'text-rose-600' : 'text-slate-500'}>{status.status}</span>
+                            </div>
+                            {status.reason && <div className="mt-1 text-xs text-slate-500">{status.reason}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <>
