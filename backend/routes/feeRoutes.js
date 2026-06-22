@@ -24,7 +24,8 @@ router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 
 router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPaidStudentsByClass);
 
 // Fee structures management by grade level (Cashier/Admin/SuperAdmin)
-router.post('/structures', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), createFeeStructure);
+// Only SuperAdmin may create or update fee structures.
+router.post('/structures', verifyToken, checkRole(['SuperAdmin']), createFeeStructure);
 router.get('/structures', verifyToken, getFeeStructures);
 
 // Generate monthly tuition invoices for all students (Cashier/Admin/SuperAdmin)

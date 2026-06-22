@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import CashierLayout from '../../components/CashierLayout';
+import { useContext } from 'react';
+import { AuthContext } from '../../context/AuthContext';
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
@@ -30,6 +32,8 @@ export default function Fees() {
       setLoading(false);
     }
   };
+
+  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     fetchStructures();
@@ -108,48 +112,50 @@ export default function Fees() {
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.6fr]">
-        {/* Add / update form */}
-        <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="text-xl font-bold text-slate-900">Set Grade Fee</h2>
-          <p className="text-sm text-slate-500">Saving an existing grade updates its amount.</p>
-          <form className="mt-5 space-y-4" onSubmit={handleSave}>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Grade</label>
-              <input
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                placeholder="e.g. Grade 10"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Amount (ETB)</label>
-              <input
-                type="number"
-                min="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 12000"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Description</label>
-              <input
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={saving}
-              className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
-            >
-              {saving ? 'Saving…' : 'Save Fee Structure'}
-            </button>
-          </form>
-        </section>
+        {/* Add / update form (visible to SuperAdmin only) */}
+        {user?.role === 'SuperAdmin' && (
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-bold text-slate-900">Set Grade Fee</h2>
+            <p className="text-sm text-slate-500">Saving an existing grade updates its amount.</p>
+            <form className="mt-5 space-y-4" onSubmit={handleSave}>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Grade</label>
+                <input
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  placeholder="e.g. Grade 10"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Amount (ETB)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="e.g. 12000"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Description</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+              >
+                {saving ? 'Saving…' : 'Save Fee Structure'}
+              </button>
+            </form>
+          </section>
+        )}
 
         {/* Existing structures */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">

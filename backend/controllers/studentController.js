@@ -2,6 +2,7 @@ const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { isRegistrationOpen } = require('../utils/academicYear');
+const { sendGuardianCredentialsEmail } = require('../utils/emailService');
 
 // Helper to generate IDs
 const getNextAvailableStudentId = async () => {
@@ -369,6 +370,8 @@ const registerStudent = async (req, res) => {
     }
 
     const guardianCredentials = [];
+    const guardianEmailStatus = [];
+
     for (const contact of guardianContacts) {
       const credentials = await upsertGuardianProfile({
         contact,
@@ -376,6 +379,46 @@ const registerStudent = async (req, res) => {
         studentName: name,
       });
       guardianCredentials.push(credentials);
+
+      if (!credentials.email) {
+        guardianEmailStatus.push({
+          email: null,
+          status: 'skipped',
+          reason: 'missing guardian email',
+        });
+        continue;
+      }
+
+      if (!credentials.password) {
+        guardianEmailStatus.push({
+          email: credentials.email,
+          status: 'skipped',
+          reason: 'guardian already has an account',
+        });
+        continue;
+      }
+
+      try {
+        const emailResult = await sendGuardianCredentialsEmail(
+          credentials.email,
+          credentials.fullName || 'Guardian',
+          name,
+          credentials.password
+        );
+
+        guardianEmailStatus.push({
+          email: credentials.email,
+          status: 'sent',
+          resendId: emailResult.id || null,
+        });
+      } catch (emailError) {
+        console.error(`Failed to send email to ${credentials.email}:`, emailError);
+        guardianEmailStatus.push({
+          email: credentials.email,
+          status: 'failed',
+          reason: emailError.message,
+        });
+      }
     }
 
     const finalStudent = await prisma.student.findUnique({
@@ -387,6 +430,14 @@ const registerStudent = async (req, res) => {
       _id: finalStudent.id
     };
 
+    // Only return guardian emails, no passwords shown to admin/teacher
+    const guardianEmailsForResponse = guardianCredentials.map(cred => ({
+      fullName: cred.fullName,
+      email: cred.email,
+      relationship: cred.relationship,
+      primary: cred.primary,
+    }));
+
     res.status(201).json({ 
       message: 'Student registered successfully', 
       student: responseStudent,
@@ -397,6 +448,8 @@ const registerStudent = async (req, res) => {
       },
       guardianCredentials,
       parentCredentials: guardianCredentials[0] || null,
+      guardiansNotified: guardianEmailsForResponse,
+      guardianEmailStatus,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

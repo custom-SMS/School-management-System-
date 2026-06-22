@@ -27,6 +27,7 @@ export default function RegisterStudentEnhanced() {
   const [formData, setFormData] = useState(initialForm);
   const [gradeFees, setGradeFees] = useState([]);
   const [generatedCredentials, setGeneratedCredentials] = useState(null);
+  const [guardianEmailStatus, setGuardianEmailStatus] = useState([]);
 
   useEffect(() => {
     const fetchFees = async () => {
@@ -68,6 +69,7 @@ export default function RegisterStudentEnhanced() {
       });
 
       setGeneratedCredentials(response.data.credentials || null);
+      setGuardianEmailStatus(response.data.guardianEmailStatus || []);
       setFormData(initialForm);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error occurred');
@@ -110,6 +112,23 @@ export default function RegisterStudentEnhanced() {
                   <div className="font-semibold">Generated credentials</div>
                   <div>Student ID: {generatedCredentials.studentId}</div>
                   <div>Password: {generatedCredentials.password}</div>
+                </div>
+              )}
+
+              {guardianEmailStatus.length > 0 && (
+                <div className="mb-5 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                  <div className="font-semibold">Guardian email delivery</div>
+                  <div className="mt-3 space-y-2">
+                    {guardianEmailStatus.map((status, index) => (
+                      <div key={index} className="rounded-xl border border-slate-200 bg-white p-3">
+                        <div className="flex items-center justify-between gap-3 text-sm font-semibold text-slate-900">
+                          <span>{status.email || 'No guardian email'}</span>
+                          <span className={status.status === 'sent' ? 'text-emerald-600' : status.status === 'failed' ? 'text-rose-600' : 'text-slate-500'}>{status.status}</span>
+                        </div>
+                        {status.reason && <div className="mt-1 text-xs text-slate-500">{status.reason}</div>}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

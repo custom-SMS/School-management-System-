@@ -1,0 +1,11 @@
+require('dotenv').config();
+const { Resend } = require('resend');
+console.log('RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
+console.log('EMAIL_FROM:', process.env.EMAIL_FROM);
+console.log('Resend export type:', typeof Resend);
+const client = new Resend(process.env.RESEND_API_KEY);
+console.log('client constructed');
+console.log('client keys:', Object.keys(client));
+console.log('emails object:', typeof client.emails);
+console.log('emails keys:', Object.keys(client.emails));
+console.log('send type:', typeof client.emails.send);
