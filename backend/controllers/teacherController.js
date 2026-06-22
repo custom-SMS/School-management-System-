@@ -2,9 +2,19 @@ const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
-const generateTeacherId = async () => {
-  const count = await prisma.teacher.count();
-  return `TCH-${(count + 1).toString().padStart(4, '0')}`;
+const generateTeacherId = async (tx = prisma) => {
+  // Derive the next ID from the highest existing teacherId rather than count(),
+  // so deletions don't cause re-collisions. Zero-padding keeps lexical order
+  // aligned with numeric order, so ordering by teacherId desc yields the max.
+  const last = await tx.teacher.findFirst({
+    where: { teacherId: { startsWith: 'TCH-' } },
+    orderBy: { teacherId: 'desc' },
+    select: { teacherId: true },
+  });
+
+  const lastNum = last ? parseInt(last.teacherId.replace('TCH-', ''), 10) : 0;
+  const nextNum = Number.isNaN(lastNum) ? 1 : lastNum + 1;
+  return `TCH-${nextNum.toString().padStart(4, '0')}`;
 };
 
 const generatePassword = () => crypto.randomBytes(4).toString('hex');
@@ -26,29 +36,50 @@ const registerTeacher = async (req, res) => {
       }
     }
 
-    const teacherId = await generateTeacherId();
     const plainPassword = password || generatePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
-    const teacher = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          name,
-          email: email || null,
-          password: hashedPassword,
-          role: 'Teacher',
-        }
-      });
+    // Generating the teacherId from the current max is racy under concurrent
+    // registrations, so retry on a unique-constraint collision (P2002).
+    const MAX_ATTEMPTS = 5;
+    let teacher;
+    let teacherId;
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        teacher = await prisma.$transaction(async (tx) => {
+          teacherId = await generateTeacherId(tx);
 
-      return tx.teacher.create({
-        data: {
-          userId: user.id,
-          teacherId,
-          subject,
-        },
-        include: { user: true }
-      });
-    });
+          const user = await tx.user.create({
+            data: {
+              name,
+              email: email || null,
+              password: hashedPassword,
+              role: 'Teacher',
+            }
+          });
+
+          return tx.teacher.create({
+            data: {
+              userId: user.id,
+              teacherId,
+              subject,
+            },
+            include: { user: true }
+          });
+        }, {
+          maxWait: 10000,
+          timeout: 20000,
+        });
+        break;
+      } catch (err) {
+        const collidedOnTeacherId =
+          err.code === 'P2002' && err.meta?.target?.includes?.('teacherId');
+        if (collidedOnTeacherId && attempt < MAX_ATTEMPTS) {
+          continue;
+        }
+        throw err;
+      }
+    }
 
     const responseTeacher = {
       ...teacher,
@@ -163,6 +194,9 @@ const updateTeacher = async (req, res) => {
           }
         }
       });
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     const { logActivity } = require('../middleware/auditLogger');
@@ -223,6 +257,9 @@ const deleteTeacher = async (req, res) => {
           where: { id: teacher.id }
         });
       }
+    }, {
+      maxWait: 10000,
+      timeout: 20000,
     });
 
     res.status(200).json({ message: 'Teacher deleted successfully' });

@@ -100,7 +100,7 @@ const navItems = [
   { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
   { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
   { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },
-  { to: '/admin/academic-reports', label: 'Academic Reports', icon: <ActivityIcon /> },
+  { to: '/admin/academic-reports', label: 'General Reports', icon: <ActivityIcon /> },
   { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon /> },
   { to: '/roles', label: 'Role Management', icon: <RoleIcon /> },
   { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon /> },

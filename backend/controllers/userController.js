@@ -77,20 +77,27 @@ const updateUserRole = async (req, res) => {
       return res.status(400).json({ message: 'You cannot change your own role.' });
     }
 
-    const updatedUser = await prisma.user.update({
-      where: { id },
-      data: { role },
-      select: { id: true, name: true, email: true, role: true, isActive: true }
+    const user = await prisma.user.findUnique({
+      where: { id }
     });
 
-    await logActivity(
-      req.user._id,
-      'Update User Role',
-      updatedUser.id,
-      `User ${updatedUser.name} role changed to ${role}`
-    );
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
 
-    res.status(200).json({ message: `User role updated to ${role}`, user: updatedUser });
+    // Prevent updating student roles
+    if (user.role === 'Student') {
+      return res.status(403).json({
+        message: 'Student roles cannot be changed.'
+      });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: { role }
+    });
+
+    res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

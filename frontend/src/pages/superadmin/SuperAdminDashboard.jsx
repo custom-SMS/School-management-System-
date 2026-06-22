@@ -82,7 +82,7 @@ export default function SuperAdminDashboard() {
           title="System Health"
           value={stats?.systemHealth || 'OK'}
           subtitle="Status"
-          colorClass={stats?.systemHealth === 'Operational' ? 'bg-green-600' : 'bg-red-600'}
+          colorClass={stats?.systemHealth === 'Operational' ? 'bg-green-600' : 'bg-red-600' }
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
       </div>

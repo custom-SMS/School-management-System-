@@ -4,13 +4,77 @@ const { logActivity } = require('../middleware/auditLogger');
 // Create or update a timetable slot
 const createTimetableSlot = async (req, res) => {
   try {
-    const { id, academicYearId, classId, sectionId, subjectId, dayOfWeek, startTime, endTime, room } = req.body;
+    const {
+      id,
+      academicYearId,
+      classId,
+      sectionId,
+      subjectId,
+      dayOfWeek,
+      startTime,
+      endTime,
+      room
+    } = req.body;
 
-    if (!academicYearId || !classId || !subjectId || !dayOfWeek || !startTime || !endTime) {
-      return res.status(400).json({ message: 'academicYearId, classId, subjectId, dayOfWeek, startTime, and endTime are required.' });
+    if (startTime >= endTime) {
+      return res.status(400).json({
+        message: 'startTime must be before endTime.'
+      });
+    }
+
+    if (
+      !academicYearId ||
+      !classId ||
+      !subjectId ||
+      !dayOfWeek ||
+      !startTime ||
+      !endTime
+    ) {
+      return res.status(400).json({
+        message:
+          'academicYearId, classId, subjectId, dayOfWeek, startTime, and endTime are required.'
+      });
+    }
+
+    // Check for timetable conflicts
+    const conflictingSlot = await prisma.timetable.findFirst({
+      where: {
+        academicYearId,
+        classId,
+        sectionId: sectionId || null,
+        dayOfWeek,
+
+        // Ignore the current record when updating
+        ...(id && {
+          id: {
+            not: id
+          }
+        }),
+
+        AND: [
+          {
+            startTime: {
+              lt: endTime
+            }
+          },
+          {
+            endTime: {
+              gt: startTime
+            }
+          }
+        ]
+      }
+    });
+
+    if (conflictingSlot) {
+      return res.status(400).json({
+        message:
+          'Schedule conflict detected. Another timetable slot already exists for this class during the selected time.'
+      });
     }
 
     let slot;
+
     if (id) {
       slot = await prisma.timetable.update({
         where: { id },
@@ -25,7 +89,13 @@ const createTimetableSlot = async (req, res) => {
           room: room || null
         }
       });
-      await logActivity(req.user._id, 'Update Timetable Slot', slot.id, `Updated schedule slot on ${dayOfWeek} from ${startTime} to ${endTime}`);
+
+      await logActivity(
+        req.user._id,
+        'Update Timetable Slot',
+        slot.id,
+        `Updated schedule slot on ${dayOfWeek} from ${startTime} to ${endTime}`
+      );
     } else {
       slot = await prisma.timetable.create({
         data: {
@@ -39,12 +109,20 @@ const createTimetableSlot = async (req, res) => {
           room: room || null
         }
       });
-      await logActivity(req.user._id, 'Create Timetable Slot', slot.id, `Created schedule slot on ${dayOfWeek} from ${startTime} to ${endTime}`);
+
+      await logActivity(
+        req.user._id,
+        'Create Timetable Slot',
+        slot.id,
+        `Created schedule slot on ${dayOfWeek} from ${startTime} to ${endTime}`
+      );
     }
 
     res.status(201).json(slot);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({
+      message: error.message
+    });
   }
 };
 

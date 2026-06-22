@@ -203,15 +203,27 @@ export default function UserManagement() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">
-                    <select
-                      value={u.role}
-                      onChange={e => handleRoleChange(u.id, e.target.value)}
-                      className={`text-xs font-bold rounded-full px-3 py-1.5 border-0 outline-none cursor-pointer ${ROLE_COLORS[u.role]}`}
-                    >
-                      {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                    </select>
-                  </td>
+                <td className="px-6 py-4">
+  {u.role !== "Student" ? (
+    <select
+      value={u.role}
+      onChange={e => handleRoleChange(u.id, e.target.value)}
+      className={`text-xs font-bold rounded-full px-3 py-1.5 border-0 outline-none cursor-pointer ${ROLE_COLORS[u.role]}`}
+    >
+      {ROLES.map(r => (
+        <option key={r} value={r}>
+          {r}
+        </option>
+      ))}
+    </select>
+  ) : (
+    <span
+      className={`text-xs font-bold rounded-full px-3 py-1.5 ${ROLE_COLORS[u.role]}`}
+    >
+      {u.role}
+    </span>
+  )}
+</td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${u.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>

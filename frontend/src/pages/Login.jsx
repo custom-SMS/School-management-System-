@@ -13,8 +13,8 @@ export default function Login() {
 
   const testAccounts = [
     { label: 'Student', identifier: 'STU-0010', password: 'b560ed51' },
-    { label: 'Teacher', identifier: 'TCH-0001', password: 'teacher' },
-    { label: 'Admin', identifier: 'admin@school.com', password: 'admin' },
+    { label: 'Teacher', identifier: 'appleseifu@gmail.com', password: '12345678' },
+    { label: 'Admin', identifier: 'teacher@school.com', password: 'admin123' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
     { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' },
     { label: 'Parent', identifier: 'lyhu@mailinator.com', password: '1c25db75' }
