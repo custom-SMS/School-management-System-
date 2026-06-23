@@ -17,6 +17,7 @@ function NavIcon({ name }) {
 
 const navItems = [
   { to: '/parent/dashboard', label: 'Overview', icon: 'dashboard' },
+  { to: '/parent/notifications', label: 'Notifications', icon: 'attendance' },
   { to: '/parent/academics', label: 'Academics', icon: 'academics' },
   { to: '/parent/attendance', label: 'Attendance', icon: 'attendance' },
   { to: '/parent/finance', label: 'Finance', icon: 'finance' },

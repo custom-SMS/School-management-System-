@@ -18,6 +18,7 @@ import UserManagement from "./pages/superadmin/UserManagement";
 import AcademicYears from "./pages/superadmin/AcademicYears";
 import AttendanceGovernance from "./pages/superadmin/AttendanceGovernance";
 import FinancialOversight from "./pages/superadmin/FinancialOversight";
+import SuperAdminFees from "./pages/superadmin/Fees";
 import Settings from "./pages/Settings";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
@@ -58,6 +59,7 @@ import StudentProfile from "./pages/teacher/StudentProfile";
 import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
 import GradeSpreadsheet from "./pages/GradeSpreadsheet";
 import AttendanceChecklist from "./pages/AttendanceChecklist";
+import TeacherNotifications from "./pages/teacher/TeacherNotifications";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -75,6 +77,7 @@ import ParentAcademics from "./pages/parent/ParentAcademics";
 import ParentAttendance from "./pages/parent/ParentAttendance";
 import ParentFinance from "./pages/parent/ParentFinance";
 import ParentPayment from "./pages/parent/ParentPayment";
+import ParentNotifications from "./pages/parent/ParentNotifications";
 
 function App() {
   return (
@@ -168,6 +171,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["SuperAdmin"]}>
                 <SystemNotifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/super-admin/fees"
+            element={
+              <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                <SuperAdminFees />
               </ProtectedRoute>
             }
           />
@@ -417,6 +428,14 @@ function App() {
             }
           />
           <Route
+            path="/teacher/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                <TeacherNotifications />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="/teacher/grades"
             element={
               <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
@@ -540,6 +559,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
                 <ParentAttendance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/parent/notifications"
+            element={
+              <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                <ParentNotifications />
               </ProtectedRoute>
             }
           />

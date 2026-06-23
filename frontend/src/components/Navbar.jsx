@@ -129,7 +129,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
           { to: '/report-cards-admin', label: 'Report Cards' },
         ]
       : []),
-    ...(user.role === 'SuperAdmin' ? [{ to: '/settings', label: 'Settings' }] : []),
+    ...(user.role === 'SuperAdmin' ? [{ to: '/settings', label: 'Settings' }, { to: '/finance/fees', label: 'Fees' }] : []),
     ...((user.role === 'Cashier' || user.role === 'Admin' || user.role === 'SuperAdmin')
       ? [
           { to: '/finance/dashboard', label: 'Finance Suite' },

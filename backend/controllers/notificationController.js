@@ -142,6 +142,156 @@ const sendParentNotifications = async (req, res) => {
   }
 };
 
+// Teacher -> Students (notify student user accounts)
+const sendStudentNotifications = async (req, res) => {
+  try {
+    const studentIds = parseStudentIds(req.body.studentIds || req.body.studentId);
+    const rawMessage = String(req.body.message || '').trim();
+    const rawTitle = String(req.body.title || '').trim();
+
+    if (!studentIds.length) return res.status(400).json({ message: 'Select at least one student.' });
+    if (!rawMessage) return res.status(400).json({ message: 'Notification message is required.' });
+
+    const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, include: { user: { select: { id: true } } } });
+    if (!students.length) return res.status(404).json({ message: 'No matching students found.' });
+
+    // Authorization: if teacher, ensure they are assigned to these students
+    if (req.user.role === 'Teacher') {
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id }, include: { assignments: { include: { class: { include: { students: { select: { id: true } } } } } } } });
+      if (!teacher) return res.status(404).json({ message: 'Teacher profile not found.' });
+
+      const allowed = new Set();
+      teacher.assignments.forEach((a) => (a.class?.students || []).forEach((s) => allowed.add(s.id)));
+      const unauthorized = students.some((s) => !allowed.has(s.id));
+      if (unauthorized) return res.status(403).json({ message: 'You can only notify students assigned to you.' });
+    }
+
+    const title = rawTitle || 'Message from school';
+    const senderLabel = await getSenderLabel(req.user._id, req.user.role);
+    const studentLabel = students.length > 1 ? `Students: ${students.map((s) => s.user?.id || s.id).join(', ')}` : `Student: ${students[0].user?.id || students[0].id}`;
+    const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
+
+    await prisma.notification.createMany({ data: students.map((s) => ({ userId: s.user?.id || null, title, message: notificationMessage, type: 'StudentMessage' })).filter(d => d.userId) });
+
+    res.status(201).json({ message: `Notification sent to ${students.length} student account${students.length === 1 ? '' : 's'}.`, recipients: students.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Teacher -> Both (students + parents)
+const sendBothNotifications = async (req, res) => {
+  try {
+    const studentIds = parseStudentIds(req.body.studentIds || req.body.studentId);
+    const rawMessage = String(req.body.message || '').trim();
+    const rawTitle = String(req.body.title || '').trim();
+
+    if (!studentIds.length) return res.status(400).json({ message: 'Select at least one student.' });
+    if (!rawMessage) return res.status(400).json({ message: 'Notification message is required.' });
+
+    const students = await prisma.student.findMany({ where: { id: { in: studentIds } }, include: { user: { select: { id: true, name: true } }, guardians: { include: { user: { select: { id: true } } } } } });
+    if (!students.length) return res.status(404).json({ message: 'No matching students found.' });
+
+    if (req.user.role === 'Teacher') {
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id }, include: { assignments: { include: { class: { include: { students: { select: { id: true } } } } } } } });
+      if (!teacher) return res.status(404).json({ message: 'Teacher profile not found.' });
+      const allowed = new Set();
+      teacher.assignments.forEach((a) => (a.class?.students || []).forEach((s) => allowed.add(s.id)));
+      const unauthorized = students.some((s) => !allowed.has(s.id));
+      if (unauthorized) return res.status(403).json({ message: 'You can only notify students assigned to you.' });
+    }
+
+    const recipients = new Map();
+    students.forEach((student) => {
+      // student user
+      if (student.user?.id) recipients.set(student.user.id, { userId: student.user.id, type: 'Student' });
+      // parents
+      (student.guardians || []).forEach((g) => { if (g.user?.id) recipients.set(g.user.id, { userId: g.user.id, type: 'Parent' }); });
+    });
+
+    if (recipients.size === 0) return res.status(404).json({ message: 'No recipient user accounts found.' });
+
+    const title = rawTitle || 'Message from school';
+    const senderLabel = await getSenderLabel(req.user._id, req.user.role);
+    const studentLabel = students.length > 1 ? `Students: ${students.map((s) => s.user?.name || 'Student').join(', ')}` : `Student: ${students[0].user?.name || 'Student'}`;
+    const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
+
+    await prisma.notification.createMany({ data: Array.from(recipients.values()).map((r) => ({ userId: r.userId, title, message: notificationMessage, type: 'Combined' })) });
+
+    res.status(201).json({ message: `Notification sent to ${recipients.size} user(s).`, recipients: recipients.size });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Parent -> Teacher(s)
+const getTeachersForStudent = async (req, res) => {
+  try {
+    const studentId = String(req.query.studentId || '').trim();
+    if (!studentId) return res.status(400).json({ message: 'studentId is required' });
+
+    // Find teacher assignments that include this student
+    const assignments = await prisma.teacherAssignment.findMany({ include: { teacher: { include: { user: { select: { id: true, name: true, email: true } } } }, class: { include: { students: { select: { id: true } } } } } });
+    const teachers = [];
+    assignments.forEach((a) => {
+      const studentInClass = (a.class?.students || []).some((s) => s.id === studentId);
+      if (studentInClass && a.teacher) teachers.push({ id: a.teacher.id, user: a.teacher.user });
+    });
+
+    const unique = Array.from(new Map(teachers.map(t => [t.id, t])).values());
+    res.status(200).json(unique);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const sendParentToTeachers = async (req, res) => {
+  try {
+    const studentId = String(req.body.studentId || '').trim();
+    const teacherIds = Array.isArray(req.body.teacherIds) ? req.body.teacherIds : (req.body.teacherId ? [req.body.teacherId] : []);
+    const rawMessage = String(req.body.message || '').trim();
+    const rawTitle = String(req.body.title || '').trim();
+
+    if (!studentId) return res.status(400).json({ message: 'studentId is required' });
+    if (!rawMessage) return res.status(400).json({ message: 'Message is required' });
+
+    // Ensure parent owns the student (unless SuperAdmin)
+    if (req.user.role === 'Parent') {
+      const parent = await prisma.parent.findUnique({ where: { userId: req.user._id }, include: { children: { select: { id: true } } } });
+      if (!parent) return res.status(404).json({ message: 'Parent profile not found.' });
+      const owns = (parent.children || []).some((c) => c.id === studentId);
+      if (!owns) return res.status(403).json({ message: 'You can only message teachers assigned to your child.' });
+    }
+
+    // If teacherIds not supplied, resolve all teachers for that student
+    let targetTeacherIds = teacherIds;
+    if (!targetTeacherIds.length) {
+      const assignments = await prisma.teacherAssignment.findMany({ where: {}, include: { teacher: { select: { id: true } }, class: { include: { students: { select: { id: true } } } } } });
+      const set = new Set();
+      assignments.forEach((a) => { if ((a.class?.students || []).some(s => s.id === studentId) && a.teacher) set.add(a.teacher.id); });
+      targetTeacherIds = Array.from(set);
+    }
+
+    if (!targetTeacherIds.length) return res.status(404).json({ message: 'No teachers found for the selected student.' });
+
+    // Fetch teacher user ids
+    const teachers = await prisma.teacher.findMany({ where: { id: { in: targetTeacherIds } }, include: { user: { select: { id: true } } } });
+    const recipients = teachers.map(t => t.user?.id).filter(Boolean);
+    if (!recipients.length) return res.status(404).json({ message: 'No teacher user accounts available.' });
+
+    const title = rawTitle || 'Parent Message';
+    const parentLabel = await getSenderLabel(req.user._id, req.user.role);
+    const student = await prisma.student.findUnique({ where: { id: studentId }, include: { user: { select: { name: true } } } });
+    const notificationMessage = `From: ${parentLabel}\nStudent: ${student?.user?.name || studentId}\n${rawMessage}`;
+
+    await prisma.notification.createMany({ data: recipients.map((uid) => ({ userId: uid, title, message: notificationMessage, type: 'ParentToTeacher' })) });
+
+    res.status(201).json({ message: `Notification sent to ${recipients.length} teacher(s).`, recipients: recipients.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const submitStudentRecordRequest = async (req, res) => {
   try {
     if (req.user.role !== 'Student') {
@@ -299,6 +449,10 @@ const markAsRead = async (req, res) => {
 module.exports = {
   sendNotification,
   sendParentNotifications,
+  sendStudentNotifications,
+  sendBothNotifications,
+  getTeachersForStudent,
+  sendParentToTeachers,
   submitStudentRecordRequest,
   broadcastNotification,
   getAllNotifications,

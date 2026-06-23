@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
-import CashierLayout from '../../components/CashierLayout';
-import { useContext } from 'react';
+import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 
 const etb = (n) =>
@@ -10,7 +9,7 @@ const etb = (n) =>
 
 const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
 
-export default function Fees() {
+export default function SuperAdminFees() {
   const [structures, setStructures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [grade, setGrade] = useState('');
@@ -22,6 +21,8 @@ export default function Fees() {
   const [genDueDate, setGenDueDate] = useState('');
   const [generating, setGenerating] = useState(false);
 
+  const { user } = useContext(AuthContext);
+
   const fetchStructures = async () => {
     try {
       const res = await axios.get('/fees/structures');
@@ -32,8 +33,6 @@ export default function Fees() {
       setLoading(false);
     }
   };
-
-  const { user } = useContext(AuthContext);
 
   useEffect(() => {
     fetchStructures();
@@ -88,7 +87,7 @@ export default function Fees() {
   const totalConfigured = structures.reduce((s, x) => s + Number(x.amount || 0), 0);
 
   return (
-    <CashierLayout searchPlaceholder="Search fee structures...">
+    <SuperAdminLayout pageTitle="Fees">
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Fee Structures</h1>
         <p className="text-sm text-slate-500">Configure tuition amounts billed per grade level.</p>
@@ -105,14 +104,11 @@ export default function Fees() {
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average per Grade</p>
-          <p className="mt-2 text-3xl font-black text-slate-900">
-            ETB {etb(structures.length ? totalConfigured / structures.length : 0)}
-          </p>
+          <p className="mt-2 text-3xl font-black text-slate-900">ETB {etb(structures.length ? totalConfigured / structures.length : 0)}</p>
         </div>
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.6fr]">
-        {/* Add / update form (visible to SuperAdmin only) */}
         {user?.role === 'SuperAdmin' && (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="text-xl font-bold text-slate-900">Set Grade Fee</h2>
@@ -157,7 +153,6 @@ export default function Fees() {
           </section>
         )}
 
-        {/* Existing structures */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-bold text-slate-900">Configured Grades</h2>
           <div className="overflow-x-auto">
@@ -172,9 +167,9 @@ export default function Fees() {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {loading ? (
-                  <tr><td colSpan="3" className="py-10 text-center text-slate-400">Loading…</td></tr>
+                  <tr><td colSpan="4" className="py-10 text-center text-slate-400">Loading…</td></tr>
                 ) : structures.length === 0 ? (
-                  <tr><td colSpan="3" className="py-10 text-center text-slate-400">No fee structures configured yet.</td></tr>
+                  <tr><td colSpan="4" className="py-10 text-center text-slate-400">No fee structures configured yet.</td></tr>
                 ) : (
                   structures.map((s) => (
                     <tr key={s.id || s.grade} className="text-slate-700">
@@ -205,7 +200,6 @@ export default function Fees() {
         </section>
       </div>
 
-      {/* Generate monthly invoices */}
       <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-1">
           <h2 className="text-xl font-bold text-slate-900">Generate Monthly Invoices</h2>
@@ -243,6 +237,6 @@ export default function Fees() {
           </button>
         </form>
       </section>
-    </CashierLayout>
+    </SuperAdminLayout>
   );
 }

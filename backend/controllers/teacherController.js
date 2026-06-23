@@ -2,6 +2,8 @@ const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
+const { sendTeacherCredentialsEmail } = require('../utils/emailService');
+
 const generateTeacherId = async (tx = prisma) => {
   // Derive the next ID from the highest existing teacherId rather than count(),
   // so deletions don't cause re-collisions. Zero-padding keeps lexical order
@@ -90,6 +92,18 @@ const registerTeacher = async (req, res) => {
       }
     };
 
+    // Attempt to email credentials to the teacher if email provided
+    let emailStatus = null;
+    try {
+      if (teacher.user?.email) {
+        const emailResult = await sendTeacherCredentialsEmail(teacher.user.email, teacher.user.name || 'Teacher', teacherId, plainPassword);
+        emailStatus = { email: teacher.user.email, status: 'sent', resendId: emailResult.id || null };
+      }
+    } catch (emailErr) {
+      console.error('Failed to send teacher credentials email:', emailErr);
+      emailStatus = { email: teacher.user?.email || null, status: 'failed', reason: emailErr.message };
+    }
+
     res.status(201).json({
       message: 'Teacher registered successfully',
       teacher: responseTeacher,
@@ -97,6 +111,7 @@ const registerTeacher = async (req, res) => {
         teacherId,
         password: plainPassword,
       },
+      teacherEmailStatus: emailStatus,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

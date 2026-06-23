@@ -26,6 +26,7 @@ const navItems = [
   { to: '/teacher/dashboard', label: 'Dashboard', icon: 'dashboard' },
   { to: '/teacher/classes', label: 'Assigned Classes', icon: 'classes' },
   { to: '/teacher/students', label: 'Assigned Students', icon: 'students' },
+  { to: '/teacher/notifications', label: 'Notifications', icon: 'attendance' },
   { to: '/teacher/attendance', label: 'Attendance', icon: 'attendance' },
   { to: '/teacher/grades', label: 'Grades', icon: 'grades' },
   { to: '/teacher/timetable', label: 'Timetable', icon: 'timetable' },

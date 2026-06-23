@@ -96,6 +96,7 @@ const navItems = [
   { to: '/super-admin/academic-years', label: 'Academic Years', icon: <CalendarIcon /> },
   { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
   { to: '/super-admin/financial-oversight', label: 'Financial Oversight', icon: <FinanceIcon /> },
+  { to: '/super-admin/fees', label: 'Fees', icon: <FinanceIcon /> },
   { to: '/super-admin/analytics', label: 'System Analytics', icon: <ActivityIcon /> },
   { to: '/super-admin/notifications', label: 'Notifications', icon: <BellIcon /> },
   { to: '/super-admin/audit-logs', label: 'Audit Logs', icon: <ActivityIcon /> },

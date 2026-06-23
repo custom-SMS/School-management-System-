@@ -45,6 +45,36 @@ const sendGuardianCredentialsEmail = async (guardianEmail, guardianName, student
   return response;
 };
 
+const sendTeacherCredentialsEmail = async (teacherEmail, teacherName, teacherId, password) => {
+  const fromAddress = process.env.EMAIL_FROM || 'noreply@schoolmanagement.com';
+  const response = await resend.emails.send({
+    from: fromAddress,
+    to: teacherEmail,
+    subject: `Your Teacher Account - ${teacherId}`,
+    html: `
+      <h2>Welcome to School Management System</h2>
+      <p>Dear ${teacherName},</p>
+      <p>Your teacher account has been created.</p>
+      <h3>Your Login Credentials:</h3>
+      <p>
+        <strong>Email:</strong> ${teacherEmail}<br>
+        <strong>Password:</strong> ${password}
+      </p>
+      <p>Please log in and change your password on first use.</p>
+      <p>Best regards,<br/>School Administration</p>
+    `,
+    text: `Welcome ${teacherName}\n\nYour Login Credentials:\nEmail: ${teacherEmail}\nPassword: ${password}\n\nPlease change your password on first login.`,
+  });
+
+  if (response?.error) {
+    console.error('Resend error for teacher email:', response.error);
+    throw new Error(response.error.message || 'Resend email send failed');
+  }
+
+  return response;
+};
+
 module.exports = {
   sendGuardianCredentialsEmail,
+  sendTeacherCredentialsEmail,
 };
