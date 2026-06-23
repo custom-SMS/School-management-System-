@@ -10,10 +10,12 @@ const letterFor = (p) => (p >= 90 ? 'A' : p >= 85 ? 'A-' : p >= 80 ? 'B+' : p >=
 export default function StudentDashboard() {
   const [stats, setStats] = useState(null);
   const [timetable, setTimetable] = useState([]);
+  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
     axios.get('/stats/student/me').then((r) => setStats(r.data)).catch(() => {});
     axios.get('/timetables/student/me').then((r) => setTimetable(r.data?.timetable || [])).catch(() => {});
+    axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
   }, []);
 
   const name = stats?.profile?.user?.name || 'Student';
@@ -22,6 +24,7 @@ export default function StudentDashboard() {
   const avgPct = grades.length ? grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length : 0;
   const gpa = (avgPct / 100 * 4).toFixed(2);
   const attendanceRate = stats?.attendanceRate ?? 0;
+  const passStatus = avgPct >= gradingSettings.passMark ? 'Pass' : 'Fail';
 
   const todayName = dayNames[new Date().getDay ? new Date().getDay() : 1] || 'Monday';
   const todaySlots = timetable.filter((s) => s.dayOfWeek === todayName).sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
@@ -55,13 +58,22 @@ export default function StudentDashboard() {
           </div>
         </section>
 
-        {/* GPA + attendance */}
+        {/* GPA/Pass-Fail + attendance */}
         <section className="space-y-6">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Current GPA</div>
-            <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{gpa}</div>
-            <div className="mt-3 text-xs text-slate-400">Based on {grades.length} graded item{grades.length === 1 ? '' : 's'}</div>
-          </div>
+          {gradingSettings.gpaEnabled ? (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Current GPA</div>
+              <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{gpa}</div>
+              <div className="mt-3 text-xs text-slate-400">Based on {grades.length} graded item{grades.length === 1 ? '' : 's'}</div>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average Score</div>
+              <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{avgPct.toFixed(0)}%</div>
+              <div className={`mt-3 text-xs font-semibold ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {passStatus}</div>
+              <div className="mt-1 text-xs text-slate-400">Pass mark: {gradingSettings.passMark}%</div>
+            </div>
+          )}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
             <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Attendance</div>
             <div className="mt-1 text-4xl font-black text-slate-900">{attendanceRate}%</div>

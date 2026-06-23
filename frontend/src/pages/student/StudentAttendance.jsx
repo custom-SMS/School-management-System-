@@ -23,7 +23,12 @@ export default function StudentAttendance() {
     const map = {};
     (stats?.attendance || []).forEach((a) => {
       const d = a.date ? new Date(a.date) : null;
-      if (d) map[d.toISOString().slice(0, 10)] = a.status || a.records?.[0]?.status;
+      if (d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        map[`${year}-${month}-${day}`] = a.status || a.records?.[0]?.status;
+      }
     });
     return map;
   }, [stats]);
@@ -96,7 +101,7 @@ export default function StudentAttendance() {
             {WEEKDAYS.map((d) => <div key={d} className="text-center text-xs font-bold uppercase text-slate-400">{d}</div>)}
             {cells.map((day, i) => {
               if (!day) return <div key={`e${i}`} />;
-              const key = new Date(year, month, day).toISOString().slice(0, 10);
+              const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
               const status = statusByDate[key];
               const isToday = day === today.getDate();
               return (

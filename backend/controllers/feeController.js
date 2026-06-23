@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { generateReceiptPdf } = require('../utils/receiptGenerator');
 
 const normalizeGradeKey = (grade) => {
   const number = String(grade || '').match(/\d+/)?.[0];
@@ -480,6 +481,7 @@ const getMyFees = async (req, res) => {
         status,
         latestPayment: latestPayment
           ? {
+              id: latestPayment.id,
               status: latestPayment.status,
               transactionReference: latestPayment.transactionReference,
               bankName: latestPayment.bankName
@@ -780,6 +782,63 @@ const getReceipt = async (req, res) => {
   }
 };
 
+// @desc    Download receipt as PDF
+// @route   GET /api/fees/receipts/:paymentId/pdf
+// @access  Private (Student/Parent/Cashier/Admin)
+const downloadReceiptPdf = async (req, res) => {
+  try {
+    const { paymentId } = req.params;
+    
+    const receipt = await prisma.receipt.findUnique({
+      where: { paymentId },
+      include: {
+        payment: {
+          include: {
+            fee: {
+              include: {
+                student: {
+                  include: {
+                    user: { select: { name: true } }
+                  }
+                }
+              }
+            }
+          }
+        },
+        issuedBy: { select: { name: true } }
+      }
+    });
+
+    if (!receipt) {
+      return res.status(404).json({ message: 'Receipt not found.' });
+    }
+
+    // Fetch school settings for branding
+    const settingsRows = await prisma.systemSetting.findMany({
+      where: { key: 'branding' }
+    });
+    let schoolSettings = {};
+    if (settingsRows.length > 0) {
+      schoolSettings = { branding: settingsRows[0].value };
+    }
+
+    // Generate PDF
+    const pdfBuffer = await generateReceiptPdf({
+      receipt,
+      payment: receipt.payment,
+      fee: receipt.payment.fee,
+      student: receipt.payment.fee.student,
+      issuedBy: receipt.issuedBy
+    }, schoolSettings);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename=receipt-${receipt.receiptNumber}.pdf`);
+    res.send(pdfBuffer);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   recordPayment,
   getDefaulters,
@@ -794,5 +853,6 @@ module.exports = {
   markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
-  getReceipt
+  getReceipt,
+  downloadReceiptPdf
 };

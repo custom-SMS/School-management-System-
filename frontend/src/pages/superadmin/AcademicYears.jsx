@@ -5,7 +5,14 @@ import { toast } from 'react-toastify';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 // date -> yyyy-mm-dd for <input type="date">
-const toInputDate = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
+const toInputDate = (d) => {
+  if (!d) return '';
+  const date = new Date(d);
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export default function AcademicYears() {
   const [years, setYears]         = useState([]);

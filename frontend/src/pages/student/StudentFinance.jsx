@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
+import { toast } from 'react-toastify';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
@@ -37,6 +38,25 @@ export default function StudentFinance() {
     if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
     const overdue = f.dueDate && new Date(f.dueDate) < new Date();
     return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
+  };
+
+  const handleDownloadReceipt = async (paymentId) => {
+    try {
+      const res = await axios.get(`/fees/receipts/${paymentId}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `receipt-${paymentId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Receipt downloaded.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download receipt.');
+    }
   };
 
   return (
@@ -117,6 +137,7 @@ export default function StudentFinance() {
                   <th className="py-3 pr-4 font-semibold">Date</th>
                   <th className="py-3 pr-4 font-semibold">Description</th>
                   <th className="py-3 pr-4 text-right font-semibold">Amount</th>
+                  <th className="py-3 pl-4 text-right font-semibold">Receipt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -125,9 +146,16 @@ export default function StudentFinance() {
                     <td className="py-3 pr-4">{f.paymentDate ? new Date(f.paymentDate).toLocaleDateString() : (f.dueDate ? new Date(f.dueDate).toLocaleDateString() : '—')}</td>
                     <td className="py-3 pr-4 font-semibold text-slate-900">{f.description || 'Tuition'}</td>
                     <td className="py-3 pr-4 text-right font-bold text-slate-900">{etb(f.amount)}</td>
+                    <td className="py-3 pl-4 text-right">
+                      {f.latestPayment?.id ? (
+                        <button onClick={() => handleDownloadReceipt(f.latestPayment.id)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200">
+                          Download
+                        </button>
+                      ) : <span className="text-xs text-slate-400">—</span>}
+                    </td>
                   </tr>
                 ))}
-                {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="3" className="py-8 text-center text-slate-400">No payments recorded yet.</td></tr>}
+                {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="4" className="py-8 text-center text-slate-400">No payments recorded yet.</td></tr>}
               </tbody>
             </table>
           </div>

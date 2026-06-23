@@ -14,7 +14,8 @@ const {
   markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
-  getReceipt
+  getReceipt,
+  downloadReceiptPdf
 } = require('../controllers/feeController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
@@ -44,5 +45,6 @@ router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmi
 router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPendingPayments);
 router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), verifyPayment);
 router.get('/receipts/:paymentId', verifyToken, getReceipt);
+router.get('/receipts/:paymentId/pdf', verifyToken, downloadReceiptPdf);
 
 module.exports = router;

@@ -4,7 +4,9 @@ const {
   compileReportCards,
   getReportCard,
   publishReportCards,
-  updateReportComments
+  updateReportComments,
+  setPromotionStatus,
+  getReportCardsByClass
 } = require('../controllers/reportCardController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
@@ -19,5 +21,11 @@ router.get('/:studentId/:academicYearId', verifyToken, getReportCard);
 
 // Add/update teacher comments on a report card
 router.patch('/:id/comments', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), updateReportComments);
+
+// Homeroom Teacher/Admin promote student
+router.patch('/:id/promote', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), setPromotionStatus);
+
+// Get all report cards for a class
+router.get('/class/:classId/:academicYearId', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), getReportCardsByClass);
 
 module.exports = router;

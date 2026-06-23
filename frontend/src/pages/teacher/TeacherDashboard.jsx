@@ -21,14 +21,18 @@ function StatCard({ label, value, sub, icon, alert, dark }) {
 
 export default function TeacherDashboard() {
   const [stats, setStats] = useState(null);
+  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
     axios.get('/stats/teacher/me').then((r) => setStats(r.data)).catch(() => {});
+    axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
   }, []);
 
   const name = stats?.teacher?.name || 'Teacher';
   const firstName = name.split(' ')[0];
   const avgGrade = stats?.averageGrade ?? 0;
+  const gpa = (avgGrade / 100 * 4).toFixed(2);
+  const passStatus = avgGrade >= gradingSettings.passMark ? 'Pass' : 'Fail';
   const avgAttendance = stats?.classSummaries?.length
     ? Math.round(stats.classSummaries.reduce((s, c) => s + (c.attendanceRate || 0), 0) / stats.classSummaries.length)
     : 0;
@@ -126,8 +130,15 @@ export default function TeacherDashboard() {
           <p className="text-sm text-slate-500">Across your assigned sections this semester.</p>
           <div className="mt-4 flex items-end gap-8">
             <div>
-              <div className="text-3xl font-black text-slate-900">{avgGrade}%</div>
-              <div className="text-xs font-semibold uppercase text-slate-400">GPA Avg</div>
+              <div className="text-3xl font-black text-slate-900">
+                {gradingSettings.gpaEnabled ? gpa : `${avgGrade}%`}
+              </div>
+              <div className="text-xs font-semibold uppercase text-slate-400">
+                {gradingSettings.gpaEnabled ? 'GPA Avg' : 'Avg Score'}
+              </div>
+              {!gradingSettings.gpaEnabled && (
+                <div className={`mt-1 text-xs font-semibold ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {passStatus}</div>
+              )}
             </div>
             <div>
               <div className="text-3xl font-black text-rose-600">{Math.max(0, 100 - avgGrade > 100 ? 0 : (avgGrade ? Math.round((100 - avgGrade) / 10) : 0))}%</div>

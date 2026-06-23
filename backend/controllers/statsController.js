@@ -393,6 +393,7 @@ const getTeacherPortalStats = async (req, res) => {
         gradesCount: classGrades.length,
         averageGrade,
         latestAttendanceDate: attendanceRecords[0]?.date || null,
+        isHomeroom: klass.teacherId === teacher.id
       };
     }));
 

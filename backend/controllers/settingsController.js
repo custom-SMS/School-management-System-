@@ -26,6 +26,10 @@ const DEFAULTS = {
     brandColor: '#080845',
     headerTitle: 'Institutional Excellence Dashboard',
   },
+  grading: {
+    gpaEnabled: false,
+    passMark: 50,
+  },
 };
 
 const CATEGORIES = Object.keys(DEFAULTS);
@@ -96,4 +100,25 @@ const updateSettings = async (req, res) => {
   }
 };
 
-module.exports = { getSettings, updateSettings };
+// @desc    Get public settings (grading settings for GPA toggle)
+// @route   GET /api/settings/public
+// @access  Public
+const getPublicSettings = async (req, res) => {
+  try {
+    const rows = await prisma.systemSetting.findMany({
+      where: { key: 'grading' }
+    });
+    const stored = {};
+    rows.forEach((row) => { stored[row.key] = row.value; });
+    
+    const result = {
+      grading: { ...DEFAULTS.grading, ...(stored.grading ? JSON.parse(stored.grading) : {}) }
+    };
+    
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getSettings, updateSettings, getPublicSettings };

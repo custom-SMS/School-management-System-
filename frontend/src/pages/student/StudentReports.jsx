@@ -7,24 +7,27 @@ import { downloadStudentReportPdf, downloadTranscriptCsv } from '../../utils/stu
 export default function StudentReports() {
   const [stats, setStats] = useState(null);
   const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
     axios.get('/stats/student/me').then((r) => setStats(r.data)).catch(() => {});
+    axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
   }, []);
 
   const grades = stats?.grades || [];
   const avgPct = grades.length ? grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length : 0;
   const gpa = (avgPct / 100 * 4).toFixed(2);
+  const passStatus = avgPct >= gradingSettings.passMark ? 'Pass' : 'Fail';
 
   // Group grades into a term-ish history by subject for a simple academic record.
   const history = useMemo(() => {
     return grades.slice(0, 6).map((g, i) => ({
       term: g.subject || `Record ${i + 1}`,
       level: stats?.grade || '—',
-      gpa: (Number(g.percentage || 0) / 100 * 4).toFixed(2),
-      status: Number(g.percentage || 0) >= 50 ? 'PASSED' : 'REVIEW',
+      gpa: gradingSettings.gpaEnabled ? (Number(g.percentage || 0) / 100 * 4).toFixed(2) : `${Number(g.percentage || 0).toFixed(0)}%`,
+      status: Number(g.percentage || 0) >= gradingSettings.passMark ? 'PASSED' : 'REVIEW',
     }));
-  }, [grades, stats]);
+  }, [grades, stats, gradingSettings]);
 
   // Representative GPA progression bars (last 4 buckets) from real averages where available.
   const progression = useMemo(() => {
@@ -39,7 +42,7 @@ export default function StudentReports() {
       return;
     }
 
-    downloadTranscriptCsv(stats);
+    downloadTranscriptCsv(stats, gradingSettings);
     toast.success('Transcript exported.');
   };
 
@@ -49,7 +52,7 @@ export default function StudentReports() {
       return;
     }
 
-    downloadStudentReportPdf(stats);
+    downloadStudentReportPdf(stats, gradingSettings);
     toast.success('PDF downloaded.');
   };
 
@@ -92,17 +95,19 @@ export default function StudentReports() {
           <span className="inline-block rounded-md bg-slate-900 px-3 py-1 text-xs font-bold text-white">OFFICIAL RELEASE</span>
           <h2 className="mt-3 text-2xl font-black text-slate-900">Academic Performance Report</h2>
           <div className="mt-5 flex flex-wrap gap-10 border-t border-slate-100 pt-5">
-            <div>
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cumulative GPA</div>
-              <div className="text-3xl font-black text-slate-900">{gpa}</div>
-            </div>
+            {gradingSettings.gpaEnabled && (
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Cumulative GPA</div>
+                <div className="text-3xl font-black text-slate-900">{gpa}</div>
+              </div>
+            )}
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average Score</div>
               <div className="text-3xl font-black text-slate-900">{avgPct.toFixed(0)}%</div>
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</div>
-              <div className="text-3xl font-black text-slate-900">{avgPct >= 85 ? 'Honors' : 'Active'}</div>
+              <div className={`text-3xl font-black ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>{passStatus}</div>
             </div>
           </div>
           <div className="mt-6 flex gap-3">
@@ -157,7 +162,7 @@ export default function StudentReports() {
               <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
                 <th className="py-3 pr-4 font-semibold">Subject / Record</th>
                 <th className="py-3 pr-4 font-semibold">Grade Level</th>
-                <th className="py-3 pr-4 text-right font-semibold">GPA</th>
+                <th className="py-3 pr-4 text-right font-semibold">{gradingSettings.gpaEnabled ? 'GPA' : 'Score'}</th>
                 <th className="py-3 pr-4 font-semibold">Status</th>
               </tr>
             </thead>

@@ -9,6 +9,7 @@ export default function ReportCard() {
   const [reportCard, setReportCard] = useState(null); // { reportCard, grades }
   const [activeYear, setActiveYear] = useState(null);
   const [notice, setNotice] = useState('');
+  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
     const previousTitle = document.title;
@@ -25,6 +26,14 @@ export default function ReportCard() {
       } catch (error) {
         console.error(error);
         return;
+      }
+
+      // Fetch grading settings
+      try {
+        const settingsRes = await axios.get('/settings/public');
+        setGradingSettings(settingsRes.data?.grading || { gpaEnabled: false, passMark: 50 });
+      } catch (error) {
+        console.error(error);
       }
 
       // Determine the active academic year, then try to fetch the official compiled report card.
@@ -76,6 +85,7 @@ export default function ReportCard() {
       final: Number(marks.final ?? 0),
       totalValue: Number(grade.total ?? 0),
       percentageValue: Number(grade.percentage ?? 0),
+      passStatus: Number(grade.percentage ?? 0) >= (gradingSettings.passMark || 50) ? 'Pass' : 'Fail'
     };
   });
 
@@ -84,6 +94,8 @@ export default function ReportCard() {
     ? Math.round(normalizedGradeEntries.reduce((sum, g) => sum + g.percentageValue, 0) / normalizedGradeEntries.length)
     : 0;
   const gradeAverage = card ? Math.round(Number(card.averageScore || 0)) : computedAverage;
+  const gpa = (gradeAverage / 100 * 4).toFixed(2);
+  const passStatus = gradeAverage >= gradingSettings.passMark ? 'Pass' : 'Fail';
   const attendancePercentage = card
     ? Math.round(Number(card.attendancePercentage || 0))
     : (studentStats?.attendanceRate != null ? Math.round(Number(studentStats.attendanceRate)) : null);
@@ -174,6 +186,12 @@ export default function ReportCard() {
               <div className="print-card rounded-2xl bg-slate-50 px-4 py-4">
                 <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Average Score</div>
                 <div className="mt-1 text-lg font-bold text-slate-900">{gradeAverage}%</div>
+                <div className={`mt-1 text-xs font-semibold ${card?.promotionStatus === 'Promoted' || passStatus === 'Pass' ? 'text-emerald-600' : card?.promotionStatus === 'Conditional Promotion' ? 'text-amber-600' : 'text-rose-600'}`}>
+                  Promotion Status: {card?.promotionStatus && card?.promotionStatus !== 'Pending' ? card.promotionStatus : 'Pending Homeroom Review'}
+                </div>
+                {gradingSettings.gpaEnabled && (
+                  <div className="mt-1 text-xs font-semibold text-slate-400">GPA: {gpa}</div>
+                )}
               </div>
             </div>
 
@@ -209,6 +227,7 @@ export default function ReportCard() {
                     <th className="border border-slate-900 px-4 py-4">Final</th>
                     <th className="border border-slate-900 px-4 py-4">Total</th>
                     <th className="border border-slate-900 px-4 py-4">%</th>
+                    <th className="border border-slate-900 px-4 py-4">Status</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200 bg-white">
@@ -222,11 +241,12 @@ export default function ReportCard() {
                         <td className="border border-slate-200 px-4 py-4">{g.final}</td>
                         <td className="border border-slate-200 px-4 py-4 font-bold text-slate-900">{g.totalValue}</td>
                         <td className="border border-slate-200 px-4 py-4 font-bold text-slate-900">{g.percentageValue}%</td>
+                        <td className={`border border-slate-200 px-4 py-4 font-bold ${g.passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>{g.passStatus}</td>
                       </tr>
                     ))
                   ) : (
                     <tr>
-                      <td colSpan="7" className="border border-slate-200 px-4 py-8 text-slate-500">No grades available at this time.</td>
+                      <td colSpan="8" className="border border-slate-200 px-4 py-8 text-slate-500">No grades available at this time.</td>
                     </tr>
                   )}
                 </tbody>

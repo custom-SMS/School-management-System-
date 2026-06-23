@@ -40,6 +40,7 @@ model User {
   auditLogs               AuditLog[]
   unlockRequestsRequested AttendanceUnlockRequest[] @relation("UnlockRequester")
   unlockRequestsApproved  AttendanceUnlockRequest[] @relation("UnlockApprover")
+  promotedReportCards     ReportCard[]              @relation("PromotedBy")
 }
 
 model RolePermission {
@@ -360,8 +361,16 @@ model ReportCard {
   attendancePercentage Float
   averageScore         Float
   rank                 Int?
+  status               String       @default("Pending") // Pass, Fail, or Pending
   teacherComments      String?
   published            Boolean      @default(false)
+  
+  // Homeroom Teacher Promotion Tracking
+  promotionStatus      String       @default("Pending") // "Promoted", "Not Promoted", "Conditional Promotion", "Pending"
+  promotedById         String?
+  promotedBy           User?        @relation("PromotedBy", fields: [promotedById], references: [id])
+  promotionDate        DateTime?
+
   createdAt            DateTime     @default(now())
 
   @@unique([studentId, academicYearId])

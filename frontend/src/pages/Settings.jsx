@@ -10,6 +10,8 @@ export default function Settings() {
   const [savingAll, setSavingAll] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [unlockingId, setUnlockingId] = useState('');
+  const [gpaEnabled, setGpaEnabled] = useState(false);
+  const [passMark, setPassMark] = useState(50);
 
   // --- Image 2 Mock States (for premium interactive UI) ---
   const [activeTab, setActiveTab] = useState('Platform Branding'); // Default active tab in screenshot or we can show all / scroll
@@ -82,6 +84,10 @@ export default function Settings() {
         setInstitutionNameAm(s.branding.institutionNameAm ?? institutionNameAm);
         setBrandColor(s.branding.brandColor ?? brandColor);
         setHeaderTitle(s.branding.headerTitle ?? headerTitle);
+      }
+      if (s.grading) {
+        setGpaEnabled(s.grading.gpaEnabled ?? false);
+        setPassMark(s.grading.passMark ?? 50);
       }
     } catch (err) {
       console.error(err);
@@ -161,6 +167,10 @@ export default function Settings() {
           institutionNameAm,
           brandColor,
           headerTitle,
+        },
+        grading: {
+          gpaEnabled,
+          passMark,
         },
       });
       toast.success('Settings saved successfully.');
@@ -464,6 +474,34 @@ export default function Settings() {
                     <h3 className="text-lg font-bold text-slate-900">Grading Structure</h3>
                   </div>
                   <p className="text-xs text-slate-500 mb-6">Each component is scored out of 100 and combined using these weights. They must sum to 100%.</p>
+
+                  {/* GPA Toggle and Pass Mark */}
+                  <div className="mb-6 grid md:grid-cols-2 gap-6">
+                    <div className="bg-slate-50 rounded-2xl p-5 flex items-center justify-between border border-slate-150">
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-bold text-slate-900">Enable GPA Calculation</h4>
+                        <p className="text-xs text-slate-500">Show GPA as a secondary metric alongside average percentage.</p>
+                      </div>
+                      <button 
+                        onClick={() => setGpaEnabled(!gpaEnabled)} 
+                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${gpaEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${gpaEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Pass Mark (%)</label>
+                      <input 
+                        type="number" 
+                        min="0" 
+                        max="100" 
+                        value={passMark} 
+                        onChange={(e) => setPassMark(Number(e.target.value))}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                      />
+                      <p className="text-xs text-slate-400">Minimum percentage required to pass. Used for Pass/Fail status on report cards.</p>
+                    </div>
+                  </div>
                   
                   <form onSubmit={handleSaveWeights} className="grid sm:grid-cols-2 gap-5">
                     {[

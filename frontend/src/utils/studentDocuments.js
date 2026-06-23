@@ -17,11 +17,13 @@ const downloadBlob = (content, filename, type) => {
 
 const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
-export const buildAcademicSummary = (stats) => {
+export const buildAcademicSummary = (stats, gradingSettings = { gpaEnabled: false, passMark: 50 }) => {
   const grades = stats?.grades || [];
   const average = grades.length
     ? grades.reduce((sum, grade) => sum + Number(grade.percentage || 0), 0) / grades.length
     : 0;
+  const gpa = (average / 100 * 4).toFixed(2);
+  const passStatus = average >= gradingSettings.passMark ? 'Pass' : 'Fail';
 
   return {
     studentName: stats?.profile?.user?.name || 'Student',
@@ -29,19 +31,29 @@ export const buildAcademicSummary = (stats) => {
     gradeLevel: stats?.grade || '',
     grades,
     average,
-    gpa: (average / 100 * 4).toFixed(2),
+    gpa,
+    passStatus,
     attendanceRate: stats?.attendanceRate ?? 0,
+    gradingSettings,
   };
 };
 
-export const downloadTranscriptCsv = (stats) => {
-  const summary = buildAcademicSummary(stats);
+export const downloadTranscriptCsv = (stats, gradingSettings = { gpaEnabled: false, passMark: 50 }) => {
+  const summary = buildAcademicSummary(stats, gradingSettings);
   const rows = [
     ['Student Name', summary.studentName],
     ['Student ID', summary.studentId],
     ['Grade Level', summary.gradeLevel],
-    ['Cumulative GPA', summary.gpa],
+  ];
+  
+  if (gradingSettings.gpaEnabled) {
+    rows.push(['Cumulative GPA', summary.gpa]);
+  }
+  
+  rows.push(
     ['Average Score', `${summary.average.toFixed(2)}%`],
+    ['Status', summary.passStatus],
+    ['Pass Mark', `${gradingSettings.passMark}%`],
     [],
     ['Subject', 'Quiz', 'Assignment', 'Test', 'Midterm', 'Final', 'Total', 'Percentage', 'Comments'],
     ...summary.grades.map((grade) => [
@@ -55,21 +67,29 @@ export const downloadTranscriptCsv = (stats) => {
       `${Number(grade.percentage || 0).toFixed(2)}%`,
       grade.comments || '',
     ]),
-  ];
+  );
 
   const csv = rows.map((row) => row.map(csvCell).join(',')).join('\n');
   downloadBlob(csv, `transcript-${summary.studentId || 'student'}.csv`, 'text/csv;charset=utf-8');
 };
 
-export const downloadStudentReportPdf = (stats) => {
-  const summary = buildAcademicSummary(stats);
+export const downloadStudentReportPdf = (stats, gradingSettings = { gpaEnabled: false, passMark: 50 }) => {
+  const summary = buildAcademicSummary(stats, gradingSettings);
   const lines = [
     'Official Academic Performance Report',
     `Student: ${summary.studentName}`,
     `Student ID: ${summary.studentId || '-'}`,
     `Grade Level: ${summary.gradeLevel || '-'}`,
-    `Cumulative GPA: ${summary.gpa}`,
+  ];
+  
+  if (gradingSettings.gpaEnabled) {
+    lines.push(`Cumulative GPA: ${summary.gpa}`);
+  }
+  
+  lines.push(
     `Average Score: ${summary.average.toFixed(2)}%`,
+    `Status: ${summary.passStatus}`,
+    `Pass Mark: ${gradingSettings.passMark}%`,
     `Attendance Rate: ${summary.attendanceRate}%`,
     '',
     'Subject Records',
@@ -80,7 +100,7 @@ export const downloadStudentReportPdf = (stats) => {
     ),
     '',
     `Generated: ${new Date().toLocaleString()}`,
-  ];
+  );
 
   const contentLines = lines.slice(0, 42);
   const textCommands = contentLines

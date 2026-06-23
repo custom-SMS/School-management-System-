@@ -11,12 +11,14 @@ export default function StudentProfile() {
   const [loading, setLoading] = useState(true);
   const [note, setNote] = useState('');
   const [notifyingParent, setNotifyingParent] = useState(false);
+  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
     setLoading(true);
     Promise.all([
       axios.get('/students').then((r) => (r.data || []).find((s) => (s._id || s.id) === studentId) || null).catch(() => null),
       axios.get(`/students/${studentId}/performance`).then((r) => r.data).catch(() => null),
+      axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {}),
     ])
       .then(([found, performance]) => {
         setStudent(found || (performance?.student ? { ...performance.student, user: { name: performance.student.name, email: performance.student.email } } : null));
@@ -31,6 +33,9 @@ export default function StudentProfile() {
     [perf],
   );
   const attendanceCalendar = perf?.attendanceCalendar || [];
+  const studentAverage = perf?.studentAverage ?? 0;
+  const gpa = (studentAverage / 100 * 4).toFixed(2);
+  const passStatus = studentAverage >= gradingSettings.passMark ? 'Pass' : 'Fail';
 
   const name = student?.user?.name || perf?.student?.name || 'Student';
   const initials = name.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase();
@@ -98,9 +103,18 @@ export default function StudentProfile() {
       {/* KPIs */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-xs font-semibold uppercase text-slate-400">Current GPA</div>
-          <div className="mt-1 text-3xl font-black text-slate-900">{perf ? perf.gpa.toFixed(2) : '—'}</div>
-          <div className="mt-1 text-xs font-semibold text-slate-400">Average {perf?.studentAverage ?? 0}% · 4.0 scale</div>
+          <div className="text-xs font-semibold uppercase text-slate-400">
+            {gradingSettings.gpaEnabled ? 'Current GPA' : 'Average Score'}
+          </div>
+          <div className="mt-1 text-3xl font-black text-slate-900">
+            {gradingSettings.gpaEnabled ? (perf ? perf.gpa.toFixed(2) : '—') : `${studentAverage}%`}
+          </div>
+          {!gradingSettings.gpaEnabled && (
+            <div className={`mt-1 text-xs font-semibold ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {passStatus}</div>
+          )}
+          <div className="mt-1 text-xs font-semibold text-slate-400">
+            {gradingSettings.gpaEnabled ? `Average ${studentAverage}% · 4.0 scale` : `Pass mark: ${gradingSettings.passMark}%`}
+          </div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs font-semibold uppercase text-slate-400">Attendance %</div>

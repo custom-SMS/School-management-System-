@@ -19,6 +19,9 @@ export default function StudentFees() {
   const [txnRef, setTxnRef] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Receipt modal state
+  const [viewingReceipt, setViewingReceipt] = useState(null);
+
   // Parents need to pick a child first.
   useEffect(() => {
     if (!isParent) return;
@@ -66,7 +69,7 @@ export default function StudentFees() {
     setSubmitting(true);
     try {
       await axios.post('/fees/bank-pay', {
-        feeId: payingFee._id,
+        feeId: payingFee.id,
         amount: payingFee.amount,
         transactionReference: txnRef.trim(),
         bankName: bankName.trim(),
@@ -78,6 +81,34 @@ export default function StudentFees() {
       toast.error(err.response?.data?.message || 'Failed to submit payment.');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleViewReceipt = async (paymentId) => {
+    try {
+      const res = await axios.get(`/fees/receipts/${paymentId}`);
+      setViewingReceipt(res.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load receipt.');
+    }
+  };
+
+  const handleDownloadReceipt = async (paymentId) => {
+    try {
+      const res = await axios.get(`/fees/receipts/${paymentId}/pdf`, {
+        responseType: 'blob'
+      });
+      const url = window.URL.createObjectURL(new Blob([res.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `receipt-${paymentId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.success('Receipt downloaded.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to download receipt.');
     }
   };
 
@@ -142,13 +173,22 @@ export default function StudentFees() {
                 {loading ? (
                   <tr><td colSpan="5" className="px-4 py-8 text-center text-slate-500">Loading…</td></tr>
                 ) : fees.map((f) => (
-                  <tr key={f._id} className="hover:bg-slate-50">
+                  <tr key={f.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">{f.description}</td>
                     <td className="px-4 py-3 text-slate-600">{f.month}</td>
                     <td className="px-4 py-3 font-semibold text-slate-900">ETB {f.amount}</td>
                     <td className="px-4 py-3"><span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(f.status)}`}>{f.status}</span></td>
                     <td className="px-4 py-3 text-right">
-                      {!f.paid && f.status !== 'Pending Verification' ? (
+                      {f.paid && f.payments?.[0]?.id ? (
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => handleViewReceipt(f.payments[0].id)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-200">
+                            View Receipt
+                          </button>
+                          <button onClick={() => handleDownloadReceipt(f.payments[0].id)} className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white hover:bg-emerald-700">
+                            Download
+                          </button>
+                        </div>
+                      ) : !f.paid && f.status !== 'Pending Verification' ? (
                         <button onClick={() => openPayment(f)} className="rounded-full bg-emerald-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">
                           Pay via Bank
                         </button>
@@ -189,6 +229,52 @@ export default function StudentFees() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Receipt modal */}
+      {viewingReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 px-4">
+          <div className="w-full max-w-lg rounded-3xl border border-white/60 bg-white p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xl font-bold text-slate-900">Payment Receipt</h3>
+              <button onClick={() => setViewingReceipt(null)} className="text-slate-400 hover:text-slate-600">✕</button>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Receipt Number:</span>
+                <span className="text-sm font-semibold text-slate-900">{viewingReceipt.receiptNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Student:</span>
+                <span className="text-sm font-semibold text-slate-900">{viewingReceipt.payment?.fee?.student?.user?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Amount:</span>
+                <span className="text-sm font-semibold text-slate-900">ETB {viewingReceipt.payment?.amount}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Payment Method:</span>
+                <span className="text-sm font-semibold text-slate-900">{viewingReceipt.payment?.bankName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Date:</span>
+                <span className="text-sm font-semibold text-slate-900">{new Date(viewingReceipt.payment?.paymentDate).toLocaleDateString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-slate-600">Processed By:</span>
+                <span className="text-sm font-semibold text-slate-900">{viewingReceipt.issuedBy?.name}</span>
+              </div>
+            </div>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => handleDownloadReceipt(viewingReceipt.paymentId)} className="flex-1 rounded-2xl bg-emerald-600 px-4 py-2.5 font-semibold text-white hover:bg-emerald-700">
+                Download PDF
+              </button>
+              <button onClick={() => setViewingReceipt(null)} className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-2.5 font-semibold text-slate-700 hover:bg-slate-50">
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

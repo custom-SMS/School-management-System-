@@ -31,6 +31,16 @@ const compileReportCards = async (req, res) => {
       return res.status(400).json({ message: 'No student enrollments found for this academic year.' });
     }
 
+    // Fetch grading settings for pass mark
+    const settingsRows = await prisma.systemSetting.findMany({
+      where: { key: 'grading' }
+    });
+    let passMark = 50; // default
+    if (settingsRows.length > 0) {
+      const gradingSettings = JSON.parse(settingsRows[0].value);
+      passMark = gradingSettings.passMark || 50;
+    }
+
     const compiledData = [];
 
     for (const enrollment of enrollments) {
@@ -66,7 +76,8 @@ const compileReportCards = async (req, res) => {
         studentId,
         gradeLevel: enrollment.grade,
         averageScore: Number(avgScore.toFixed(2)),
-        attendancePercentage: Number(attPercentage.toFixed(2))
+        attendancePercentage: Number(attPercentage.toFixed(2)),
+        status: avgScore >= passMark ? 'Pass' : 'Fail'
       });
     }
 
@@ -102,7 +113,8 @@ const compileReportCards = async (req, res) => {
             grade: data.gradeLevel,
             attendancePercentage: data.attendancePercentage,
             averageScore: data.averageScore,
-            rank: data.rank
+            rank: data.rank,
+            status: data.status
           },
           create: {
             studentId: data.studentId,
@@ -111,6 +123,7 @@ const compileReportCards = async (req, res) => {
             attendancePercentage: data.attendancePercentage,
             averageScore: data.averageScore,
             rank: data.rank,
+            status: data.status,
             published: false
           }
         })
@@ -257,9 +270,117 @@ const updateReportComments = async (req, res) => {
   }
 };
 
+// Homeroom Teacher or Admin sets promotion status
+const setPromotionStatus = async (req, res) => {
+  try {
+    const { id } = req.params; // Report Card ID
+    const { promotionStatus } = req.body;
+
+    if (!['Promoted', 'Not Promoted', 'Conditional Promotion', 'Pending'].includes(promotionStatus)) {
+      return res.status(400).json({ message: 'Invalid promotion status.' });
+    }
+
+    const reportCard = await prisma.reportCard.findUnique({
+      where: { id },
+      include: {
+        student: {
+          include: {
+            classes: true
+          }
+        }
+      }
+    });
+
+    if (!reportCard) {
+      return res.status(404).json({ message: 'Report card not found.' });
+    }
+
+    // Permission check: Must be SuperAdmin/Admin or Homeroom Teacher
+    let isAuthorized = false;
+    if (['SuperAdmin', 'Admin'].includes(req.user.role)) {
+      isAuthorized = true;
+    } else if (req.user.role === 'Teacher') {
+      const teacherProfile = await prisma.teacher.findUnique({
+        where: { userId: req.user._id || req.user.id }
+      });
+      if (teacherProfile) {
+        // Check if teacher is assigned to any of the student's classes
+        const studentClasses = reportCard.student.classes.map(c => c.id);
+        const homeroomClass = await prisma.class.findFirst({
+          where: {
+            id: { in: studentClasses },
+            teacherId: teacherProfile.id
+          }
+        });
+        if (homeroomClass) {
+          isAuthorized = true;
+        }
+      }
+    }
+
+    if (!isAuthorized) {
+      return res.status(403).json({ message: 'Only the assigned Homeroom Teacher or Administrator can set the promotion status.' });
+    }
+
+    const updatedCard = await prisma.reportCard.update({
+      where: { id },
+      data: {
+        promotionStatus,
+        promotedById: req.user._id || req.user.id,
+        promotionDate: new Date()
+      }
+    });
+
+    await logActivity(req.user._id || req.user.id, 'Set Promotion Status', id, `Set promotion status to ${promotionStatus} for report card: ${id}`);
+
+    res.status(200).json(updatedCard);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// Get all report cards for a class (for Homeroom Teachers)
+const getReportCardsByClass = async (req, res) => {
+  try {
+    const { classId, academicYearId } = req.params;
+    
+    // Find students in this class
+    const classData = await prisma.class.findUnique({
+      where: { id: classId },
+      include: {
+        students: true
+      }
+    });
+
+    if (!classData) return res.status(404).json({ message: 'Class not found' });
+
+    const studentIds = classData.students.map(s => s.id);
+
+    const reportCards = await prisma.reportCard.findMany({
+      where: {
+        academicYearId,
+        studentId: { in: studentIds }
+      },
+      include: {
+        student: {
+          include: {
+            user: { select: { name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    res.status(200).json(reportCards);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   compileReportCards,
   getReportCard,
   publishReportCards,
-  updateReportComments
+  updateReportComments,
+  setPromotionStatus,
+  getReportCardsByClass
 };
