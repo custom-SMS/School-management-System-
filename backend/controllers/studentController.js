@@ -553,19 +553,41 @@ const getStudents = async (req, res) => {
       return res.status(200).json(responseStudents);
     }
 
-    const students = await prisma.student.findMany({
-      include: {
-        user: { select: { id: true, name: true, email: true } },
-        guardians: true,
-        fees: true,
-        enrollments: {
-          include: {
-            academicYear: true
-          },
-          orderBy: { createdAt: 'desc' }
+    const { page = 1, limit = 50, grade, search } = req.query;
+    const skip = (Number(page) - 1) * Number(limit);
+
+    const whereClause = {
+      ...(grade && { grade }),
+      ...(search && {
+        user: {
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } }
+          ]
         }
-      }
-    });
+      })
+    };
+
+    const [students, total] = await Promise.all([
+      prisma.student.findMany({
+        where: whereClause,
+        include: {
+          user: { select: { id: true, name: true, email: true } },
+          guardians: true,
+          enrollments: {
+            include: {
+              academicYear: true
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1 // Only latest enrollment
+          }
+        },
+        skip,
+        take: Number(limit),
+        orderBy: { enrollmentDate: 'desc' }
+      }),
+      prisma.student.count({ where: whereClause })
+    ]);
 
     const responseStudents = students.map(student => ({
       ...student,
@@ -577,7 +599,15 @@ const getStudents = async (req, res) => {
       }))
     }));
 
-    res.status(200).json(responseStudents);
+    res.status(200).json({
+      students: responseStudents,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        totalPages: Math.ceil(total / Number(limit))
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

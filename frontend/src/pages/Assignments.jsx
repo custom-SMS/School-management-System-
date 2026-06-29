@@ -14,6 +14,7 @@ export default function Assignments() {
   const [classIds, setClassIds] = useState([]);
   const [specificClassNames, setSpecificClassNames] = useState([]);
   const [notes, setNotes] = useState('');
+  const [assignmentType, setAssignmentType] = useState('SubjectTeacher');
   const [existingClassesOpen, setExistingClassesOpen] = useState(false);
   const [specificClassesOpen, setSpecificClassesOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -36,16 +37,33 @@ export default function Assignments() {
     String(a.name || '').localeCompare(String(b.name || ''), undefined, { numeric: true, sensitivity: 'base' })
   );
 
-  const toggleClass = (id) => setClassIds((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id]);
-  const toggleSpecificClass = (name) => setSpecificClassNames((c) => c.includes(name) ? c.filter((x) => x !== name) : [...c, name]);
+  const toggleClass = (id) => {
+    if (assignmentType === 'HomeRoomTeacher') {
+      // For HomeRoomTeacher, only allow one class selection
+      setClassIds(classIds.includes(id) ? [] : [id]);
+    } else {
+      // For SubjectTeacher, allow multiple selections
+      setClassIds((c) => c.includes(id) ? c.filter((x) => x !== id) : [...c, id]);
+    }
+  };
+  
+  const toggleSpecificClass = (name) => {
+    if (assignmentType === 'HomeRoomTeacher') {
+      // For HomeRoomTeacher, only allow one class level selection
+      setSpecificClassNames(specificClassNames.includes(name) ? [] : [name]);
+    } else {
+      // For SubjectTeacher, allow multiple selections
+      setSpecificClassNames((c) => c.includes(name) ? c.filter((x) => x !== name) : [...c, name]);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await axios.post('/assignments', { teacherId, classIds, specificClassNames, notes });
+      await axios.post('/assignments', { teacherId, classIds, specificClassNames, notes, assignmentType });
       toast.success('Teacher assigned to selected class(es) successfully.');
-      setTeacherId(''); setClassIds([]); setSpecificClassNames([]); setNotes('');
+      setTeacherId(''); setClassIds([]); setSpecificClassNames([]); setNotes(''); setAssignmentType('SubjectTeacher');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save teacher assignment');
     } finally {
@@ -83,6 +101,51 @@ export default function Assignments() {
                   <option key={t._id} value={t._id}>{t.user?.name} ({t.teacherId}) — {t.subject || 'General'}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Assignment Type */}
+            <div>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">Assignment Type</label>
+              <div className="space-y-2">
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 transition hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="assignmentType"
+                    value="SubjectTeacher"
+                    checked={assignmentType === 'SubjectTeacher'}
+                    onChange={(e) => setAssignmentType(e.target.value)}
+                    className="h-4 w-4 border-gray-300"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-900">Subject Teacher</div>
+                    <div className="text-xs text-gray-500">Access only to assigned classes and subjects</div>
+                  </div>
+                </label>
+                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 transition hover:bg-gray-50">
+                  <input
+                    type="radio"
+                    name="assignmentType"
+                    value="HomeRoomTeacher"
+                    checked={assignmentType === 'HomeRoomTeacher'}
+                    onChange={(e) => {
+                      setAssignmentType(e.target.value);
+                      // Clear multiple selections when switching to HomeRoomTeacher
+                      if (classIds.length > 1) setClassIds([classIds[0]]);
+                      if (specificClassNames.length > 1) setSpecificClassNames([specificClassNames[0]]);
+                    }}
+                    className="h-4 w-4 border-gray-300"
+                  />
+                  <div>
+                    <div className="font-semibold text-gray-900">Home Room Teacher</div>
+                    <div className="text-xs text-gray-500">Full access to all class data (one class only)</div>
+                  </div>
+                </label>
+              </div>
+              {assignmentType === 'HomeRoomTeacher' && (
+                <div className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  ⚠️ Home Room Teacher can only be assigned to one class at a time. Selecting a new class will replace the existing assignment.
+                </div>
+              )}
             </div>
 
             {/* Existing Classes */}
@@ -227,10 +290,17 @@ export default function Assignments() {
 
           {/* Info Card */}
           <div className="rounded-xl bg-black p-6 text-white">
-            <h3 className="mb-2 font-bold">How Assignments Work</h3>
-            <p className="text-sm text-gray-400 leading-relaxed">
-              When a teacher is assigned to a class, they gain access to the class roster, grade entry, and attendance marking for that class. Students enrolled in those classes can view their records through the student portal.
-            </p>
+            <h3 className="mb-2 font-bold">Assignment Types</h3>
+            <div className="space-y-3 text-sm text-gray-400">
+              <div>
+                <div className="font-semibold text-white">Subject Teacher</div>
+                <p>Access only to assigned classes and subjects they teach. Can enter grades and mark attendance for their specific subjects.</p>
+              </div>
+              <div>
+                <div className="font-semibold text-white">Home Room Teacher</div>
+                <p>Full access to all class data including attendance, grades, behavior, announcements, and reports for the assigned class regardless of subject.</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

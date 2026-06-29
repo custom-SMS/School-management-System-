@@ -111,7 +111,8 @@ export default function Students() {
     setLoading(true);
     try {
       const studentsRes = await axios.get('/students');
-      const allStudents = studentsRes.data || [];
+      const payload = studentsRes.data;
+      const allStudents = Array.isArray(payload) ? payload : (payload?.students || []);
       setStudents(allStudents);
       const derivedClasses = Array.from(
         new Map(
@@ -138,13 +139,22 @@ export default function Students() {
   , [classes]);
 
   // Pre-compute derived status once per student so cards, filters and rows agree.
-  const enrichedStudents = useMemo(() =>
-    students.map((student) => {
-      const financial = getFinancialStatus(student);
-      const account = getAccountStatus(student, financial);
-      return { ...student, _financial: financial, _account: account };
-    })
-  , [students]);
+ const enrichedStudents = useMemo(() => {
+  if (!Array.isArray(students)) {
+    return [];
+  }
+
+  return students.map((student) => {
+    const financial = getFinancialStatus(student);
+    const account = getAccountStatus(student, financial);
+
+    return {
+      ...student,
+      _financial: financial,
+      _account: account,
+    };
+  });
+}, [students]);
 
   const filteredStudents = useMemo(() => {
     const term = normalizeLabel(searchTerm);

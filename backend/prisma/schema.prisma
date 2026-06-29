@@ -207,21 +207,27 @@ model AttendanceRecord {
   status       String     // "Present", "Absent", "Late"
 }
 
+enum AssignmentType {
+  SubjectTeacher
+  HomeRoomTeacher
+}
+
 model TeacherAssignment {
-  id         String    @id @default(uuid())
-  teacherId  String
-  teacher    Teacher   @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  classId    String?
-  class      Class?    @relation(fields: [classId], references: [id])
-  subjectId  String?
-  subject    Subject?  @relation(fields: [subjectId], references: [id])
-  notes      String?
-  assignedBy User      @relation("AssignedBy", fields: [assignedById], references: [id])
-  assignedById String
-  createdAt  DateTime  @default(now())
+  id            String          @id @default(uuid())
+  teacherId     String
+  teacher       Teacher         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classId       String?
+  class         Class?          @relation(fields: [classId], references: [id])
+  subjectId     String?
+  subject       Subject?        @relation(fields: [subjectId], references: [id])
+  assignmentType AssignmentType @default(SubjectTeacher)
+  notes         String?
+  assignedBy    User            @relation("AssignedBy", fields: [assignedById], references: [id])
+  assignedById  String
+  createdAt     DateTime        @default(now())
 
   // Relations
-  students   Student[] @relation("TeacherAssignmentStudents")
+  students      Student[]       @relation("TeacherAssignmentStudents")
 }
 
 model GradingStructure {

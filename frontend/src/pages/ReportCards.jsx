@@ -20,7 +20,10 @@ export default function ReportCards() {
       if (active) setSelectedYear(active.id);
     }).catch((err) => console.error(err));
 
-    axios.get('/students').then((res) => setStudents(res.data || [])).catch((err) => console.error(err));
+    axios.get('/students').then((res) => {
+      const payload = res.data;
+      setStudents(Array.isArray(payload) ? payload : (payload?.students || []));
+    }).catch((err) => console.error(err));
   }, []);
 
   const handleCompile = async () => {

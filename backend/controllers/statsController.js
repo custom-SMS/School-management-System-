@@ -75,11 +75,19 @@ const getAdminStats = async (req, res) => {
       });
     });
     
-    // Group attendance records by class in memory
+    // Group attendance records by class in memory - only last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
     const attendancesAll = await prisma.attendance.findMany({
+      where: {
+        date: { gte: thirtyDaysAgo }
+      },
       include: {
         records: true
-      }
+      },
+      orderBy: { date: 'desc' },
+      take: 500 // Limit to recent 500 attendance sessions
     });
 
     const classAttendanceMap = new Map();
@@ -356,43 +364,46 @@ const getTeacherPortalStats = async (req, res) => {
     );
 
     const classSummaries = await Promise.all(classes.map(async (klass) => {
-      const attendanceRecords = await prisma.attendance.findMany({
-        where: { classId: klass.id },
-        include: { records: true },
-        orderBy: { date: 'desc' }
+      // Single query for attendance with aggregation
+      const attendanceAgg = await prisma.attendanceRecord.groupBy({
+        by: ['status'],
+        where: {
+          attendance: { classId: klass.id }
+        },
+        _count: true
       });
+      
+      const attendanceTotal = attendanceAgg.reduce((sum, item) => sum + item._count, 0);
+      const attendancePresent = attendanceAgg.find(item => item.status === 'Present')?._count || 0;
 
-      const classGrades = await prisma.grade.findMany({
+      // Single query for grades with aggregation
+      const gradesAgg = await prisma.grade.aggregate({
         where: { classId: klass.id, teacherId: req.user._id },
-        orderBy: { createdAt: 'desc' }
+        _avg: { percentage: true },
+        _count: true
       });
 
-      let attendanceTotal = 0;
-      let attendancePresent = 0;
-
-      attendanceRecords.forEach((record) => {
-        (record.records || []).forEach((entry) => {
-          attendanceTotal += 1;
-          if (entry.status === 'Present') {
-            attendancePresent += 1;
-          }
-        });
-      });
-
-      const averageGrade = classGrades.length > 0
-        ? Math.round(classGrades.reduce((sum, grade) => sum + Number(grade.percentage || 0), 0) / classGrades.length)
+      const averageGrade = gradesAgg._count > 0
+        ? Math.round(gradesAgg._avg.percentage || 0)
         : 0;
+
+      // Get latest attendance date separately
+      const latestAttendance = await prisma.attendance.findFirst({
+        where: { classId: klass.id },
+        orderBy: { date: 'desc' },
+        select: { date: true }
+      });
 
       return {
         classId: klass.id,
         className: normalizeClassLabel(klass.name),
         subject: normalizeClassLabel(klass.subject),
         studentCount: klass.students?.length || 0,
-        attendanceSessions: attendanceRecords.length,
+        attendanceSessions: await prisma.attendance.count({ where: { classId: klass.id } }),
         attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
-        gradesCount: classGrades.length,
+        gradesCount: gradesAgg._count,
         averageGrade,
-        latestAttendanceDate: attendanceRecords[0]?.date || null,
+        latestAttendanceDate: latestAttendance?.date || null,
         isHomeroom: klass.teacherId === teacher.id
       };
     }));
@@ -629,4 +640,4 @@ const getSuperAdminStats = async (req, res) => {
   }
 };
 
-module.exports = { getAdminStats, getSuperAdminStats, getStudentPortalStats, getParentPortalStats, getTeacherPortalStats };
+module.exports = { getAdminStats, getSuperAdminStats, getStudentPortalStats, getParentPortalStats, getTeacherPortalStats };

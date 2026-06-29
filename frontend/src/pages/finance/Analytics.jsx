@@ -181,16 +181,20 @@ export default function Analytics() {
           {byGrade.length === 0 ? (
             <div className="mt-8 flex h-56 items-center justify-center text-sm text-slate-400">No billing data yet.</div>
           ) : (
-            <div className="mt-8 flex h-56 items-end gap-3 sm:gap-6">
+            <div className="mt-8 flex h-56 items-stretch gap-3 sm:gap-6">
               {byGrade.map((g) => {
                 const total = Number(g.totalAmount || 0);
                 const heightPct = (total / maxGradeTotal) * 100;
                 const paidShare = total > 0 ? (Number(g.paidAmount) / total) * 100 : 0;
                 return (
                   <div key={g.className} className="flex flex-1 flex-col items-center gap-2">
-                    <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
-                      <div className="flex w-full max-w-12 flex-col justify-end overflow-hidden rounded-t-lg bg-rose-300" style={{ height: `${heightPct}%` }}>
-                        <div className="bg-slate-900" style={{ height: `${paidShare}%` }} />
+                    <div className="flex w-full flex-1 items-end justify-center">
+                      <div
+                        className="flex w-full max-w-12 flex-col-reverse overflow-hidden rounded-t-lg bg-rose-300"
+                        style={{ height: `${heightPct}%` }}
+                        title={`${g.className}: ${etb(g.paidAmount)} paid of ${etb(total)}`}
+                      >
+                        <div className="w-full bg-slate-900" style={{ height: `${paidShare}%` }} />
                       </div>
                     </div>
                     <span className="text-xs font-medium text-slate-400">{g.className}</span>

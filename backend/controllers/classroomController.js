@@ -26,12 +26,24 @@ const mapGradeToResponse = (grade) => ({
   updatedAt: grade.updatedAt
 });
 
-const isTeacherAssignedToClass = async (teacherId, classId) => {
+const isTeacherAssignedToClass = async (teacherId, classId, subject = null) => {
   if (!classId) return false;
+  
   const assignment = await prisma.teacherAssignment.findFirst({
     where: { teacherId, classId }
   });
-  if (assignment) return true;
+  
+  // HomeRoomTeacher has full access to the class regardless of subject
+  if (assignment && assignment.assignmentType === 'HomeRoomTeacher') return true;
+  
+  // SubjectTeacher only has access if they're assigned to this class
+  if (assignment && assignment.assignmentType === 'SubjectTeacher') {
+    // If subject is specified, check if they teach that subject
+    if (subject) {
+      return assignment.subjectId === subject || assignment.class?.subject === subject;
+    }
+    return true;
+  }
 
   const klass = await prisma.class.findUnique({
     where: { id: classId }
@@ -55,6 +67,8 @@ const isTeacherAssignedToStudents = async (teacherId, studentIds = []) => {
 
   const allowed = new Set();
   assignments.forEach((assignment) => {
+    // HomeRoomTeacher has access to all students in the class
+    // SubjectTeacher has access to students in their assigned class
     (assignment.class?.students || []).forEach((student) => {
       if (student?.id) {
         allowed.add(student.id);
