@@ -32,7 +32,12 @@ export default function Settings() {
   const [institutionNameAm, setInstitutionNameAm] = useState('ብሔራዊ የአዲስ አበባ አካዳሚ');
   const [brandColor, setBrandColor] = useState('#080845');
   const [headerTitle, setHeaderTitle] = useState('Institutional Excellence Dashboard');
-  const [logoPreview, setLogoPreview] = useState(null);
+  const [logo, setLogo] = useState(''); // stored relative URL, e.g. /uploads/<file>
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  // Static uploads are served from the API origin (without the /api suffix).
+  const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, '');
+  const logoUrl = logo ? `${apiOrigin}${logo}` : null;
 
   const fetchWeights = async () => {
     try {
@@ -84,6 +89,7 @@ export default function Settings() {
         setInstitutionNameAm(s.branding.institutionNameAm ?? institutionNameAm);
         setBrandColor(s.branding.brandColor ?? brandColor);
         setHeaderTitle(s.branding.headerTitle ?? headerTitle);
+        setLogo(s.branding.logo ?? '');
       }
       if (s.grading) {
         setGpaEnabled(s.grading.gpaEnabled ?? false);
@@ -142,6 +148,28 @@ export default function Settings() {
     }
   };
 
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('Logo must be 2MB or smaller.');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await axios.post('/uploads', body, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setLogo(res.data.url);
+      toast.success('Logo uploaded. Remember to save changes.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Logo upload failed.');
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
+
   const handleSaveChangesAll = async () => {
     setSavingAll(true);
     try {
@@ -167,6 +195,7 @@ export default function Settings() {
           institutionNameAm,
           brandColor,
           headerTitle,
+          logo,
         },
         grading: {
           gpaEnabled,
@@ -187,7 +216,6 @@ export default function Settings() {
     { id: 'Localization', label: 'Localization', icon: '🌐' },
     { id: 'Platform Branding', label: 'Platform Branding', icon: '🎨' },
     { id: 'Grading & Attendance', label: 'Grading & Attendance', icon: '📊' }, // Injected to keep existing functional features
-    { id: 'Critical Operations', label: 'Critical Operations', icon: '⚠️', danger: true },
   ];
 
   return (
@@ -399,21 +427,41 @@ export default function Settings() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Institution Logo</label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center hover:bg-slate-50 transition cursor-pointer text-center">
+                    <label className="border-2 border-dashed border-slate-200 rounded-2xl p-6 flex flex-col items-center justify-center hover:bg-slate-50 transition cursor-pointer text-center">
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg"
+                        className="hidden"
+                        disabled={uploadingLogo}
+                        onChange={handleLogoUpload}
+                      />
                       <svg className="w-8 h-8 text-slate-400 mb-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z" />
                       </svg>
-                      <span className="text-sm font-bold text-slate-900">Click to upload logo</span>
-                      <span className="text-xs text-slate-500 mt-1">SVG or PNG recommended (Max 2MB)</span>
-                    </div>
+                      <span className="text-sm font-bold text-slate-900">{uploadingLogo ? 'Uploading…' : 'Click to upload logo'}</span>
+                      <span className="text-xs text-slate-500 mt-1">PNG or JPG recommended (Max 2MB)</span>
+                    </label>
+                    {logo && (
+                      <button
+                        type="button"
+                        onClick={() => setLogo('')}
+                        className="text-xs font-bold text-rose-600 hover:text-rose-700 transition"
+                      >
+                        Remove logo
+                      </button>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Current Preview</label>
                     <div className="bg-slate-100 rounded-2xl p-4 flex items-center justify-center min-h-[140px] border border-slate-200/60">
-                      <div className="w-16 h-16 bg-[#080845] rounded-xl flex items-center justify-center shadow-md">
-                        <span className="text-white text-xs font-black">LOGO</span>
-                      </div>
+                      {logoUrl ? (
+                        <img src={logoUrl} alt="Institution logo" className="max-h-[100px] max-w-full object-contain" />
+                      ) : (
+                        <div className="w-16 h-16 rounded-xl flex items-center justify-center shadow-md" style={{ backgroundColor: brandColor }}>
+                          <span className="text-white text-xs font-black">LOGO</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -597,34 +645,7 @@ export default function Settings() {
               </div>
             )}
 
-            {/* TAB: Critical Operations */}
-            {activeTab === 'Critical Operations' && (
-              <div className="bg-rose-500/[0.03] rounded-2xl border border-rose-200 p-6 space-y-6">
-                <div className="flex items-center gap-3 border-b border-rose-150 pb-4">
-                  <span className="text-xl">⚠️</span>
-                  <h3 className="text-lg font-bold text-rose-900">Critical Operations</h3>
-                </div>
-                
-                <div className="bg-white rounded-2xl border border-rose-250 p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5">
-                  <div className="space-y-1 max-w-md">
-                    <h4 className="text-sm font-bold text-rose-900">Factory System Reset</h4>
-                    <p className="text-xs text-slate-600 leading-relaxed">
-                      Wipe all administrative configurations and return to baseline. Student data remains intact, but all custom Institutional settings will be lost forever.
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => {
-                      if (window.confirm('Are you absolutely sure you want to initiate a factory system reset? This action cannot be undone.')) {
-                        toast.error('Reset simulation completed. All system caches purged.');
-                      }
-                    }}
-                    className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white px-5 py-3 rounded-xl font-bold text-xs transition active:scale-[0.99] shrink-0"
-                  >
-                    Initiate System Reset
-                  </button>
-                </div>
-              </div>
-            )}
+      
 
           </div>
 

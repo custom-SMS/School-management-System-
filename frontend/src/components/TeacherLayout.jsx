@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useBranding } from '../context/SettingsContext';
 
 /* Inline icon set — no extra dependency. */
 const icons = {
@@ -32,8 +33,9 @@ const navItems = [
   { to: '/teacher/timetable', label: 'Timetable', icon: 'timetable' },
 ];
 
-export default function TeacherLayout({ children, schoolName = "Hawinet Academy", searchPlaceholder = 'Search students or records...' }) {
+export default function TeacherLayout({ children, searchPlaceholder = 'Search students or records...' }) {
   const { user, logout } = useContext(AuthContext);
+  const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -53,11 +55,15 @@ export default function TeacherLayout({ children, schoolName = "Hawinet Academy"
   const sidebar = (
     <div className="flex h-full flex-col">
       <Link to="/teacher/dashboard" className="flex items-center gap-3 px-2 py-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2v3.3l7 3.8 7-3.8v-3.3L12 17l-7-3.8z" /></svg>
-        </span>
-        <span>
-          <span className="block text-lg font-black tracking-tight text-slate-900">Ethio-Edu ERP</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-contain" />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: branding.brandColor }}>
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2v3.3l7 3.8 7-3.8v-3.3L12 17l-7-3.8z" /></svg>
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block text-lg font-black tracking-tight text-slate-900 truncate">{branding.institutionNameEn}</span>
           <span className="block text-xs font-medium uppercase tracking-wide text-slate-400">Academic Portal</span>
         </span>
       </Link>
@@ -113,7 +119,7 @@ export default function TeacherLayout({ children, schoolName = "Hawinet Academy"
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
             </button>
 
-            <div className="hidden text-lg font-bold text-slate-900 sm:block">{schoolName}</div>
+            <div className="hidden text-lg font-bold text-slate-900 sm:block">{branding.institutionNameEn}</div>
 
             <div className="relative mx-auto w-full max-w-md">
               <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="currentColor">

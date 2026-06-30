@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { useBranding } from '../context/SettingsContext';
 
 const icons = {
   dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
@@ -25,6 +26,7 @@ const navItems = [
 
 export default function ParentLayout({ children, kids = [], childId, onSelectChild }) {
   const { user, logout } = useContext(AuthContext);
+  const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -80,11 +82,15 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
   const sidebar = (
     <div className="flex h-full flex-col">
       <Link to="/parent/dashboard" className="flex items-center gap-3 px-2 py-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3z" /></svg>
-        </span>
-        <span>
-          <span className="block text-lg font-black tracking-tight text-slate-900">Ethio Academy</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-contain" />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: branding.brandColor }}>
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3z" /></svg>
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block text-lg font-black tracking-tight text-slate-900 truncate">{branding.institutionNameEn}</span>
           <span className="block text-xs font-medium text-slate-400">Parent Portal</span>
         </span>
       </Link>
@@ -120,7 +126,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
             <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-500 lg:hidden" aria-label="Open menu">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
             </button>
-            <div className="hidden text-lg font-black text-slate-900 sm:block">SchoolERP</div>
+            <div className="hidden text-lg font-black text-slate-900 sm:block">{branding.institutionNameEn}</div>
 
             {/* Child switcher */}
             <div className="mx-auto flex items-center gap-2">

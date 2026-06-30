@@ -25,6 +25,7 @@ const DEFAULTS = {
     institutionNameAm: 'ብሔራዊ የአዲስ አበባ አካዳሚ',
     brandColor: '#080845',
     headerTitle: 'Institutional Excellence Dashboard',
+    logo: '', // URL of the uploaded institution logo (e.g. /uploads/<file>)
   },
   grading: {
     gpaEnabled: false,
@@ -100,21 +101,24 @@ const updateSettings = async (req, res) => {
   }
 };
 
-// @desc    Get public settings (grading settings for GPA toggle)
+// @desc    Get public settings (grading + branding for app-wide display)
 // @route   GET /api/settings/public
 // @access  Public
 const getPublicSettings = async (req, res) => {
   try {
     const rows = await prisma.systemSetting.findMany({
-      where: { key: 'grading' }
+      where: { key: { in: ['grading', 'branding'] } }
     });
     const stored = {};
     rows.forEach((row) => { stored[row.key] = row.value; });
-    
+
+    // Prisma returns Json columns already parsed, so merge directly (consistent with getSettings).
+    // Only grading + branding are exposed publicly; security/notifications stay private.
     const result = {
-      grading: { ...DEFAULTS.grading, ...(stored.grading ? JSON.parse(stored.grading) : {}) }
+      grading: { ...DEFAULTS.grading, ...(stored.grading || {}) },
+      branding: { ...DEFAULTS.branding, ...(stored.branding || {}) },
     };
-    
+
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -1,6 +1,7 @@
 import { useContext, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { useBranding } from '../context/SettingsContext';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
@@ -110,6 +111,7 @@ const navItems = [
 
 export default function AdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useContext(AuthContext);
+  const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -146,12 +148,17 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
-          <div>
-            <div className="mb-1 text-lg font-black tracking-tight text-slate-900">
-              Admin Console
-            </div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-              Institutional Portal
+          <div className="flex items-center gap-3 min-w-0">
+            {logoUrl && (
+              <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
+            )}
+            <div className="min-w-0">
+              <div className="mb-1 text-lg font-black tracking-tight text-slate-900 truncate">
+                {branding.institutionNameEn}
+              </div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                Admin Console
+              </div>
             </div>
           </div>
           <button
