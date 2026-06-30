@@ -3,8 +3,38 @@ const router = express.Router();
 const { sendEmail } = require('../utils/sendEmail');
 
 /**
- * POST /api/email/send
- * Body: { to, subject, html }
+ * @swagger
+ * tags:
+ *   name: Email
+ *   description: Email Sending Utilities
+ */
+
+/**
+ * @swagger
+ * /email/send:
+ *   post:
+ *     summary: Send an email
+ *     tags: [Email]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               subject:
+ *                 type: string
+ *               html:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email sent successfully
+ *       400:
+ *         description: Missing to, subject, or html
+ *       500:
+ *         description: Failed to send email
  */
 router.post('/send', async (req, res) => {
   const { to, subject, html } = req.body;

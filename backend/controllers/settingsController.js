@@ -112,7 +112,7 @@ const getPublicSettings = async (req, res) => {
     rows.forEach((row) => { stored[row.key] = row.value; });
     
     const result = {
-      grading: { ...DEFAULTS.grading, ...(stored.grading ? JSON.parse(stored.grading) : {}) }
+      grading: { ...DEFAULTS.grading, ...(stored.grading || {}) }
     };
     
     res.status(200).json(result);

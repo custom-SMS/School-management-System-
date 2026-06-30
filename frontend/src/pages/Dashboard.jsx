@@ -6,45 +6,13 @@ import AdminLayout from '../components/AdminLayout';
 
 const normalizeClassLabel = (value) => String(value ?? '').trim() || 'Unassigned';
 
-const ACTIVITY_LOGS = [
-  { id: '#TRX-8921-S', user: 'Tewodros Melaku', initials: 'TM', color: 'bg-blue-500', type: 'Fee Collection – Grade 10', status: 'COMPLETED', time: '10:42 AM' },
-  { id: '#TRX-8919-A', user: 'Abebe Kebede', initials: 'AK', color: 'bg-teal-500', type: 'Curriculum Update – Biology', status: 'MODIFIED', time: '09:15 AM' },
-  { id: '#TRX-8915-P', user: 'Helen Assefa', initials: 'HA', color: 'bg-orange-500', type: 'New Staff Onboarding', status: 'PENDING', time: '08:02 AM' },
-  { id: '#TRX-8910-E', user: 'Dawit Alemu', initials: 'DA', color: 'bg-red-500', type: 'System Backup Failure', status: 'FAILED', time: 'Yesterday' },
-];
+// ACTIVITY_LOGS removed, we now fetch live logs from backend.
 
 const STATUS_STYLES = {
   COMPLETED: 'bg-teal-50 text-teal-700',
   MODIFIED: 'bg-gray-200 text-gray-700',
   PENDING: 'bg-orange-50 text-orange-700',
   FAILED: 'bg-red-50 text-red-700',
-};
-
-const buildTeacherFallbackData = (assignments = [], user = null) => {
-  const uniqueClasses = Array.from(
-    new Map(
-      assignments.map((a) => a.class).filter(Boolean).map((k) => [k._id, k])
-    ).values()
-  );
-  return {
-    assignedClassesCount: uniqueClasses.length,
-    assignedStudentsCount: new Set(
-      uniqueClasses.flatMap((k) => (k.students || []).map((s) => s?._id?.toString()).filter(Boolean))
-    ).size,
-    gradesRecordedCount: 0,
-    averageGrade: 0,
-    classSummaries: uniqueClasses.map((k) => ({
-      classId: k._id,
-      className: normalizeClassLabel(k.name),
-      subject: normalizeClassLabel(k.subject),
-      studentCount: k.students?.length || 0,
-      attendanceRate: 0,
-      averageGrade: 0,
-      gradesCount: 0,
-    })),
-    recentGrades: [],
-    recentAttendance: [],
-  };
 };
 
 export default function Dashboard() {
@@ -61,7 +29,8 @@ export default function Dashboard() {
     const fetchData = async () => {
       try {
         if (!user) return;
-        if (user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Cashier') {
+
+        if (['Admin', 'SuperAdmin', 'Cashier'].includes(user.role)) {
           const res = await axios.get('/stats/admin');
           if (active) setStats(res.data);
         } else if (user.role === 'Student') {
@@ -71,8 +40,8 @@ export default function Dashboard() {
           const res = await axios.get('/stats/parent/me');
           if (active) setParentData(res.data);
         } else if (user.role === 'Teacher') {
-          const assignmentsRes = await axios.get('/assignments/me');
-          if (active) setTeacherData(buildTeacherFallbackData(assignmentsRes.data || [], user));
+          const res = await axios.get('/stats/teacher/me');
+          if (active) setTeacherData(res.data);
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
@@ -84,15 +53,77 @@ export default function Dashboard() {
     return () => { active = false; };
   }, [user]);
 
-  const isAdmin = user?.role === 'Admin' || user?.role === 'SuperAdmin' || user?.role === 'Cashier';
+  const isAdmin = ['Admin', 'SuperAdmin', 'Cashier'].includes(user?.role);
 
   if (!isAdmin) {
-    // Non-admin users: redirect to old behavior or show simple view
+    const greetingName = user?.name || 'User';
+    const role = user?.role || 'Member';
+    const childSummary = parentData?.children?.[0] || null;
+    const childAvgGrade = childSummary?.grades?.length
+      ? Math.round(childSummary.grades.reduce((sum, g) => sum + Number(g.percentage || 0), 0) / childSummary.grades.length)
+      : 0;
+    const childBalance = childSummary?.fees?.filter((fee) => !fee.paid).reduce((sum, fee) => sum + Number(fee.amount || 0), 0) || 0;
+
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome, {user?.name}</h1>
-          <p className="mt-2 text-gray-500">You are logged in as <strong>{user?.role}</strong></p>
+      <div className="min-h-screen bg-gray-50 py-12">
+        <div className="mx-auto w-full max-w-5xl space-y-6 px-4 sm:px-6 lg:px-8">
+          <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+            <h1 className="text-3xl font-black text-gray-900">Welcome back, {greetingName}</h1>
+            <p className="mt-2 text-sm text-gray-500">
+              You are signed in as <strong>{role}</strong>. Your dashboard data is loaded from the backend.
+            </p>
+
+            {role === 'Teacher' && teacherData && (
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Assigned classes</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{teacherData.assignedClassesCount ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Assigned students</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{teacherData.assignedStudentsCount ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Average grade</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{teacherData.averageGrade ?? 0}%</p>
+                </div>
+              </div>
+            )}
+
+            {role === 'Student' && studentData && (
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Current grade</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{studentData.grade || 'N/A'}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Attendance rate</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{studentData.attendanceRate ?? 0}%</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Pending fees</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">ETB {studentData.totalFees ?? 0}</p>
+                </div>
+              </div>
+            )}
+
+            {role === 'Parent' && parentData && (
+              <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Children linked</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{parentData.children?.length ?? 0}</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Child average grade</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">{childAvgGrade}%</p>
+                </div>
+                <div className="rounded-2xl border border-gray-200 bg-slate-50 p-5">
+                  <p className="text-xs uppercase tracking-wide text-slate-500">Open balance</p>
+                  <p className="mt-3 text-3xl font-black text-slate-900">ETB {childBalance}</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     );
@@ -274,22 +305,29 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {ACTIVITY_LOGS.map((log) => (
+                  {(stats?.recentAuditLogs || []).map((log) => {
+                    const initials = log.user?.name ? log.user.name.substring(0, 2).toUpperCase() : 'SY';
+                    const color = log.action.includes('Delete') ? 'bg-red-500' : 'bg-blue-500';
+                    return (
                     <tr key={log.id} className="transition hover:bg-gray-50">
-                      <td className="px-6 py-4 font-bold text-gray-900">{log.id}</td>
+                      <td className="px-6 py-4 font-bold text-gray-900 truncate max-w-[120px]">{log.id}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${log.color}`}>{log.initials}</div>
-                          <span className="font-semibold text-gray-900">{log.user}</span>
+                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${color}`}>{initials}</div>
+                          <span className="font-semibold text-gray-900">{log.user?.name || 'System'}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-gray-600">{log.type}</td>
+                      <td className="px-6 py-4 text-gray-600">{log.action}</td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${STATUS_STYLES[log.status]}`}>{log.status}</span>
+                        <span className={`inline-flex rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide bg-teal-50 text-teal-700`}>COMPLETED</span>
                       </td>
-                      <td className="px-6 py-4 text-right text-gray-500">{log.time}</td>
+                      <td className="px-6 py-4 text-right text-gray-500">{new Date(log.timestamp).toLocaleString()}</td>
                     </tr>
-                  ))}
+                    );
+                  })}
+                  {(!stats?.recentAuditLogs || stats.recentAuditLogs.length === 0) && (
+                    <tr><td colSpan="5" className="py-8 text-center text-gray-400">No recent activity found.</td></tr>
+                  )}
                 </tbody>
               </table>
             </div>

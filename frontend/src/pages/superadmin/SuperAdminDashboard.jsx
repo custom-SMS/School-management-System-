@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 
@@ -20,13 +21,18 @@ const StatCard = ({ title, value, subtitle, colorClass, icon }) => (
 const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 'bg-pink-500'];
 
 export default function SuperAdminDashboard() {
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     axios.get('/stats/superadmin')
       .then(res => setStats(res.data))
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error(err);
+        setError(err.response?.data?.message || 'Failed to load dashboard statistics.');
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -34,6 +40,17 @@ export default function SuperAdminDashboard() {
     return (
       <SuperAdminLayout pageTitle="Governance Console">
         <div className="py-12 text-center text-sm font-semibold text-slate-500">Loading metrics...</div>
+      </SuperAdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <SuperAdminLayout pageTitle="Governance Console">
+        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center">
+          <p className="text-sm font-bold text-red-600">⚠ {error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition">Retry</button>
+        </div>
       </SuperAdminLayout>
     );
   }
@@ -93,21 +110,21 @@ export default function SuperAdminDashboard() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-5">Division Performance</h3>
           <div className="space-y-4">
-            {(stats?.divisionPerformance || [
-              { division: 'Primary', score: 88 },
-              { division: 'Secondary', score: 74 },
-              { division: 'High School', score: 91 },
-            ]).map((div, i) => (
-              <div key={i}>
-                <div className="flex justify-between text-sm font-semibold mb-1.5">
-                  <span className="text-slate-700">{div.division}</span>
-                  <span className="text-slate-900 font-black">{div.score}%</span>
+            {(stats?.divisionPerformance || []).length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">No academic data available yet.</p>
+            ) : (
+              stats.divisionPerformance.map((div, i) => (
+                <div key={i}>
+                  <div className="flex justify-between text-sm font-semibold mb-1.5">
+                    <span className="text-slate-700">{div.division}</span>
+                    <span className="text-slate-900 font-black">{div.score}%</span>
+                  </div>
+                  <div className="w-full bg-slate-100 rounded-full h-2.5">
+                    <div className={`${barColors[i % barColors.length]} h-2.5 rounded-full transition-all`} style={{ width: `${div.score}%` }}></div>
+                  </div>
                 </div>
-                <div className="w-full bg-slate-100 rounded-full h-2.5">
-                  <div className={`${barColors[i % barColors.length]} h-2.5 rounded-full transition-all`} style={{ width: `${div.score}%` }}></div>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
 
@@ -115,19 +132,19 @@ export default function SuperAdminDashboard() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <h3 className="text-lg font-bold text-slate-900 mb-5">Revenue by Division</h3>
           <div className="space-y-3">
-            {(stats?.revenueByDivision || [
-              { division: 'Primary', revenue: 1240000 },
-              { division: 'Secondary', revenue: 980000 },
-              { division: 'High School', revenue: 1540000 },
-            ]).map((div, i) => (
-              <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition">
-                <div className="flex items-center gap-3">
-                  <div className={`w-2.5 h-2.5 rounded-full ${barColors[i % barColors.length]}`}></div>
-                  <span className="text-sm font-semibold text-slate-700">{div.division}</span>
+            {(stats?.revenueByDivision || []).length === 0 ? (
+              <p className="py-6 text-center text-sm text-slate-400">No revenue data available yet.</p>
+            ) : (
+              stats.revenueByDivision.map((div, i) => (
+                <div key={i} className="flex items-center justify-between p-3 border border-slate-100 rounded-lg hover:bg-slate-50 transition">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2.5 h-2.5 rounded-full ${barColors[i % barColors.length]}`}></div>
+                    <span className="text-sm font-semibold text-slate-700">{div.division}</span>
+                  </div>
+                  <span className="text-sm font-black text-emerald-700">ETB {(div.revenue / 1000).toLocaleString()}k</span>
                 </div>
-                <span className="text-sm font-black text-emerald-700">ETB {(div.revenue / 1000).toLocaleString()}k</span>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       </div>
@@ -138,7 +155,6 @@ export default function SuperAdminDashboard() {
         <div className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-bold text-slate-900">Recent Audit Logs</h3>
-            <span className="text-xs font-bold text-blue-600 hover:underline cursor-pointer">View All →</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -172,12 +188,12 @@ export default function SuperAdminDashboard() {
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex flex-col justify-center items-center text-center">
             <h4 className="text-amber-600 font-black text-3xl">{stats?.unlockRequestsCount || 0}</h4>
             <span className="text-amber-900 text-sm font-semibold mt-1">Pending Unlock Requests</span>
-            <button className="mt-4 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 w-full transition">Review Requests</button>
+            <button onClick={() => navigate('/admin/reports/attendance')} className="mt-4 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 w-full transition">Review Requests</button>
           </div>
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col">
-            <h4 className="text-white font-bold text-lg">System Update Ready</h4>
-            <span className="text-slate-400 text-xs font-medium mt-1">Patch v2.1.4 is available</span>
-            <button className="mt-4 px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 w-full transition">Initiate Update</button>
+            <h4 className="text-white font-bold text-lg">System Settings</h4>
+            <span className="text-slate-400 text-xs font-medium mt-1">Manage global system configurations</span>
+            <button onClick={() => navigate('/settings')} className="mt-4 px-4 py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 w-full transition">Go to Settings</button>
           </div>
         </div>
       </div>

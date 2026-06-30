@@ -204,13 +204,13 @@ export default function UserManagement() {
                     </div>
                   </td>
                 <td className="px-6 py-4">
-  {u.role !== "Student" ? (
+  {u.role !== "Student" && u.role !== "Parent" ? (
     <select
       value={u.role}
       onChange={e => handleRoleChange(u.id, e.target.value)}
       className={`text-xs font-bold rounded-full px-3 py-1.5 border-0 outline-none cursor-pointer ${ROLE_COLORS[u.role]}`}
     >
-      {ROLES.map(r => (
+      {ROLES.filter(r => r !== 'Parent').map(r => (
         <option key={r} value={r}>
           {r}
         </option>
