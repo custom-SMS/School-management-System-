@@ -101,22 +101,26 @@ const updateSettings = async (req, res) => {
   }
 };
 
-// @desc    Get public settings (grading + branding for app-wide display)
+// @desc    Get public settings used by role-based portals (branding, grading,
+//          localization, and maintenance/banner-safe notifications)
 // @route   GET /api/settings/public
 // @access  Public
 const getPublicSettings = async (req, res) => {
   try {
     const rows = await prisma.systemSetting.findMany({
-      where: { key: { in: ['grading', 'branding'] } }
+      where: { key: { in: ['grading', 'branding', 'localization', 'notifications'] } }
     });
     const stored = {};
     rows.forEach((row) => { stored[row.key] = row.value; });
 
-    // Prisma returns Json columns already parsed, so merge directly (consistent with getSettings).
-    // Only grading + branding are exposed publicly; security/notifications stay private.
+    // Expose only the portal-safe subset needed by student/parent UIs.
     const result = {
       grading: { ...DEFAULTS.grading, ...(stored.grading || {}) },
       branding: { ...DEFAULTS.branding, ...(stored.branding || {}) },
+      localization: { ...DEFAULTS.localization, ...(stored.localization || {}) },
+      notifications: {
+        maintenanceBroadcasts: stored.notifications?.maintenanceBroadcasts ?? DEFAULTS.notifications.maintenanceBroadcasts,
+      },
     };
 
     res.status(200).json(result);

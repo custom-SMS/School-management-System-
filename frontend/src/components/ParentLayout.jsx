@@ -2,7 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
-import { useBranding } from '../context/SettingsContext';
+import { usePublicSettings } from '../context/SettingsContext';
 
 const icons = {
   dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
@@ -26,7 +26,7 @@ const navItems = [
 
 export default function ParentLayout({ children, kids = [], childId, onSelectChild }) {
   const { user, logout } = useContext(AuthContext);
-  const { branding, logoUrl } = useBranding();
+  const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = usePublicSettings();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -176,7 +176,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
                           <span className="block font-bold">{notification.title}</span>
                           <span className={`mt-1 block whitespace-pre-line ${notification.read ? 'text-slate-500' : 'text-white/80'}`}>{notification.message}</span>
                           <span className={`mt-2 block text-[10px] ${notification.read ? 'text-slate-400' : 'text-white/50'}`}>
-                            {new Date(notification.createdAt).toLocaleString()}
+                            {formatDateTime(notification.createdAt)}
                           </span>
                         </button>
                       ))
@@ -190,6 +190,11 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{initials}</span>
           </header>
 
+          {publicNotifications.maintenanceBroadcasts && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 sm:px-8">
+              Maintenance broadcasts are enabled. Check your notifications for service updates and planned downtime notices.
+            </div>
+          )}
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
         </div>
       </div>
