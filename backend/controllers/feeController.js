@@ -813,6 +813,29 @@ const downloadReceiptPdf = async (req, res) => {
       return res.status(404).json({ message: 'Receipt not found.' });
     }
 
+    const studentId = receipt.payment?.fee?.student?.id;
+
+    if (req.user.role === 'Student') {
+      const student = await prisma.student.findUnique({
+        where: { userId: req.user._id },
+        select: { id: true }
+      });
+
+      if (!student || student.id !== studentId) {
+        return res.status(403).json({ message: 'You can only download your own receipts.' });
+      }
+    } else if (req.user.role === 'Parent') {
+      const parent = await prisma.parent.findFirst({
+        where: { userId: req.user._id },
+        include: { children: { select: { id: true } } }
+      });
+
+      const isLinked = parent?.children.some((child) => child.id === studentId);
+      if (!isLinked) {
+        return res.status(403).json({ message: 'You can only download receipts for your linked students.' });
+      }
+    }
+
     // Fetch school settings for branding
     const settingsRows = await prisma.systemSetting.findMany({
       where: { key: 'branding' }
