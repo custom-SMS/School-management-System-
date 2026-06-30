@@ -29,8 +29,13 @@ const DEFAULT_NOTIFICATIONS = {
   maintenanceBroadcasts: false,
 };
 
-// Static uploads are served from the API origin (without the trailing /api).
 const API_ORIGIN = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, '');
+
+const resolveAssetUrl = (value) => {
+  if (!value) return null;
+  if (/^https?:\/\//i.test(value)) return value;
+  return `${API_ORIGIN}${value}`;
+};
 
 const FALLBACK_CONTEXT = {
   branding: DEFAULT_BRANDING,
@@ -89,7 +94,7 @@ export const SettingsProvider = ({ children }) => {
   }, [refresh]);
 
   // Ready-to-use absolute logo URL (or null when no logo is configured).
-  const logoUrl = branding.logo ? `${API_ORIGIN}${branding.logo}` : null;
+  const logoUrl = resolveAssetUrl(branding.logo);
 
   const formatDateTime = useCallback((value) => {
     if (!value) return '—';

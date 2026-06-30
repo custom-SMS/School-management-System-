@@ -32,12 +32,11 @@ export default function Settings() {
   const [institutionNameAm, setInstitutionNameAm] = useState('ብሔራዊ የአዲስ አበባ አካዳሚ');
   const [brandColor, setBrandColor] = useState('#080845');
   const [headerTitle, setHeaderTitle] = useState('Institutional Excellence Dashboard');
-  const [logo, setLogo] = useState(''); // stored relative URL, e.g. /uploads/<file>
+  const [logo, setLogo] = useState(''); // stored URL from upload provider
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  // Static uploads are served from the API origin (without the /api suffix).
   const apiOrigin = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api').replace(/\/api\/?$/, '');
-  const logoUrl = logo ? `${apiOrigin}${logo}` : null;
+  const logoUrl = logo ? (/^https?:\/\//i.test(logo) ? logo : `${apiOrigin}${logo}`) : null;
 
   const fetchWeights = async () => {
     try {
