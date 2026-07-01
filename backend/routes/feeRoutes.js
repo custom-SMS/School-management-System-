@@ -11,6 +11,7 @@ const {
   getMyFees,
   submitBankPayment,
   getOutstandingFees,
+  getCashierPayments,
   markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
@@ -233,6 +234,8 @@ router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashi
  *       200:
  *         description: Fee marked as paid
  */
+router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getCashierPayments);
+
 router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), markFeePaidInCash);
 
 // Student/Parent fee portal

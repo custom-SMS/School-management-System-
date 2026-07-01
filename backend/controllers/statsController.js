@@ -519,6 +519,11 @@ const getParentPortalStats = async (req, res) => {
       
       const fees = await prisma.fee.findMany({
         where: { studentId: childStudent.id },
+        include: {
+          payments: {
+            orderBy: { paymentDate: 'desc' }
+          }
+        },
         orderBy: { createdAt: 'desc' }
       });
       
@@ -554,7 +559,15 @@ const getParentPortalStats = async (req, res) => {
       const mappedFees = fees.map(f => ({
         ...f,
         _id: f.id,
-        student: f.studentId
+        student: f.studentId,
+        latestPayment: f.payments?.[0]
+          ? {
+              id: f.payments[0].id,
+              status: f.payments[0].status,
+              transactionReference: f.payments[0].transactionReference,
+              bankName: f.payments[0].bankName
+            }
+          : null
       }));
 
       children.push({

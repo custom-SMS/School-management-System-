@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { usePublicSettings } from '../context/SettingsContext';
 
 const icons = {
   dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
@@ -26,6 +27,7 @@ const navItems = [
 
 export default function StudentLayout({ children, searchPlaceholder = 'Search records...' }) {
   const { user, logout } = useContext(AuthContext);
+  const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = usePublicSettings();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -81,12 +83,16 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
   const sidebar = (
     <div className="flex h-full flex-col">
       <Link to="/student/dashboard" className="flex items-center gap-3 px-2 py-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3z" /></svg>
-        </span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-contain" />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: branding.brandColor }}>
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3z" /></svg>
+          </span>
+        )}
         <span>
-          <span className="block text-lg font-black tracking-tight text-slate-900">Ethio Academy</span>
-          <span className="block text-xs font-medium text-slate-400">Academic Year 2024</span>
+          <span className="block text-lg font-black tracking-tight text-slate-900">{branding.institutionNameEn}</span>
+          <span className="block text-xs font-medium text-slate-400">Student Portal</span>
         </span>
       </Link>
       <nav className="mt-8 flex-1 space-y-1.5">
@@ -121,7 +127,7 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
             <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-500 lg:hidden" aria-label="Open menu">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
             </button>
-            <div className="hidden text-lg font-black text-slate-900 sm:block">SchoolERP</div>
+            <div className="hidden text-lg font-black text-slate-900 sm:block">{branding.institutionNameEn}</div>
             <div className="relative mx-auto w-full max-w-md">
               <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.5 10.9l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" /></svg>
               <input type="search" placeholder={searchPlaceholder} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-12 pr-4 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5" />
@@ -158,7 +164,7 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
                           <span className="block font-bold">{notification.title}</span>
                           <span className={`mt-1 block whitespace-pre-line ${notification.read ? 'text-slate-500' : 'text-white/80'}`}>{notification.message}</span>
                           <span className={`mt-2 block text-[10px] ${notification.read ? 'text-slate-400' : 'text-white/50'}`}>
-                            {new Date(notification.createdAt).toLocaleString()}
+                            {formatDateTime(notification.createdAt)}
                           </span>
                         </button>
                       ))
@@ -171,6 +177,11 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
             </div>
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{initials}</span>
           </header>
+          {publicNotifications.maintenanceBroadcasts && (
+            <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 sm:px-8">
+              Maintenance broadcasts are enabled. Check your notifications for service updates and planned downtime notices.
+            </div>
+          )}
           <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
         </div>
       </div>

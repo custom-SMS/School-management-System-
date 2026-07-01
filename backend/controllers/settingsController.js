@@ -25,6 +25,7 @@ const DEFAULTS = {
     institutionNameAm: 'ብሔራዊ የአዲስ አበባ አካዳሚ',
     brandColor: '#080845',
     headerTitle: 'Institutional Excellence Dashboard',
+    logo: '', // URL of the uploaded institution logo (e.g. /uploads/<file>)
   },
   grading: {
     gpaEnabled: false,
@@ -100,21 +101,28 @@ const updateSettings = async (req, res) => {
   }
 };
 
-// @desc    Get public settings (grading settings for GPA toggle)
+// @desc    Get public settings used by role-based portals (branding, grading,
+//          localization, and maintenance/banner-safe notifications)
 // @route   GET /api/settings/public
 // @access  Public
 const getPublicSettings = async (req, res) => {
   try {
     const rows = await prisma.systemSetting.findMany({
-      where: { key: 'grading' }
+      where: { key: { in: ['grading', 'branding', 'localization', 'notifications'] } }
     });
     const stored = {};
     rows.forEach((row) => { stored[row.key] = row.value; });
-    
+
+    // Expose only the portal-safe subset needed by student/parent UIs.
     const result = {
-      grading: { ...DEFAULTS.grading, ...(stored.grading || {}) }
+      grading: { ...DEFAULTS.grading, ...(stored.grading || {}) },
+      branding: { ...DEFAULTS.branding, ...(stored.branding || {}) },
+      localization: { ...DEFAULTS.localization, ...(stored.localization || {}) },
+      notifications: {
+        maintenanceBroadcasts: stored.notifications?.maintenanceBroadcasts ?? DEFAULTS.notifications.maintenanceBroadcasts,
+      },
     };
-    
+
     res.status(200).json(result);
   } catch (error) {
     res.status(500).json({ message: error.message });

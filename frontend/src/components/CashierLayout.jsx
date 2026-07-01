@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { useBranding } from '../context/SettingsContext';
 
 
 /* Simple inline icon set so we don't add an icon dependency. */
@@ -48,8 +49,9 @@ const navItems = [
   { to: '/finance/fees', label: 'Fees', icon: 'fees' },
 ];
 
-export default function CashierLayout({ children, searchPlaceholder = 'Search students, receipts...', schoolName = "Hawinet Academy" }) {
+export default function CashierLayout({ children, searchPlaceholder = 'Search students, receipts...' }) {
   const { user, logout } = useContext(AuthContext);
+  const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -118,13 +120,17 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
     <div className="flex h-full flex-col">
       {/* Brand */}
       <Link to="/finance/dashboard" className="flex items-center gap-3 px-2 py-2">
-        <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-900 text-white">
-          <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M3 10 12 4l9 6v2H3v-2zm1 4h2v5H4v-5zm5 0h2v5H9v-5zm5 0h2v5h-2v-5zm5 0h2v5h-2v-5zM2 20h20v2H2v-2z" />
-          </svg>
-        </span>
-        <span>
-          <span className="block text-lg font-black tracking-tight text-slate-900">Finance Suite</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-contain" />
+        ) : (
+          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: branding.brandColor }}>
+            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M3 10 12 4l9 6v2H3v-2zm1 4h2v5H4v-5zm5 0h2v5H9v-5zm5 0h2v5h-2v-5zm5 0h2v5h-2v-5zM2 20h20v2H2v-2z" />
+            </svg>
+          </span>
+        )}
+        <span className="min-w-0">
+          <span className="block text-lg font-black tracking-tight text-slate-900 truncate">{branding.institutionNameEn}</span>
           <span className="block text-xs font-medium text-slate-400">Cashier Portal</span>
         </span>
       </Link>
@@ -188,7 +194,7 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
             </button>
 
-            <div className="hidden text-lg font-bold text-slate-900 sm:block">{schoolName}</div>
+            <div className="hidden text-lg font-bold text-slate-900 sm:block">{branding.institutionNameEn}</div>
 
             <div className="relative mx-auto w-full max-w-md">
               <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="currentColor">

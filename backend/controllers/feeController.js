@@ -584,27 +584,59 @@ const submitBankPayment = async (req, res) => {
 // @access  Private (Admin/SuperAdmin/Cashier)
 const getOutstandingFees = async (req, res) => {
   try {
-    const { month } = req.query;
+    const { month, q, grade, page = 1, limit = 10 } = req.query;
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const take = Math.min(Math.max(Number(limit) || 10, 1), 100);
+    const skip = (currentPage - 1) * take;
 
-    const fees = await prisma.fee.findMany({
-      where: {
-        paid: false,
-        ...(month ? { month } : {}),
-      },
-      include: {
-        student: {
-          select: {
-            id: true,
-            studentId: true,
-            grade: true,
-            user: { select: { name: true, email: true } },
+    const where = {
+      paid: false,
+      ...(month ? { month } : {}),
+      ...(grade
+        ? { student: { grade: { contains: String(grade).trim(), mode: 'insensitive' } } }
+        : {}),
+    };
+
+    if (q) {
+      const query = String(q).trim();
+      where.OR = [
+        { description: { contains: query, mode: 'insensitive' } },
+        { month: { contains: query, mode: 'insensitive' } },
+        { student: { studentId: { contains: query, mode: 'insensitive' } } },
+        { student: { grade: { contains: query, mode: 'insensitive' } } },
+        { student: { user: { name: { contains: query, mode: 'insensitive' } } } },
+      ];
+    }
+
+    const [totalItems, fees] = await Promise.all([
+      prisma.fee.count({ where }),
+      prisma.fee.findMany({
+        where,
+        include: {
+          student: {
+            select: {
+              id: true,
+              studentId: true,
+              grade: true,
+              user: { select: { name: true, email: true } },
+            },
           },
         },
-      },
-      orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
-    });
+        orderBy: [{ dueDate: 'asc' }, { createdAt: 'asc' }],
+        skip,
+        take,
+      }),
+    ]);
 
-    res.status(200).json(fees);
+    res.status(200).json({
+      items: fees,
+      pagination: {
+        page: currentPage,
+        limit: take,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / take)),
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -684,6 +716,76 @@ const getPendingPayments = async (req, res) => {
       orderBy: { paymentDate: 'asc' }
     });
     res.status(200).json(payments);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getCashierPayments = async (req, res) => {
+  try {
+    const { status, month, q, limit = 50 } = req.query;
+    const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
+
+    const where = {};
+
+    if (status && ['Pending', 'Verified', 'Rejected'].includes(status)) {
+      where.status = status;
+    }
+
+    if (month) {
+      where.fee = { ...(where.fee || {}), month };
+    }
+
+    if (q) {
+      const query = String(q).trim();
+      where.OR = [
+        { transactionReference: { contains: query, mode: 'insensitive' } },
+        { bankName: { contains: query, mode: 'insensitive' } },
+        { fee: { description: { contains: query, mode: 'insensitive' } } },
+        { fee: { month: { contains: query, mode: 'insensitive' } } },
+        { fee: { student: { studentId: { contains: query, mode: 'insensitive' } } } },
+        { fee: { student: { user: { name: { contains: query, mode: 'insensitive' } } } } },
+      ];
+    }
+
+    const [totalItems, payments] = await Promise.all([
+      prisma.payment.count({ where }),
+      prisma.payment.findMany({
+        where,
+        include: {
+          fee: {
+            include: {
+              student: {
+                include: {
+                  user: { select: { id: true, name: true, email: true } },
+                },
+              },
+            },
+          },
+          receipt: {
+            select: {
+              id: true,
+              receiptNumber: true,
+              createdAt: true,
+            },
+          },
+          verifiedBy: { select: { id: true, name: true } },
+        },
+        orderBy: { paymentDate: 'desc' },
+        skip,
+        take,
+      }),
+    ]);
+
+    res.status(200).json({
+      items: payments,
+      pagination: {
+        page: currentPage,
+        limit: take,
+        totalItems,
+        totalPages: Math.max(1, Math.ceil(totalItems / take)),
+      },
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -813,6 +915,29 @@ const downloadReceiptPdf = async (req, res) => {
       return res.status(404).json({ message: 'Receipt not found.' });
     }
 
+    const studentId = receipt.payment?.fee?.student?.id;
+
+    if (req.user.role === 'Student') {
+      const student = await prisma.student.findUnique({
+        where: { userId: req.user._id },
+        select: { id: true }
+      });
+
+      if (!student || student.id !== studentId) {
+        return res.status(403).json({ message: 'You can only download your own receipts.' });
+      }
+    } else if (req.user.role === 'Parent') {
+      const parent = await prisma.parent.findFirst({
+        where: { userId: req.user._id },
+        include: { children: { select: { id: true } } }
+      });
+
+      const isLinked = parent?.children.some((child) => child.id === studentId);
+      if (!isLinked) {
+        return res.status(403).json({ message: 'You can only download receipts for your linked students.' });
+      }
+    }
+
     // Fetch school settings for branding
     const settingsRows = await prisma.systemSetting.findMany({
       where: { key: 'branding' }
@@ -852,6 +977,7 @@ module.exports = {
   getOutstandingFees,
   markFeePaidInCash,
   getPendingPayments,
+  getCashierPayments,
   verifyPayment,
   getReceipt,
   downloadReceiptPdf

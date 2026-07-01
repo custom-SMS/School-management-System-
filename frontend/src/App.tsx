@@ -5,6 +5,7 @@ import {
   Navigate,
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { SettingsProvider } from "./context/SettingsContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -82,6 +83,7 @@ import ParentNotifications from "./pages/parent/ParentNotifications";
 function App() {
   return (
     <AuthProvider>
+      <SettingsProvider>
       <Router>
         <ToastContainer position="top-right" autoClose={3000} />
         <Routes>
@@ -588,6 +590,7 @@ function App() {
           />
         </Routes>
       </Router>
+      </SettingsProvider>
     </AuthProvider>
   );
 }
