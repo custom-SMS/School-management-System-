@@ -530,9 +530,11 @@ const getStudents = async (req, res) => {
           classes: { select: { id: true, name: true } },
           enrollments: {
             include: {
-              academicYear: true
+              academicYear: true,
+              section: { select: { id: true, name: true } }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 1
           }
         }
       });
@@ -541,9 +543,13 @@ const getStudents = async (req, res) => {
         return res.status(404).json({ message: 'Student not found' });
       }
 
+      const latestEnrollment = (student.enrollments || [])[0] || null;
+
       return res.status(200).json({
         ...student,
         _id: student.id,
+        section: latestEnrollment?.section?.name || null,
+        sectionId: latestEnrollment?.section?.id || null,
         classes: (student.classes || []).map((c) => ({ ...c, _id: c.id })),
         user: student.user ? { ...student.user, _id: student.user.id } : null,
         guardians: (student.guardians || []).map((g) => ({
@@ -591,7 +597,14 @@ const getStudents = async (req, res) => {
 
       const allStudents = await prisma.student.findMany({
         include: {
-          user: { select: { id: true, name: true, email: true, isActive: true } }
+          user: { select: { id: true, name: true, email: true, isActive: true } },
+          enrollments: {
+            include: {
+              section: { select: { id: true, name: true } }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 1
+          }
         }
       });
 
@@ -602,11 +615,16 @@ const getStudents = async (req, res) => {
         return gradeNumber ? allowedClassNumbers.has(gradeNumber) : false;
       });
 
-      const responseStudents = students.map(student => ({
-        ...student,
-        _id: student.id,
-        user: student.user ? { ...student.user, _id: student.user.id } : null
-      }));
+      const responseStudents = students.map(student => {
+        const latestEnrollment = (student.enrollments || [])[0] || null;
+        return {
+          ...student,
+          _id: student.id,
+          section: latestEnrollment?.section?.name || null,
+          sectionId: latestEnrollment?.section?.id || null,
+          user: student.user ? { ...student.user, _id: student.user.id } : null
+        };
+      });
 
       return res.status(200).json(responseStudents);
     }
@@ -634,7 +652,8 @@ const getStudents = async (req, res) => {
           guardians: true,
           enrollments: {
             include: {
-              academicYear: true
+              academicYear: true,
+              section: { select: { id: true, name: true } }
             },
             orderBy: { createdAt: 'desc' },
             take: 1 // Only latest enrollment
@@ -647,15 +666,20 @@ const getStudents = async (req, res) => {
       prisma.student.count({ where: whereClause })
     ]);
 
-    const responseStudents = students.map(student => ({
-      ...student,
-      _id: student.id,
-      user: student.user ? { ...student.user, _id: student.user.id } : null,
-      guardians: (student.guardians || []).map(g => ({
-        ...g,
-        _id: g.id
-      }))
-    }));
+    const responseStudents = students.map(student => {
+      const latestEnrollment = (student.enrollments || [])[0] || null;
+      return {
+        ...student,
+        _id: student.id,
+        section: latestEnrollment?.section?.name || null,
+        sectionId: latestEnrollment?.section?.id || null,
+        user: student.user ? { ...student.user, _id: student.user.id } : null,
+        guardians: (student.guardians || []).map(g => ({
+          ...g,
+          _id: g.id
+        }))
+      };
+    });
 
     res.status(200).json({
       students: responseStudents,

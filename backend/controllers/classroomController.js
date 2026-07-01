@@ -518,6 +518,21 @@ const getGrades = async (req, res) => {
   }
 };
 
+const getNextSectionLetter = (sectionNames = []) => {
+  const usedLetters = new Set(
+    sectionNames
+      .map((sectionName) => String(sectionName || '').trim().toUpperCase())
+      .filter(Boolean)
+  );
+
+  let code = 65; // A
+  while (usedLetters.has(String.fromCharCode(code))) {
+    code += 1;
+  }
+
+  return String.fromCharCode(code);
+};
+
 const createClass = async (req, res) => {
   try {
     const { name, teacherId, schedule } = req.body;
@@ -558,21 +573,17 @@ const createClass = async (req, res) => {
       }
     }
 
-    const normalizedSubject = typeof subject === 'string' && subject.trim()
-      ? subject.trim()
-      : 'General';
-
     const newClass = await prisma.class.create({
       data: {
         name: normalizedName,
-        subject: normalizedSubject,
+        subject: 'General',
         teacherId: teacherId || null,
         schedule: schedule || null
       }
     });
 
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${normalizedName} (${normalizedSubject})`);
+    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${normalizedName}`);
 
     res.status(201).json(newClass);
   } catch (error) {
@@ -759,26 +770,42 @@ const forceDeleteClass = async (req, res) => {
 
 const createSection = async (req, res) => {
   try {
-    const { name, classId, homeroomTeacherId } = req.body;
-    if (!name || !classId) {
-      return res.status(400).json({ message: 'Section name and classId are required.' });
+    const { name, classId } = req.body;
+    if (!classId) {
+      return res.status(400).json({ message: 'classId is required.' });
     }
 
-    if (homeroomTeacherId) {
-      const teacherExists = await prisma.teacher.findUnique({
-        where: { id: homeroomTeacherId }
-      });
-
-      if (!teacherExists) {
-        return res.status(400).json({ message: 'Selected homeroom teacher was not found.' });
+    const existingClass = await prisma.class.findUnique({
+      where: { id: classId },
+      include: {
+        sections: {
+          select: { name: true }
+        }
       }
+    });
+
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const normalizedSectionName = typeof name === 'string' && name.trim()
+      ? name.trim().toUpperCase()
+      : getNextSectionLetter(existingClass.sections.map((section) => section.name));
+
+    const duplicateSection = existingClass.sections.find(
+      (section) => String(section.name || '').trim().toUpperCase() === normalizedSectionName
+    );
+
+    if (duplicateSection) {
+      return res.status(400).json({ message: `Section "${normalizedSectionName}" already exists for ${existingClass.name}.` });
     }
 
     const section = await prisma.section.create({
       data: {
-        name,
-        classId,
-        homeroomTeacherId: homeroomTeacherId || null
+        name: normalizedSectionName,
+        class: {
+          connect: { id: classId }
+        }
       },
       include: {
         homeroomTeacher: {
@@ -794,7 +821,7 @@ const createSection = async (req, res) => {
       req.user._id,
       'Create Section',
       section.id,
-      `Created section: ${name} for class ${classId}${homeroomTeacherId ? ` with homeroom teacher ${homeroomTeacherId}` : ''}`
+      `Created section: ${normalizedSectionName} for class ${existingClass.name}`
     );
 
     res.status(201).json(section);
@@ -823,6 +850,340 @@ const getSectionsByClass = async (req, res) => {
   }
 };
 
+const getSectionById = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        class: { select: { id: true, name: true } },
+        homeroomTeacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found.' });
+    }
+
+    res.status(200).json(section);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateSection = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    const { name, homeroomTeacherId } = req.body;
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId }
+    });
+
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found.' });
+    }
+
+    const normalizedSectionName = typeof name === 'string' && name.trim()
+      ? name.trim().toUpperCase()
+      : section.name;
+
+    if (normalizedSectionName !== section.name) {
+      const duplicate = await prisma.section.findFirst({
+        where: {
+          classId: section.classId,
+          name: normalizedSectionName,
+          id: { not: sectionId }
+        }
+      });
+
+      if (duplicate) {
+        return res.status(400).json({ message: `Section "${normalizedSectionName}" already exists for this class.` });
+      }
+    }
+
+    if (homeroomTeacherId) {
+      const teacherExists = await prisma.teacher.findUnique({
+        where: { id: homeroomTeacherId }
+      });
+
+      if (!teacherExists) {
+        return res.status(400).json({ message: 'Selected homeroom teacher was not found.' });
+      }
+    }
+
+    const data = {
+      name: normalizedSectionName,
+      homeroomTeacher: homeroomTeacherId === null || homeroomTeacherId === ''
+        ? { disconnect: true }
+        : homeroomTeacherId
+          ? { connect: { id: homeroomTeacherId } }
+          : undefined
+    };
+
+    const updatedSection = await prisma.section.update({
+      where: { id: sectionId },
+      data,
+      include: {
+        class: { select: { id: true, name: true } },
+        homeroomTeacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    res.status(200).json(updatedSection);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteSection = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        enrollments: {
+          where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+          select: { id: true }
+        }
+      }
+    });
+
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found.' });
+    }
+
+    if (section.enrollments.length > 0) {
+      return res.status(400).json({ message: 'Cannot delete section with assigned students.' });
+    }
+
+    await prisma.section.delete({
+      where: { id: sectionId }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Delete Section',
+      section.id,
+      `Deleted empty section: ${section.name} from class ${section.classId}`
+    );
+
+    res.status(200).json({ message: 'Section deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getSectionStudents = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        class: {
+          select: { id: true, name: true }
+        },
+        homeroomTeacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        },
+        enrollments: {
+          where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+          include: {
+            student: {
+              include: {
+                user: { select: { id: true, name: true, email: true, isActive: true } }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found.' });
+    }
+
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
+    const allStudents = await prisma.student.findMany({
+      include: {
+        user: { select: { id: true, name: true, email: true, isActive: true } },
+        enrollments: {
+          include: {
+            section: { select: { id: true, name: true } },
+            academicYear: { select: { id: true, year: true, isActive: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      },
+      orderBy: {
+        enrollmentDate: 'desc'
+      }
+    });
+
+    const getCurrentEnrollment = (student) => {
+      return activeYear
+        ? student.enrollments?.find((enrollment) => enrollment.academicYearId === activeYear.id)
+        : student.enrollments?.find((enrollment) => ['Enrolled', 'Promoted', 'Repeated'].includes(enrollment.status));
+    };
+
+    const eligibleStudents = allStudents.filter((student) => {
+      const studentGradeNumber = String(student.grade || '').match(/(\d+)/)?.[1] || '';
+      const currentEnrollment = getCurrentEnrollment(student);
+      const assignedToAnotherSection = currentEnrollment?.sectionId && currentEnrollment.sectionId !== sectionId;
+      return classNumber && studentGradeNumber === classNumber && !assignedToAnotherSection;
+    });
+
+    const assignedIds = new Set(
+      (section.enrollments || [])
+        .filter((enrollment) => !activeYear || enrollment.academicYearId === activeYear.id)
+        .map((enrollment) => enrollment.studentId)
+        .filter(Boolean)
+    );
+
+    res.status(200).json({
+      section: {
+        id: section.id,
+        name: section.name,
+        classId: section.class?.id,
+        className: section.class?.name || ''
+      },
+      students: eligibleStudents.map((student) => {
+        const currentEnrollment = getCurrentEnrollment(student);
+        return {
+          ...student,
+          _id: student.id,
+          user: student.user ? { ...student.user, _id: student.user.id } : null,
+          isAssignedToSection: assignedIds.has(student.id),
+          currentSectionId: currentEnrollment?.sectionId || null,
+          currentSectionName: currentEnrollment?.section?.name || null
+        };
+      })
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const assignStudentsToSection = async (req, res) => {
+  try {
+    const { sectionId } = req.params;
+    const { studentIds } = req.body;
+
+    if (!Array.isArray(studentIds)) {
+      return res.status(400).json({ message: 'studentIds must be an array.' });
+    }
+
+    const uniqueStudentIds = [...new Set(studentIds.filter(Boolean))];
+
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      include: {
+        class: { select: { id: true, name: true } }
+      }
+    });
+
+    if (!section) {
+      return res.status(404).json({ message: 'Section not found.' });
+    }
+
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found.' });
+    }
+
+    const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
+    const students = uniqueStudentIds.length
+      ? await prisma.student.findMany({
+          where: { id: { in: uniqueStudentIds } },
+          select: { id: true, grade: true }
+        })
+      : [];
+
+    if (students.length !== uniqueStudentIds.length) {
+      return res.status(400).json({ message: 'One or more selected students were not found.' });
+    }
+
+    const invalidStudent = students.find((student) => {
+      const studentGradeNumber = String(student.grade || '').match(/(\d+)/)?.[1] || '';
+      return !classNumber || studentGradeNumber !== classNumber;
+    });
+
+    if (invalidStudent) {
+      return res.status(400).json({ message: 'Selected students must belong to the same class grade as this section.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.enrollment.updateMany({
+        where: {
+          academicYearId: activeYear.id,
+          sectionId,
+          ...(uniqueStudentIds.length ? { studentId: { notIn: uniqueStudentIds } } : {})
+        },
+        data: {
+          sectionId: null
+        }
+      });
+
+      await Promise.all(students.map((student) => tx.enrollment.upsert({
+        where: {
+          studentId_academicYearId: {
+            studentId: student.id,
+            academicYearId: activeYear.id
+          }
+        },
+        update: {
+          grade: student.grade,
+          sectionId
+        },
+        create: {
+          studentId: student.id,
+          academicYearId: activeYear.id,
+          grade: student.grade,
+          sectionId,
+          status: 'Enrolled'
+        }
+      })));
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Assign Students To Section',
+      sectionId,
+      `Assigned ${uniqueStudentIds.length} students to section ${section.class?.name || ''}${section.name}`
+    );
+
+    res.status(200).json({
+      message: 'Students assigned to section successfully.',
+      assignedCount: uniqueStudentIds.length
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   recordAttendance,
   getAttendanceSessions,
@@ -836,6 +1197,11 @@ module.exports = {
   forceDeleteClass,
   createSection,
   getSectionsByClass,
+  getSectionById,
+  updateSection,
+  deleteSection,
+  getSectionStudents,
+  assignStudentsToSection,
   setGradingStructure,
   getGradingStructure
 };

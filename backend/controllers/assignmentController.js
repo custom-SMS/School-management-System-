@@ -29,9 +29,30 @@ const getAssignmentOptions = async (req, res) => {
       students: c.students.map(s => ({ _id: s.id, studentId: s.studentId }))
     }));
 
+    const subjects = await prisma.subject.findMany({
+      orderBy: { name: 'asc' }
+    });
+
+    const sections = await prisma.section.findMany({
+      orderBy: [
+        { class: { name: 'asc' } },
+        { name: 'asc' }
+      ],
+      include: {
+        class: { select: { id: true, name: true } }
+      }
+    });
+
+    const mappedSections = sections.map((s) => ({
+      ...s,
+      _id: s.id,
+      className: s.class?.name || '',
+      label: `${(s.class?.name || '').trim()} ${s.name || ''}`.trim()
+    }));
+
     const specificClasses = Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`);
 
-    res.json({ teachers: mappedTeachers, classes: mappedClasses, specificClasses });
+    res.json({ teachers: mappedTeachers, classes: mappedClasses, specificClasses, subjects, sections: mappedSections });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -39,7 +60,7 @@ const getAssignmentOptions = async (req, res) => {
 
 const createAssignment = async (req, res) => {
   try {
-    const { teacherId, classId, classIds = [], specificClassNames = [], notes, assignmentType = 'SubjectTeacher' } = req.body;
+    const { teacherId, subjectId, sectionId, classId, classIds = [], specificClassNames = [], notes, assignmentType = 'SubjectTeacher' } = req.body;
     const normalizedClassIds = [...new Set([
       ...(Array.isArray(classIds) ? classIds : []),
       classId,
@@ -50,8 +71,12 @@ const createAssignment = async (req, res) => {
       return res.status(400).json({ message: 'teacherId is required' });
     }
 
-    if (!normalizedClassIds.length && !normalizedSpecificClassNames.length) {
-      return res.status(400).json({ message: 'At least one class is required' });
+    if (!subjectId) {
+      return res.status(400).json({ message: 'subjectId is required' });
+    }
+
+    if (!sectionId && !normalizedClassIds.length && !normalizedSpecificClassNames.length) {
+      return res.status(400).json({ message: 'At least one class or section is required' });
     }
 
     if (!['SubjectTeacher', 'HomeRoomTeacher'].includes(assignmentType)) {
@@ -91,50 +116,68 @@ const createAssignment = async (req, res) => {
       }
     }
 
-    const classes = normalizedClassIds.length ? await prisma.class.findMany({
-      where: { id: { in: normalizedClassIds } }
-    }) : [];
-    if (classes.length !== normalizedClassIds.length) {
-      return res.status(404).json({ message: 'One or more classes were not found' });
-    }
+    let resolvedClasses = [];
+    let resolvedSection = null;
 
-    const specificClassDocs = [];
-    for (const className of normalizedSpecificClassNames) {
-      let existingClass = await prisma.class.findFirst({
-        where: { name: className }
+    if (sectionId) {
+      resolvedSection = await prisma.section.findUnique({
+        where: { id: sectionId },
+        include: { class: true }
       });
-      if (existingClass) {
-        specificClassDocs.push(existingClass);
-        continue;
+
+      if (!resolvedSection) {
+        return res.status(404).json({ message: 'Section not found' });
       }
 
-      const createdClass = await prisma.class.create({
-        data: {
-          name: className,
-          subject: 'General',
+      resolvedClasses = [{ id: resolvedSection.classId }];
+    } else {
+      const classes = normalizedClassIds.length ? await prisma.class.findMany({
+        where: { id: { in: normalizedClassIds } }
+      }) : [];
+      if (classes.length !== normalizedClassIds.length) {
+        return res.status(404).json({ message: 'One or more classes were not found' });
+      }
+
+      const specificClassDocs = [];
+      for (const className of normalizedSpecificClassNames) {
+        let existingClass = await prisma.class.findFirst({
+          where: { name: className }
+        });
+        if (existingClass) {
+          specificClassDocs.push(existingClass);
+          continue;
         }
-      });
-      specificClassDocs.push(createdClass);
+
+        const createdClass = await prisma.class.create({
+          data: {
+            name: className,
+            subject: 'General',
+          }
+        });
+        specificClassDocs.push(createdClass);
+      }
+
+      resolvedClasses = [...classes, ...specificClassDocs];
     }
 
-    const resolvedClasses = [...classes, ...specificClassDocs];
     const assignments = [];
     for (const selectedClass of resolvedClasses) {
       const selectedClassId = selectedClass.id;
       let assignment = await prisma.teacherAssignment.findFirst({
-        where: { teacherId, classId: selectedClassId }
+        where: { teacherId, classId: selectedClassId, subjectId }
       });
 
       if (assignment) {
         assignment = await prisma.teacherAssignment.update({
           where: { id: assignment.id },
-          data: { notes, assignmentType }
+          data: { notes, assignmentType, subjectId }
         });
       } else {
         assignment = await prisma.teacherAssignment.create({
           data: {
             teacherId,
             classId: selectedClassId,
+            subjectId,
             notes,
             assignmentType,
             assignedById: req.user._id,

@@ -34,6 +34,7 @@ import Teachers from "./pages/Teachers";
 import Academics from "./pages/Academics"; // Subjects
 import Classes from "./pages/admin/Classes";
 import Sections from "./pages/admin/Sections";
+import SectionStudents from "./pages/admin/SectionStudents";
 import Assignments from "./pages/Assignments";
 import Timetables from "./pages/Timetables";
 import ReportCards from "./pages/ReportCards";
@@ -256,6 +257,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                 <Sections />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/sections/:sectionId/students"
+            element={
+              <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                <SectionStudents />
               </ProtectedRoute>
             }
           />
