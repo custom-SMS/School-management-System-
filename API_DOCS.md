@@ -1,21 +1,7 @@
-# School Management System — API Reference
+# School Management System — API Reference (By Role)
 
 **Base URL:** `http://localhost:8000/api`
-**Auth:** Cookie-based (httpOnly JWT). On `POST /auth/login` the server responds with `Set-Cookie: token=<jwt>; HttpOnly; SameSite=Lax` (SameSite=None + Secure in production). The browser/Postman stores it and sends it automatically on every subsequent request — there is **no** `Authorization` header and the token is **not** in the response body (JS can't read it, which is the point). `POST /auth/logout` clears the cookie.
-
-Send `Content-Type: application/json` on requests with a body.
-
-> **Postman:** cookies are handled by Postman's cookie jar automatically (stored for the `localhost` domain). Just run a Login request once; subsequent requests are authenticated. To switch roles, run a different Login request.
->
-> **Frontend:** the axios client uses `withCredentials: true`. CORS is restricted to the origins in the backend `FRONTEND_URL` env var (defaults to `http://localhost:5173,http://localhost:5174,http://localhost:3000`) because credentialed CORS cannot use `*`.
-
-> **curl example:**
-> ```bash
-> curl -c jar.txt -X POST http://localhost:8000/api/auth/login \
->   -H "Content-Type: application/json" \
->   -d '{"identifier":"superadmin@school.com","password":"superadmin"}'
-> curl -b jar.txt http://localhost:8000/api/auth/permissions/me   # uses the saved cookie
-> ```
+**Auth:** Cookie-based (httpOnly JWT). On `POST /auth/login` the server responds with a cookie. This cookie is used for subsequent requests automatically.
 
 **Seeded logins** (run `node seedAdmin.js` once):
 | Role | identifier | password |
@@ -23,344 +9,171 @@ Send `Content-Type: application/json` on requests with a body.
 | Admin | `admin@school.com` | `admin` |
 | SuperAdmin | `superadmin@school.com` | `superadmin` |
 | Cashier | `cashier@school.com` | `cashier` |
-
-Students log in with their `STU-xxxx` id, teachers with `TCH-xxxx`, parents with their email or `PAR-xxxx`.
-
----
-
-## 1. Auth & Permissions
-
-### POST `/auth/login` — public
-```json
-{ "identifier": "superadmin@school.com", "password": "superadmin" }
-```
-`identifier` accepts email, studentId, teacherId, or parentId. Sets the `token` httpOnly cookie and returns `{ message, user }`.
-
-### POST `/auth/logout` — public
-No body (JWT is stateless; client just drops the token).
-
-### POST `/auth/register-admin` — public (bootstrap helper)
-```json
-{ "name": "Owner", "email": "owner@school.com", "password": "secret", "role": "SuperAdmin" }
-```
-`role` optional (default `Admin`).
-
-### GET `/auth/permissions` — Admin, SuperAdmin
-List role→permission rows.
-
-### POST `/auth/permissions` — SuperAdmin
-Replaces all permissions for a role.
-```json
-{ "role": "Admin", "permissions": ["student_registration", "manage_academic_year"] }
-```
-
-### GET `/auth/permissions/me` — any authenticated
-Returns the current user's permissions (`["*"]` for SuperAdmin).
+*(Students log in with their `STU-xxxx` id, teachers with `TCH-xxxx`, parents with their email or `PAR-xxxx`)*
 
 ---
 
-## 2. Academic Years
+## 1. Public (No Authentication Required)
 
-### GET `/academic-years` — any authenticated
+These endpoints can be accessed without a login cookie.
 
-### POST `/academic-years` — perm `manage_academic_year` / SuperAdmin
-```json
-{ "year": "2026/2027" }
-```
-
-### PATCH `/academic-years/:id/active` — perm `manage_academic_year` / SuperAdmin
-No body. Marks this year active (deactivates others).
-
-### PATCH `/academic-years/:id/registration` — perm `manage_academic_year` / SuperAdmin
-```json
-{ "registrationOpen": true }
-```
-
----
-
-## 3. Students
-
-### GET `/students` — Admin, Teacher, SuperAdmin
-Teachers get only their assigned students.
-
-### POST `/students` — public (self-registration)
-Requires an **active** academic year with `registrationOpen: true` **and** a configured grade fee for the grade.
-```json
-{
-  "name": "Abel Tesfaye",
-  "email": "abel@example.com",
-  "grade": "Class 1",
-  "personalDetails": { "dateOfBirth": "2015-03-01", "gender": "Male", "phone": "0911000000", "address": "Addis Ababa", "previousSchool": "ABC" },
-  "familyBackground": { "fatherName": "Tesfaye", "motherName": "Marta", "occupation": "Trader" },
-  "guardians": [
-    { "fullName": "Tesfaye Bekele", "email": "tesfaye@example.com", "phone": "0911000001", "relationship": "Father", "primary": true }
-  ]
-}
-```
-Response includes auto-generated `credentials` (student) and `guardianCredentials` (parents).
-
-### POST `/students/grade-fee` — perm `student_registration`
-```json
-{ "grade": "Class 1", "amount": 500 }
-```
-
-### GET `/students/grade-fee` — public
-List configured grade fees.
-
-### DELETE `/students/:id` — perm `student_registration`
-Cascades enrollments, grades, fees, attendance, parent cleanup.
-
-### POST `/students/promote` — perm `student_registration`
-```json
-{ "studentId": "<student.id>", "nextGrade": "Class 2", "nextAcademicYearId": "<year.id>", "sectionId": null }
-```
-
-### POST `/students/repeat` — perm `student_registration`
-```json
-{ "studentId": "<student.id>", "targetAcademicYearId": "<year.id>", "sectionId": null }
-```
-
-### PATCH `/students/:id/status` — perm `student_registration`
-```json
-{ "status": "Transferred", "enrollmentId": "<enrollment.id>" }
-```
-`status` ∈ Enrolled | Promoted | Repeated | Transferred | Graduated.
+- **POST `/auth/login`**
+  - Body: `{ "identifier": "superadmin@school.com", "password": "superadmin" }`
+  - Notes: `identifier` accepts email, studentId, teacherId, or parentId. Sets the `token` httpOnly cookie.
+- **POST `/auth/logout`**
+  - Notes: Clears the authentication cookie.
+- **POST `/auth/register-admin`**
+  - Body: `{ "name": "Owner", "email": "owner@school.com", "password": "secret", "role": "SuperAdmin" }`
+  - Notes: Bootstrap helper. `role` is optional (defaults to `Admin`).
+- **POST `/students`**
+  - Notes: Public self-registration for students. Requires an active academic year with registration open.
+- **GET `/students/grade-fee`**
+  - Notes: List configured grade fees.
 
 ---
 
-## 4. Teachers
+## 2. All Authenticated Users
 
-### GET `/teachers` — Admin
+Any logged-in user (SuperAdmin, Admin, Cashier, Teacher, Student, Parent) can access these endpoints.
 
-### POST `/teachers` — Admin
-```json
-{ "name": "Sara Lemma", "email": "sara@school.com", "subject": "Mathematics", "password": "optional" }
-```
-Returns generated `teacherId` + password.
-
-### DELETE `/teachers/:id` — Admin
-
----
-
-## 5. Teacher Assignments
-
-### GET `/assignments/options` — Admin
-Returns teachers, classes, and `Class 1..12` names.
-
-### POST `/assignments` — Admin
-```json
-{ "teacherId": "<teacher.id>", "classIds": ["<class.id>"], "specificClassNames": ["Class 3"], "notes": "Math" }
-```
-Provide `classId`, `classIds[]`, and/or `specificClassNames[]` (auto-creates missing classes).
-
-### GET `/assignments/me` — Teacher
-Logged-in teacher's assignments (with class + students).
-
-### GET `/assignments` — Admin
-All assignments.
+- **GET `/auth/permissions/me`** — Returns current user's permissions.
+- **GET `/academic-years`** — Lists all academic years.
+- **GET `/classroom/grading-structure`** — Views current grading weights.
+- **GET `/fees/receipts/:paymentId`** — View a generated receipt.
+- **GET `/fees/structures`** — List all fee structures.
+- **GET `/subjects`** — List all subjects.
+- **GET `/timetables/class/:classId/:academicYearId`** — Get a class's timetable.
+- **GET `/report-cards/:studentId/:academicYearId`** — View a published report card.
+- **GET `/notifications`** — View last 50 notifications for the logged-in user.
+- **PATCH `/notifications/:id/read`** — Mark a notification as read.
 
 ---
 
-## 6. Classroom (Classes, Sections, Attendance, Grades, Grading)
+## 3. SuperAdmin
 
-### GET `/classroom/options` — Teacher, Admin, SuperAdmin
-Classes (+ students) for grade/attendance screens.
+SuperAdmins have access to all Admin routes, plus these exclusive administrative actions.
 
-### POST `/classroom/classes` — Admin, SuperAdmin
-```json
-{ "name": "Class 1", "subject": "General", "teacherId": null, "schedule": null }
-```
-
-### GET `/classroom/classes` — Admin, SuperAdmin, Teacher
-
-### POST `/classroom/sections` — Admin, SuperAdmin
-```json
-{ "name": "A", "classId": "<class.id>" }
-```
-
-### GET `/classroom/sections/:classId` — Admin, SuperAdmin, Teacher
-
-### POST `/classroom/attendance` — Teacher, Admin, SuperAdmin
-Future dates rejected; records older than 7 days locked (SuperAdmin can still write).
-```json
-{
-  "classId": "<class.id>",
-  "date": "2026-06-15",
-  "records": [
-    { "student": "<student.id>", "status": "Present" },
-    { "student": "<student.id>", "status": "Absent" }
-  ]
-}
-```
-`status` ∈ Present | Absent | Late.
-
-### GET `/classroom/attendance` — Admin, SuperAdmin
-List recent attendance sessions with computed lock state. *(added)*
-
-### PATCH `/classroom/attendance/:id/unlock` — SuperAdmin
-No body. Unlocks a session.
-
-### POST `/classroom/grades` — Teacher, Admin, SuperAdmin
-Each component is scored **out of 100**; total is auto-computed from the active weights.
-```json
-{
-  "classId": "<class.id>",
-  "subject": "Mathematics",
-  "gradesData": [
-    { "student": "<student.id>", "marks": { "quiz": 80, "assignment": 90, "midterm": 75, "final": 88 } }
-  ]
-}
-```
-
-### GET `/classroom/grades/:classId/:subject` — Teacher, Admin, SuperAdmin
-
-### POST `/classroom/grading-structure` — SuperAdmin
-Weights must sum to 100.
-```json
-{ "quizWeight": 10, "assignmentWeight": 20, "midtermWeight": 30, "finalWeight": 40 }
-```
-
-### GET `/classroom/grading-structure` — any authenticated
+- **POST `/auth/permissions`**
+  - Body: `{ "role": "Admin", "permissions": ["student_registration"] }`
+  - Notes: Replaces all permissions for a role.
+- **PATCH `/academic-years/:id/active`**
+  - Notes: Marks an academic year as active and deactivates others.
+- **PATCH `/academic-years/:id/registration-period`**
+  - Body: `{ "registrationStart": "2026-06-01", "registrationEnd": "2026-07-01" }`
+- **PATCH `/classroom/attendance/:id/unlock`**
+  - Notes: Unlocks an older attendance session so it can be edited.
+- **POST `/classroom/grading-structure`**
+  - Body: `{ "quizWeight": 10, "assignmentWeight": 20, "midtermWeight": 30, "finalWeight": 40 }`
 
 ---
 
-## 7. Fees & Payments
+## 4. Admin
 
-### POST `/fees` — Admin, SuperAdmin, Cashier (records an already-paid fee)
-```json
-{ "studentId": "<student.id>", "amount": 500, "description": "Monthly Tuition", "month": "Meskerem", "dueDate": "2026-06-15" }
-```
+Admins have access to the following endpoints (some require specific permissions). *Note: SuperAdmins also have access to all of these.*
 
-### POST `/fees/generate` — Admin, SuperAdmin, Cashier *(added)*
-Creates **unpaid** invoices for all students (by grade fee), skipping any already invoiced for that month.
-```json
-{ "month": "Meskerem", "dueDate": "2026-06-30", "description": "Monthly Tuition - Meskerem" }
-```
+**Authentication & Settings**
+- **GET `/auth/permissions`** — List role→permission rows.
+- **GET `/audit-logs`** — View system audit logs (supports `?page=1&action=Promote`).
+- **GET `/stats/admin`** — Dashboard statistics.
 
-### GET `/fees/my` — Student, Parent *(added)*
-Logged-in student's fees with status. Parents must pass `?childStudentId=<student.id>`.
+**Academic Years & Subjects**
+- **POST `/academic-years`** — Create a new academic year.
+- **POST `/subjects`** — Create a new subject.
+- **DELETE `/subjects/:id`** — Delete a subject.
 
-### POST `/fees/bank-pay` — Student, Parent, SuperAdmin
-Submits a bank transfer for cashier verification (ownership enforced).
-```json
-{ "feeId": "<fee.id>", "amount": 500, "transactionReference": "FT123456789", "bankName": "CBE" }
-```
+**Students & Teachers**
+- **GET `/students`** — List all students.
+- **DELETE `/students/:id`** — Delete a student and their data.
+- **POST `/students/promote`** — Promote a student to the next grade.
+- **POST `/students/repeat`** — Make a student repeat a grade.
+- **PATCH `/students/:id/status`** — Change student status (e.g., Transferred).
+- **GET `/teachers`** — List all teachers.
+- **POST `/teachers`** — Register a new teacher.
+- **DELETE `/teachers/:id`** — Delete a teacher.
 
-### GET `/fees/pending-verifications` — Admin, SuperAdmin, Cashier
+**Classes & Assignments**
+- **GET `/assignments/options`** — Returns teachers, classes, and Grade 1..12 names.
+- **GET `/assignments`** — View all teacher assignments.
+- **POST `/assignments`** — Assign a teacher to a class/subject.
+- **GET `/classroom/options`** — Options for grades/attendance.
+- **GET `/classroom/classes`** — List all classes.
+- **POST `/classroom/classes`** — Create a new class.
+- **GET `/classroom/sections/:classId`** — List sections for a class.
+- **POST `/classroom/sections`** — Create a new section.
+- **POST `/timetables`** — Create or update a timetable slot.
+- **DELETE `/timetables/:id`** — Delete a timetable slot.
 
-### PATCH `/fees/verify/:paymentId` — Cashier, SuperAdmin
-```json
-{ "status": "Verified" }
-```
-`status` ∈ Verified | Rejected. Verifying marks the fee paid and issues a receipt.
+**Attendance & Grades**
+- **POST `/classroom/attendance`** — Record or update attendance.
+- **GET `/classroom/attendance`** — List recent attendance sessions.
+- **POST `/classroom/grades`** — Record student grades.
+- **GET `/classroom/grades/:classId/:subject`** — View grades for a class.
+- **POST `/report-cards/compile`** — Compile report cards for a year.
+- **POST `/report-cards/publish`** — Publish compiled report cards.
+- **PATCH `/report-cards/:id/comments`** — Add comments to a report card.
 
-### GET `/fees/receipts/:paymentId` — any authenticated
-
-### GET `/fees/defaulters/:month` — Admin, SuperAdmin, Cashier
-e.g. `/fees/defaulters/Meskerem`.
-
-### GET `/fees/paid/:month/:classId` — Admin, SuperAdmin, Cashier
-
-### POST `/fees/structures` — Admin, SuperAdmin, Cashier
-```json
-{ "grade": "Class 1", "amount": 500, "description": "Tuition" }
-```
-
-### GET `/fees/structures` — any authenticated
-
----
-
-## 8. Subjects
-
-### GET `/subjects` — any authenticated
-### POST `/subjects` — Admin, SuperAdmin
-```json
-{ "name": "Physics", "department": "Science" }
-```
-### DELETE `/subjects/:id` — Admin, SuperAdmin
-
----
-
-## 9. Timetables
-
-### GET `/timetables/class/:classId/:academicYearId` — any authenticated
-Optional `?sectionId=<id>`.
-
-### GET `/timetables/teacher/me` — Teacher, SuperAdmin
-### GET `/timetables/student/me` — Student, Parent, SuperAdmin
-Parents pass `?childStudentId=<student.id>`.
-
-### POST `/timetables` — Admin, SuperAdmin (create or update if `id` given)
-```json
-{
-  "academicYearId": "<year.id>",
-  "classId": "<class.id>",
-  "subjectId": "<subject.id>",
-  "sectionId": null,
-  "dayOfWeek": "Monday",
-  "startTime": "08:30",
-  "endTime": "09:30",
-  "room": "R1"
-}
-```
-
-### DELETE `/timetables/:id` — Admin, SuperAdmin
+**Fees & Finances (Also accessible by Cashier)**
+- **POST `/students/grade-fee`** — Configure a fee for a specific grade.
+- **POST `/fees`** — Record an already-paid fee.
+- **POST `/fees/generate`** — Create unpaid invoices for all students.
+- **GET `/fees/pending-verifications`** — View bank transfers waiting for approval.
+- **GET `/fees/defaulters/:month`** — View students who haven't paid.
+- **GET `/fees/paid/:month/:classId`** — View paid fees.
+- **POST `/fees/structures`** — Create a new fee structure.
 
 ---
 
-## 10. Report Cards
+## 5. Cashier
 
-### POST `/report-cards/compile` — Admin, SuperAdmin
-```json
-{ "academicYearId": "<year.id>" }
-```
+Cashiers manage finances and payments.
 
-### POST `/report-cards/publish` — Admin, SuperAdmin
-```json
-{ "academicYearId": "<year.id>" }
-```
-
-### GET `/report-cards/:studentId/:academicYearId` — any authenticated
-Students/parents only see it once published.
-
-### PATCH `/report-cards/:id/comments` — Admin, SuperAdmin, Teacher
-```json
-{ "comments": "Great improvement this term." }
-```
+- **GET `/stats/admin`** — Financial dashboard stats.
+- **POST `/fees`** — Record an already-paid fee.
+- **POST `/fees/generate`** — Create unpaid invoices for all students.
+- **GET `/fees/pending-verifications`** — View bank transfers waiting for approval.
+- **PATCH `/fees/verify/:paymentId`** — Verify (`"Verified"`) or reject (`"Rejected"`) a bank payment.
+- **GET `/fees/defaulters/:month`** — View unpaid fees.
+- **GET `/fees/paid/:month/:classId`** — View paid fees.
+- **POST `/fees/structures`** — Create fee structures.
 
 ---
 
-## 11. Notifications
+## 6. Teacher
 
-### GET `/notifications` — any authenticated (last 50)
-### PATCH `/notifications/:id/read` — any authenticated (no body)
+Teachers manage their assigned classes, attendance, and grades.
 
----
-
-## 12. Audit Logs
-
-### GET `/audit-logs` — Admin, SuperAdmin
-Query: `?page=1&action=Promote` (action is a search filter). Returns `{ logs, totalPages }`.
-
----
-
-## 13. Stats / Dashboards
-
-### GET `/stats/admin` — Admin, SuperAdmin, Cashier
-### GET `/stats/student/me` — Student
-### GET `/stats/teacher/me` — Teacher
-### GET `/stats/parent/me` — Parent
+- **GET `/stats/teacher/me`** — Teacher dashboard statistics.
+- **GET `/students`** — List only the students assigned to them.
+- **GET `/assignments/me`** — View their own class/subject assignments.
+- **GET `/timetables/teacher/me`** — View their personal teaching schedule.
+- **GET `/classroom/options`** — Options for grades/attendance.
+- **GET `/classroom/classes`** — View classes.
+- **GET `/classroom/sections/:classId`** — View sections for a class.
+- **POST `/classroom/attendance`** — Record attendance for their class.
+- **POST `/classroom/grades`** — Record grades for their students.
+- **GET `/classroom/grades/:classId/:subject`** — View grades for their class.
+- **PATCH `/report-cards/:id/comments`** — Add comments to their students' report cards.
 
 ---
 
-## Suggested end-to-end test order
+## 7. Student
 
-1. `node seedAdmin.js`, then **login as SuperAdmin**.
-2. Create academic year → set active → open registration.
-3. Set a grade fee (`/students/grade-fee`).
-4. Register a student (`/students`) — save the returned student/guardian credentials.
-5. Create subjects, a class, a section (`/subjects`, `/classroom/classes`, `/classroom/sections`).
-6. Register a teacher, then assign to the class (`/teachers`, `/assignments`).
-7. Record attendance and grades for the class.
-8. Generate invoices (`/fees/generate`) → login as the student → `/fees/my` → `/fees/bank-pay` → login as Cashier → `/fees/pending-verifications` → `/fees/verify/:id` → `/fees/receipts/:id`.
-9. Compile + publish report cards → login as student → `/report-cards/:studentId/:yearId`.
+Students can view their own academic and financial progress.
+
+- **GET `/stats/student/me`** — Student dashboard stats.
+- **GET `/timetables/student/me`** — View personal class schedule.
+- **GET `/fees/my`** — View personal fee invoices and payment status.
+- **POST `/fees/bank-pay`**
+  - Body: `{ "feeId": "<fee.id>", "amount": 500, "transactionReference": "FT123", "bankName": "CBE" }`
+  - Notes: Submit a bank transfer for cashier verification.
+
+---
+
+## 8. Parent
+
+Parents can view records for their linked children.
+
+- **GET `/stats/parent/me`** — Parent dashboard stats.
+- **GET `/timetables/student/me?childStudentId=<student.id>`** — View a child's schedule.
+- **GET `/fees/my?childStudentId=<student.id>`** — View a child's fee invoices.
+- **POST `/fees/bank-pay`** — Submit a bank transfer payment on behalf of a child.

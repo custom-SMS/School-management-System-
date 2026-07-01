@@ -3,6 +3,8 @@ const path = require('path');
 const prisma = require('./prisma');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./config/swagger');
 require('dotenv').config();
 
 const app = express();
@@ -20,6 +22,13 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Swagger API Documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // Connect to PostgreSQL database via Prisma
 prisma.$connect()

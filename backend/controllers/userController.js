@@ -85,10 +85,10 @@ const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Prevent updating student roles
-    if (user.role === 'Student') {
+    // Prevent updating student and parent roles
+    if (user.role === 'Student' || user.role === 'Parent') {
       return res.status(403).json({
-        message: 'Student roles cannot be changed.'
+        message: `${user.role} roles cannot be changed.`
       });
     }
 

@@ -176,6 +176,12 @@ const getAdminStats = async (req, res) => {
 
     const avgAttendance = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(2)) : 0;
 
+    const recentAuditLogs = await prisma.auditLog.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 10,
+      include: { user: { select: { name: true, role: true } } }
+    });
+
     res.status(200).json({
       totalStudents,
       totalRevenue,
@@ -188,6 +194,7 @@ const getAdminStats = async (req, res) => {
       attendanceSummary,
       studentsByClass,
       feeSummaryByClass,
+      recentAuditLogs,
     });
 
   } catch (error) {
@@ -606,23 +613,65 @@ const getSuperAdminStats = async (req, res) => {
 
     const systemHealth = 'Operational';
 
-    // Mock division performance for chart
-    const divisionPerformance = [
-      { division: 'Primary School', score: 85 },
-      { division: 'Middle School', score: 78 },
-      { division: 'High School', score: 82 }
-    ];
-
-    const revenueByDivision = [
-      { division: 'Primary School', revenue: totalRevenue * 0.4 },
-      { division: 'Middle School', revenue: totalRevenue * 0.35 },
-      { division: 'High School', revenue: totalRevenue * 0.25 }
-    ];
-
+    const studentsByGrade = await prisma.student.groupBy({
+      by: ['grade'],
+      _count: { _all: true }
+    });
+    let primaryCount = 0, middleCount = 0, highCount = 0;
+    studentsByGrade.forEach(g => {
+      const match = String(g.grade).match(/\d+/);
+      if (match) {
+        const gradeNum = parseInt(match[0], 10);
+        if (gradeNum >= 1 && gradeNum <= 6) primaryCount += g._count._all;
+        else if (gradeNum >= 7 && gradeNum <= 8) middleCount += g._count._all;
+        else if (gradeNum >= 9 && gradeNum <= 12) highCount += g._count._all;
+      }
+    });
     const studentDistribution = [
-      { division: 'Primary', count: Math.floor(totalStudents * 0.5) },
-      { division: 'Middle', count: Math.floor(totalStudents * 0.3) },
-      { division: 'High', count: Math.floor(totalStudents * 0.2) }
+      { division: 'Primary', count: primaryCount },
+      { division: 'Middle', count: middleCount },
+      { division: 'High', count: highCount }
+    ];
+
+    const fees = await prisma.fee.findMany({
+      where: { paid: true },
+      include: { student: { select: { grade: true } } }
+    });
+    let primaryRev = 0, middleRev = 0, highRev = 0;
+    fees.forEach(f => {
+      const match = String(f.student?.grade || '').match(/\d+/);
+      const amount = Number(f.amount || 0);
+      if (match) {
+        const gradeNum = parseInt(match[0], 10);
+        if (gradeNum >= 1 && gradeNum <= 6) primaryRev += amount;
+        else if (gradeNum >= 7 && gradeNum <= 8) middleRev += amount;
+        else if (gradeNum >= 9 && gradeNum <= 12) highRev += amount;
+      }
+    });
+    const revenueByDivision = [
+      { division: 'Primary School', revenue: primaryRev },
+      { division: 'Middle School', revenue: middleRev },
+      { division: 'High School', revenue: highRev }
+    ];
+
+    const grades = await prisma.grade.findMany({
+      include: { student: { select: { grade: true } } }
+    });
+    let pScore = 0, pCount = 0, mScore = 0, mCount = 0, hScore = 0, hCount = 0;
+    grades.forEach(g => {
+      const match = String(g.student?.grade || '').match(/\d+/);
+      const percentage = Number(g.percentage || 0);
+      if (match && percentage > 0) {
+        const gradeNum = parseInt(match[0], 10);
+        if (gradeNum >= 1 && gradeNum <= 6) { pScore += percentage; pCount++; }
+        else if (gradeNum >= 7 && gradeNum <= 8) { mScore += percentage; mCount++; }
+        else if (gradeNum >= 9 && gradeNum <= 12) { hScore += percentage; hCount++; }
+      }
+    });
+    const divisionPerformance = [
+      { division: 'Primary School', score: pCount > 0 ? Math.round(pScore / pCount) : 0 },
+      { division: 'Middle School', score: mCount > 0 ? Math.round(mScore / mCount) : 0 },
+      { division: 'High School', score: hCount > 0 ? Math.round(hScore / hCount) : 0 }
     ];
 
     const recentAuditLogs = await prisma.auditLog.findMany({

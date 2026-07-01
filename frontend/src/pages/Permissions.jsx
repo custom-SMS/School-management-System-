@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from '../components/SuperAdminLayout';
@@ -10,6 +11,8 @@ import {
 } from '../constants/accessControl';
 
 export default function Permissions() {
+  const navigate = useNavigate();
+
   // grants: { [role]: Set<permissionKey> } for editable roles only.
   const [grants, setGrants] = useState({});
   const [initial, setInitial] = useState({});
@@ -117,11 +120,23 @@ export default function Permissions() {
       }
     >
       <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-black tracking-tight text-slate-900">Permission Management</h2>
-          <p className="text-sm text-slate-500">
-            Grant or revoke capabilities per role. SuperAdmin always has full access.
-          </p>
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => navigate('/super-admin/roles')}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
+            </svg>
+            Back to Role Management
+          </button>
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">Permission Management</h2>
+            <p className="text-sm text-slate-500">
+              Grant or revoke capabilities per role. SuperAdmin always has full access.
+            </p>
+          </div>
         </div>
 
         {loading ? (

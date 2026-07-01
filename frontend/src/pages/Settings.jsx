@@ -606,7 +606,7 @@ export default function Settings() {
                       </thead>
                       <tbody className="divide-y divide-slate-150 bg-white">
                         {sessions.map((s) => (
-                          <tr key={s._id} className="hover:bg-slate-50/70 transition-colors">
+                          <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
                             <td className="px-4 py-3.5 font-bold text-slate-800">{s.className}</td>
                             <td className="px-4 py-3.5 text-slate-600">
                               {new Date(s.date).toLocaleDateString()}{' '}
@@ -620,11 +620,11 @@ export default function Settings() {
                             </td>
                             <td className="px-4 py-3.5 text-right">
                               <button
-                                disabled={!s.locked || unlockingId === s._id}
-                                onClick={() => handleUnlock(s._id)}
+                                disabled={!s.locked || unlockingId === s.id}
+                                onClick={() => handleUnlock(s.id)}
                                 className="rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-40 transition"
                               >
-                                {unlockingId === s._id ? 'Unlocking…' : 'Unlock'}
+                                {unlockingId === s.id ? 'Unlocking…' : 'Unlock'}
                               </button>
                             </td>
                           </tr>
