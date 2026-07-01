@@ -13,11 +13,11 @@ const STEPS = [
 
 const blank = {
   firstName: '', fatherName: '', grandfatherName: '',
-  email: '', dateOfBirth: '', gender: '', address: '',
+  email: '', dateOfBirth: '', gender: '', address: '', nationalId: '',
   parentFirst: '', parentFather: '', parentGrandfather: '',
   parentRelationship: '', parentEmail: '', parentPhone: '', parentOccupation: '',
   emergencyName: '', emergencyPhone: '',
-  grade: '', section: '', classId: '', transport: false,
+  classId: '', transport: false,
   consent: false,
 };
 
@@ -107,8 +107,7 @@ export default function StudentRegistrationWizard() {
           parentOccupation: student.familyBackground?.occupation || '',
           emergencyName: noteValue(notes, 'Emergency').replace(/\s*\([^)]*\)\s*$/, ''),
           emergencyPhone: noteValue(notes, 'Emergency').match(/\(([^)]*)\)/)?.[1] || '',
-          grade: student.grade || '',
-          section: noteValue(notes, 'Section'),
+          nationalId: noteValue(notes, 'National ID'),
           classId: student.classes?.[0]?.id || student.classes?.[0]?._id || '',
           transport: notes.includes('Transport: Yes'),
           consent: true,
@@ -125,10 +124,6 @@ export default function StudentRegistrationWizard() {
   const step = STEPS[stepIdx];
   const isLast = stepIdx === STEPS.length - 1;
 
-  const selectedFee = useMemo(
-    () => gradeFees.find((g) => String(g.grade) === String(form.grade)),
-    [gradeFees, form.grade],
-  );
   const selectedClass = useMemo(
     () => classes.find((c) => (c.id || c._id) === form.classId),
     [classes, form.classId],
@@ -137,8 +132,14 @@ export default function StudentRegistrationWizard() {
   const parentName = [form.parentFirst, form.parentFather, form.parentGrandfather].filter(Boolean).join(' ');
 
   const canProceed = () => {
-    if (step.key === 'student') return form.firstName && form.fatherName;
-    if (step.key === 'enrollment') return !!form.grade && (classes.length === 0 || !!form.classId);
+    if (step.key === 'student') {
+      return form.firstName && form.fatherName && form.dateOfBirth && form.gender && form.address;
+    }
+    if (step.key === 'parent') {
+      return form.parentFirst && form.parentPhone && form.parentOccupation && form.emergencyName && form.emergencyPhone;
+    }
+    if (step.key === 'enrollment') return classes.length === 0 || !!form.classId;
+    if (step.key === 'documents') return docs['National ID / Kebele ID']?.status === 'done' && docs['Student Photo']?.status === 'done';
     if (step.key === 'review') return form.consent;
     return true;
   };
@@ -157,7 +158,6 @@ export default function StudentRegistrationWizard() {
       const payload = {
         name: fullName,
         email: form.email || undefined,
-        grade: form.grade,
         classId: form.classId || undefined,
         personalDetails: {
           dateOfBirth: form.dateOfBirth,
@@ -170,7 +170,7 @@ export default function StudentRegistrationWizard() {
           guardianName: parentName,
           occupation: form.parentOccupation,
           notes: [
-            form.section ? `Section: ${form.section}` : '',
+            form.nationalId ? `National ID: ${form.nationalId}` : '',
             form.transport ? 'Transport: Yes' : '',
             form.emergencyName ? `Emergency: ${form.emergencyName} (${form.emergencyPhone})` : '',
             ...Object.entries(docs).filter(([, d]) => d.status === 'done').map(([k, d]) => `${k}: ${d.url}`),
@@ -282,8 +282,8 @@ export default function StudentRegistrationWizard() {
             <p className="mt-1 text-sm text-slate-500">
               {step.key === 'student' && 'Enter the legal personal details of the student as they appear on official identity documents.'}
               {step.key === 'parent' && "Provide primary and emergency contact details for the student's legal guardians."}
-              {step.key === 'enrollment' && 'Select the academic year, grade, and section placement.'}
-              {step.key === 'documents' && 'Upload scanned copies of the required documents (PDF or JPEG).'}
+              {step.key === 'enrollment' && 'Review the active academic year and assign the student to a class.'}
+              {step.key === 'documents' && 'Upload the required student photo and national ID, plus any optional supporting documents.'}
               {step.key === 'review' && 'Please verify all details before finalizing the registration.'}
             </p>
 
@@ -357,6 +357,11 @@ export default function StudentRegistrationWizard() {
                             </div>
                           </div>
                           <div className="mt-4">
+                            <Field label="National ID">
+                              <input className={inputCls} value={form.nationalId} onChange={(e) => set('nationalId', e.target.value)} placeholder="Enter national ID number" />
+                            </Field>
+                          </div>
+                          <div className="mt-4">
                             <Field label="Student Email (optional)"><input type="email" className={inputCls} value={form.email} onChange={(e) => set('email', e.target.value)} placeholder="student@email.com" /></Field>
                           </div>
                         </Card>
@@ -368,7 +373,7 @@ export default function StudentRegistrationWizard() {
                   )}
 
                   {step.key === 'parent' && (
-                    <Card title="Primary Guardian">
+                    <Card title="Family Side">
                       <div className="grid gap-5 sm:grid-cols-3">
                         <Field label="First Name"><input className={inputCls} value={form.parentFirst} onChange={(e) => set('parentFirst', e.target.value)} placeholder="e.g. Abebe" /></Field>
                         <Field label="Father's Name"><input className={inputCls} value={form.parentFather} onChange={(e) => set('parentFather', e.target.value)} placeholder="e.g. Bekele" /></Field>
@@ -389,8 +394,19 @@ export default function StudentRegistrationWizard() {
                         <h4 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900"><span className="text-rose-500">*</span> Emergency Contact Detail</h4>
                         <div className="grid gap-5 sm:grid-cols-2">
                           <Field label="Full Name (Emergency)"><input className={inputCls} value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} placeholder="Contact Person Name" /></Field>
-                          <Field label="Emergency Phone Number"><input className={inputCls} value={form.emergencyPhone} onChange={(e) => set('emergencyPhone', e.target.value)} placeholder="+251 912 345 678" /></Field>
-                        </div>
+<Field label="Emergency Phone Number">
+  <input
+    type="tel"
+    inputMode="numeric"
+    pattern="[0-9]*"
+    className={inputCls}
+    value={form.emergencyPhone}
+    onChange={(e) =>
+      set('emergencyPhone', e.target.value.replace(/\D/g, ''))
+    }
+    placeholder="912345678"
+  />
+</Field>                        </div>
                       </div>
                     </Card>
                   )}
@@ -398,18 +414,14 @@ export default function StudentRegistrationWizard() {
                   {step.key === 'enrollment' && (
                     <div className="grid gap-5 lg:grid-cols-[1.5fr_1fr]">
                       <Card title="Academic Placement">
-                        <Field label="Academic Year"><select className={inputCls} disabled><option>{activeYear?.year ? `${activeYear.year} Academic Year` : 'No active academic year'}</option></select></Field>
-                        <div className="mt-5">
-                          <span className={labelCls}>Grade Level Selection</span>
-                          <div className="grid grid-cols-4 gap-3">
-                            {(gradeFees.length ? gradeFees.map((g) => String(g.grade)) : ['9', '10', '11', '12']).map((g) => (
-                              <button key={g} onClick={() => set('grade', g)} className={`rounded-xl border py-4 text-center transition ${String(form.grade) === String(g) ? 'border-slate-900 bg-slate-100' : 'border-slate-300 hover:bg-slate-50'}`}>
-                                <div className="text-xl font-black">{String(g).replace(/\D/g, '') || g}</div>
-                                <div className="text-xs text-slate-400">Grade</div>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        <Field label="Academic Year">
+  <input
+    className={inputCls}
+    type="text"
+    value={activeYear?.year ? `${activeYear.year} Academic Year` : 'No active academic year'}
+    readOnly
+  />
+</Field>
                         <div className="mt-5">
                           <Field label="Assigned Class">
                             <select className={inputCls} value={form.classId} onChange={(e) => set('classId', e.target.value)}>
@@ -423,9 +435,6 @@ export default function StudentRegistrationWizard() {
                           </Field>
                           <p className="mt-1.5 text-xs text-slate-400">Determines which teacher's roster the student appears in.</p>
                         </div>
-                        <div className="mt-5">
-                          <Field label="Section (optional)"><input className={inputCls} value={form.section} onChange={(e) => set('section', e.target.value)} placeholder="e.g. Section A" /></Field>
-                        </div>
                         <label className="mt-5 flex items-center gap-3 text-sm font-semibold text-slate-700">
                           <input type="checkbox" checked={form.transport} onChange={(e) => set('transport', e.target.checked)} className="h-4 w-4" />
                           Requires school transport service
@@ -433,26 +442,31 @@ export default function StudentRegistrationWizard() {
                       </Card>
                       <div className="rounded-2xl bg-slate-900 p-6 text-white">
                         <h3 className="text-lg font-bold">Capacity Analytics</h3>
-                        <p className="text-sm text-slate-400">Real-time enrollment metrics{form.grade ? ` for Grade ${form.grade}` : ''}.</p>
+                        <p className="text-sm text-slate-400">Registration details for the currently active academic year.</p>
                         <div className="mt-5 rounded-xl bg-white/5 p-4">
                           <div className="text-xs font-semibold uppercase text-slate-400">Registration Summary</div>
                           <div className="mt-2 space-y-2 text-sm">
-                            <div className="flex justify-between"><span className="text-slate-400">Grade</span><span className="font-bold">{form.grade || '—'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">Section</span><span className="font-bold">{form.section || '—'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">Tuition (ETB)</span><span className="font-bold">{selectedFee ? `ETB ${Number(selectedFee.amount).toLocaleString()}` : '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Academic Year</span><span className="font-bold">{activeYear?.year || '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Assigned Class</span><span className="font-bold">{selectedClass?.name || '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="font-bold">{form.transport ? 'Yes' : 'No'}</span></div>
                           </div>
                         </div>
-                        <p className="mt-4 text-xs text-slate-400">Section assignments are prioritized by date of registration completion.</p>
+                        <p className="mt-4 text-xs text-slate-400">Class assignment determines the homeroom and teacher roster for this student.</p>
                       </div>
                     </div>
                   )}
 
                   {step.key === 'documents' && (
                     <div className="grid gap-5 lg:grid-cols-2">
-                      {['Birth Certificate', 'School Transcript', 'National ID / Kebele ID', 'Student Photo'].map((doc) => {
+                      {[
+                        { name: 'Birth Certificate', required: false },
+                        { name: 'School Transcript', required: false },
+                        { name: 'National ID / Kebele ID', required: true },
+                        { name: 'Student Photo', required: true },
+                      ].map(({ name: doc, required }) => {
                         const state = docs[doc];
                         return (
-                          <Card key={doc} title={doc}>
+                          <Card key={doc} title={`${doc}${required ? ' *' : ''}`}>
                             {state?.status === 'done' ? (
                               <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                                 <div className="flex items-center gap-3">
@@ -482,7 +496,7 @@ export default function StudentRegistrationWizard() {
                                   <>
                                     <svg className="h-9 w-9 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 7 7h3v6h4V7h3l-5-5zM5 18h14v2H5z" /></svg>
                                     <p className="mt-2 text-sm font-semibold text-slate-600">Drag and drop or <span className="font-bold underline">browse</span></p>
-                                    <p className="mt-1 text-[10px] uppercase text-slate-400">Max 5MB · PDF, JPG, PNG</p>
+                                     <p className="mt-1 text-[10px] uppercase text-slate-400">Max 5MB · PDF, JPG, PNG {required ? '· Required' : '· Optional'}</p>
                                   </>
                                 )}
                               </label>
@@ -491,7 +505,7 @@ export default function StudentRegistrationWizard() {
                         );
                       })}
                       <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-                        <span className="font-bold text-slate-700">{Object.values(docs).filter((d) => d.status === 'done').length}/4 uploaded.</span> Files are stored securely and linked to the registration on submit.
+                        <span className="font-bold text-slate-700">{Object.values(docs).filter((d) => d.status === 'done').length}/4 uploaded.</span> Student photo and national ID are required. Birth certificate and school transcript are optional.
                       </div>
                     </div>
                   )}
@@ -500,8 +514,8 @@ export default function StudentRegistrationWizard() {
                     <div className="space-y-5">
                       <ReviewCard title="Student Information" onEdit={() => setStepIdx(0)} rows={[
                         ['Full Name', fullName || '—'], ['Gender', form.gender || '—'],
-                        ['Date of Birth', form.dateOfBirth || '—'], ['Email', form.email || '—'],
-                        ['Address', form.address || '—'],
+                        ['Date of Birth', form.dateOfBirth || '—'], ['National ID', form.nationalId || '—'],
+                        ['Email', form.email || '—'], ['Address', form.address || '—'],
                       ]} />
                       <ReviewCard title="Parent / Guardian Information" onEdit={() => setStepIdx(1)} rows={[
                         ['Primary Guardian', parentName || '—'], ['Relationship', form.parentRelationship || '—'],
@@ -509,11 +523,11 @@ export default function StudentRegistrationWizard() {
                         ['Emergency Contact', form.emergencyName ? `${form.emergencyName} (${form.emergencyPhone})` : '—'],
                       ]} />
                       <ReviewCard title="Enrollment Details" onEdit={() => setStepIdx(2)} rows={[
-                        ['Target Grade', form.grade ? `Grade ${form.grade}` : '—'],
+                        ['Academic Year', activeYear?.year || '—'],
                         ['Assigned Class', selectedClass ? `${selectedClass.name}${selectedClass.teacherName ? ` (${selectedClass.teacherName})` : ''}` : '—'],
-                        ['Section', form.section || '—'],
                         ['Transport Service', form.transport ? 'Yes' : 'No'],
-                        ['Tuition (ETB)', selectedFee ? `ETB ${Number(selectedFee.amount).toLocaleString()}` : '—'],
+                        ['National ID Uploaded', docs['National ID / Kebele ID']?.status === 'done' ? 'Yes' : 'No'],
+                        ['Student Photo Uploaded', docs['Student Photo']?.status === 'done' ? 'Yes' : 'No'],
                       ]} />
                       <label className="flex items-start gap-3 rounded-2xl bg-slate-900 p-5 text-sm text-white">
                         <input type="checkbox" checked={form.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 h-4 w-4" />
@@ -543,6 +557,7 @@ export default function StudentRegistrationWizard() {
                     {submitting ? (isEditMode ? 'Saving…' : 'Submitting…') : (isEditMode ? 'Save Changes' : 'Submit Registration')} →
                   </button>
                 ) : (
+                  
                   <button
                     onClick={() => canProceed() ? setStepIdx((i) => i + 1) : toast.error('Please complete the required fields.')}
                     className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
