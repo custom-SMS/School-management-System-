@@ -9,9 +9,14 @@ const {
   createClass,
   getClasses,
   deleteClass,
+  deleteSection,
   forceDeleteClass,
   createSection,
-  getSectionsByClass
+  getSectionsByClass,
+  getSectionById,
+  updateSection,
+  getSectionStudents,
+  assignStudentsToSection
 } = require('../controllers/classroomController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
@@ -251,6 +256,11 @@ router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), create
  *         description: List of sections
  */
 router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionsByClass);
+router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionById);
+router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateSection);
+router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteSection);
+router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionStudents);
+router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), assignStudentsToSection);
 
 // Attendance unlocking (SuperAdmin only)
 

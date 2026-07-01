@@ -23,7 +23,6 @@ const ALLOWED_CLASS_NAMES = [
 
 export default function Classes() {
   const [classes, setClasses] = useState([]);
-  const [teachers, setTeachers] = useState([]);
   
   const [loading, setLoading] = useState(true);
 
@@ -34,7 +33,6 @@ export default function Classes() {
   const [editingClassId, setEditingClassId] = useState(null);
   const [name, setName] = useState('');
   // const [subject, setSubject] = useState('');
-  const [teacherId, setTeacherId] = useState('');
 
   const availableClassOptions = useMemo(() => {
     const existingClassNames = new Set(
@@ -48,19 +46,6 @@ export default function Classes() {
     );
   }, [classes]);
 
-  const assignedHomeroomTeacherIds = useMemo(
-    () => new Set(classes.map((klass) => klass?.teacher?.id).filter(Boolean)),
-    [classes]
-  );
-
-  const availableTeachers = useMemo(
-    () => teachers.filter((teacher) => {
-      const id = teacher?._id || teacher?.id;
-      return id && !assignedHomeroomTeacherIds.has(id);
-    }),
-    [teachers, assignedHomeroomTeacherIds]
-  );
-
   const fetchClasses = () => {
     return axios.get('/classroom/classes')
       .then(res => setClasses(res.data || []))
@@ -68,23 +53,17 @@ export default function Classes() {
   };
 
   useEffect(() => {
-    Promise.all([
-      fetchClasses(),
-      axios.get('/teachers').then(res => setTeachers(res.data || [])).catch(console.error),
-      axios.get('/subjects').then(res => setSubjects(res.data || [])).catch(console.error),
-    ]).finally(() => setLoading(false));
+    fetchClasses().finally(() => setLoading(false));
   }, []);
 
   const resetForm = () => {
     setEditingClassId(null);
     setName('');
-    setTeacherId('');
   };
 
   const handleEditClick = (klass) => {
     setEditingClassId(klass.id);
     setName(klass.name || '');
-    setTeacherId(klass.teacher?.id || '');
     setShowModal(true);
   };
 
@@ -123,9 +102,7 @@ export default function Classes() {
       }
 
       await axios.post('/classroom/classes', {
-        name: normalizedName,
-        // subject: subject.trim(),
-        teacherId: teacherId
+        name: normalizedName
       });
       toast.success(`Class "${normalizedName}" created.`);
       resetForm();
@@ -163,7 +140,7 @@ export default function Classes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">{editingClassId ? 'Edit Class' : 'Add New Grade'}</h2>
+              <h2 className="text-xl font-bold text-gray-900">{editingClassId ? 'Edit Class' : 'Add New Class'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
             </div>
             <form onSubmit={handleCreateClass} className="space-y-4">
@@ -198,13 +175,6 @@ export default function Classes() {
                   <input type="text" required placeholder="e.g. General" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
                 )}
               </div> */}
-              <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher</label>
-                <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
-                  <option value="">None</option>
-                  {availableTeachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
-                </select>
-              </div>
               <div className="flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">
@@ -220,7 +190,7 @@ export default function Classes() {
         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
-            <p className="text-sm font-medium text-gray-500">View and manage all active classes.</p>
+            <p className="text-sm font-medium text-gray-500">View and manage grade levels and their homeroom teachers.</p>
           </div>
           <button
             onClick={openCreateModal}
