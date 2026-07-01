@@ -1,7 +1,25 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
+
+const ALLOWED_CLASS_NAMES = [
+  'Nursery',
+  'LKG',
+  'UKG',
+  'Grade 1',
+  'Grade 2',
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6',
+  'Grade 7',
+  'Grade 8',
+  'Grade 9',
+  'Grade 10',
+  'Grade 11',
+  'Grade 12'
+];
 
 export default function Classes() {
   const [classes, setClasses] = useState([]);
@@ -17,6 +35,31 @@ export default function Classes() {
   const [name, setName] = useState('');
   // const [subject, setSubject] = useState('');
   const [teacherId, setTeacherId] = useState('');
+
+  const availableClassOptions = useMemo(() => {
+    const existingClassNames = new Set(
+      classes
+        .map((klass) => (klass?.name || '').trim().toLowerCase())
+        .filter(Boolean)
+    );
+
+    return ALLOWED_CLASS_NAMES.filter(
+      (className) => !existingClassNames.has(className.toLowerCase())
+    );
+  }, [classes]);
+
+  const assignedHomeroomTeacherIds = useMemo(
+    () => new Set(classes.map((klass) => klass?.teacher?.id).filter(Boolean)),
+    [classes]
+  );
+
+  const availableTeachers = useMemo(
+    () => teachers.filter((teacher) => {
+      const id = teacher?._id || teacher?.id;
+      return id && !assignedHomeroomTeacherIds.has(id);
+    }),
+    [teachers, assignedHomeroomTeacherIds]
+  );
 
   const fetchClasses = () => {
     return axios.get('/classroom/classes')
@@ -45,12 +88,33 @@ export default function Classes() {
     setShowModal(true);
   };
 
+  const openCreateModal = () => {
+    resetForm();
+    if (availableClassOptions.length > 0) {
+      setName(availableClassOptions[0]);
+    }
+    setShowModal(true);
+  };
+
   const handleCreateClass = async (e) => {
     e.preventDefault();
-    if (!name.trim() ) {
+    const normalizedName = name.trim();
+    if (!normalizedName) {
       toast.error('Class name is required.');
       return;
     }
+
+    if (!ALLOWED_CLASS_NAMES.includes(normalizedName)) {
+      toast.error('Please select a valid class from the dropdown.');
+      return;
+    }
+
+    const existingClassNames = new Set(classes.map((klass) => (klass?.name || '').trim().toLowerCase()));
+    if (!editingClassId && existingClassNames.has(normalizedName.toLowerCase())) {
+      toast.error(`Class "${normalizedName}" already exists.`);
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingClassId) {
@@ -59,11 +123,11 @@ export default function Classes() {
       }
 
       await axios.post('/classroom/classes', {
-        name: name.trim(),
+        name: normalizedName,
         // subject: subject.trim(),
         teacherId: teacherId
       });
-      toast.success(`Class "${name}" created.`);
+      toast.success(`Class "${normalizedName}" created.`);
       resetForm();
       setShowModal(false);
       await fetchClasses();
@@ -105,7 +169,23 @@ export default function Classes() {
             <form onSubmit={handleCreateClass} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Class Name</label>
-                <input type="text" required placeholder="e.g. Grade 1" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
+                <select
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={editingClassId || availableClassOptions.length === 0}
+                  className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  <option value="">Select a class</option>
+                  {(editingClassId ? [name] : availableClassOptions).map((className) => (
+                    <option key={className} value={className}>
+                      {className}
+                    </option>
+                  ))}
+                </select>
+                {!editingClassId && availableClassOptions.length === 0 && (
+                  <p className="mt-2 text-xs font-medium text-amber-700">All classes from Nursery to Grade 12 have already been created.</p>
+                )}
               </div>
               {/* <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Subject</label>
@@ -122,7 +202,7 @@ export default function Classes() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher</label>
                 <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
                   <option value="">None</option>
-                  {teachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
+                  {availableTeachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
                 </select>
               </div>
               <div className="flex justify-end gap-3 mt-2">
@@ -142,7 +222,11 @@ export default function Classes() {
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
             <p className="text-sm font-medium text-gray-500">View and manage all active classes.</p>
           </div>
-          <button onClick={() => { resetForm(); setShowModal(true); }} className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm">
+          <button
+            onClick={openCreateModal}
+            disabled={availableClassOptions.length === 0}
+            className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             + New Class
           </button>
         </div>

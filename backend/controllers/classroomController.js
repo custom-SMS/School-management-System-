@@ -1,5 +1,23 @@
 const prisma = require('../prisma');
 
+const ALLOWED_CLASS_NAMES = [
+  'Nursery',
+  'LKG',
+  'UKG',
+  'Grade 1',
+  'Grade 2',
+  'Grade 3',
+  'Grade 4',
+  'Grade 5',
+  'Grade 6',
+  'Grade 7',
+  'Grade 8',
+  'Grade 9',
+  'Grade 10',
+  'Grade 11',
+  'Grade 12'
+];
+
 const getTeacherProfile = async (userId) => {
   return prisma.teacher.findUnique({
     where: { userId }
@@ -502,9 +520,42 @@ const getGrades = async (req, res) => {
 
 const createClass = async (req, res) => {
   try {
-    const { name, subject, teacherId, schedule } = req.body;
+    const { name, teacherId, schedule } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Class name is required.' });
+    }
+
+    const normalizedName = name.trim();
+
+    if (!ALLOWED_CLASS_NAMES.includes(normalizedName)) {
+      return res.status(400).json({
+        message: `Invalid class name. Allowed classes are: ${ALLOWED_CLASS_NAMES.join(', ')}.`
+      });
+    }
+
+    const existingClass = await prisma.class.findFirst({
+      where: {
+        name: {
+          equals: normalizedName,
+          mode: 'insensitive'
+        }
+      }
+    });
+
+    if (existingClass) {
+      return res.status(400).json({ message: `Class "${normalizedName}" already exists.` });
+    }
+
+    if (teacherId) {
+      const existingTeacherClass = await prisma.class.findFirst({
+        where: { teacherId }
+      });
+
+      if (existingTeacherClass) {
+        return res.status(400).json({
+          message: 'This homeroom teacher is already assigned to another class.'
+        });
+      }
     }
 
     const normalizedSubject = typeof subject === 'string' && subject.trim()
@@ -513,7 +564,7 @@ const createClass = async (req, res) => {
 
     const newClass = await prisma.class.create({
       data: {
-        name: name.trim(),
+        name: normalizedName,
         subject: normalizedSubject,
         teacherId: teacherId || null,
         schedule: schedule || null
@@ -521,7 +572,7 @@ const createClass = async (req, res) => {
     });
 
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${name.trim()} (${normalizedSubject})`);
+    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${normalizedName} (${normalizedSubject})`);
 
     res.status(201).json(newClass);
   } catch (error) {
@@ -594,6 +645,113 @@ const deleteClass = async (req, res) => {
     await logActivity(req.user._id, 'Delete Class', id, `Deleted class: ${existingClass.name}`);
 
     res.status(200).json({ message: 'Class deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const forceDeleteClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            students: true,
+            attendances: true,
+            grades: true,
+            assignments: true,
+            sections: true,
+            timetables: true
+          }
+        }
+      }
+    });
+
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const studentsToDetach = await prisma.student.findMany({
+      where: {
+        classes: {
+          some: { id }
+        }
+      },
+      select: { id: true }
+    });
+
+    await Promise.all(
+      studentsToDetach.map((student) =>
+        prisma.student.update({
+          where: { id: student.id },
+          data: {
+            classes: {
+              disconnect: { id }
+            }
+          }
+        })
+      )
+    );
+
+    const result = await prisma.$transaction(async (tx) => {
+      const deletedAssignments = await tx.teacherAssignment.deleteMany({
+        where: { classId: id }
+      });
+
+      const deletedGrades = await tx.grade.deleteMany({
+        where: { classId: id }
+      });
+
+      const deletedTimetables = await tx.timetable.deleteMany({
+        where: { classId: id }
+      });
+
+      const deletedAttendances = await tx.attendance.deleteMany({
+        where: { classId: id }
+      });
+
+      const deletedSections = await tx.section.deleteMany({
+        where: { classId: id }
+      });
+
+      await tx.class.delete({
+        where: { id }
+      });
+
+      return {
+        detachedStudents: studentsToDetach.length,
+        deletedAssignments: deletedAssignments.count,
+        deletedGrades: deletedGrades.count,
+        deletedTimetables: deletedTimetables.count,
+        deletedAttendances: deletedAttendances.count,
+        deletedSections: deletedSections.count
+      };
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(
+      req.user._id,
+      'Force Delete Class',
+      id,
+      `Force deleted class: ${existingClass.name}. Detached students: ${result.detachedStudents}, deleted sections: ${result.deletedSections}, attendance sessions: ${result.deletedAttendances}, grades: ${result.deletedGrades}, assignments: ${result.deletedAssignments}, timetables: ${result.deletedTimetables}`
+    );
+
+    res.status(200).json({
+      message: 'Class force deleted successfully. Students were kept and unassigned from the class.',
+      summary: {
+        classId: id,
+        className: existingClass.name,
+        detachedStudents: result.detachedStudents,
+        deletedSections: result.deletedSections,
+        deletedAttendances: result.deletedAttendances,
+        deletedGrades: result.deletedGrades,
+        deletedAssignments: result.deletedAssignments,
+        deletedTimetables: result.deletedTimetables
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -675,6 +833,7 @@ module.exports = {
   createClass,
   getClasses,
   deleteClass,
+  forceDeleteClass,
   createSection,
   getSectionsByClass,
   setGradingStructure,
