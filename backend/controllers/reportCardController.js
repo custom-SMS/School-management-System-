@@ -2,6 +2,48 @@ const prisma = require('../prisma');
 const { logActivity } = require('../middleware/auditLogger');
 const { sendNotification } = require('./notificationController');
 
+const normalizeLabel = (value) => {
+  const label = String(value ?? '').trim();
+  return label || 'Unassigned';
+};
+
+const parseSettingValue = (value, fallback = {}) => {
+  if (!value) return fallback;
+  if (typeof value === 'object') return value;
+  try {
+    return JSON.parse(value);
+  } catch (error) {
+    return fallback;
+  }
+};
+
+const getTeacherUserId = (req) => req.user?._id || req.user?.id || null;
+
+const getTeacherProfileByUserId = async (userId) => {
+  if (!userId) return null;
+  return prisma.teacher.findUnique({
+    where: { userId },
+  });
+};
+
+const canTeacherAccessClass = async (teacherId, classId) => {
+  if (!teacherId || !classId) return false;
+
+  const ownedClass = await prisma.class.findFirst({
+    where: { id: classId, teacherId },
+    select: { id: true },
+  });
+
+  if (ownedClass) return true;
+
+  const assignedClass = await prisma.teacherAssignment.findFirst({
+    where: { teacherId, classId },
+    select: { id: true },
+  });
+
+  return Boolean(assignedClass);
+};
+
 // Compile student report cards (averages, rankings, attendance percentages)
 const compileReportCards = async (req, res) => {
   try {
@@ -32,76 +74,110 @@ const compileReportCards = async (req, res) => {
     }
 
     // Fetch grading settings for pass mark
-    const settingsRows = await prisma.systemSetting.findMany({
+    const gradingSetting = await prisma.systemSetting.findUnique({
       where: { key: 'grading' }
     });
-    let passMark = 50; // default
-    if (settingsRows.length > 0) {
-      const gradingSettings = JSON.parse(settingsRows[0].value);
-      passMark = gradingSettings.passMark || 50;
-    }
+    const gradingSettings = parseSettingValue(gradingSetting?.value, {});
+    const passMark = Number(gradingSettings.passMark || 50);
 
-    const compiledData = [];
+    const studentIds = enrollments.map((enrollment) => enrollment.studentId);
 
-    for (const enrollment of enrollments) {
-      const studentId = enrollment.studentId;
-
-      // 1. Calculate average grade score
-      const grades = await prisma.grade.findMany({
-        where: { studentId, academicYearId }
-      });
-      const avgScore = grades.length > 0
-        ? grades.reduce((sum, g) => sum + Number(g.percentage || 0), 0) / grades.length
-        : 0;
-
-      // 2. Calculate attendance percentage
-      const totalAttendance = await prisma.attendanceRecord.count({
+    const [grades, attendanceRecords] = await Promise.all([
+      prisma.grade.findMany({
+        where: { academicYearId, studentId: { in: studentIds } },
+        select: {
+          studentId: true,
+          classId: true,
+          percentage: true,
+        },
+      }),
+      prisma.attendanceRecord.findMany({
         where: {
-          studentId,
-          attendance: { academicYearId }
-        }
-      });
-      const presentAttendance = await prisma.attendanceRecord.count({
-        where: {
-          studentId,
-          status: 'Present',
-          attendance: { academicYearId }
-        }
-      });
-      const attPercentage = totalAttendance > 0
-        ? (presentAttendance / totalAttendance) * 100
-        : 100; // Default to 100 if no classes occurred
+          studentId: { in: studentIds },
+          attendance: { academicYearId },
+        },
+        include: {
+          attendance: {
+            select: {
+              classId: true,
+            },
+          },
+        },
+      }),
+    ]);
 
-      compiledData.push({
-        studentId,
-        gradeLevel: enrollment.grade,
-        averageScore: Number(avgScore.toFixed(2)),
-        attendancePercentage: Number(attPercentage.toFixed(2)),
-        status: avgScore >= passMark ? 'Pass' : 'Fail'
-      });
-    }
-
-    // 3. Group by grade level to calculate ranks
-    const gradeGroups = {};
-    compiledData.forEach(student => {
-      if (!gradeGroups[student.gradeLevel]) {
-        gradeGroups[student.gradeLevel] = [];
-      }
-      gradeGroups[student.gradeLevel].push(student);
+    const gradeSummaryByStudent = new Map();
+    grades.forEach((grade) => {
+      const bucket = gradeSummaryByStudent.get(grade.studentId) || {
+        total: 0,
+        count: 0,
+        classIds: new Set(),
+      };
+      bucket.total += Number(grade.percentage || 0);
+      bucket.count += 1;
+      if (grade.classId) bucket.classIds.add(grade.classId);
+      gradeSummaryByStudent.set(grade.studentId, bucket);
     });
 
-    // Calculate ranks within each grade level group
-    for (const grade in gradeGroups) {
-      // Sort descending by average score
-      gradeGroups[grade].sort((a, b) => b.averageScore - a.averageScore);
-      gradeGroups[grade].forEach((student, index) => {
+    const attendanceSummaryByStudent = new Map();
+    attendanceRecords.forEach((record) => {
+      const bucket = attendanceSummaryByStudent.get(record.studentId) || {
+        total: 0,
+        present: 0,
+        classIds: new Set(),
+      };
+      bucket.total += 1;
+      if (record.status === 'Present') bucket.present += 1;
+      if (record.attendance?.classId) bucket.classIds.add(record.attendance.classId);
+      attendanceSummaryByStudent.set(record.studentId, bucket);
+    });
+
+    const compiledData = enrollments.map((enrollment) => {
+      const studentId = enrollment.studentId;
+      const gradeSummary = gradeSummaryByStudent.get(studentId) || { total: 0, count: 0, classIds: new Set() };
+      const attendanceSummary = attendanceSummaryByStudent.get(studentId) || { total: 0, present: 0, classIds: new Set() };
+      const averageScore = gradeSummary.count > 0 ? gradeSummary.total / gradeSummary.count : 0;
+      const attendancePercentage = attendanceSummary.total > 0
+        ? (attendanceSummary.present / attendanceSummary.total) * 100
+        : 100;
+
+      const classIds = new Set([
+        ...Array.from(gradeSummary.classIds || []),
+        ...Array.from(attendanceSummary.classIds || []),
+      ]);
+
+      return {
+        studentId,
+        gradeLevel: normalizeLabel(enrollment.grade),
+        averageScore: Number(averageScore.toFixed(2)),
+        attendancePercentage: Number(attendancePercentage.toFixed(2)),
+        status: averageScore >= passMark ? 'Pass' : 'Fail',
+        classKey: Array.from(classIds).sort().join(',') || null,
+      };
+    });
+
+    // Calculate rank within class when possible, otherwise within grade level.
+    const rankingGroups = {};
+    compiledData.forEach((student) => {
+      const groupKey = student.classKey
+        ? `class:${student.classKey}`
+        : `grade:${student.gradeLevel}`;
+      if (!rankingGroups[groupKey]) {
+        rankingGroups[groupKey] = [];
+      }
+      rankingGroups[groupKey].push(student);
+    });
+
+    Object.values(rankingGroups).forEach((group) => {
+      group.sort((a, b) => b.averageScore - a.averageScore);
+      group.forEach((student, index) => {
         student.rank = index + 1;
       });
-    }
+    });
 
     // Save report cards in transactions
     await prisma.$transaction(
-      compiledData.map(data => 
+      compiledData.map((data) =>
         prisma.reportCard.upsert({
           where: {
             studentId_academicYearId: {
@@ -169,9 +245,67 @@ const getReportCard = async (req, res) => {
       return res.status(403).json({ message: 'Report cards are not published for this academic year yet.' });
     }
 
+    if (req.user.role === 'Student' && reportCard.student.userId !== getTeacherUserId(req)) {
+      return res.status(403).json({ message: 'You can only view your own report card.' });
+    }
+
+    if (req.user.role === 'Parent') {
+      const parent = await prisma.parent.findUnique({
+        where: { userId: getTeacherUserId(req) },
+        include: { children: { select: { id: true } } },
+      });
+
+      const childIds = new Set((parent?.children || []).map((child) => child.id));
+      if (!childIds.has(reportCard.studentId)) {
+        return res.status(403).json({ message: 'You can only view report cards for your children.' });
+      }
+    }
+
+    if (req.user.role === 'Teacher') {
+      const teacherProfile = await getTeacherProfileByUserId(getTeacherUserId(req));
+      if (!teacherProfile) {
+        return res.status(404).json({ message: 'Teacher profile not found.' });
+      }
+
+      const teacherClassIds = new Set();
+
+      const ownedClasses = await prisma.class.findMany({
+        where: { teacherId: teacherProfile.id },
+        select: { id: true },
+      });
+      ownedClasses.forEach((klass) => teacherClassIds.add(klass.id));
+
+      const assignments = await prisma.teacherAssignment.findMany({
+        where: { teacherId: teacherProfile.id },
+        select: { classId: true },
+      });
+      assignments.forEach((assignment) => {
+        if (assignment.classId) teacherClassIds.add(assignment.classId);
+      });
+
+      const studentClassLinks = await prisma.grade.findMany({
+        where: { studentId, academicYearId },
+        select: { classId: true },
+      });
+
+      const isAuthorized = studentClassLinks.some((link) => teacherClassIds.has(link.classId));
+
+      if (!isAuthorized) {
+        return res.status(403).json({ message: 'You are not authorized to view this report card.' });
+      }
+    }
+
     // Retrieve full grade list for detail table
     const grades = await prisma.grade.findMany({
-      where: { studentId, academicYearId }
+      where: { studentId, academicYearId },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        subjectRef: { select: { id: true, name: true, code: true } },
+      },
+      orderBy: [
+        { subject: 'asc' },
+        { createdAt: 'asc' },
+      ],
     });
 
     res.status(200).json({
@@ -257,12 +391,64 @@ const updateReportComments = async (req, res) => {
     const { id } = req.params; // Report Card ID
     const { comments } = req.body;
 
+    const existingReportCard = await prisma.reportCard.findUnique({
+      where: { id },
+      include: {
+        student: {
+          include: {
+            classes: { select: { id: true } },
+          },
+        },
+      },
+    });
+
+    if (!existingReportCard) {
+      return res.status(404).json({ message: 'Report card not found.' });
+    }
+
+    if (req.user.role === 'Teacher') {
+      const teacherUserId = getTeacherUserId(req);
+      const teacherProfile = await getTeacherProfileByUserId(teacherUserId);
+
+      if (!teacherProfile) {
+        return res.status(404).json({ message: 'Teacher profile not found.' });
+      }
+
+      const gradeLinks = await prisma.grade.findMany({
+        where: {
+          studentId: existingReportCard.studentId,
+          academicYearId: existingReportCard.academicYearId,
+        },
+        select: { classId: true },
+      });
+
+      const classIds = [
+        ...new Set([
+          ...(existingReportCard.student.classes || []).map((klass) => klass.id),
+          ...gradeLinks.map((grade) => grade.classId),
+        ]),
+      ];
+
+      let authorized = false;
+      for (const classId of classIds) {
+        const canAccess = await canTeacherAccessClass(teacherProfile.id, classId);
+        if (canAccess) {
+          authorized = true;
+          break;
+        }
+      }
+
+      if (!authorized) {
+        return res.status(403).json({ message: 'You are not authorized to comment on this report card.' });
+      }
+    }
+
     const reportCard = await prisma.reportCard.update({
       where: { id },
       data: { teacherComments: comments }
     });
 
-    await logActivity(req.user._id, 'Update Report Card Comments', id, `Updated comments on report card: ${id}`);
+    await logActivity(getTeacherUserId(req), 'Update Report Card Comments', id, `Updated comments on report card: ${id}`);
 
     res.status(200).json(reportCard);
   } catch (error) {
@@ -300,9 +486,7 @@ const setPromotionStatus = async (req, res) => {
     if (['SuperAdmin', 'Admin'].includes(req.user.role)) {
       isAuthorized = true;
     } else if (req.user.role === 'Teacher') {
-      const teacherProfile = await prisma.teacher.findUnique({
-        where: { userId: req.user._id || req.user.id }
-      });
+      const teacherProfile = await getTeacherProfileByUserId(getTeacherUserId(req));
       if (teacherProfile) {
         // Check if teacher is assigned to any of the student's classes
         const studentClasses = reportCard.student.classes.map(c => c.id);
@@ -326,12 +510,12 @@ const setPromotionStatus = async (req, res) => {
       where: { id },
       data: {
         promotionStatus,
-        promotedById: req.user._id || req.user.id,
+        promotedById: getTeacherUserId(req),
         promotionDate: new Date()
       }
     });
 
-    await logActivity(req.user._id || req.user.id, 'Set Promotion Status', id, `Set promotion status to ${promotionStatus} for report card: ${id}`);
+    await logActivity(getTeacherUserId(req), 'Set Promotion Status', id, `Set promotion status to ${promotionStatus} for report card: ${id}`);
 
     res.status(200).json(updatedCard);
   } catch (error) {
@@ -343,8 +527,7 @@ const setPromotionStatus = async (req, res) => {
 const getReportCardsByClass = async (req, res) => {
   try {
     const { classId, academicYearId } = req.params;
-    
-    // Find students in this class
+
     const classData = await prisma.class.findUnique({
       where: { id: classId },
       include: {
@@ -354,7 +537,19 @@ const getReportCardsByClass = async (req, res) => {
 
     if (!classData) return res.status(404).json({ message: 'Class not found' });
 
-    const studentIds = classData.students.map(s => s.id);
+    if (req.user.role === 'Teacher') {
+      const teacherProfile = await getTeacherProfileByUserId(getTeacherUserId(req));
+      if (!teacherProfile) {
+        return res.status(404).json({ message: 'Teacher profile not found.' });
+      }
+
+      const authorized = await canTeacherAccessClass(teacherProfile.id, classId);
+      if (!authorized) {
+        return res.status(403).json({ message: 'You are not authorized to view report cards for this class.' });
+      }
+    }
+
+    const studentIds = classData.students.map((student) => student.id);
 
     const reportCards = await prisma.reportCard.findMany({
       where: {
@@ -367,7 +562,11 @@ const getReportCardsByClass = async (req, res) => {
             user: { select: { name: true, email: true } }
           }
         }
-      }
+      },
+      orderBy: [
+        { rank: 'asc' },
+        { averageScore: 'desc' },
+      ],
     });
 
     res.status(200).json(reportCards);

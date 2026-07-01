@@ -8,6 +8,7 @@ const {
   getClassroomOptions,
   createClass,
   getClasses,
+  deleteClass,
   createSection,
   getSectionsByClass
 } = require('../controllers/classroomController');
@@ -180,6 +181,27 @@ router.post('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin']), createC
  *         description: List of classes
  */
 router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getClasses);
+
+/**
+ * @swagger
+ * /classroom/classes/{id}:
+ *   delete:
+ *     summary: Delete a class
+ *     tags: [Classroom]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Class deleted
+ */
+router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteClass);
 
 /**
  * @swagger

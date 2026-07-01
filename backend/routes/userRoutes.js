@@ -15,8 +15,8 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *   description: User Management (SuperAdmin only)
  */
 
-// Super Admin only routes
-router.use(verifyToken, checkRole(['SuperAdmin']));
+// Users routes
+router.use(verifyToken);
 
 /**
  * @swagger
@@ -63,7 +63,7 @@ router.route('/')
  *         description: User status updated
  */
 router.route('/:id/status')
-  .patch(updateUserStatus);
+  .patch(checkRole(['SuperAdmin', 'Admin']), updateUserStatus);
 
 /**
  * @swagger
@@ -94,7 +94,7 @@ router.route('/:id/status')
  *         description: User role updated
  */
 router.route('/:id/role')
-  .patch(updateUserRole);
+  .patch(checkRole(['SuperAdmin']), updateUserRole);
 
 /**
  * @swagger
@@ -125,6 +125,6 @@ router.route('/:id/role')
  *         description: Password reset successfully
  */
 router.route('/:id/reset-password')
-  .post(resetUserPassword);
+  .post(checkRole(['SuperAdmin']), resetUserPassword);
 
 module.exports = router;
