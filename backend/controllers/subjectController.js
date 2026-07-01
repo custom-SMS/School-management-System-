@@ -4,10 +4,14 @@ const { logActivity } = require('../middleware/auditLogger');
 // Create a subject
 const createSubject = async (req, res) => {
   try {
-    const { name, department } = req.body;
+    const { name, department, gradesOffered = [] } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Subject name is required.' });
     }
+
+    const normalizedGrades = Array.isArray(gradesOffered)
+      ? [...new Set(gradesOffered.map((grade) => String(grade).trim()).filter(Boolean))]
+      : [];
 
     const existing = await prisma.subject.findUnique({
       where: { name }
@@ -19,7 +23,8 @@ const createSubject = async (req, res) => {
     const subject = await prisma.subject.create({
       data: {
         name,
-        department
+        department,
+        gradesOffered: normalizedGrades
       }
     });
 

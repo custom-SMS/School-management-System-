@@ -6,14 +6,16 @@ import AdminLayout from '../../components/AdminLayout';
 export default function Classes() {
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
-  const [subjects, setSubjects] = useState([]);
+  
   const [loading, setLoading] = useState(true);
 
   // Create-class modal
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deletingClassId, setDeletingClassId] = useState(null);
+  const [editingClassId, setEditingClassId] = useState(null);
   const [name, setName] = useState('');
-  const [subject, setSubject] = useState('');
+  // const [subject, setSubject] = useState('');
   const [teacherId, setTeacherId] = useState('');
 
   const fetchClasses = () => {
@@ -30,20 +32,36 @@ export default function Classes() {
     ]).finally(() => setLoading(false));
   }, []);
 
-  const resetForm = () => { setName(''); setSubject(''); setTeacherId(''); };
+  const resetForm = () => {
+    setEditingClassId(null);
+    setName('');
+    setTeacherId('');
+  };
+
+  const handleEditClick = (klass) => {
+    setEditingClassId(klass.id);
+    setName(klass.name || '');
+    setTeacherId(klass.teacher?.id || '');
+    setShowModal(true);
+  };
 
   const handleCreateClass = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !subject.trim()) {
-      toast.error('Class name and subject are required.');
+    if (!name.trim() ) {
+      toast.error('Class name is required.');
       return;
     }
     setSaving(true);
     try {
+      if (editingClassId) {
+        toast.info('Edit is not available yet because the backend update endpoint is missing.');
+        return;
+      }
+
       await axios.post('/classroom/classes', {
         name: name.trim(),
-        subject: subject.trim(),
-        teacherId: teacherId || undefined,
+        // subject: subject.trim(),
+        teacherId: teacherId
       });
       toast.success(`Class "${name}" created.`);
       resetForm();
@@ -56,6 +74,22 @@ export default function Classes() {
     }
   };
 
+  const handleDeleteClass = async (klass) => {
+    const confirmed = window.confirm(`Delete class "${klass.name}"? This cannot be undone.`);
+    if (!confirmed) return;
+
+    setDeletingClassId(klass.id);
+    try {
+      await axios.delete(`/classroom/classes/${klass.id}`);
+      toast.success(`Class "${klass.name}" deleted.`);
+      await fetchClasses();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to delete class.');
+    } finally {
+      setDeletingClassId(null);
+    }
+  };
+
   if (loading) return <AdminLayout pageTitle="Classes Management"><div className="p-4">Loading...</div></AdminLayout>;
 
   return (
@@ -65,15 +99,15 @@ export default function Classes() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-xl font-bold text-gray-900">Add New Class</h2>
+              <h2 className="text-xl font-bold text-gray-900">{editingClassId ? 'Edit Class' : 'Add New Grade'}</h2>
               <button onClick={() => setShowModal(false)} className="text-gray-400 hover:text-gray-700 text-xl">✕</button>
             </div>
             <form onSubmit={handleCreateClass} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Class Name</label>
-                <input type="text" required placeholder="e.g. Class 1" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
+                <input type="text" required placeholder="e.g. Grade 1" value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
               </div>
-              <div>
+              {/* <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Subject</label>
                 {subjects.length > 0 ? (
                   <select required value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
@@ -83,9 +117,9 @@ export default function Classes() {
                 ) : (
                   <input type="text" required placeholder="e.g. General" value={subject} onChange={(e) => setSubject(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
                 )}
-              </div>
+              </div> */}
               <div>
-                <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher (optional)</label>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher</label>
                 <select value={teacherId} onChange={(e) => setTeacherId(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
                   <option value="">None</option>
                   {teachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
@@ -93,7 +127,9 @@ export default function Classes() {
               </div>
               <div className="flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{saving ? 'Creating…' : 'Create Class'}</button>
+                <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">
+                  {saving ? (editingClassId ? 'Saving…' : 'Creating…') : (editingClassId ? 'Save Changes' : 'Create Class')}
+                </button>
               </div>
             </form>
           </div>
@@ -115,7 +151,7 @@ export default function Classes() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Class Name</th>
-                <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Subject</th>
+                {/* <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Subject</th> */}
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Teacher</th>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Sections</th>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs text-right">Actions</th>
@@ -125,11 +161,20 @@ export default function Classes() {
               {classes.map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 font-bold text-gray-900">{c.name}</td>
-                  <td className="px-6 py-4">{c.subject}</td>
+                  {/* <td className="px-6 py-4">{c.subject}</td> */}
                   <td className="px-6 py-4 text-gray-500">{c.teacher?.user?.name || 'Unassigned'}</td>
                   <td className="px-6 py-4">{c.sections?.length || 0}</td>
                   <td className="px-6 py-4 text-right">
-                    <button className="text-xs font-bold text-black hover:text-slate-900 bg-slate-100 px-3 py-1 rounded-md">Edit</button>
+                      <div className="flex justify-end gap-2">
+                        <button onClick={() => handleEditClick(c)} className="text-xs font-bold text-black hover:text-slate-900 bg-slate-100 px-3 py-1 rounded-md">Edit</button>
+                        <button
+                          onClick={() => handleDeleteClass(c)}
+                          disabled={deletingClassId === c.id}
+                          className="text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 px-3 py-1 rounded-md disabled:opacity-50"
+                        >
+                          {deletingClassId === c.id ? 'Deleting...' : 'Delete'}
+                        </button>
+                      </div>
                   </td>
                 </tr>
               ))}

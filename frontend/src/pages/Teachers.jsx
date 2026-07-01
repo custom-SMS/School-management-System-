@@ -19,14 +19,16 @@ export default function Teachers() {
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editingTeacherId, setEditingTeacherId] = useState('');
+  const [updatingStatusTeacherId, setUpdatingStatusTeacherId] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
-  const [deletingTeacherId, setDeletingTeacherId] = useState('');
-
   const loadTeachers = async () => {
     try {
       const res = await axios.get('/teachers');
-      setTeachers(res.data || []);
+      setTeachers((res.data || []).map((teacher) => ({
+        ...teacher,
+        isActive: teacher.user?.isActive ?? true,
+      })));
     } catch (error) {
       setToast({ type: 'error', text: error.response?.data?.message || 'Failed to load teachers' });
     }
@@ -85,17 +87,30 @@ export default function Teachers() {
     }
   };
 
-  const handleDeleteTeacher = async (teacher) => {
-    if (!window.confirm(`Delete ${teacher.user?.name || teacher.teacherId}?`)) return;
-    setDeletingTeacherId(teacher._id);
+  const handleStatusToggle = async (teacher) => {
+    const teacherName = teacher.user?.name || teacher.teacherId || 'this teacher';
+    const nextIsActive = !(teacher.isActive ?? true);
+    const actionLabel = nextIsActive ? 'activate' : 'deactivate';
+
+    if (!window.confirm(`Are you sure you want to ${actionLabel} ${teacherName}?`)) return;
+
+    setUpdatingStatusTeacherId(teacher._id);
+    setToast(initialToast);
+
     try {
-      await axios.delete(`/teachers/${teacher._id}`);
-      setToast({ type: 'success', text: 'Teacher deleted successfully' });
+      await axios.patch(`/users/${teacher.userId || teacher.user?.id}/status`, { isActive: nextIsActive });
+      setToast({
+        type: 'success',
+        text: `${teacherName} ${nextIsActive ? 'activated' : 'deactivated'} successfully`
+      });
       await loadTeachers();
     } catch (error) {
-      setToast({ type: 'error', text: error.response?.data?.message || 'Failed to delete teacher' });
+      setToast({
+        type: 'error',
+        text: error.response?.data?.message || `Failed to ${actionLabel} teacher`
+      });
     } finally {
-      setDeletingTeacherId('');
+      setUpdatingStatusTeacherId('');
     }
   };
 
@@ -221,6 +236,9 @@ export default function Teachers() {
                     <td className="px-6 py-4 text-gray-600">—</td>
                     <td className="px-6 py-4">
                       <div className="text-gray-700">{teacher.user?.email || '—'}</div>
+                      <div className={`mt-1 text-xs font-semibold ${teacher.isActive ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {teacher.isActive ? 'Active' : 'Inactive'}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
@@ -230,7 +248,18 @@ export default function Teachers() {
                         <button title="Teacher Email" className="text-gray-400 hover:text-gray-700">
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                         </button>
-                        <button onClick={() => handleDeleteTeacher(teacher)} disabled={deletingTeacherId === teacher._id} title="Delete Teacher" className="text-gray-400 hover:text-gray-700">{deletingTeacherId === teacher._id ? '…' : '⋮'}</button>
+                        <button
+                          onClick={() => handleStatusToggle(teacher)}
+                          disabled={updatingStatusTeacherId === teacher._id}
+                          title={teacher.isActive ? 'Deactivate Teacher' : 'Activate Teacher'}
+                          className={`text-xs font-semibold ${
+                            teacher.isActive
+                              ? 'text-amber-600 hover:text-amber-800'
+                              : 'text-emerald-600 hover:text-emerald-800'
+                          } disabled:opacity-50`}
+                        >
+                          {updatingStatusTeacherId === teacher._id ? '…' : teacher.isActive ? 'Deactivate' : 'Activate'}
+                        </button>
                       </div>
                     </td>
                   </tr>

@@ -503,21 +503,25 @@ const getGrades = async (req, res) => {
 const createClass = async (req, res) => {
   try {
     const { name, subject, teacherId, schedule } = req.body;
-    if (!name || !subject) {
-      return res.status(400).json({ message: 'Class name and subject are required.' });
+    if (!name) {
+      return res.status(400).json({ message: 'Class name is required.' });
     }
+
+    const normalizedSubject = typeof subject === 'string' && subject.trim()
+      ? subject.trim()
+      : 'General';
 
     const newClass = await prisma.class.create({
       data: {
-        name,
-        subject,
+        name: name.trim(),
+        subject: normalizedSubject,
         teacherId: teacherId || null,
         schedule: schedule || null
       }
     });
 
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${name} (${subject})`);
+    await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${name.trim()} (${normalizedSubject})`);
 
     res.status(201).json(newClass);
   } catch (error) {
@@ -544,22 +548,96 @@ const getClasses = async (req, res) => {
   }
 };
 
+const deleteClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const existingClass = await prisma.class.findUnique({
+      where: { id },
+      include: {
+        _count: {
+          select: {
+            students: true,
+            attendances: true,
+            grades: true,
+            assignments: true,
+            sections: true,
+            timetables: true
+          }
+        }
+      }
+    });
+
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const relatedCount =
+      (existingClass._count?.students || 0) +
+      (existingClass._count?.attendances || 0) +
+      (existingClass._count?.grades || 0) +
+      (existingClass._count?.assignments || 0) +
+      (existingClass._count?.sections || 0) +
+      (existingClass._count?.timetables || 0);
+
+    if (relatedCount > 0) {
+      return res.status(400).json({
+        message: 'Cannot delete this class because it has related students, sections, attendance, grades, assignments, or timetable records.'
+      });
+    }
+
+    await prisma.class.delete({
+      where: { id }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Delete Class', id, `Deleted class: ${existingClass.name}`);
+
+    res.status(200).json({ message: 'Class deleted successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const createSection = async (req, res) => {
   try {
-    const { name, classId } = req.body;
+    const { name, classId, homeroomTeacherId } = req.body;
     if (!name || !classId) {
       return res.status(400).json({ message: 'Section name and classId are required.' });
+    }
+
+    if (homeroomTeacherId) {
+      const teacherExists = await prisma.teacher.findUnique({
+        where: { id: homeroomTeacherId }
+      });
+
+      if (!teacherExists) {
+        return res.status(400).json({ message: 'Selected homeroom teacher was not found.' });
+      }
     }
 
     const section = await prisma.section.create({
       data: {
         name,
-        classId
+        classId,
+        homeroomTeacherId: homeroomTeacherId || null
+      },
+      include: {
+        homeroomTeacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
       }
     });
 
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Create Section', section.id, `Created section: ${name} for class ${classId}`);
+    await logActivity(
+      req.user._id,
+      'Create Section',
+      section.id,
+      `Created section: ${name} for class ${classId}${homeroomTeacherId ? ` with homeroom teacher ${homeroomTeacherId}` : ''}`
+    );
 
     res.status(201).json(section);
   } catch (error) {
@@ -572,6 +650,13 @@ const getSectionsByClass = async (req, res) => {
     const { classId } = req.params;
     const sections = await prisma.section.findMany({
       where: { classId },
+      include: {
+        homeroomTeacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      },
       orderBy: { name: 'asc' }
     });
     res.status(200).json(sections);
@@ -589,6 +674,7 @@ module.exports = {
   getClassroomOptions,
   createClass,
   getClasses,
+  deleteClass,
   createSection,
   getSectionsByClass,
   setGradingStructure,

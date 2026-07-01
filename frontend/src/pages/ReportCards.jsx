@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
+
+const getStudentOptionId = (student) => student?._id || student?.id || '';
+const getStudentDisplayName = (student) => student?.user?.name || student?.name || 'Student';
+const getGradeSubjectLabel = (grade) => grade?.subjectRef?.name || grade?.subject || grade?.class?.subject || 'Subject';
+const getGradeClassLabel = (grade) => grade?.class?.name || '—';
 
 export default function ReportCards() {
   const [years, setYears] = useState([]);
@@ -12,6 +17,19 @@ export default function ReportCards() {
   const [previewError, setPreviewError] = useState('');
   const [comments, setComments] = useState('');
   const [busy, setBusy] = useState('');
+
+  const activeYear = useMemo(
+    () => years.find((year) => year.id === selectedYear) || years.find((year) => year.isActive) || null,
+    [years, selectedYear]
+  );
+
+  const sortedStudents = useMemo(() => (
+    [...students].sort((left, right) => {
+      const leftName = getStudentDisplayName(left);
+      const rightName = getStudentDisplayName(right);
+      return leftName.localeCompare(rightName);
+    })
+  ), [students]);
 
   useEffect(() => {
     axios.get('/academic-years').then((res) => {
@@ -99,12 +117,12 @@ export default function ReportCards() {
 
       <div className="mb-6 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-[1fr_auto_auto] sm:items-end">
-          <label className="block">
+          <div className="block">
             <span className="mb-2 block text-sm font-bold text-slate-700">Academic Year</span>
-            <select className={inputClass} value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-              {years.map((y) => <option key={y.id} value={y.id}>{y.year} {y.isActive ? '(Active)' : ''}</option>)}
-            </select>
-          </label>
+            <div className={`${inputClass} flex items-center font-semibold text-slate-800`}>
+              {activeYear ? `${activeYear.year}${activeYear.isActive ? ' (Active)' : ''}` : 'No academic year available'}
+            </div>
+          </div>
           <button onClick={handleCompile} disabled={!selectedYear || busy === 'compile'} className="rounded-lg bg-black px-5 py-3 font-bold text-white hover:bg-slate-800 transition disabled:opacity-50 shadow-sm">
             {busy === 'compile' ? 'Compiling…' : 'Compile Report Cards'}
           </button>
@@ -122,25 +140,32 @@ export default function ReportCards() {
         <div className="p-6">
           <select className={`${inputClass} mb-6 max-w-md`} value={selectedStudent} onChange={(e) => handleStudentChange(e.target.value)}>
             <option value="">Select a student</option>
-            {students.map((s) => <option key={s._id} value={s._id}>{s.user?.name} ({s.studentId}) — {s.grade}</option>)}
+            {sortedStudents.map((s) => (
+              <option key={getStudentOptionId(s)} value={getStudentOptionId(s)}>
+                {getStudentDisplayName(s)} ({s.studentId}) — {s.grade}
+              </option>
+            ))}
           </select>
 
           {previewError && <p className="text-sm font-semibold text-zinc-700 bg-zinc-50 border border-zinc-100 rounded-lg px-4 py-3 mb-6">{previewError}</p>}
 
           {card && (
             <div className="space-y-6">
-              <div className="grid gap-4 sm:grid-cols-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Average</div><div className="mt-1 text-2xl font-black text-slate-900">{Math.round(card.averageScore)}%</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><div className="text-xs font-bold uppercase tracking-wider text-black">Rank</div><div className="mt-1 text-2xl font-black text-indigo-900">{card.rank ? `#${card.rank}` : '—'}</div></div>
-                <div className="rounded-xl border border-gray-200 bg-gray-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-gray-600">Attendance</div><div className="mt-1 text-2xl font-black text-gray-900">{Math.round(card.attendancePercentage)}%</div></div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Status</div><div className={`mt-1 text-lg font-black ${card.published ? 'text-slate-600' : 'text-gray-600'}`}>{card.published ? 'Published' : 'Draft'}</div></div>
-              </div>
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Average</div><div className="mt-1 text-2xl font-black text-slate-900">{Math.round(card.averageScore)}%</div></div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-100 p-4"><div className="text-xs font-bold uppercase tracking-wider text-black">Rank</div><div className="mt-1 text-2xl font-black text-indigo-900">{card.rank ? `#${card.rank}` : '—'}</div></div>
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-gray-600">Attendance</div><div className="mt-1 text-2xl font-black text-gray-900">{Math.round(card.attendancePercentage)}%</div></div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Result</div><div className="mt-1 text-lg font-black text-slate-900">{card.status || 'Pending'}</div></div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Promotion</div><div className="mt-1 text-lg font-black text-slate-900">{card.promotionStatus || 'Pending'}</div></div>
+                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="text-xs font-bold uppercase tracking-wider text-slate-500">Publication</div><div className={`mt-1 text-lg font-black ${card.published ? 'text-slate-600' : 'text-gray-600'}`}>{card.published ? 'Published' : 'Draft'}</div></div>
+                </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
                 <table className="w-full border-collapse text-left text-sm whitespace-nowrap">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
                       <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Subject</th>
+                      <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Class</th>
                       <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Quiz</th>
                       <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Assign.</th>
                       <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Midterm</th>
@@ -152,7 +177,8 @@ export default function ReportCards() {
                   <tbody className="divide-y divide-slate-100 bg-white">
                     {grades.length > 0 ? grades.map((g) => (
                       <tr key={g.id} className="hover:bg-slate-50 transition">
-                        <td className="px-6 py-4 font-bold text-slate-900">{g.subject}</td>
+                        <td className="px-6 py-4 font-bold text-slate-900">{getGradeSubjectLabel(g)}</td>
+                        <td className="px-6 py-4 text-slate-600">{getGradeClassLabel(g)}</td>
                         <td className="px-6 py-4 text-slate-600">{g.quiz}</td>
                         <td className="px-6 py-4 text-slate-600">{g.assignment}</td>
                         <td className="px-6 py-4 text-slate-600">{g.midterm}</td>
@@ -161,7 +187,7 @@ export default function ReportCards() {
                         <td className="px-6 py-4 font-black text-black">{g.percentage}%</td>
                       </tr>
                     )) : (
-                      <tr><td colSpan="7" className="px-6 py-6 text-center font-medium text-slate-500">No grades recorded.</td></tr>
+                      <tr><td colSpan="8" className="px-6 py-6 text-center font-medium text-slate-500">No grades recorded.</td></tr>
                     )}
                   </tbody>
                 </table>

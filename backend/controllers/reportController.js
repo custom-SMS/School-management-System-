@@ -171,6 +171,11 @@ const getAttendanceReport = async (req, res) => {
 const getEnrollmentReport = async (req, res) => {
   try {
     const students = await prisma.student.findMany({
+      where: {
+        user: {
+          isActive: true,
+        },
+      },
       select: { id: true, grade: true, personalDetails: true, enrollmentDate: true }
     });
 
@@ -212,7 +217,16 @@ const getEnrollmentReport = async (req, res) => {
 
     const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
     const enrollmentsThisYear = activeYear
-      ? await prisma.enrollment.count({ where: { academicYearId: activeYear.id } })
+      ? await prisma.enrollment.count({
+          where: {
+            academicYearId: activeYear.id,
+            student: {
+              user: {
+                isActive: true,
+              },
+            },
+          },
+        })
       : 0;
 
     res.status(200).json({

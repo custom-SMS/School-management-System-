@@ -5,6 +5,7 @@ import AdminLayout from '../../components/AdminLayout';
 
 export default function Sections() {
   const [classes, setClasses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [sections, setSections] = useState([]);
   const [loadingSections, setLoadingSections] = useState(false);
@@ -13,11 +14,17 @@ export default function Sections() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [sectionName, setSectionName] = useState('');
+  const [homeroomTeacherId, setHomeroomTeacherId] = useState('');
 
   useEffect(() => {
-    axios.get('/classroom/classes')
-      .then(res => setClasses(res.data || []))
-      .catch(err => console.error(err));
+    Promise.all([
+      axios.get('/classroom/classes')
+        .then(res => setClasses(res.data || []))
+        .catch(err => console.error(err)),
+      axios.get('/teachers')
+        .then(res => setTeachers(res.data || []))
+        .catch(err => console.error(err))
+    ]);
   }, []);
 
   const fetchSections = (classId) => {
@@ -39,9 +46,14 @@ export default function Sections() {
     if (!sectionName.trim()) { toast.error('Section name is required.'); return; }
     setSaving(true);
     try {
-      await axios.post('/classroom/sections', { name: sectionName.trim(), classId: selectedClassId });
+      await axios.post('/classroom/sections', {
+        name: sectionName.trim(),
+        classId: selectedClassId,
+        homeroomTeacherId: homeroomTeacherId || null
+      });
       toast.success(`Section "${sectionName}" created.`);
       setSectionName('');
+      setHomeroomTeacherId('');
       setShowModal(false);
       await fetchSections(selectedClassId);
     } catch (err) {
@@ -72,6 +84,13 @@ export default function Sections() {
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Section Name</label>
                 <input type="text" required placeholder="e.g. A" value={sectionName} onChange={(e) => setSectionName(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" />
               </div>
+              <div>
+                <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher</label>
+                <select value={homeroomTeacherId} onChange={(e) => setHomeroomTeacherId(e.target.value)} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none">
+                  <option value="">None</option>
+                  {teachers.map((t) => <option key={t._id || t.id} value={t._id || t.id}>{t.user?.name || t.teacherId}</option>)}
+                </select>
+              </div>
               <div className="flex justify-end gap-3 mt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{saving ? 'Creating…' : 'Create Section'}</button>
@@ -97,7 +116,7 @@ export default function Sections() {
               {classes.map((c) => <option key={c.id} value={c.id}>{c.name} • {c.subject}</option>)}
             </select>
             <button
-              onClick={() => { setSectionName(''); setShowModal(true); }}
+              onClick={() => { setSectionName(''); setHomeroomTeacherId(''); setShowModal(true); }}
               disabled={!selectedClassId}
               className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm disabled:opacity-50"
             >
@@ -128,6 +147,7 @@ export default function Sections() {
                 <tr>
                   <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Section</th>
                   <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Class</th>
+                  <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Homeroom Teacher</th>
                   <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Created</th>
                 </tr>
               </thead>
@@ -136,6 +156,7 @@ export default function Sections() {
                   <tr key={s.id} className="hover:bg-gray-50 transition">
                     <td className="px-6 py-4 font-bold text-gray-900">Section {s.name}</td>
                     <td className="px-6 py-4 text-gray-500">{selectedClass?.name} • {selectedClass?.subject}</td>
+                    <td className="px-6 py-4 text-gray-500">{s.homeroomTeacher?.user?.name || 'Unassigned'}</td>
                     <td className="px-6 py-4 text-gray-500">{s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}</td>
                   </tr>
                 ))}

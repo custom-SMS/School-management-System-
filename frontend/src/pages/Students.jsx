@@ -106,6 +106,7 @@ export default function Students() {
   const [page, setPage] = useState(1);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [menuOpenId, setMenuOpenId] = useState(null);
+  const [updatingStatusId, setUpdatingStatusId] = useState('');
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -146,10 +147,13 @@ export default function Students() {
 
   return students.map((student) => {
     const financial = getFinancialStatus(student);
-    const account = getAccountStatus(student, financial);
+    const derivedAccount = getAccountStatus(student, financial);
+    const userIsActive = student.user?.isActive ?? true;
+    const account = userIsActive ? derivedAccount : 'Inactive';
 
     return {
       ...student,
+      isActive: userIsActive,
       _financial: financial,
       _account: account,
     };
@@ -181,15 +185,16 @@ export default function Students() {
   );
 
   const summary = useMemo(() => {
-    const total = enrichedStudents.length;
-    const active = enrichedStudents.filter((s) => s._account === 'Active').length;
+    const activeStudents = enrichedStudents.filter((s) => s.isActive);
+    const total = activeStudents.length;
+    const active = activeStudents.filter((s) => s._account === 'Active').length;
     const now = new Date();
-    const newThisMonth = enrichedStudents.filter((s) => {
+    const newThisMonth = activeStudents.filter((s) => {
       if (!s.enrollmentDate) return false;
       const d = new Date(s.enrollmentDate);
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
-    const outstanding = enrichedStudents.filter((s) => s._financial.outstanding > 0).length;
+    const outstanding = activeStudents.filter((s) => s._financial.outstanding > 0).length;
     return { total, active, newThisMonth, outstanding };
   }, [enrichedStudents]);
 
@@ -216,12 +221,18 @@ export default function Students() {
     });
   };
 
-  const handleDelete = async (student) => {
+  const handleStatusToggle = async (student) => {
     setMenuOpenId(null);
-    if (!window.confirm(`Delete ${student.user?.name || student.studentId}? This will remove the student and related records.`)) return;
+    const studentName = student.user?.name || student.studentId || 'this student';
+    const nextIsActive = !(student.isActive ?? true);
+    const actionLabel = nextIsActive ? 'activate' : 'deactivate';
+
+    if (!window.confirm(`Are you sure you want to ${actionLabel} ${studentName}?`)) return;
+
+    setUpdatingStatusId(student._id);
     try {
-      await axios.delete(`/students/${student._id}`);
-      toast.success('Student deleted successfully.');
+      await axios.patch(`/users/${student.userId || student.user?.id}/status`, { isActive: nextIsActive });
+      toast.success(`${studentName} ${nextIsActive ? 'activated' : 'deactivated'} successfully.`);
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.delete(student._id);
@@ -229,26 +240,53 @@ export default function Students() {
       });
       await loadData();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to delete student.');
+      toast.error(error.response?.data?.message || `Failed to ${actionLabel} student.`);
+    } finally {
+      setUpdatingStatusId('');
     }
   };
 
-  const handleBulkDelete = async () => {
-    const ids = [...selectedIds];
-    if (!ids.length) return;
-    if (!window.confirm(`Delete ${ids.length} selected student(s)? This will remove them and related records.`)) return;
+  const handleBulkStatusToggle = async () => {
+    const selectedStudents = enrichedStudents.filter((student) => selectedIds.has(student._id));
+    if (!selectedStudents.length) return;
+
+    const activeSelected = selectedStudents.filter((student) => student.isActive);
+    const inactiveSelected = selectedStudents.filter((student) => !student.isActive);
+
+    const shouldActivate = activeSelected.length === 0;
+    const targetStudents = shouldActivate ? inactiveSelected : activeSelected;
+    const actionLabel = shouldActivate ? 'activate' : 'deactivate';
+
+    if (!targetStudents.length) {
+      toast.info(`No students available to ${actionLabel}.`);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to ${actionLabel} ${targetStudents.length} selected student(s)?`)) return;
+
+    setUpdatingStatusId('bulk');
     try {
-      const results = await Promise.allSettled(ids.map((id) => axios.delete(`/students/${id}`)));
-      const failed = results.filter((r) => r.status === 'rejected').length;
-      if (failed) {
-        toast.warn(`${ids.length - failed} deleted, ${failed} failed.`);
+      const results = await Promise.allSettled(
+        targetStudents.map((student) =>
+          axios.patch(`/users/${student.userId || student.user?.id}/status`, { isActive: shouldActivate })
+        )
+      );
+
+      const failed = results.filter((result) => result.status === 'rejected').length;
+      const succeeded = targetStudents.length - failed;
+
+      if (failed && succeeded) {
+        toast.warn(`${succeeded} student(s) ${shouldActivate ? 'activated' : 'deactivated'}, ${failed} failed.`);
+      } else if (failed) {
+        toast.error(`Failed to ${actionLabel} selected student(s).`);
       } else {
-        toast.success(`${ids.length} student(s) deleted.`);
+        toast.success(`${succeeded} student(s) ${shouldActivate ? 'activated' : 'deactivated'} successfully.`);
       }
+
       setSelectedIds(new Set());
       await loadData();
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Bulk delete failed.');
+    } finally {
+      setUpdatingStatusId('');
     }
   };
 
@@ -340,11 +378,11 @@ export default function Students() {
 
         {canManage && (
           <button
-            onClick={handleBulkDelete}
-            disabled={selectedIds.size === 0}
+            onClick={handleBulkStatusToggle}
+            disabled={selectedIds.size === 0 || updatingStatusId === 'bulk'}
             className="ml-auto rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            Delete Selected{selectedIds.size ? ` (${selectedIds.size})` : ''}
+            {updatingStatusId === 'bulk' ? 'Updating…' : `Update Selected${selectedIds.size ? ` (${selectedIds.size})` : ''}`}
           </button>
         )}
       </div>
@@ -424,9 +462,14 @@ export default function Students() {
                               )}
                               {canManage && (
                                 <button
-                                  onClick={() => handleDelete(student)}
-                                  className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                                >Delete</button>
+                                  onClick={() => handleStatusToggle(student)}
+                                  disabled={updatingStatusId === student._id}
+                                  className={`block w-full px-4 py-2 text-left text-sm ${
+                                    student.isActive ? 'text-amber-600 hover:bg-amber-50' : 'text-emerald-600 hover:bg-emerald-50'
+                                  } disabled:opacity-50`}
+                                >
+                                  {updatingStatusId === student._id ? 'Updating…' : student.isActive ? 'Deactivate' : 'Activate'}
+                                </button>
                               )}
                             </div>
                           </>

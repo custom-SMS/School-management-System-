@@ -596,9 +596,13 @@ const getParentPortalStats = async (req, res) => {
 
 const getSuperAdminStats = async (req, res) => {
   try {
-    const totalStudents = await prisma.student.count();
-    const totalTeachers = await prisma.teacher.count();
-    const totalCashiers = await prisma.user.count({ where: { role: 'Cashier' } });
+    const totalStudents = await prisma.student.count({
+      where: { user: { isActive: true } }
+    });
+    const totalTeachers = await prisma.teacher.count({
+      where: { user: { isActive: true } }
+    });
+    const totalCashiers = await prisma.user.count({ where: { role: 'Cashier', isActive: true } });
 
     const revenueStats = await prisma.fee.aggregate({
       where: { paid: true },
@@ -613,18 +617,18 @@ const getSuperAdminStats = async (req, res) => {
 
     const systemHealth = 'Operational';
 
-    const studentsByGrade = await prisma.student.groupBy({
-      by: ['grade'],
-      _count: { _all: true }
+    const studentsByGrade = await prisma.student.findMany({
+      where: { user: { isActive: true } },
+      select: { grade: true }
     });
     let primaryCount = 0, middleCount = 0, highCount = 0;
     studentsByGrade.forEach(g => {
       const match = String(g.grade).match(/\d+/);
       if (match) {
         const gradeNum = parseInt(match[0], 10);
-        if (gradeNum >= 1 && gradeNum <= 6) primaryCount += g._count._all;
-        else if (gradeNum >= 7 && gradeNum <= 8) middleCount += g._count._all;
-        else if (gradeNum >= 9 && gradeNum <= 12) highCount += g._count._all;
+        if (gradeNum >= 1 && gradeNum <= 6) primaryCount += 1;
+        else if (gradeNum >= 7 && gradeNum <= 8) middleCount += 1;
+        else if (gradeNum >= 9 && gradeNum <= 12) highCount += 1;
       }
     });
     const studentDistribution = [

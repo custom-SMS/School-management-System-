@@ -64,6 +64,10 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: 'Your account is deactivated. Please contact the school administration.' });
+    }
+
     // 2. Check if password is correct
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
@@ -212,4 +216,4 @@ module.exports = {
   getRolePermissions, 
   updateRolePermissions, 
   getCurrentUserPermissions 
-};
+};

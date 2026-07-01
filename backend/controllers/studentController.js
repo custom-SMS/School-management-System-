@@ -466,7 +466,7 @@ const getStudents = async (req, res) => {
       const student = await prisma.student.findUnique({
         where: { id },
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, isActive: true } },
           guardians: true,
           fees: true,
           classes: { select: { id: true, name: true } },
@@ -508,7 +508,7 @@ const getStudents = async (req, res) => {
             include: {
               students: {
                 include: {
-                  user: { select: { id: true, name: true, email: true } }
+          user: { select: { id: true, name: true, email: true, isActive: true } }
                 }
               }
             }
@@ -533,7 +533,7 @@ const getStudents = async (req, res) => {
 
       const allStudents = await prisma.student.findMany({
         include: {
-          user: { select: { id: true, name: true, email: true } }
+          user: { select: { id: true, name: true, email: true, isActive: true } }
         }
       });
 
@@ -572,7 +572,7 @@ const getStudents = async (req, res) => {
       prisma.student.findMany({
         where: whereClause,
         include: {
-          user: { select: { id: true, name: true, email: true } },
+          user: { select: { id: true, name: true, email: true, isActive: true } },
           guardians: true,
           enrollments: {
             include: {
