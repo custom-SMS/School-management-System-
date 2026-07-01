@@ -9,6 +9,7 @@ const {
   createClass,
   getClasses,
   deleteClass,
+  forceDeleteClass,
   createSection,
   getSectionsByClass
 } = require('../controllers/classroomController');
@@ -202,6 +203,7 @@ router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']
  *         description: Class deleted
  */
 router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteClass);
+router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), forceDeleteClass);
 
 /**
  * @swagger
