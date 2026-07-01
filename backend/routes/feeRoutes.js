@@ -11,6 +11,7 @@ const {
   getMyFees,
   submitBankPayment,
   getOutstandingFees,
+  getCashierPayments,
   markFeePaidInCash,
   getPendingPayments,
   verifyPayment,
@@ -35,6 +36,7 @@ router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashie
 
 // Cashier desk: list outstanding invoices and collect cash against them
 router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getOutstandingFees);
+router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getCashierPayments);
 router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), markFeePaidInCash);
 
 // Student/Parent fee portal
