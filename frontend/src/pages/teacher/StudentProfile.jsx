@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showPromptDialog } from '../../utils/sweetAlert';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
@@ -41,7 +42,10 @@ export default function StudentProfile() {
   const initials = name.split(' ').map((x) => x[0]).slice(0, 2).join('').toUpperCase();
 
   const contactParent = async () => {
-    const message = window.prompt(`Message to ${name}'s parent`);
+    const { value: message } = await showPromptDialog({
+      title: `Message to ${name}'s parent`,
+      inputPlaceholder: 'Type your message…',
+    });
     if (!message?.trim()) return;
 
     setNotifyingParent(true);

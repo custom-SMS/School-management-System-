@@ -9,7 +9,7 @@ const getNextAvailableStudentId = async () => {
   const latestStudent = await prisma.student.findFirst({
     where: {
       studentId: {
-        startsWith: 'STU-'
+        startsWith: 'STU/',
       }
     },
     orderBy: {
@@ -18,8 +18,16 @@ const getNextAvailableStudentId = async () => {
   });
 
   const latestNumber = latestStudent
-    ? Number(latestStudent.studentId.split('-')[1])
+    ? Number(latestStudent.studentId.split('/')[1])
     : 0;
+
+  const now = new Date();
+  const gregYear = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // Ethiopian calendar approximation
+  const etYear = month >= 9 ? gregYear - 7 : gregYear - 8;
+  const etYearLast2 = etYear.toString().slice(-2);
 
   const counter = await prisma.counter.upsert({
     where: { id: 'studentId' },
@@ -27,12 +35,22 @@ const getNextAvailableStudentId = async () => {
     create: { id: 'studentId', seq: latestNumber + 1 }
   });
 
-  return `STU-${String(counter.seq).padStart(4, '0')}`;
+  return `STU/${String(counter.seq).padStart(4, '0')}/${etYearLast2}`;
 };
 
 const generateParentId = async () => {
   const count = await prisma.parent.count();
-  return `PAR-${(count + 1).toString().padStart(4, '0')}`;
+
+  const now = new Date();
+  const gregYear = now.getFullYear();
+  const month = now.getMonth() + 1;
+
+  // Ethiopian year approximation
+  const etYear = month >= 9 ? gregYear - 7 : gregYear - 8;
+
+  const etYearLast2 = etYear.toString().slice(-2);
+
+  return `PAR/${(count + 1).toString().padStart(4, '0')}/${etYearLast2}`;
 };
 
 const generatePassword = () => crypto.randomBytes(4).toString('hex');
@@ -48,6 +66,29 @@ const resolveClassNameFromGrade = (grade) => {
   }
 
   return gradeText ? `Class ${gradeText}` : 'Class 1';
+};
+
+// Fee rules and class names are configured with slightly different labels
+// ("Class 5" vs "Grade 5"). Match on the numeric level when present, and fall
+// back to a case/space-insensitive comparison of the full label otherwise.
+const normalizeLabel = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+const findFeeForGrade = async (grade) => {
+  const exact = await prisma.feeStructure.findFirst({ where: { grade } });
+  if (exact) return exact;
+
+  const target = normalizeLabel(grade);
+  const targetNumber = target.match(/\d+/)?.[0] || '';
+  const allFees = await prisma.feeStructure.findMany();
+
+  return (
+    allFees.find((fee) => {
+      const feeLabel = normalizeLabel(fee.grade);
+      const feeNumber = feeLabel.match(/\d+/)?.[0] || '';
+      if (targetNumber && feeNumber) return feeNumber === targetNumber;
+      return feeLabel === target;
+    }) || null
+  );
 };
 
 const attachStudentToGradeClass = async (student, grade) => {
@@ -76,18 +117,14 @@ const attachStudentToGradeClass = async (student, grade) => {
   }
 };
 
-// Place the student into one explicit class chosen at registration. Returns
-// false when the class id is missing/invalid so the caller can fall back to
-// grade-based placement.
-const attachStudentToClassId = async (studentId, classId) => {
-  if (!classId) return false;
-  const klass = await prisma.class.findUnique({ where: { id: classId } });
-  if (!klass) return false;
-  await prisma.class.update({
-    where: { id: classId },
-    data: { students: { connect: { id: studentId } } },
-  });
-  return true;
+// The class the registrar picks is the single source of truth for the student's
+// grade level. Derive a clean grade label from the class name (e.g. "Grade 5",
+// "Nursery") so we never require a separate grade field at registration.
+const deriveGradeFromClassName = (className) => {
+  const name = String(className || '').trim();
+  const match = name.match(/(\d+)/);
+  if (match) return `Grade ${match[1]}`;
+  return name || null;
 };
 
 const buildGuardianContacts = (reqBody) => {
@@ -236,7 +273,7 @@ const registerStudent = async (req, res) => {
     const {
       name,
       email,
-      grade,
+      grade: gradeFromBody,
       classId,
       personalDetails = {},
       familyBackground = {},
@@ -273,14 +310,31 @@ const registerStudent = async (req, res) => {
       if (existingUser) return res.status(400).json({ message: 'Email already exists' });
     }
 
+    // The class chosen from the dropdown is the source of truth. Resolve it now
+    // and derive the grade from it; fall back to any grade sent in the body only
+    // when no class was selected.
+    let selectedClass = null;
+    if (classId) {
+      selectedClass = await prisma.class.findUnique({ where: { id: classId } });
+      if (!selectedClass) {
+        return res.status(400).json({ message: 'Selected class was not found.' });
+      }
+    }
+
+    const grade = selectedClass
+      ? deriveGradeFromClassName(selectedClass.name)
+      : gradeFromBody;
+
+    if (!grade) {
+      return res.status(400).json({ message: 'Please select a class for the student.' });
+    }
+
     const studentPassword = generatePassword();
     const hashedPassword = await bcrypt.hash(studentPassword, 10);
 
-    const gradeSettings = await prisma.feeStructure.findFirst({
-      where: { grade }
-    });
+    const gradeSettings = await findFeeForGrade(grade);
     if (!gradeSettings) {
-      return res.status(400).json({ message: `Registrar has not configured settings for Grade: ${grade}` });
+      return res.status(400).json({ message: `Registrar has not configured a fee for ${grade}. Please set the grade fee before registering.` });
     }
 
     // Generate System ID
@@ -364,8 +418,12 @@ const registerStudent = async (req, res) => {
       }
     });
 
-    const placedByClassId = await attachStudentToClassId(student.id, classId);
-    if (!placedByClassId) {
+    if (selectedClass) {
+      await prisma.class.update({
+        where: { id: selectedClass.id },
+        data: { students: { connect: { id: student.id } } },
+      });
+    } else {
       await attachStudentToGradeClass(student, grade);
     }
 
@@ -783,18 +841,44 @@ const getGradeFees = async (req, res) => {
 // @access  Private (student_registration permission)
 const getRegistrationClasses = async (req, res) => {
   try {
-    const classes = await prisma.class.findMany({
-      orderBy: { name: 'asc' },
-      include: { teacher: { include: { user: { select: { name: true } } } } },
-    });
+    const [classes, fees] = await Promise.all([
+      prisma.class.findMany({
+        orderBy: { name: 'asc' },
+        include: { teacher: { include: { user: { select: { name: true } } } } },
+      }),
+      prisma.feeStructure.findMany(),
+    ]);
+
+    const feeForGrade = (grade) => {
+      const exact = fees.find((f) => f.grade === grade);
+      if (exact) return exact;
+      const target = normalizeLabel(grade);
+      const targetNumber = target.match(/\d+/)?.[0] || '';
+      return (
+        fees.find((f) => {
+          const label = normalizeLabel(f.grade);
+          const num = label.match(/\d+/)?.[0] || '';
+          if (targetNumber && num) return num === targetNumber;
+          return label === target;
+        }) || null
+      );
+    };
+
     res.status(200).json(
-      classes.map((c) => ({
-        id: c.id,
-        _id: c.id,
-        name: c.name,
-        subject: c.subject,
-        teacherName: c.teacher?.user?.name || null,
-      })),
+      classes.map((c) => {
+        const grade = deriveGradeFromClassName(c.name);
+        const fee = feeForGrade(grade);
+        return {
+          id: c.id,
+          _id: c.id,
+          name: c.name,
+          subject: c.subject,
+          teacherName: c.teacher?.user?.name || null,
+          grade,
+          feeConfigured: Boolean(fee),
+          feeAmount: fee ? fee.amount : null,
+        };
+      }),
     );
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -810,7 +894,7 @@ const updateStudent = async (req, res) => {
     const {
       name,
       email,
-      grade,
+      grade: gradeFromBody,
       classId,
       personalDetails,
       familyBackground
@@ -828,6 +912,19 @@ const updateStudent = async (req, res) => {
     if (!existingStudent) {
       return res.status(404).json({ message: 'Student not found' });
     }
+
+    // When a class is picked, it dictates the grade level; otherwise honour any
+    // grade explicitly provided in the body.
+    let selectedClass = null;
+    if (classId) {
+      selectedClass = await prisma.class.findUnique({ where: { id: classId } });
+      if (!selectedClass) {
+        return res.status(400).json({ message: 'Selected class was not found.' });
+      }
+    }
+    const grade = selectedClass
+      ? deriveGradeFromClassName(selectedClass.name)
+      : gradeFromBody;
 
     if (email) {
       const duplicateUser = await prisma.user.findFirst({
@@ -906,14 +1003,11 @@ const updateStudent = async (req, res) => {
 
     // Re-place the student into the chosen class (single placement: replace any
     // existing class membership) when a class is explicitly selected.
-    if (classId) {
-      const klass = await prisma.class.findUnique({ where: { id: classId } });
-      if (klass) {
-        await prisma.student.update({
-          where: { id },
-          data: { classes: { set: [{ id: classId }] } },
-        });
-      }
+    if (selectedClass) {
+      await prisma.student.update({
+        where: { id },
+        data: { classes: { set: [{ id: selectedClass.id }] } },
+      });
     }
 
     const { logActivity } = require('../middleware/auditLogger');

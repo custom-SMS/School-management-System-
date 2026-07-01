@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { showDangerConfirmDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
@@ -139,8 +140,12 @@ export default function Classes() {
   };
 
   const handleDeleteClass = async (klass) => {
-    const confirmed = window.confirm(`Delete class "${klass.name}"? This cannot be undone.`);
-    if (!confirmed) return;
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Delete class?',
+      text: `Delete class "${klass.name}"? This cannot be undone.`,
+      confirmButtonText: 'Delete',
+    });
+    if (!isConfirmed) return;
 
     setDeletingClassId(klass.id);
     try {

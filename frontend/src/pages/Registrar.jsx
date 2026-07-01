@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
@@ -221,8 +222,12 @@ export default function Registrar() {
   };
 
   const handleDeleteStudent = async (student) => {
-    const confirmed = window.confirm(`Delete ${student.user?.name || student.studentId}? This will remove the student and related records.`);
-    if (!confirmed) return;
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Delete student?',
+      text: `Delete ${student.user?.name || student.studentId}? This will remove the student and related records.`,
+      confirmButtonText: 'Delete',
+    });
+    if (!isConfirmed) return;
 
     setDeletingStudentId(student._id);
     setMessage('');

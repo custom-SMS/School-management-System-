@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+import { showConfirmDialog } from '../utils/sweetAlert';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
@@ -227,7 +228,11 @@ export default function Students() {
     const nextIsActive = !(student.isActive ?? true);
     const actionLabel = nextIsActive ? 'activate' : 'deactivate';
 
-    if (!window.confirm(`Are you sure you want to ${actionLabel} ${studentName}?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: `${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} student?`,
+      text: `Are you sure you want to ${actionLabel} ${studentName}?`,
+    });
+    if (!isConfirmed) return;
 
     setUpdatingStatusId(student._id);
     try {
@@ -262,7 +267,11 @@ export default function Students() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to ${actionLabel} ${targetStudents.length} selected student(s)?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: `${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} students?`,
+      text: `Are you sure you want to ${actionLabel} ${targetStudents.length} selected student(s)?`,
+    });
+    if (!isConfirmed) return;
 
     setUpdatingStatusId('bulk');
     try {

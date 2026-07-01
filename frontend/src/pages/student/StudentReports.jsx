@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showPromptDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
@@ -57,7 +58,11 @@ export default function StudentReports() {
   };
 
   const handleSubmitRequest = async () => {
-    const reason = window.prompt('Describe what you want reviewed in your academic record');
+    const { value: reason } = await showPromptDialog({
+      title: 'Request a review',
+      input: 'textarea',
+      inputPlaceholder: 'Describe what you want reviewed in your academic record',
+    });
     if (!reason?.trim()) return;
 
     setSubmittingRequest(true);

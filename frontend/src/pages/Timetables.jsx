@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import AdminLayout from '../components/AdminLayout';
@@ -152,7 +153,12 @@ export default function Timetables() {
   };
 
   const handleDeleteSlot = async (id) => {
-    if (!window.confirm('Are you sure you want to remove this schedule slot?')) return;
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Remove schedule slot?',
+      text: 'Are you sure you want to remove this schedule slot?',
+      confirmButtonText: 'Remove',
+    });
+    if (!isConfirmed) return;
     try {
       await axios.delete(`/timetables/${id}`);
       toast.success('Schedule slot deleted.');

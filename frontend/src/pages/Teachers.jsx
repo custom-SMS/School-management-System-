@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 
@@ -92,7 +93,11 @@ export default function Teachers() {
     const nextIsActive = !(teacher.isActive ?? true);
     const actionLabel = nextIsActive ? 'activate' : 'deactivate';
 
-    if (!window.confirm(`Are you sure you want to ${actionLabel} ${teacherName}?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: `${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} teacher?`,
+      text: `Are you sure you want to ${actionLabel} ${teacherName}?`,
+    });
+    if (!isConfirmed) return;
 
     setUpdatingStatusTeacherId(teacher._id);
     setToast(initialToast);

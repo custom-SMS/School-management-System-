@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { showConfirmDialog } from '../../utils/sweetAlert';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
@@ -25,7 +26,12 @@ export default function AttendanceGovernance() {
   useEffect(() => { fetchSessions(); }, []);
 
   const handleUnlock = async (session) => {
-    if (!window.confirm(`Unlock attendance for "${session.className}" on ${new Date(session.date).toLocaleDateString()}? Teachers will be able to modify records.`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: 'Unlock attendance?',
+      text: `Unlock attendance for "${session.className}" on ${new Date(session.date).toLocaleDateString()}? Teachers will be able to modify records.`,
+      confirmButtonText: 'Unlock',
+    });
+    if (!isConfirmed) return;
     setUnlockingId(session._id);
     try {
       await axios.patch(`/classroom/attendance/${session._id}/unlock`);

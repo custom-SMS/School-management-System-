@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showConfirmDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import CashierLayout from '../../components/CashierLayout';
@@ -89,7 +90,12 @@ export default function Analytics() {
   };
 
   const sendBulkReminders = async () => {
-    if (!window.confirm(`Send tuition reminders for all unpaid ${targetMonth} invoices?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: 'Send reminders?',
+      text: `Send tuition reminders for all unpaid ${targetMonth} invoices?`,
+      confirmButtonText: 'Send',
+    });
+    if (!isConfirmed) return;
 
     setSendingReminders(true);
     try {

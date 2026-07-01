@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
@@ -59,7 +60,12 @@ export default function ReportCards() {
 
   const handlePublish = async () => {
     if (!selectedYear) return;
-    if (!window.confirm('Publish report cards for this academic year? Students and parents will be notified.')) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: 'Publish report cards?',
+      text: 'Publish report cards for this academic year? Students and parents will be notified.',
+      confirmButtonText: 'Publish',
+    });
+    if (!isConfirmed) return;
     setBusy('publish');
     try {
       const res = await axios.post('/report-cards/publish', { academicYearId: selectedYear });

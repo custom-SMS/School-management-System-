@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { showConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
@@ -169,7 +170,12 @@ export default function Bursar() {
   }, [selectedStudent, students, gradeFees]);
 
   const handleGenerateInvoices = async () => {
-    if (!window.confirm(`Generate unpaid tuition invoices for ${generateMonth} for all students? Students without an existing invoice for this month will be billed based on their grade fee.`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: 'Generate invoices?',
+      text: `Generate unpaid tuition invoices for ${generateMonth} for all students? Students without an existing invoice for this month will be billed based on their grade fee.`,
+      confirmButtonText: 'Generate',
+    });
+    if (!isConfirmed) return;
     setGenerating(true);
     try {
       const res = await axios.post('/fees/generate', { month: generateMonth });
