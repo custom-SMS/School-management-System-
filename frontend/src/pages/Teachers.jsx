@@ -243,10 +243,7 @@ export default function Teachers() {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <button onClick={() => openEditModal(teacher)} title="Edit Teacher" className="text-gray-400 hover:text-gray-700">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5h2m-1-1v2m-7 6h14M5 19h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-                        </button>
-                        <button title="Teacher Email" className="text-gray-400 hover:text-gray-700">
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232a2.828 2.828 0 114 4L7 21H3v-4L15.232 5.232z"/></svg>
                         </button>
                         <button
                           onClick={() => handleStatusToggle(teacher)}
