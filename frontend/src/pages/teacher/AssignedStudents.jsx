@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showPromptDialog } from '../../utils/sweetAlert';
 import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
@@ -65,7 +66,10 @@ export default function AssignedStudents() {
     });
 
   const messageSelectedParents = async () => {
-    const message = window.prompt('Message to send to selected parents');
+    const { value: message } = await showPromptDialog({
+      title: 'Message selected parents',
+      inputPlaceholder: 'Message to send to selected parents',
+    });
     if (!message?.trim()) return;
 
     setSending(true);

@@ -13,6 +13,7 @@ export default function Assignments() {
   const [teacherId, setTeacherId] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [sectionId, setSectionId] = useState('');
+  const [assignmentType, setAssignmentType] = useState('SubjectTeacher');
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -33,11 +34,12 @@ export default function Assignments() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await axios.post('/assignments', { teacherId, subjectId, sectionId });
+      await axios.post('/assignments', { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType });
       toast.success('Teacher assigned successfully.');
       setTeacherId('');
       setSubjectId('');
       setSectionId('');
+      setAssignmentType('SubjectTeacher');
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to save teacher assignment');
     } finally {
@@ -80,19 +82,34 @@ export default function Assignments() {
             </div>
 
             <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">Select Subject</label>
+              <label className="mb-2 block text-sm font-semibold text-gray-700">Assignment Type</label>
               <select
-                value={subjectId}
-                onChange={(e) => setSubjectId(e.target.value)}
+                value={assignmentType}
+                onChange={(e) => setAssignmentType(e.target.value)}
                 required
                 className="w-full rounded-lg border border-gray-300 p-3 text-sm outline-none focus:border-black"
               >
-                <option value="">Choose a subject…</option>
-                {subjects.map((subject) => (
-                  <option key={subject.id || subject._id} value={subject.id || subject._id}>{subject.name}</option>
-                ))}
+                <option value="SubjectTeacher">Subject Teacher</option>
+                <option value="HomeRoomTeacher">Home Room Teacher</option>
               </select>
             </div>
+
+            {assignmentType === 'SubjectTeacher' && (
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-gray-700">Select Subject</label>
+                <select
+                  value={subjectId}
+                  onChange={(e) => setSubjectId(e.target.value)}
+                  required
+                  className="w-full rounded-lg border border-gray-300 p-3 text-sm outline-none focus:border-black"
+                >
+                  <option value="">Choose a subject…</option>
+                  {subjects.map((subject) => (
+                    <option key={subject.id || subject._id} value={subject.id || subject._id}>{subject.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             <div>
               <label className="mb-2 block text-sm font-semibold text-gray-700">Select Section</label>
@@ -111,7 +128,7 @@ export default function Assignments() {
 
             <button
               type="submit"
-              disabled={submitting || !teacherId || !subjectId || !sectionId}
+              disabled={submitting || !teacherId || !sectionId || (assignmentType === 'SubjectTeacher' && !subjectId)}
               className="w-full rounded-lg bg-black py-3 text-sm font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
             >
               {submitting ? 'Saving…' : 'Save Assignment'}

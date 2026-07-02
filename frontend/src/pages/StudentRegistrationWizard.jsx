@@ -428,12 +428,19 @@ export default function StudentRegistrationWizard() {
                               <option value="">{classes.length ? 'Select a class…' : 'No classes available yet'}</option>
                               {classes.map((c) => (
                                 <option key={c.id || c._id} value={c.id || c._id}>
-                                  {c.name}{c.subject ? ` — ${c.subject}` : ''}{c.teacherName ? ` (${c.teacherName})` : ' (no teacher assigned)'}
+                                  {c.name}{c.teacherName ? ` — ${c.teacherName}` : ' — no teacher assigned'}{c.feeConfigured === false ? ' (no fee set)' : ''}
                                 </option>
                               ))}
                             </select>
                           </Field>
-                          <p className="mt-1.5 text-xs text-slate-400">Determines which teacher's roster the student appears in.</p>
+                          <p className="mt-1.5 text-xs text-slate-400">
+                            The class sets the student's grade level{selectedClass?.grade ? ` (${selectedClass.grade})` : ''} and determines whose roster they appear in.
+                          </p>
+                          {selectedClass && selectedClass.feeConfigured === false && (
+                            <p className="mt-1.5 text-xs font-semibold text-amber-600">
+                              No tuition fee is configured for {selectedClass.grade || selectedClass.name}. Ask the registrar to set the grade fee before submitting.
+                            </p>
+                          )}
                         </div>
                         <label className="mt-5 flex items-center gap-3 text-sm font-semibold text-slate-700">
                           <input type="checkbox" checked={form.transport} onChange={(e) => set('transport', e.target.checked)} className="h-4 w-4" />
@@ -448,6 +455,8 @@ export default function StudentRegistrationWizard() {
                           <div className="mt-2 space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-slate-400">Academic Year</span><span className="font-bold">{activeYear?.year || '—'}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Assigned Class</span><span className="font-bold">{selectedClass?.name || '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Grade Level</span><span className="font-bold">{selectedClass?.grade || '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Monthly Fee</span><span className="font-bold">{selectedClass?.feeAmount != null ? `ETB ${selectedClass.feeAmount}` : '—'}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="font-bold">{form.transport ? 'Yes' : 'No'}</span></div>
                           </div>
                         </div>
@@ -525,6 +534,7 @@ export default function StudentRegistrationWizard() {
                       <ReviewCard title="Enrollment Details" onEdit={() => setStepIdx(2)} rows={[
                         ['Academic Year', activeYear?.year || '—'],
                         ['Assigned Class', selectedClass ? `${selectedClass.name}${selectedClass.teacherName ? ` (${selectedClass.teacherName})` : ''}` : '—'],
+                        ['Grade Level', selectedClass?.grade || '—'],
                         ['Transport Service', form.transport ? 'Yes' : 'No'],
                         ['National ID Uploaded', docs['National ID / Kebele ID']?.status === 'done' ? 'Yes' : 'No'],
                         ['Student Photo Uploaded', docs['Student Photo']?.status === 'done' ? 'Yes' : 'No'],

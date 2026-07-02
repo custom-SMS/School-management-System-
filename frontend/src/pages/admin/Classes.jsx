@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { showDangerConfirmDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
@@ -116,8 +117,12 @@ export default function Classes() {
   };
 
   const handleDeleteClass = async (klass) => {
-    const confirmed = window.confirm(`Delete class "${klass.name}"? This cannot be undone.`);
-    if (!confirmed) return;
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Delete class?',
+      text: `Delete class "${klass.name}"? This cannot be undone.`,
+      confirmButtonText: 'Delete',
+    });
+    if (!isConfirmed) return;
 
     setDeletingClassId(klass.id);
     try {
@@ -187,7 +192,7 @@ export default function Classes() {
       )}
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        <div className="sticky top-16 z-40 p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/90 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
             <p className="text-sm font-medium text-gray-500">View and manage grade levels and their homeroom teachers.</p>

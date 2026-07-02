@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
+import { showConfirmDialog } from '../utils/sweetAlert';
 
 export default function Academics() {
   const [subjects, setSubjects] = useState([]);
@@ -95,7 +96,15 @@ export default function Academics() {
   };
 
   const handleDeleteSubject = async (id, name) => {
-    if (!window.confirm(`Delete subject "${name}"?`)) return;
+    const result = await showConfirmDialog({
+  title: 'Delete Subject',
+  text: `Are you sure you want to delete "${name}"?`,
+  icon: 'warning',
+  confirmButtonText: 'Yes, delete',
+  cancelButtonText: 'Cancel'
+});
+
+if (!result) return;
     try {
       await axios.delete(`/subjects/${id}`);
       toast.success('Subject deleted.');

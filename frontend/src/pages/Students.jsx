@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+import { showConfirmDialog } from '../utils/sweetAlert';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
@@ -227,7 +228,11 @@ export default function Students() {
     const nextIsActive = !(student.isActive ?? true);
     const actionLabel = nextIsActive ? 'activate' : 'deactivate';
 
-    if (!window.confirm(`Are you sure you want to ${actionLabel} ${studentName}?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: `${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} student?`,
+      text: `Are you sure you want to ${actionLabel} ${studentName}?`,
+    });
+    if (!isConfirmed) return;
 
     setUpdatingStatusId(student._id);
     try {
@@ -262,7 +267,11 @@ export default function Students() {
       return;
     }
 
-    if (!window.confirm(`Are you sure you want to ${actionLabel} ${targetStudents.length} selected student(s)?`)) return;
+    const { isConfirmed } = await showConfirmDialog({
+      title: `${actionLabel.charAt(0).toUpperCase() + actionLabel.slice(1)} students?`,
+      text: `Are you sure you want to ${actionLabel} ${targetStudents.length} selected student(s)?`,
+    });
+    if (!isConfirmed) return;
 
     setUpdatingStatusId('bulk');
     try {
@@ -344,7 +353,7 @@ export default function Students() {
       </div>
 
       {/* Filters */}
-      <div className="mb-4 flex flex-wrap items-center gap-3">
+      <div className="sticky top-16 z-40 mb-4 flex flex-wrap items-center gap-3 bg-slate-50/50 py-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-sm">
         <div className="relative flex items-center flex-1 min-w-60 max-w-md">
           <svg className="absolute left-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2"/></svg>
           <input

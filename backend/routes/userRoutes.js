@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getUsers,
+  getUserById,
   updateUserStatus,
   updateUserRole,
   resetUserPassword
@@ -33,6 +34,9 @@ router.use(verifyToken);
  */
 router.route('/')
   .get(getUsers);
+
+router.route('/:id')
+  .get(checkRole(['SuperAdmin']), getUserById);
 
 /**
  * @swagger

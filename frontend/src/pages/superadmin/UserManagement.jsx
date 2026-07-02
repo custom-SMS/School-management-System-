@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 
 const ROLES = ['SuperAdmin', 'Admin', 'Teacher', 'Cashier', 'Student', 'Parent'];
+const PROMOTABLE_ROLES = ['Admin', 'SuperAdmin'];
 
 const ROLE_COLORS = {
   SuperAdmin: 'bg-indigo-100 text-indigo-800',
@@ -96,15 +98,17 @@ export default function UserManagement() {
     }
   };
 
-  const handleRoleChange = async (userId, newRole) => {
-    try {
-      await axios.patch(`/users/${userId}/role`, { role: newRole });
-      toast.success('Role updated successfully.');
-      fetchUsers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Error updating role');
-    }
-  };
+   const handleRoleChange = async (userId, newRole) => {
+     try {
+       await axios.patch(`/users/${userId}/role`, { role: newRole });
+       toast.success('Role updated successfully.');
+       fetchUsers();
+     } catch (err) {
+       toast.error(err.response?.data?.message || 'Error updating role');
+     }
+   };
+
+   const canPromoteToSuperAdmin = (user) => user.role === 'Admin' || user.role === 'SuperAdmin';
 
   const handleResetPassword = async (password) => {
     try {
@@ -153,7 +157,7 @@ export default function UserManagement() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3 mb-4">
+      <div className="sticky top-16 z-40 flex flex-wrap gap-3 mb-4 bg-slate-50/90 py-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-sm">
         <input
           type="text"
           placeholder="Search by name or email…"
@@ -198,32 +202,37 @@ export default function UserManagement() {
                         {u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)}
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900">{u.name}</div>
+                        <Link
+                          to={`/super-admin/users/${u.id}`}
+                          className="font-bold text-slate-900 transition hover:text-gray-600 "
+                        >
+                          {u.name}
+                        </Link>
                         <div className="text-xs text-slate-500">{u.email}</div>
                       </div>
                     </div>
                   </td>
-                <td className="px-6 py-4">
-  {u.role !== "Student" && u.role !== "Parent" ? (
-    <select
-      value={u.role}
-      onChange={e => handleRoleChange(u.id, e.target.value)}
-      className={`text-xs font-bold rounded-full px-3 py-1.5 border-0 outline-none cursor-pointer ${ROLE_COLORS[u.role]}`}
-    >
-      {ROLES.filter(r => r !== 'Parent').map(r => (
-        <option key={r} value={r}>
-          {r}
-        </option>
-      ))}
-    </select>
-  ) : (
-    <span
-      className={`text-xs font-bold rounded-full px-3 py-1.5 ${ROLE_COLORS[u.role]}`}
-    >
-      {u.role}
-    </span>
-  )}
-</td>
+                  <td className="px-6 py-4">
+                    {canPromoteToSuperAdmin(u) ? (
+                      <select
+                        value={u.role}
+                        onChange={e => handleRoleChange(u.id, e.target.value)}
+                        className={`text-xs font-bold rounded-full px-3 py-1.5 border-0 outline-none cursor-pointer ${ROLE_COLORS[u.role]}`}
+                      >
+                        {PROMOTABLE_ROLES.map(r => (
+                          <option key={r} value={r}>
+                            {r}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span
+                        className={`text-xs font-bold rounded-full px-3 py-1.5 ${ROLE_COLORS[u.role]}`}
+                      >
+                        {u.role}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${u.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${u.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></span>

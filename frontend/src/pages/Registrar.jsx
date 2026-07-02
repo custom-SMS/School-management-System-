@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
@@ -221,8 +222,12 @@ export default function Registrar() {
   };
 
   const handleDeleteStudent = async (student) => {
-    const confirmed = window.confirm(`Delete ${student.user?.name || student.studentId}? This will remove the student and related records.`);
-    if (!confirmed) return;
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Delete student?',
+      text: `Delete ${student.user?.name || student.studentId}? This will remove the student and related records.`,
+      confirmButtonText: 'Delete',
+    });
+    if (!isConfirmed) return;
 
     setDeletingStudentId(student._id);
     setMessage('');
@@ -705,7 +710,7 @@ export default function Registrar() {
             <h3 className="text-2xl font-bold text-slate-900 mb-2">Audit Logs Trail</h3>
             <p className="text-slate-500 text-sm mb-6">Monitor all admin, cashier, and teacher actions in the school system.</p>
 
-            <div className="mb-6 max-w-md">
+            <div className="sticky top-16 z-40 mb-6 max-w-md bg-slate-50/90 py-2 backdrop-blur-sm">
               <input
                 type="text"
                 placeholder="Search logs by action name (e.g. Promote)..."

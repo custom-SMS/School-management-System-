@@ -198,9 +198,9 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-50/50">
+      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-slate-50/50">
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             <button
               className="text-slate-600 hover:text-black lg:hidden"

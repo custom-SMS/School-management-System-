@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { showPromptDialog } from '../../utils/sweetAlert';
 import { Link, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
@@ -52,7 +53,10 @@ export default function StudentAttendanceDetail() {
 
   const notifyParent = async () => {
     const defaultMessage = `${name}'s attendance is currently ${attendance.rate}%. Please check the attendance section for details.`;
-    const message = window.prompt(`Message to ${name}'s parent`, defaultMessage);
+    const { value: message } = await showPromptDialog({
+      title: `Message to ${name}'s parent`,
+      inputValue: defaultMessage,
+    });
     if (!message?.trim()) return;
 
     setNotifyingParent(true);

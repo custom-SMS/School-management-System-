@@ -71,8 +71,8 @@ const createAssignment = async (req, res) => {
       return res.status(400).json({ message: 'teacherId is required' });
     }
 
-    if (!subjectId) {
-      return res.status(400).json({ message: 'subjectId is required' });
+    if (assignmentType === 'SubjectTeacher' && !subjectId) {
+      return res.status(400).json({ message: 'subjectId is required for Subject Teacher assignments' });
     }
 
     if (!sectionId && !normalizedClassIds.length && !normalizedSpecificClassNames.length) {

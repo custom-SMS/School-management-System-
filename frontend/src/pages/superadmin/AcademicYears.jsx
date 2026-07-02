@@ -2,6 +2,10 @@ import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
+import {
+  showConfirmDialog,
+  showDangerConfirmDialog,
+} from '../../utils/sweetAlert';
 
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString() : '—');
 // date -> yyyy-mm-dd for <input type="date">
@@ -66,7 +70,14 @@ export default function AcademicYears() {
   };
 
   const handleActivate = async (id, yearLabel) => {
-    if (!window.confirm(`Set "${yearLabel}" as the active academic year? This will deactivate the current one.`)) return;
+    const result = await showConfirmDialog({
+      title: 'Set active academic year?',
+      text: `Set "${yearLabel}" as the active academic year? This will deactivate the current one.`,
+      confirmButtonText: 'Yes, set active',
+    });
+
+    if (!result.isConfirmed) return;
+
     setActionId(id);
     try {
       await axios.patch(`/academic-years/${id}/active`);
@@ -74,6 +85,58 @@ export default function AcademicYears() {
       fetchYears();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error activating year');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handleToggleRegistration = async (year) => {
+    if (!year.isActive) {
+      toast.error('Only the active academic year can be opened or closed for registration.');
+      return;
+    }
+
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const defaultEnd = new Date(today);
+    defaultEnd.setMonth(defaultEnd.getMonth() + 1);
+
+    const registrationStart = year.registrationOpen
+      ? (year.registrationStart ? toInputDate(year.registrationStart) : toInputDate(today))
+      : (year.registrationStart ? toInputDate(year.registrationStart) : toInputDate(today));
+
+    const registrationEnd = year.registrationOpen
+      ? toInputDate(yesterday)
+      : (year.registrationEnd && new Date(year.registrationEnd) >= today ? toInputDate(year.registrationEnd) : toInputDate(defaultEnd));
+
+    const actionLabel = year.registrationOpen ? 'close' : 'open';
+    const result = year.registrationOpen
+      ? await showDangerConfirmDialog({
+          title: `${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} registration?`,
+          text: `${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} registration for "${year.year}"?`,
+          confirmButtonText: 'Yes, close it',
+          confirmButtonColor: '#be123c',
+        })
+      : await showConfirmDialog({
+          title: `${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} registration?`,
+          text: `${actionLabel[0].toUpperCase()}${actionLabel.slice(1)} registration for "${year.year}"?`,
+          confirmButtonText: 'Yes, open it',
+          confirmButtonColor: '#047857',
+        });
+
+    if (!result.isConfirmed) return;
+
+    setActionId(year.id);
+    try {
+      await axios.patch(`/academic-years/${year.id}/registration-period`, {
+        registrationStart,
+        registrationEnd,
+      });
+      toast.success(`Registration ${year.registrationOpen ? 'closed' : 'opened'} for "${year.year}".`);
+      fetchYears();
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Failed to ${actionLabel} registration.`);
     } finally {
       setActionId(null);
     }
@@ -113,7 +176,7 @@ export default function AcademicYears() {
     <SuperAdminLayout pageTitle="Academic Years">
       <div className="mb-6">
         <h2 className="text-2xl font-black tracking-tight text-slate-900">Academic Year Management</h2>
-        <p className="text-sm font-medium text-slate-500">Create and control academic year lifecycle. Registration opens automatically during the configured window of the active year.</p>
+        <p className="text-sm font-medium text-slate-500">Create and control academic year lifecycle. SuperAdmin can activate a year, edit the registration window, and manually open or close registration for the active year.</p>
       </div>
 
       {/* Edit period modal */}
@@ -242,6 +305,19 @@ export default function AcademicYears() {
                           >
                             Edit Period
                           </button>
+                          {y.isActive && (
+                            <button
+                              disabled={actionId === y.id}
+                              onClick={() => handleToggleRegistration(y)}
+                              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition disabled:opacity-40 ${
+                                y.registrationOpen
+                                  ? 'text-rose-700 hover:text-rose-900 bg-rose-50'
+                                  : 'text-emerald-700 hover:text-emerald-900 bg-emerald-50'
+                              }`}
+                            >
+                              {actionId === y.id ? '…' : y.registrationOpen ? 'Close Registration' : 'Open Registration'}
+                            </button>
+                          )}
                           {y.isActive ? (
                             <span className="text-xs font-bold text-emerald-600">Current Year</span>
                           ) : (
