@@ -145,7 +145,7 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+          <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}

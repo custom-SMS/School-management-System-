@@ -190,7 +190,7 @@ export default function Teachers() {
           <h2 className="text-2xl font-bold text-gray-900">Teacher Directory</h2>
           <p className="text-sm text-gray-500">Manage and view all institutional academic staff records.</p>
         </div>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 sticky top-16 z-40 bg-slate-50/50 py-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-sm">
           <div className="relative flex items-center">
             <svg className="absolute left-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2"/></svg>
             <input type="text" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search staff name..." className="rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-gray-300 w-52"/>

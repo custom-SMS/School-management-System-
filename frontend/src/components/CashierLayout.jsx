@@ -184,7 +184,7 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
         {/* Main column */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-           <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+           <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}

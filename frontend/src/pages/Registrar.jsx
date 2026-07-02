@@ -710,7 +710,7 @@ export default function Registrar() {
             <h3 className="text-2xl font-bold text-slate-900 mb-2">Audit Logs Trail</h3>
             <p className="text-slate-500 text-sm mb-6">Monitor all admin, cashier, and teacher actions in the school system.</p>
 
-            <div className="mb-6 max-w-md">
+            <div className="sticky top-16 z-40 mb-6 max-w-md bg-slate-50/90 py-2 backdrop-blur-sm">
               <input
                 type="text"
                 placeholder="Search logs by action name (e.g. Promote)..."

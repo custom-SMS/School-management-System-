@@ -311,7 +311,7 @@ export default function Sections() {
       )}
 
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-gray-50 p-6">
+        <div className="sticky top-16 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-gray-50/90 p-6 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Sections</h2>
             <p className="text-sm font-medium text-gray-500">
