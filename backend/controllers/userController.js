@@ -222,6 +222,20 @@ const updateUserStatus = async (req, res) => {
       select: { id: true, name: true, email: true, role: true, isActive: true }
     });
 
+    if (updatedUser.role === 'Teacher' && !updatedUser.isActive) {
+      const teacherProfile = await prisma.teacher.findUnique({
+        where: { userId: updatedUser.id },
+        select: { id: true }
+      });
+
+      if (teacherProfile) {
+        await prisma.section.updateMany({
+          where: { homeroomTeacherId: teacherProfile.id },
+          data: { homeroomTeacherId: null }
+        });
+      }
+    }
+
     await logActivity(
       req.user._id,
       'Update User Status',

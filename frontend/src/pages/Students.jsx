@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useContext, useCallback } from 'react';
 import { showConfirmDialog } from '../utils/sweetAlert';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
@@ -433,7 +433,9 @@ export default function Students() {
                       <div className="flex items-center gap-3">
                         <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white ${avatarColor(name)}`}>{initials}</div>
                         <div>
-                          <div className="font-bold text-gray-900">{name}</div>
+                          <Link to={`/admin/students/${student._id}`} className="font-bold text-gray-900 hover:text-indigo-600 hover:underline">
+                            {name}
+                          </Link>
                           <div className="text-xs text-gray-500">ID: #{student.studentId}</div>
                         </div>
                       </div>

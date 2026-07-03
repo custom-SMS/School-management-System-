@@ -36,6 +36,7 @@ import Academics from "./pages/Academics"; // Subjects
 import Classes from "./pages/admin/Classes";
 import Sections from "./pages/admin/Sections";
 import SectionStudents from "./pages/admin/SectionStudents";
+import AdminStudentProfile from "./pages/admin/StudentProfile";
 import Assignments from "./pages/Assignments";
 import Timetables from "./pages/Timetables";
 import ReportCards from "./pages/ReportCards";
@@ -352,6 +353,14 @@ function App() {
                   requiredPermission="student_registration"
                 >
                   <RegisterStudent />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/students/:id"
+              element={
+                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                  <AdminStudentProfile />
                 </ProtectedRoute>
               }
             />
