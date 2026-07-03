@@ -13,7 +13,6 @@ function tagFor(subject) {
 export default function AssignedClasses() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState('grid');
   const [activeYear, setActiveYear] = useState(null);
   
   // Promotion Management State
@@ -79,63 +78,12 @@ export default function AssignedClasses() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Assigned Classes</h1>
           <p className="text-sm text-slate-500">Your current academic workload this semester.</p>
         </div>
-        <div className="flex rounded-xl border border-slate-200 p-1 text-sm font-semibold">
-          {[['grid', 'Grid View'], ['table', 'Table View']].map(([k, label]) => (
-            <button key={k} onClick={() => setView(k)} className={`rounded-lg px-4 py-1.5 transition ${view === k ? 'bg-slate-100 text-slate-900' : 'text-slate-500'}`}>
-              {label}
-            </button>
-          ))}
-        </div>
       </div>
 
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading classes…</div>
       ) : classes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">No classes assigned yet.</div>
-      ) : view === 'grid' ? (
-        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {classes.map((c) => {
-            const tag = tagFor(c.subject);
-            const coverage = Math.min(100, c.averageGrade || 0);
-            return (
-              <div key={c.classId} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold text-slate-900">{c.subject || 'Subject'}</h3>
-                    <p className="text-sm font-semibold text-slate-400">{c.className}</p>
-                  </div>
-                  <span className={`rounded-md px-2 py-1 text-xs font-bold ${tag.tone}`}>{tag.label}</span>
-                </div>
-                <div className="mt-5 grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-xs font-semibold uppercase text-slate-400">Students</div>
-                    <div className="text-lg font-bold text-slate-900">{c.studentCount}</div>
-                  </div>
-                  <div>
-                    <div className="text-xs font-semibold uppercase text-slate-400">Sessions</div>
-                    <div className="text-lg font-bold text-slate-900">{c.attendanceSessions}</div>
-                  </div>
-                </div>
-                <div className="mt-5">
-                  <div className="flex items-center justify-between text-xs font-semibold uppercase text-slate-400">
-                    <span>Class Average</span>
-                    <span className="text-slate-900">{coverage}%</span>
-                  </div>
-                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                    <div className="h-full rounded-full bg-slate-900" style={{ width: `${coverage}%` }} />
-                  </div>
-                </div>
-                <div className="mt-6 space-y-2">
-                  <Link to="/teacher/grades" className="block rounded-xl bg-slate-900 py-2.5 text-center text-sm font-bold text-white transition hover:bg-slate-800">View Class</Link>
-                  <Link to="/teacher/attendance" className="block rounded-xl border border-slate-200 py-2.5 text-center text-sm font-bold text-slate-700 transition hover:bg-slate-50">Take Attendance</Link>
-                  {c.isHomeroom && (
-                    <button onClick={() => handleOpenPromotions(c)} className="w-full block rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-center text-sm font-bold text-emerald-700 transition hover:bg-emerald-100">Manage Promotions</button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="overflow-x-auto">
