@@ -64,6 +64,8 @@ import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
 import GradeSpreadsheet from "./pages/GradeSpreadsheet";
 import AttendanceChecklist from "./pages/AttendanceChecklist";
 import TeacherNotifications from "./pages/teacher/TeacherNotifications";
+import Homeroom from "./pages/teacher/Homeroom";
+import HomeroomReportCards from "./pages/teacher/HomeroomReportCards";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -477,6 +479,22 @@ function App() {
               }
             />
             <Route
+              path="/teacher/homeroom"
+              element={
+                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                  <Homeroom />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/homeroom/report-cards"
+              element={
+                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                  <HomeroomReportCards />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/teacher/notifications"
               element={
                 <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
@@ -654,5 +672,4 @@ function App() {
     </AuthProvider>
   );
 }
-
-export default App;
+export default App  

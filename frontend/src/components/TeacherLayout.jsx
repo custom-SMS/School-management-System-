@@ -88,6 +88,8 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
   const initials = (user?.name || 'T').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
   const unreadCount = notifications.filter(n => !n.read).length;
 
+  // Show homeroom link in sidebar for all teachers; the Homeroom page will enforce authorization.
+
   const sidebar = (
     <div className="flex h-full flex-col">
       <Link to="/teacher/dashboard" className="flex items-center gap-3 px-2 py-2">
@@ -111,6 +113,12 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
             <span>{item.label}</span>
           </NavLink>
         ))}
+
+        {/* Homeroom shortcut - visible for all teachers; page will show details only if assigned */}
+        <NavLink to="/teacher/homeroom" className={linkClass} onClick={() => setMobileOpen(false)}>
+          <NavIcon name="classes" />
+          <span>Homeroom</span>
+        </NavLink>
       </nav>
 
       <div className="mt-6 space-y-1.5 border-t border-slate-100 pt-6">

@@ -24,8 +24,15 @@ export default function Gradebook() {
 
   const selectedClass = useMemo(() => classes.find((k) => k._id === selectedClassId) || null, [classes, selectedClassId]);
 
-  const calcTotal = (marks) => components.reduce((sum, c) => sum + (Number(marks?.[c.field]) || 0) * (Number(c.weight) / 100), 0);
-  const letter = (t) => (t >= 90 ? 'A' : t >= 80 ? 'B' : t >= 70 ? 'C' : t >= 60 ? 'D' : 'F');
+  // Calculate total percentage for a row's marks.
+  // Accepts either percentage inputs (0-100) or raw scores entered relative to the component weight (e.g. enter 10 for Q when weight=10).
+  const calcTotal = (marks) => components.reduce((sum, c) => {
+    const raw = Number(marks?.[c.field]) || 0;
+    // If teacher entered a value that's <= the component weight, treat it as raw points out of that weight
+    // and convert to a percentage. Otherwise assume it's already a percentage (0-100).
+    const scorePercent = raw <= Number(c.weight) ? (Number(c.weight) === 0 ? 0 : (raw / Number(c.weight)) * 100) : raw;
+    return sum + (scorePercent * (Number(c.weight) / 100));
+  }, 0);
 
   useEffect(() => {
     axios.get('/classroom/grading-structure').then((r) => { if (r.data) setWeights(r.data); }).catch(() => {});
@@ -60,10 +67,21 @@ export default function Gradebook() {
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
     setSaving(true);
     try {
+      // Convert any raw scores into percentages before sending to backend (backend expects 0-100 values per component)
+      const gradesData = rows.map((r) => {
+        const marks = {};
+        components.forEach((c) => {
+          const raw = Number(r.marks[c.field]) || 0;
+          const pct = raw <= Number(c.weight) ? (Number(c.weight) === 0 ? 0 : (raw / Number(c.weight)) * 100) : raw;
+          marks[c.field] = Number(pct.toFixed(2));
+        });
+        return { student: r.student._id, marks };
+      });
+
       await axios.post('/classroom/grades', {
         classId: selectedClass._id,
         subject: selectedClass.subject,
-        gradesData: rows.map((r) => ({ student: r.student._id, marks: r.marks })),
+        gradesData,
       });
       toast.success('Grades saved & published.');
     } catch (e) {
@@ -79,8 +97,6 @@ export default function Gradebook() {
   const classAvg = graded.length ? (graded.reduce((a, b) => a + b, 0) / graded.length).toFixed(1) : '0.0';
   const highest = graded.length ? Math.max(...graded).toFixed(0) : 0;
   const lowest = graded.length ? Math.min(...graded).toFixed(0) : 0;
-  const ranges = { A: 0, B: 0, C: 0, D: 0, F: 0 };
-  totals.forEach((t) => { if (t > 0) ranges[letter(t)] += 1; });
 
   return (
     <TeacherLayout searchPlaceholder="Search students...">
@@ -124,14 +140,12 @@ export default function Gradebook() {
                 <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                   <th className="rounded-l-lg px-3 py-3 font-semibold">Student</th>
                   {components.map((c) => <th key={c.field} className="px-3 py-3 text-center font-semibold">{c.label} ({c.weight}%)</th>)}
-                  <th className="px-3 py-3 text-center font-semibold">Total</th>
-                  <th className="rounded-r-lg px-3 py-3 text-center font-semibold">Grade</th>
+                  <th className="px-3 py-3 text-center font-semibold">Total (out of 100)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {rows.map((row) => {
                   const total = calcTotal(row.marks);
-                  const g = letter(total);
                   return (
                     <tr key={row.student._id} className="text-slate-700">
                       <td className="px-3 py-3">
@@ -148,12 +162,11 @@ export default function Gradebook() {
                           />
                         </td>
                       ))}
-                      <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(1)}%</td>
-                      <td className={`px-3 py-3 text-center font-black ${g === 'F' ? 'text-rose-600' : 'text-emerald-600'}`}>{g}</td>
+                      <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>
                     </tr>
                   );
                 })}
-                {rows.length === 0 && <tr><td colSpan={components.length + 3} className="py-10 text-center text-slate-400">Select a class to load its roster.</td></tr>}
+                {rows.length === 0 && <tr><td colSpan={components.length + 2} className="py-10 text-center text-slate-400">Select a class to load its roster.</td></tr>}
               </tbody>
             </table>
           </div>
@@ -173,20 +186,7 @@ export default function Gradebook() {
             </div>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h3 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-400">Grade Range</h3>
-            <div className="space-y-2">
-              {[['A', '90-100%', 'text-emerald-600'], ['B', '80-89%', 'text-blue-600'], ['C', '70-79%', 'text-amber-600'], ['D', '60-69%', 'text-orange-600'], ['F', '< 60%', 'text-rose-600']].map(([g, range, tone]) => (
-                <div key={g} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className={`flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 font-black ${tone}`}>{g}</span>
-                    <span className="text-sm text-slate-500">{range}</span>
-                  </div>
-                  <span className="text-sm font-bold text-slate-900">{ranges[g]} Students</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          {/* Grade range removed per request */}
 
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
             Grades publish to the Student Portal &amp; Parent App immediately after clicking <span className="font-bold text-slate-700">Save &amp; Publish</span>.

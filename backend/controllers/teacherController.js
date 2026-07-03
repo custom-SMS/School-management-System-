@@ -127,7 +127,8 @@ const getTeachers = async (req, res) => {
             id: true,
             name: true,
             email: true,
-            role: true
+            role: true,
+            isActive: true
           }
         }
       },

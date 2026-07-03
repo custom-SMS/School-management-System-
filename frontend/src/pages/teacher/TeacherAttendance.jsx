@@ -1,4 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../../context/AuthContext';
@@ -35,6 +36,12 @@ export default function TeacherAttendance() {
         );
         setClasses(list);
         if (list.length) setSelectedClassId((c) => c || list[0]._id);
+        // If a classId is present in the query params, prefer that
+        try {
+          const qp = new URLSearchParams(window.location.search);
+          const qClass = qp.get('classId');
+          if (qClass && list.some(l => l._id === qClass)) setSelectedClassId(qClass);
+        } catch (e) { /* ignore */ }
       })
       .catch((err) => toast.error(err.response?.data?.message || 'Failed to load classes'));
   }, [user]);

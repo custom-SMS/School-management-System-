@@ -23,6 +23,9 @@ export default function Teachers() {
   const [updatingStatusTeacherId, setUpdatingStatusTeacherId] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
+
+  const [assignments, setAssignments] = useState([]);
+
   const loadTeachers = async () => {
     try {
       const res = await axios.get('/teachers');
@@ -35,7 +38,17 @@ export default function Teachers() {
     }
   };
 
-  useEffect(() => { loadTeachers(); }, []);
+  const loadAssignments = async () => {
+    try {
+      const res = await axios.get('/assignments');
+      setAssignments(res.data || []);
+    } catch (error) {
+      // non-fatal
+      console.error('Failed to load assignments', error?.response?.data || error.message);
+    }
+  };
+
+  useEffect(() => { loadTeachers(); loadAssignments(); }, []);
 
   const openCreateModal = () => {
     setCredentials(null);
@@ -90,7 +103,7 @@ export default function Teachers() {
 
   const handleStatusToggle = async (teacher) => {
     const teacherName = teacher.user?.name || teacher.teacherId || 'this teacher';
-    const nextIsActive = !(teacher.isActive ?? true);
+    const nextIsActive = !(teacher.user?.isActive ?? true);
     const actionLabel = nextIsActive ? 'activate' : 'deactivate';
 
     const { isConfirmed } = await showConfirmDialog({
@@ -118,6 +131,17 @@ export default function Teachers() {
       setUpdatingStatusTeacherId('');
     }
   };
+
+  const assignmentByTeacher = useMemo(() => {
+    const map = new Map();
+    assignments.forEach((assignment) => {
+      const teacherId = assignment.teacher?._id || assignment.teacher?.id;
+      if (!teacherId) return;
+      const current = map.get(teacherId) || [];
+      map.set(teacherId, [...current, assignment]);
+    });
+    return map;
+  }, [assignments]);
 
   const departments = useMemo(() => {
     const depts = new Set(teachers.map((t) => t.subject).filter(Boolean));
@@ -224,6 +248,10 @@ export default function Teachers() {
               {filteredTeachers.map((teacher) => {
                 const name = teacher.user?.name || '—';
                 const initials = name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+                const teacherAssignments = assignmentByTeacher.get(teacher._id) || [];
+                const assignedClasses = teacherAssignments
+                  .filter((a) => a.class)
+                  .map((a) => a.class?.name || 'Unknown');
                 return (
                   <tr key={teacher._id} className="transition hover:bg-gray-50">
                     <td className="px-6 py-4">
@@ -238,11 +266,13 @@ export default function Teachers() {
                     <td className="px-6 py-4">
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${deptStyle(teacher.subject)}`}>{teacher.subject || '—'}</span>
                     </td>
-                    <td className="px-6 py-4 text-gray-600">—</td>
+                    <td className="px-6 py-4 text-gray-600">
+                      {assignedClasses.length > 0 ? assignedClasses.join(', ') : '—'}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-gray-700">{teacher.user?.email || '—'}</div>
-                      <div className={`mt-1 text-xs font-semibold ${teacher.isActive ? 'text-emerald-600' : 'text-red-600'}`}>
-                        {teacher.isActive ? 'Active' : 'Inactive'}
+                      <div className={`mt-1 text-xs font-semibold ${teacher.user?.isActive ? 'text-emerald-600' : 'text-red-600'}`}>
+                        {teacher.user?.isActive ? 'Active' : 'Un active'}
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -253,14 +283,14 @@ export default function Teachers() {
                         <button
                           onClick={() => handleStatusToggle(teacher)}
                           disabled={updatingStatusTeacherId === teacher._id}
-                          title={teacher.isActive ? 'Deactivate Teacher' : 'Activate Teacher'}
+                          title={teacher.user?.isActive ? 'Deactivate Teacher' : 'Activate Teacher'}
                           className={`text-xs font-semibold ${
-                            teacher.isActive
+                            teacher.user?.isActive
                               ? 'text-amber-600 hover:text-amber-800'
                               : 'text-emerald-600 hover:text-emerald-800'
                           } disabled:opacity-50`}
                         >
-                          {updatingStatusTeacherId === teacher._id ? '…' : teacher.isActive ? 'Deactivate' : 'Activate'}
+                          {updatingStatusTeacherId === teacher._id ? '…' : teacher.user?.isActive ? 'Deactivate' : 'Activate'}
                         </button>
                       </div>
                     </td>
