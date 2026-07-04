@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
 
 const ALLOWED_CLASS_NAMES = [
   'Nursery',
@@ -562,14 +563,10 @@ const createClass = async (req, res) => {
     }
 
     if (teacherId) {
-      const existingTeacherClass = await prisma.class.findFirst({
-        where: { teacherId }
-      });
+      const homeroomCheck = await ensureHomeroomAssignmentAllowed(prisma, { teacherId });
 
-      if (existingTeacherClass) {
-        return res.status(400).json({
-          message: 'This homeroom teacher is already assigned to another class.'
-        });
+      if (!homeroomCheck.ok) {
+        return res.status(400).json({ message: homeroomCheck.message });
       }
     }
 
@@ -597,14 +594,59 @@ const getClasses = async (req, res) => {
       include: {
         teacher: {
           include: {
-            user: { select: { name: true } }
+            user: { select: { id: true, name: true, email: true } }
           }
         },
-        sections: true
+        sections: {
+          include: {
+            homeroomTeacher: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          }
+        }
       },
       orderBy: { name: 'asc' }
     });
-    res.status(200).json(classes);
+
+    const responseClasses = await Promise.all(classes.map(async (klass) => {
+      const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, klass.id, { fallbackToClass: false });
+      const resolvedTeacher = resolvedTeacherId
+        ? await prisma.teacher.findUnique({
+            where: { id: resolvedTeacherId },
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
+          })
+        : null;
+
+      return {
+        ...klass,
+        _id: klass.id,
+        teacher: klass.teacher ? {
+          ...klass.teacher,
+          _id: klass.teacher.id,
+          user: klass.teacher.user ? { ...klass.teacher.user, _id: klass.teacher.user.id } : null
+        } : null,
+        homeroomTeacher: resolvedTeacher ? {
+          ...resolvedTeacher,
+          _id: resolvedTeacher.id,
+          user: resolvedTeacher.user ? { ...resolvedTeacher.user, _id: resolvedTeacher.user.id } : null
+        } : null,
+        sections: (klass.sections || []).map((section) => ({
+          ...section,
+          _id: section.id,
+          homeroomTeacher: section.homeroomTeacher ? {
+            ...section.homeroomTeacher,
+            _id: section.homeroomTeacher.id,
+            user: section.homeroomTeacher.user ? { ...section.homeroomTeacher.user, _id: section.homeroomTeacher.user.id } : null
+          } : null
+        }))
+      };
+    }));
+
+    res.status(200).json(responseClasses);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -833,6 +875,14 @@ const createSection = async (req, res) => {
 const getSectionsByClass = async (req, res) => {
   try {
     const { classId } = req.params;
+    const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
+    const resolvedTeacher = resolvedTeacherId
+      ? await prisma.teacher.findUnique({
+          where: { id: resolvedTeacherId },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        })
+      : null;
+
     const sections = await prisma.section.findMany({
       where: { classId },
       include: {
@@ -844,7 +894,23 @@ const getSectionsByClass = async (req, res) => {
       },
       orderBy: { name: 'asc' }
     });
-    res.status(200).json(sections);
+
+    const responseSections = sections.map((section) => ({
+      ...section,
+      _id: section.id,
+      classHomeroomTeacher: resolvedTeacher ? {
+        ...resolvedTeacher,
+        _id: resolvedTeacher.id,
+        user: resolvedTeacher.user ? { ...resolvedTeacher.user, _id: resolvedTeacher.user.id } : null
+      } : null,
+      homeroomTeacher: section.homeroomTeacher ? {
+        ...section.homeroomTeacher,
+        _id: section.homeroomTeacher.id,
+        user: section.homeroomTeacher.user ? { ...section.homeroomTeacher.user, _id: section.homeroomTeacher.user.id } : null
+      } : null
+    }));
+
+    res.status(200).json(responseSections);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -853,7 +919,6 @@ const getSectionsByClass = async (req, res) => {
 const getSectionById = async (req, res) => {
   try {
     const { sectionId } = req.params;
-
     const section = await prisma.section.findUnique({
       where: { id: sectionId },
       include: {
@@ -870,7 +935,23 @@ const getSectionById = async (req, res) => {
       return res.status(404).json({ message: 'Section not found.' });
     }
 
-    res.status(200).json(section);
+    const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, section.classId, { fallbackToClass: false });
+    const resolvedTeacher = resolvedTeacherId
+      ? await prisma.teacher.findUnique({
+          where: { id: resolvedTeacherId },
+          include: { user: { select: { id: true, name: true, email: true } } }
+        })
+      : null;
+
+    res.status(200).json({
+      ...section,
+      _id: section.id,
+      classHomeroomTeacher: resolvedTeacher ? {
+        ...resolvedTeacher,
+        _id: resolvedTeacher.id,
+        user: resolvedTeacher.user ? { ...resolvedTeacher.user, _id: resolvedTeacher.user.id } : null
+      } : null
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -915,28 +996,78 @@ const updateSection = async (req, res) => {
       if (!teacherExists) {
         return res.status(400).json({ message: 'Selected homeroom teacher was not found.' });
       }
+
+      const homeroomCheck = await ensureHomeroomAssignmentAllowed(prisma, {
+        teacherId: homeroomTeacherId,
+        classId: section.classId,
+        excludeSectionId: sectionId
+      });
+
+      if (!homeroomCheck.ok) {
+        return res.status(400).json({ message: homeroomCheck.message });
+      }
     }
 
-    const data = {
-      name: normalizedSectionName,
-      homeroomTeacher: homeroomTeacherId === null || homeroomTeacherId === ''
-        ? { disconnect: true }
-        : homeroomTeacherId
-          ? { connect: { id: homeroomTeacherId } }
-          : undefined
-    };
+    const nextHomeroomTeacherId = homeroomTeacherId === null || homeroomTeacherId === ''
+      ? null
+      : homeroomTeacherId;
 
-    const updatedSection = await prisma.section.update({
-      where: { id: sectionId },
-      data,
-      include: {
-        class: { select: { id: true, name: true } },
-        homeroomTeacher: {
-          include: {
-            user: { select: { id: true, name: true, email: true } }
+    const updatedSection = await prisma.$transaction(async (tx) => {
+      const savedSection = await tx.section.update({
+        where: { id: sectionId },
+        data: {
+          name: normalizedSectionName,
+          homeroomTeacher: nextHomeroomTeacherId === null
+            ? { disconnect: true }
+            : { connect: { id: nextHomeroomTeacherId } }
+        },
+        include: {
+          class: { select: { id: true, name: true } },
+          homeroomTeacher: {
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
           }
         }
+      });
+
+      const previousTeacherId = section.homeroomTeacherId;
+
+      if (previousTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
+        const otherSections = await tx.section.count({
+          where: { classId: section.classId, homeroomTeacherId: previousTeacherId }
+        });
+        if (otherSections === 0) {
+          await tx.teacherAssignment.deleteMany({
+            where: { teacherId: previousTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
+          });
+        }
       }
+
+      if (nextHomeroomTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
+        const existing = await tx.teacherAssignment.findFirst({
+          where: { teacherId: nextHomeroomTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
+        });
+        if (!existing) {
+          await tx.teacherAssignment.create({
+            data: {
+              teacherId: nextHomeroomTeacherId,
+              classId: section.classId,
+              assignmentType: 'HomeRoomTeacher',
+              assignedById: req.user._id
+            }
+          });
+        }
+      }
+
+      return savedSection;
+    });
+
+    const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, section.classId, { fallbackToClass: false });
+
+    await prisma.class.update({
+      where: { id: section.classId },
+      data: { teacherId: resolvedTeacherId }
     });
 
     res.status(200).json(updatedSection);

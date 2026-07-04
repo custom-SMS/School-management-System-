@@ -354,9 +354,44 @@ const getTeacherPortalStats = async (req, res) => {
       }
     });
 
+    const homeroomAssignments = await prisma.teacherAssignment.findMany({
+      where: { teacherId: teacher.id, assignmentType: 'HomeRoomTeacher' },
+      select: { classId: true }
+    });
+
+    const homeroomSections = await prisma.section.findMany({
+      where: { homeroomTeacherId: teacher.id },
+      select: { classId: true }
+    });
+
+    const homeroomSectionClassIds = [...new Set(homeroomSections.map((section) => section.classId).filter(Boolean))];
+    const homeroomSectionClasses = homeroomSectionClassIds.length
+      ? await prisma.class.findMany({
+          where: { id: { in: homeroomSectionClassIds } },
+          include: {
+            students: {
+              include: {
+                user: { select: { id: true, name: true, email: true } }
+              }
+            }
+          },
+          orderBy: { createdAt: 'desc' }
+        })
+      : [];
+
+    const homeroomClassIds = new Set([
+      ...assignedClassDocs.map((klass) => klass.id),
+      ...homeroomAssignments.map((assignment) => assignment.classId).filter(Boolean),
+      ...homeroomSections.map((section) => section.classId).filter(Boolean)
+    ]);
+
     const classMap = new Map();
 
     assignedClassDocs.forEach((klass) => {
+      classMap.set(klass.id, klass);
+    });
+
+    homeroomSectionClasses.forEach((klass) => {
       classMap.set(klass.id, klass);
     });
 
@@ -411,7 +446,7 @@ const getTeacherPortalStats = async (req, res) => {
         gradesCount: gradesAgg._count,
         averageGrade,
         latestAttendanceDate: latestAttendance?.date || null,
-        isHomeroom: klass.teacherId === teacher.id
+        isHomeroom: homeroomClassIds.has(klass.id)
       };
     }));
 

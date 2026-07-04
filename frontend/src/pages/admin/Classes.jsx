@@ -221,7 +221,7 @@ export default function Classes() {
                 <tr key={c.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 font-bold text-gray-900">{c.name}</td>
                   {/* <td className="px-6 py-4">{c.subject}</td> */}
-                  <td className="px-6 py-4 text-gray-500">{c.teacher?.user?.name || 'Unassigned'}</td>
+                  <td className="px-6 py-4 text-gray-500">{c.homeroomTeacher?.user?.name || c.teacher?.user?.name || 'Unassigned'}</td>
                   <td className="px-6 py-4">{c.sections?.length || 0}</td>
                   <td className="px-6 py-4 text-right">
                       <div className="flex justify-end gap-2">

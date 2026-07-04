@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments } = require('../controllers/assignmentController');
+const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment } = require('../controllers/assignmentController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
 /**
@@ -73,6 +73,27 @@ router.post('/', verifyToken, checkRole(['Admin']), createAssignment);
  *         description: List of teacher assignments
  */
 router.get('/me', verifyToken, checkRole(['Teacher']), getMyAssignments);
+
+/**
+ * @swagger
+ * /assignments/homeroom/{classId}:
+ *   delete:
+ *     summary: Remove the homeroom teacher from a class
+ *     tags: [Teacher Assignments]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: classId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Homeroom teacher removed
+ */
+router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin']), removeHomeRoomAssignment);
 
 /**
  * @swagger
