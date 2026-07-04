@@ -13,6 +13,7 @@ export default function Gradebook() {
   const [selectedClassId, setSelectedClassId] = useState('');
   const [rows, setRows] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
 
   const components = useMemo(() => [
@@ -102,12 +103,44 @@ export default function Gradebook() {
         classId: selectedClass._id,
         subject: selectedClass.subject,
         gradesData,
+        publish: false, // Save as draft
       });
-      toast.success('Grades saved & published.');
+      toast.success('Grades saved as draft.');
     } catch (e) {
       toast.error(e.response?.data?.message || 'Failed to save grades');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handlePublish = async () => {
+    if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
+    setPublishing(true);
+    try {
+      // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
+      const gradesData = rows.map((r) => {
+        const marks = {};
+        components.forEach((c) => {
+          const raw = Number(r.marks[c.field]) || 0;
+          const weight = Number(c.weight);
+          // Convert raw score to percentage
+          const pct = weight === 0 ? 0 : (raw / weight) * 100;
+          marks[c.field] = Number(pct.toFixed(2));
+        });
+        return { student: r.student._id, marks };
+      });
+
+      await axios.post('/classroom/grades', {
+        classId: selectedClass._id,
+        subject: selectedClass.subject,
+        gradesData,
+        publish: true, // Publish to homeroom
+      });
+      toast.success('Grades published to homeroom teachers.');
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to publish grades');
+    } finally {
+      setPublishing(false);
     }
   };
 
@@ -125,10 +158,16 @@ export default function Gradebook() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Gradebook</h1>
           <p className="text-sm text-slate-500">Grade management and academic assessment entry.</p>
         </div>
-        <button onClick={handleSave} disabled={saving || !selectedClass} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" transform="rotate(180 12 12)" /></svg>
-          {saving ? 'Saving…' : 'Save & Publish'}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={handleSave} disabled={saving || !selectedClass} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 disabled:opacity-40">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" /></svg>
+            {saving ? 'Saving…' : 'Save Draft'}
+          </button>
+          <button onClick={handlePublish} disabled={publishing || !selectedClass} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" transform="rotate(180 12 12)" /></svg>
+            {publishing ? 'Publishing…' : 'Publish to Homeroom'}
+          </button>
+        </div>
       </div>
 
       <div className="mb-5 flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -210,7 +249,8 @@ export default function Gradebook() {
           {/* Grade range removed per request */}
 
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-xs text-slate-500">
-            Grades publish to the Student Portal &amp; Parent App immediately after clicking <span className="font-bold text-slate-700">Save &amp; Publish</span>.
+            <strong>Save Draft:</strong> Saves grades for later editing (not visible to students/parents).<br />
+            <strong>Publish to Homeroom:</strong> Sends grades to homeroom teachers for review and makes them visible.
           </div>
         </aside>
       </div>
