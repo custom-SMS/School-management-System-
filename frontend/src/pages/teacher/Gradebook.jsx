@@ -25,13 +25,17 @@ export default function Gradebook() {
   const selectedClass = useMemo(() => classes.find((k) => k._id === selectedClassId) || null, [classes, selectedClassId]);
 
   // Calculate total percentage for a row's marks.
-  // Accepts either percentage inputs (0-100) or raw scores entered relative to the component weight (e.g. enter 10 for Q when weight=10).
+  // Teacher enters raw points out of the component weight (e.g., enter 8 for Quiz when weight=10).
+  // The total is the sum of weighted contributions.
   const calcTotal = (marks) => components.reduce((sum, c) => {
     const raw = Number(marks?.[c.field]) || 0;
-    // If teacher entered a value that's <= the component weight, treat it as raw points out of that weight
-    // and convert to a percentage. Otherwise assume it's already a percentage (0-100).
-    const scorePercent = raw <= Number(c.weight) ? (Number(c.weight) === 0 ? 0 : (raw / Number(c.weight)) * 100) : raw;
-    return sum + (scorePercent * (Number(c.weight) / 100));
+    const weight = Number(c.weight);
+    if (weight === 0) return sum;
+    // Handle both raw score input and percentage input from saved data
+    // If raw > weight, it's likely a percentage (e.g., 80 for 80%), convert back to contribution
+    // If raw <= weight, it's raw points (e.g., 8 out of 10), contribution is the raw value
+    const contribution = raw > weight ? (raw / 100) * weight : raw;
+    return sum + contribution;
   }, 0);
 
   useEffect(() => {
@@ -53,26 +57,42 @@ export default function Gradebook() {
     axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}`)
       .then((r) => {
         const map = new Map((r.data || []).map((g) => [g.student?._id || g.student, g]));
-        const roster = (selectedClass.students || []).map((s) => ({ student: s, marks: { ...emptyMarks, ...(map.get(s._id)?.marks || {}) } }));
+        const roster = (selectedClass.students || []).map((s) => {
+          const savedMarks = map.get(s._id)?.marks || {};
+          const displayMarks = {};
+          components.forEach((c) => {
+            const pct = Number(savedMarks[c.field]) || 0;
+            const weight = Number(c.weight);
+            displayMarks[c.field] = weight === 0 ? 0 : (pct / 100) * weight;
+          });
+          return { student: s, marks: { ...emptyMarks, ...displayMarks } };
+        });
         if (active) setRows(roster);
       })
       .catch(() => { if (active) setRows((selectedClass.students || []).map((s) => ({ student: s, marks: { ...emptyMarks } }))); });
     return () => { active = false; };
-  }, [selectedClass]);
+  }, [selectedClass, components]);
 
-  const handleChange = (sid, field, value) =>
-    setRows((cur) => cur.map((row) => (row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: clampMark(value) } } : row)));
+  const handleChange = (sid, field, value) => {
+    const component = components.find(c => c.field === field);
+    const maxAllowed = component ? Number(component.weight) : 100;
+    const numValue = Number(value);
+    const clampedValue = Math.min(maxAllowed, Math.max(0, Number.isNaN(numValue) ? 0 : numValue));
+    setRows((cur) => cur.map((row) => (row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: clampedValue } } : row)));
+  };
 
   const handleSave = async () => {
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
     setSaving(true);
     try {
-      // Convert any raw scores into percentages before sending to backend (backend expects 0-100 values per component)
+      // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
       const gradesData = rows.map((r) => {
         const marks = {};
         components.forEach((c) => {
           const raw = Number(r.marks[c.field]) || 0;
-          const pct = raw <= Number(c.weight) ? (Number(c.weight) === 0 ? 0 : (raw / Number(c.weight)) * 100) : raw;
+          const weight = Number(c.weight);
+          // Convert raw score to percentage
+          const pct = weight === 0 ? 0 : (raw / weight) * 100;
           marks[c.field] = Number(pct.toFixed(2));
         });
         return { student: r.student._id, marks };
@@ -155,11 +175,12 @@ export default function Gradebook() {
                       {components.map((c) => (
                         <td key={c.field} className="px-3 py-3 text-center">
                           <input
-                            type="number" min="0" max="100"
+                            type="number" min="0" max={c.weight}
                             value={row.marks[c.field] || ''}
                             onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
                             className="w-16 rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-center outline-none focus:border-slate-400 focus:bg-white"
                           />
+                          <div className="text-[10px] text-slate-400">/ {c.weight}</div>
                         </td>
                       ))}
                       <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>

@@ -226,7 +226,8 @@ const getMyAssignments = async (req, res) => {
           include: {
             students: {
               include: {
-                user: { select: { id: true, name: true, email: true } }
+                user: { select: { id: true, name: true, email: true } },
+                guardians: { select: { id: true, fullName: true, phone: true, email: true, relationship: true } }
               }
             }
           }
@@ -244,7 +245,8 @@ const getMyAssignments = async (req, res) => {
         students: (assignment.class.students || []).map(student => ({
           ...student,
           _id: student.id,
-          user: student.user ? { ...student.user, _id: student.user.id } : null
+          user: student.user ? { ...student.user, _id: student.user.id } : null,
+          guardians: student.guardians || []
         }))
       } : null
     }));

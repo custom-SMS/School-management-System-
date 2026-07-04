@@ -44,6 +44,7 @@ export default function AssignedStudents() {
             grade: s.grade || k.name,
             className: k.name,
             subject: k.subject,
+            guardians: s.guardians || s.guardianContacts || [],
           });
         }
       });
@@ -145,6 +146,7 @@ export default function AssignedStudents() {
                 <th className="px-4 py-3 font-semibold">Student Name</th>
                 <th className="px-4 py-3 font-semibold">ID Number</th>
                 <th className="px-4 py-3 font-semibold">Grade / Class</th>
+                <th className="px-4 py-3 font-semibold">Parent Info</th>
                 <th className="rounded-r-lg px-4 py-3 font-semibold">Subject</th>
               </tr>
             </thead>
@@ -167,6 +169,17 @@ export default function AssignedStudents() {
                     </td>
                     <td className="px-4 py-4 font-mono">{s.studentId}</td>
                     <td className="px-4 py-4">{s.grade}</td>
+                    <td className="px-4 py-4">
+                      {s.guardians?.length > 0 ? (
+                        <div className="flex flex-col text-xs text-slate-500">
+                          {s.guardians.map(g => (
+                            <span key={g.id || g._id}>{g.fullName} ({g.phone || 'No phone'})</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-xs italic text-slate-400">No parent info</span>
+                      )}
+                    </td>
                     <td className="px-4 py-4">
                       <Link to={`/teacher/students/${s.id}`} className="font-semibold text-slate-500 hover:text-slate-900">{s.subject || 'View'}</Link>
                     </td>

@@ -22,7 +22,18 @@ export default function StudentProfile() {
       axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {}),
     ])
       .then(([found, performance]) => {
-        setStudent(found || (performance?.student ? { ...performance.student, user: { name: performance.student.name, email: performance.student.email } } : null));
+        // If student data from /students doesn't have guardians, try to get it from performance endpoint
+        const studentWithGuardians = found || (performance?.student ? { ...performance.student, user: { name: performance.student.name, email: performance.student.email } } : null);
+        // If still no guardians, try to fetch from the specific student endpoint
+        if (studentWithGuardians && !studentWithGuardians.guardians) {
+          axios.get(`/students/${studentId}`)
+            .then(r => {
+              setStudent({ ...studentWithGuardians, guardians: r.data?.guardians || [] });
+            })
+            .catch(() => setStudent(studentWithGuardians));
+        } else {
+          setStudent(studentWithGuardians);
+        }
         setPerf(performance);
       })
       .finally(() => setLoading(false));
@@ -138,6 +149,53 @@ export default function StudentProfile() {
           <div className="mt-1 text-xs text-slate-400">By average across Grade {perf?.student?.grade || student?.grade || '—'}</div>
         </div>
       </div>
+
+      {/* Parent/Guardian Information */}
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-bold text-slate-900">Parent / Guardian Information</h2>
+        {(() => {
+          const guardians = student?.guardians || student?.guardianContacts || [];
+          return guardians.length > 0 ? (
+            <div className="mt-4 space-y-4">
+              {guardians.map((guardian, idx) => (
+                <div key={guardian.id || guardian._id || idx} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="font-semibold text-slate-900">{guardian.fullName || guardian.name || 'Unknown Name'}</div>
+                      {guardian.primary && (
+                        <span className="mt-1 inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">Primary Contact</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2 text-sm">
+                    {guardian.phone && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M6.62 10.79c1.44 2.83 3.76 5.14 6.59 6.59l2.2-2.2c.27-.27.67-.36 1.02-.24 1.12.37 2.33.57 3.57.57.55 0 1 .45 1 1V20c0 .55-.45 1-1 1-9.39 0-17-7.61-17-17 0-.55.45-1 1-1h3.5c.55 0 1 .45 1 1 0 1.25.2 2.45.57 3.57.11.35.03.74-.25 1.02l-2.2 2.2z" /></svg>
+                        <a href={`tel:${guardian.phone}`} className="hover:text-slate-900 hover:underline">{guardian.phone}</a>
+                      </div>
+                    )}
+                    {guardian.email && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2 6 12 13 22 6v12H2V6zm2-1h16l-8 5-8-5z" /></svg>
+                        <a href={`mailto:${guardian.email}`} className="hover:text-slate-900 hover:underline">{guardian.email}</a>
+                      </div>
+                    )}
+                    {guardian.relationship && (
+                      <div className="text-slate-500">
+                        <span className="font-semibold">Relationship:</span> {guardian.relationship}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="mt-4 rounded-xl bg-slate-50 p-4 text-center text-sm text-slate-500">
+              No parent/guardian information available for this student.
+            </div>
+          );
+        })()}
+      </section>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Academic trend */}
