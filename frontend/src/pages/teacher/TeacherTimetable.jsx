@@ -18,6 +18,7 @@ const toHourKey = (t) => String(t || '').slice(0, 2) + ':00';
 export default function TeacherTimetable() {
   const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [academicYear, setAcademicYear] = useState(null);
 
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function TeacherTimetable() {
         setSlots(r.data?.timetable || []);
         setAcademicYear(r.data?.academicYear || null);
       })
-      .catch(() => setSlots([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -60,6 +61,11 @@ export default function TeacherTimetable() {
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
           <div className="py-20 text-center text-slate-400">Loading timetable…</div>
+        ) : error ? (
+          <div className="py-16 text-center">
+            <p className="font-semibold text-rose-600">Could not load timetable data.</p>
+            <p className="mt-1 text-sm text-slate-400">The server may be unavailable. Please refresh the page or try again later.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] border-collapse">

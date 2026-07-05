@@ -20,6 +20,7 @@ export default function TeacherAttendance() {
     return `${year}-${month}-${day}`;
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     const endpoint = user?.role === 'Admin' ? '/assignments' : '/assignments/me';
@@ -43,7 +44,10 @@ export default function TeacherAttendance() {
           if (qClass && list.some(l => l._id === qClass)) setSelectedClassId(qClass);
         } catch (e) { /* ignore */ }
       })
-      .catch((err) => toast.error(err.response?.data?.message || 'Failed to load classes'));
+      .catch((err) => {
+        setError(true);
+        toast.error(err.response?.data?.message || 'Failed to load classes');
+      });
   }, [user]);
 
   const selectedClass = classes.find((k) => k._id === selectedClassId);
@@ -137,32 +141,37 @@ export default function TeacherAttendance() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="mb-4 text-lg font-bold text-slate-900">Student Register</h2>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-          {students.map((s) => (
-            <div key={s._id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">
-                  {(s.user?.name || 'NA').split(' ').map((x) => x[0]).slice(0, 2).join('')}
-                </span>
-                <div>
-                  <div className="text-sm font-bold text-slate-900">{s.user?.name || 'Student'}</div>
-                  <div className="text-xs text-slate-400">ID: {s.studentId}</div>
+          {error ? (
+            <div className="col-span-full py-12 text-center text-sm font-semibold text-rose-500">Failed to load classes or students.</div>
+          ) : !selectedClass ? (
+            <div className="col-span-full py-12 text-center text-slate-400">Select a class to mark attendance.</div>
+          ) : students.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-400">No students in this class.</div>
+          ) : (
+            students.map((s) => (
+              <div key={s._id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-500">
+                    {(s.user?.name || 'NA').split(' ').map((x) => x[0]).slice(0, 2).join('')}
+                  </span>
+                  <div>
+                    <div className="text-sm font-bold text-slate-900">{s.user?.name || 'Student'}</div>
+                    <div className="text-xs text-slate-400">ID: {s.studentId}</div>
+                  </div>
+                </div>
+                <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs font-bold uppercase">
+                  {STATUSES.map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setAttendance((a) => ({ ...a, [s._id]: st }))}
+                      className={`px-3 py-2 transition ${toneFor(st, attendance[s._id] === st)}`}
+                    >
+                      {st}
+                    </button>
+                  ))}
                 </div>
               </div>
-              <div className="flex overflow-hidden rounded-lg border border-slate-200 text-xs font-bold uppercase">
-                {STATUSES.map((st) => (
-                  <button
-                    key={st}
-                    onClick={() => setAttendance((a) => ({ ...a, [s._id]: st }))}
-                    className={`px-3 py-2 transition ${toneFor(st, attendance[s._id] === st)}`}
-                  >
-                    {st}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-          {students.length === 0 && (
-            <div className="col-span-full py-12 text-center text-slate-400">No students in this class.</div>
+            ))
           )}
         </div>
 

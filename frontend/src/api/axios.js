@@ -5,7 +5,8 @@ const api = axios.create({
   withCredentials: true, // send/receive the httpOnly auth cookie automatically
 });
 
-// If the session cookie is missing/expired, clear local user state and bounce to login.
+import { toast } from 'react-toastify';
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -14,6 +15,15 @@ api.interceptors.response.use(
     if (status === 401 && !onLoginPage) {
       localStorage.removeItem('user');
       window.location.assign('/login');
+    } else if (status >= 500) {
+      toast.error('Server error. Please try again later.');
+    } else if (!error.response && error.code !== 'ERR_CANCELED') {
+      toast.error('Network error. Please check your connection.');
+    } else if (status >= 400 && status !== 401) {
+      // Don't show toast for 400 if it's already handled, but for GET requests it's useful
+      if (error.config?.method === 'get') {
+         toast.error(error.response?.data?.message || 'Failed to fetch data.');
+      }
     }
     return Promise.reject(error);
   },

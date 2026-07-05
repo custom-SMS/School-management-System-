@@ -32,6 +32,7 @@ export default function Classes() {
   const [saving, setSaving] = useState(false);
   const [deletingClassId, setDeletingClassId] = useState(null);
   const [editingClassId, setEditingClassId] = useState(null);
+  const [error, setError] = useState(false);
   const [name, setName] = useState('');
   // const [subject, setSubject] = useState('');
 
@@ -48,9 +49,13 @@ export default function Classes() {
   }, [classes]);
 
   const fetchClasses = () => {
+    setError(false);
     return axios.get('/classroom/classes')
       .then(res => setClasses(res.data || []))
-      .catch(err => console.error(err));
+      .catch(err => {
+        console.error(err);
+        setError(true);
+      });
   };
 
   useEffect(() => {
@@ -237,8 +242,10 @@ export default function Classes() {
                   </td>
                 </tr>
               ))}
-              {classes.length === 0 && (
-                <tr><td colSpan="5" className="p-4 text-center text-gray-500">No classes found.</td></tr>
+              {error ? (
+                <tr><td colSpan="4" className="p-4 text-center font-semibold text-rose-500">Failed to load classes.</td></tr>
+              ) : classes.length === 0 && (
+                <tr><td colSpan="4" className="p-4 text-center text-gray-500">No classes found.</td></tr>
               )}
             </tbody>
           </table>

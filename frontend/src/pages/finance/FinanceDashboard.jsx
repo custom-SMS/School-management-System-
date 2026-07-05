@@ -32,10 +32,18 @@ function StatCard({ label, value, badge, badgeTone = 'emerald', sub }) {
 export default function FinanceDashboard() {
   const [stats, setStats] = useState(null);
   const [pending, setPending] = useState([]);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
-    axios.get('/stats/admin').then((r) => setStats(r.data)).catch(() => {});
-    axios.get('/fees/pending-verifications').then((r) => setPending(r.data || [])).catch(() => {});
+    let statsOk = false;
+    let pendingOk = false;
+    
+    const p1 = axios.get('/stats/admin').then((r) => { setStats(r.data); statsOk = true; }).catch(() => {});
+    const p2 = axios.get('/fees/pending-verifications').then((r) => { setPending(r.data || []); pendingOk = true; }).catch(() => {});
+    
+    Promise.all([p1, p2]).finally(() => {
+      if (!statsOk || !pendingOk) setError(true);
+    });
   }, []);
 
   const totalRevenue = stats?.totalRevenue ?? 0;
@@ -54,13 +62,19 @@ export default function FinanceDashboard() {
         <p className="text-sm text-slate-500">Real-time revenue tracking for Addis Academy &mdash; Term II</p>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Total Revenue" value={`ETB ${etb(totalRevenue)}`} />
-        <StatCard label="Outstanding Balance" value={`ETB ${etb(outstanding)}`} badgeTone="rose" />
-        <StatCard label="Pending Verifications" value={`${pending.length} Students`} badge={`${pending.length} New`} badgeTone="slate" sub="Awaiting bank confirmation" />
-        <StatCard label="Collection Rate" value={`${collectionRate}%`} sub={`ETB ${etb(totalRevenue)} of ${etb(billed)} billed`} />
-      </div>
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 py-12 text-center text-red-600 font-semibold">
+          Failed to load finance dashboard data.
+        </div>
+      ) : (
+        <>
+          {/* KPI cards */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard label="Total Revenue" value={`ETB ${etb(totalRevenue)}`} />
+            <StatCard label="Outstanding Balance" value={`ETB ${etb(outstanding)}`} badgeTone="rose" />
+            <StatCard label="Pending Verifications" value={`${pending.length} Students`} badge={`${pending.length} New`} badgeTone="slate" sub="Awaiting bank confirmation" />
+            <StatCard label="Collection Rate" value={`${collectionRate}%`} sub={`ETB ${etb(totalRevenue)} of ${etb(billed)} billed`} />
+          </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
         {/* Revenue by grade */}
@@ -168,6 +182,8 @@ export default function FinanceDashboard() {
           </table>
         </div>
       </section>
+      </>
+      )}
     </CashierLayout>
   );
 }

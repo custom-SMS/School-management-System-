@@ -22,11 +22,22 @@ function StatCard({ label, value, sub, icon, alert, dark }) {
 export default function TeacherDashboard() {
   const [stats, setStats] = useState(null);
   const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    axios.get('/stats/teacher/me').then((r) => setStats(r.data)).catch(() => {});
-    axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
-  }, []);
+  const load = () => {
+    setLoading(true);
+    setError(false);
+    let statsOk = false;
+    const p1 = axios.get('/stats/teacher/me').then((r) => { setStats(r.data); statsOk = true; }).catch(() => {});
+    const p2 = axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
+    Promise.all([p1, p2]).finally(() => {
+      if (!statsOk) setError(true);
+      setLoading(false);
+    });
+  };
+
+  useEffect(load, []);
 
   const name = stats?.teacher?.name || 'Teacher';
   const firstName = name.split(' ')[0];
@@ -50,6 +61,20 @@ export default function TeacherDashboard() {
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{stats?.subject || 'Faculty'}</div>
         </div>
       </div>
+
+      {loading ? (
+        <div className="mt-4 flex flex-col items-center py-16 text-slate-400">
+          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
+          Loading dashboard…
+        </div>
+      ) : error ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center">
+          <svg className="mx-auto mb-3 h-10 w-10 text-rose-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-5h2v2h-2zm0-8h2v6h-2z" /></svg>
+          <p className="text-lg font-bold text-rose-700">Could not load dashboard data</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable or you may be offline.</p>
+          <button onClick={load} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">Retry</button>
+        </div>
+      ) : (<>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard label="Assigned Students" value={stats?.assignedStudentsCount ?? 0} icon={<path d="M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.7 0-6 1.3-6 4v2h8v-2c0-1 .4-1.9 1-2.6A8 8 0 0 0 8 13z" />} />
@@ -157,6 +182,7 @@ export default function TeacherDashboard() {
           </p>
         </div>
       </section>
+      </>)}
     </TeacherLayout>
   );
 }

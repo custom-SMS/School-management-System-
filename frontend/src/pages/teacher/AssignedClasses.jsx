@@ -13,6 +13,7 @@ function tagFor(subject) {
 export default function AssignedClasses() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeYear, setActiveYear] = useState(null);
   
   // Promotion Management State
@@ -34,7 +35,7 @@ export default function AssignedClasses() {
     axios
       .get('/stats/teacher/me')
       .then((r) => setClasses(r.data?.classSummaries || []))
-      .catch(() => setClasses([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -82,6 +83,11 @@ export default function AssignedClasses() {
 
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading classes…</div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
+          <p className="font-semibold text-rose-700">Could not load class data.</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh and try again.</p>
+        </div>
       ) : classes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">No classes assigned yet.</div>
       ) : (

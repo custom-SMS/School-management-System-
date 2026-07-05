@@ -7,7 +7,7 @@ import axios from '../../api/axios';
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function ParentDashboard() {
-  const { children, childId, setChildId, selectedChild, loading } = useParentChildren();
+  const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
   const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
@@ -35,6 +35,11 @@ export default function ParentDashboard() {
 
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading…</div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
+          <p className="font-semibold text-rose-700">Could not load child data.</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh the page or try again later.</p>
+        </div>
       ) : !selectedChild ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">No children are linked to this account.</div>
       ) : (

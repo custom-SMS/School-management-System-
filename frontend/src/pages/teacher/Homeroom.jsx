@@ -6,10 +6,12 @@ import { Link } from 'react-router-dom';
 export default function Homeroom() {
   const [homerooms, setHomerooms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError(false);
     axios.get('/stats/teacher/me')
       .then((r) => {
         if (!active) return;
@@ -17,8 +19,8 @@ export default function Homeroom() {
         const hms = classes.filter((c) => c.isHomeroom) || [];
         setHomerooms(hms);
       })
-      .catch(() => setHomerooms([]))
-      .finally(() => setLoading(false));
+      .catch(() => { if (active) setError(true); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, []);
 
@@ -31,7 +33,12 @@ export default function Homeroom() {
         <p className="text-sm text-slate-500">Overview of classes where you are assigned as the homeroom teacher.</p>
       </div>
 
-      {homerooms.length === 0 ? (
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center">
+          <p className="font-semibold text-rose-700">Could not load homeroom data.</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh the page or try again later.</p>
+        </div>
+      ) : homerooms.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-400">You are not assigned as a homeroom teacher for any class.</div>
       ) : (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">

@@ -14,6 +14,7 @@ export default function Gradebook() {
   const [rows, setRows] = useState([]);
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [error, setError] = useState(false);
   const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
 
   const components = useMemo(() => [
@@ -49,7 +50,10 @@ export default function Gradebook() {
       const list = Array.from(new Map((r.data || []).map((a) => a.class).filter(Boolean).map((k) => [k._id, k])).values());
       setClasses(list);
       if (list.length) setSelectedClassId((c) => c || list[0]._id);
-    }).catch((e) => toast.error(e.response?.data?.message || 'Failed to load classes'));
+    }).catch((e) => {
+      setError(true);
+      toast.error(e.response?.data?.message || 'Failed to load classes');
+    });
   }, [user]);
 
   useEffect(() => {
@@ -203,30 +207,35 @@ export default function Gradebook() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rows.map((row) => {
-                  const total = calcTotal(row.marks);
-                  return (
-                    <tr key={row.student._id} className="text-slate-700">
-                      <td className="px-3 py-3">
-                        <div className="font-semibold text-slate-900">{row.student.user?.name || row.student.studentId}</div>
-                        <div className="text-xs text-slate-400">{row.student.studentId}</div>
-                      </td>
-                      {components.map((c) => (
-                        <td key={c.field} className="px-3 py-3 text-center">
-                          <input
-                            type="number" min="0" max={c.weight}
-                            value={row.marks[c.field] || ''}
-                            onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
-                            className="w-16 rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-center outline-none focus:border-slate-400 focus:bg-white"
-                          />
-                          <div className="text-[10px] text-slate-400">/ {c.weight}</div>
+                {error ? (
+                  <tr><td colSpan={components.length + 2} className="py-10 text-center text-sm font-semibold text-rose-500">Failed to load gradebook data.</td></tr>
+                ) : rows.length === 0 ? (
+                  <tr><td colSpan={components.length + 2} className="py-10 text-center text-slate-400">Select a class to load its roster.</td></tr>
+                ) : (
+                  rows.map((row) => {
+                    const total = calcTotal(row.marks);
+                    return (
+                      <tr key={row.student._id} className="text-slate-700">
+                        <td className="px-3 py-3">
+                          <div className="font-semibold text-slate-900">{row.student.user?.name || row.student.studentId}</div>
+                          <div className="text-xs text-slate-400">{row.student.studentId}</div>
                         </td>
-                      ))}
-                      <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>
-                    </tr>
-                  );
-                })}
-                {rows.length === 0 && <tr><td colSpan={components.length + 2} className="py-10 text-center text-slate-400">Select a class to load its roster.</td></tr>}
+                        {components.map((c) => (
+                          <td key={c.field} className="px-3 py-3 text-center">
+                            <input
+                              type="number" min="0" max={c.weight}
+                              value={row.marks[c.field] || ''}
+                              onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+                              className="w-16 rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-center outline-none focus:border-slate-400 focus:bg-white"
+                            />
+                            <div className="text-[10px] text-slate-400">/ {c.weight}</div>
+                          </td>
+                        ))}
+                        <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>

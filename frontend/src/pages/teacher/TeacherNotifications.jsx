@@ -12,7 +12,10 @@ export default function TeacherNotifications() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
 
+  const [error, setError] = useState(false);
+
   useEffect(() => {
+    setError(false);
     axios.get('/assignments/me').then(res => {
       setAssignments(res.data || []);
       // derive students
@@ -22,7 +25,10 @@ export default function TeacherNotifications() {
       });
       const unique = Array.from(new Map((studentsList || []).map(s => [s.id || s._id, s])).values());
       setStudents(unique);
-    }).catch(err => console.error('Failed to load assignments', err));
+    }).catch(err => {
+      console.error('Failed to load assignments', err);
+      setError(true);
+    });
   }, []);
 
   const toggleStudent = (id) => {
@@ -85,8 +91,10 @@ export default function TeacherNotifications() {
           <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="text-lg font-bold text-slate-900 mb-3">Assigned Students</h3>
             <div className="grid grid-cols-2 gap-3 max-h-96 overflow-y-auto">
-              {students.length === 0 ? (
-                <div className="text-sm text-slate-400">No assigned students found.</div>
+              {error ? (
+                <div className="col-span-2 text-sm font-semibold text-rose-500">Failed to load assigned students.</div>
+              ) : students.length === 0 ? (
+                <div className="col-span-2 text-sm text-slate-400">No assigned students found.</div>
               ) : students.map((s) => (
                 <label key={s.id || s._id} className={`flex items-center gap-3 rounded-lg border p-3 ${selectedStudentIds.includes(s.id || s._id) ? 'bg-slate-100' : ''}`}>
                   <input type="checkbox" checked={selectedStudentIds.includes(s.id || s._id)} onChange={() => toggleStudent(s.id || s._id)} />

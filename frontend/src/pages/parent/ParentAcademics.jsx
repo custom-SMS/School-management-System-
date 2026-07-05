@@ -4,7 +4,7 @@ import { useParentChildren } from '../../hooks/useParentChildren';
 const letter = (t) => (t >= 90 ? 'A' : t >= 80 ? 'B' : t >= 70 ? 'C' : t >= 60 ? 'D' : 'F');
 
 export default function ParentAcademics() {
-  const { children, childId, setChildId, selectedChild, loading } = useParentChildren();
+  const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
   const grades = selectedChild?.grades || [];
   const avg = grades.length ? (grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(1) : '0.0';
   const name = selectedChild?.profile?.user?.name || 'Child';
@@ -18,6 +18,11 @@ export default function ParentAcademics() {
 
       {loading ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading…</div>
+      ) : error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
+          <p className="font-semibold text-rose-700">Could not load academic data.</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh the page or try again later.</p>
+        </div>
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

@@ -13,6 +13,7 @@ export default function Sections() {
   const [selectedClassId, setSelectedClassId] = useState(() => searchParams.get('classId') || location.state?.classId || '');
   const [sections, setSections] = useState([]);
   const [loadingSections, setLoadingSections] = useState(false);
+  const [error, setError] = useState(false);
 
   // Create-section modal
   const [showModal, setShowModal] = useState(false);
@@ -75,6 +76,7 @@ export default function Sections() {
     }
 
     setLoadingSections(true);
+    setError(false);
     return axios.get(`/classroom/sections/${classId}`)
       .then((res) => {
         const sectionList = res.data || [];
@@ -85,6 +87,7 @@ export default function Sections() {
         console.error(err);
         setSections([]);
         setNextSuggestedSection('A');
+        setError(true);
       })
       .finally(() => setLoadingSections(false));
   };
@@ -356,6 +359,8 @@ export default function Sections() {
           </div>
         ) : loadingSections ? (
           <div className="p-12 text-center text-gray-500">Loading sections…</div>
+        ) : error ? (
+          <div className="p-12 text-center font-semibold text-rose-500">Failed to load sections.</div>
         ) : sections.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             <p className="text-lg font-semibold text-gray-600">No sections created yet.</p>

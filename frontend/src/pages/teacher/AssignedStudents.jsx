@@ -8,6 +8,7 @@ import TeacherLayout from '../../components/TeacherLayout';
 export default function AssignedStudents() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [gradeFilter, setGradeFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
   const [selected, setSelected] = useState(() => new Set());
@@ -27,7 +28,7 @@ export default function AssignedStudents() {
         );
         setClasses(list);
       })
-      .catch(() => setClasses([]))
+      .catch(() => setError(true))
       .finally(() => setLoading(false));
   }, []);
 
@@ -153,6 +154,11 @@ export default function AssignedStudents() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr><td colSpan="5" className="py-10 text-center text-slate-400">Loading students…</td></tr>
+              ) : error ? (
+                <tr><td colSpan="5" className="py-10 text-center">
+                  <p className="font-semibold text-rose-600">Could not load student data.</p>
+                  <p className="mt-1 text-sm text-slate-400">The server may be unavailable. Please refresh and try again.</p>
+                </td></tr>
               ) : filtered.length === 0 ? (
                 <tr><td colSpan="5" className="py-10 text-center text-slate-400">No students match the current filters.</td></tr>
               ) : (

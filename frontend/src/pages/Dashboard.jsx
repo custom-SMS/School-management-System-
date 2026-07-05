@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [studentData, setStudentData] = useState(null);
   const [parentData, setParentData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -45,6 +46,7 @@ export default function Dashboard() {
         }
       } catch (err) {
         console.error('Failed to fetch dashboard data', err);
+        if (active) setError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -213,7 +215,11 @@ export default function Dashboard() {
 
       {loading && <div className="py-12 text-center text-sm text-gray-500">Loading dashboard data…</div>}
 
-      {!loading && (
+      {error ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 py-12 text-center text-red-600 font-semibold">
+          Failed to load dashboard data.
+        </div>
+      ) : !loading && (
         <div className="space-y-6">
           {/* Stat Cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

@@ -5,15 +5,27 @@ import SuperAdminLayout from '../../components/SuperAdminLayout';
 export default function FinancialOversight() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     axios.get('/stats/superadmin')
       .then(res => setStats(res.data))
-      .catch(err => console.error(err))
+      .catch(err => {
+        console.error(err);
+        setError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return <SuperAdminLayout pageTitle="Financial Oversight"><div className="p-4">Loading...</div></SuperAdminLayout>;
+  if (error) return (
+    <SuperAdminLayout pageTitle="Financial Oversight">
+      <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center mt-6">
+        <p className="text-sm font-bold text-red-600">⚠ Failed to load financial statistics.</p>
+        <button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition">Retry</button>
+      </div>
+    </SuperAdminLayout>
+  );
 
   return (
     <SuperAdminLayout pageTitle="Financial Oversight">

@@ -10,11 +10,22 @@ export default function StudentFinance() {
   const navigate = useNavigate();
   const [fees, setFees] = useState([]);
   const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  useEffect(() => {
-    axios.get('/fees/my').then((r) => setFees(r.data || [])).catch(() => setFees([]));
-    axios.get('/stats/student/me').then((r) => setProfile(r.data)).catch(() => {});
-  }, []);
+  const load = () => {
+    setLoading(true);
+    setError(false);
+    let feesOk = false;
+    const p1 = axios.get('/fees/my').then((r) => { setFees(r.data || []); feesOk = true; }).catch(() => {});
+    const p2 = axios.get('/stats/student/me').then((r) => setProfile(r.data)).catch(() => {});
+    Promise.all([p1, p2]).finally(() => {
+      if (!feesOk) setError(true);
+      setLoading(false);
+    });
+  };
+
+  useEffect(load, []);
 
   const totals = useMemo(() => {
     let billed = 0, paid = 0, due = 0;
@@ -72,6 +83,19 @@ export default function StudentFinance() {
         </button>
       </div>
 
+      {loading ? (
+        <div className="mt-6 flex flex-col items-center py-20 text-slate-400">
+          <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
+          Loading fee data…
+        </div>
+      ) : error ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center">
+          <svg className="mx-auto mb-3 h-10 w-10 text-rose-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-5h2v2h-2zm0-8h2v6h-2z" /></svg>
+          <p className="text-lg font-bold text-rose-700">Could not load fee data</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable or you may be offline.</p>
+          <button onClick={load} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">Retry</button>
+        </div>
+      ) : (<>
       {/* Top cards */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -161,6 +185,7 @@ export default function StudentFinance() {
           </div>
         </section>
       </div>
+      </>)}
     </StudentLayout>
   );
 }

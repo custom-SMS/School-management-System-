@@ -9,6 +9,7 @@ export default function HomeroomReportCards() {
   const classId = params.get('classId');
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [activeYear, setActiveYear] = useState(null);
 
   useEffect(() => {
@@ -23,7 +24,7 @@ export default function HomeroomReportCards() {
         const res = await axios.get(`/report-cards/class/${classId}/${ay.id}`);
         if (active) setReportCards(res.data || []);
       } catch (e) {
-        setReportCards([]);
+        if (active) setError(true);
       } finally {
         if (active) setLoading(false);
       }
@@ -48,7 +49,12 @@ export default function HomeroomReportCards() {
         <p className="text-sm text-slate-500">Academic Year: {activeYear?.year || '—'}</p>
       </div>
 
-      {reportCards.length === 0 ? (
+      {error ? (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center">
+          <p className="font-semibold text-rose-700">Could not load report cards.</p>
+          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh and try again.</p>
+        </div>
+      ) : reportCards.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-400">No report cards found for this class.</div>
       ) : (
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
