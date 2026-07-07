@@ -185,11 +185,7 @@ export default function SuperAdminDashboard() {
 
         {/* Action Highlights */}
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex flex-col justify-center items-center text-center">
-            <h4 className="text-amber-600 font-black text-3xl">{stats?.unlockRequestsCount || 0}</h4>
-            <span className="text-amber-900 text-sm font-semibold mt-1">Pending Unlock Requests</span>
-            <button onClick={() => navigate('/admin/reports/attendance')} className="mt-4 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 w-full transition">Review Requests</button>
-          </div>
+         
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col">
             <h4 className="text-white font-bold text-lg">System Settings</h4>
             <span className="text-slate-400 text-xs font-medium mt-1">Manage global system configurations</span>
