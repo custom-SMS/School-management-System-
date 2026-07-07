@@ -71,6 +71,7 @@ import HomeroomReportCards from "./pages/teacher/HomeroomReportCards";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentAttendancePortal from "./pages/student/StudentAttendance";
 import StudentAcademics from "./pages/student/StudentAcademics";
+import SubjectResultDetails from "./pages/student/SubjectResultDetails";
 import StudentFinance from "./pages/student/StudentFinance";
 import StudentPayment from "./pages/student/StudentPayment";
 import StudentReports from "./pages/student/StudentReports";
@@ -588,6 +589,16 @@ function App() {
               }
             />
             <Route
+              path="/student/academics/:subjectKey"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                >
+                  <SubjectResultDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/student/finance"
               element={
                 <ProtectedRoute
@@ -672,4 +683,4 @@ function App() {
     </AuthProvider>
   );
 }
-export default App  
+export default App;

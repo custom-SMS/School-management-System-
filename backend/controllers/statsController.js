@@ -2,7 +2,12 @@ const prisma = require('../prisma');
 
 const normalizeClassLabel = (value) => {
   const label = String(value ?? '').trim();
-  return label || 'Unassigned';
+  if (!label) return 'Unassigned';
+  // Canonicalize: "grade 10" -> "Grade 10", "GRADE 10" -> "Grade 10"
+  return label.replace(/^(\w)/u, (c) => c.toUpperCase())
+    .replace(/\b(grade|class|lkg|ukg|nursery)\b/gi, (w) =>
+      w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+    );
 };
 
 const classSortWeight = (value) => {
@@ -44,12 +49,15 @@ const getAdminStats = async (req, res) => {
       }))
       .sort((left, right) => compareClassLabels(left.className, right.className));
 
-    // 2. Total Revenue (sum of all fees where paid is true)
+    // 2. Total Revenue — scoped to the active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+    const feeYearFilter = activeYear ? { academicYearId: activeYear.id } : {};
+
     const revenueStats = await prisma.fee.aggregate({
-      where: { paid: true },
-      _sum: {
-        amount: true
-      }
+      where: { paid: true, ...feeYearFilter },
+      _sum: { amount: true }
     });
     const totalRevenue = revenueStats._sum.amount || 0;
 
@@ -74,11 +82,11 @@ const getAdminStats = async (req, res) => {
         if (record.status === 'Present') presentCount++;
       });
     });
-    
+
     // Group attendance records by class in memory - only last 30 days
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
+
     const attendancesAll = await prisma.attendance.findMany({
       where: {
         date: { gte: thirtyDaysAgo }
@@ -132,13 +140,14 @@ const getAdminStats = async (req, res) => {
     attendanceSummary.sort((left, right) => compareClassLabels(left.className, right.className));
 
     const feeRecords = await prisma.fee.findMany({
+      where: { ...feeYearFilter },
       include: {
         student: {
           select: { grade: true }
         }
       }
     });
-    
+
     const feeSummaryMap = new Map();
     let totalPendingRevenue = 0;
 
@@ -187,6 +196,7 @@ const getAdminStats = async (req, res) => {
       totalRevenue,
       totalPendingRevenue,
       avgAttendance,
+      activeYear: activeYear ? { id: activeYear.id, year: activeYear.year } : null,
       attendance: {
         presentCount,
         totalChecked: totalCount,
@@ -213,15 +223,20 @@ const getStudentPortalStats = async (req, res) => {
         user: { select: { id: true, name: true, email: true } }
       }
     });
-    
+
     if (!student) {
       return res.status(404).json({ message: 'Student Profile not found' });
     }
 
     const grades = await prisma.grade.findMany({
-      where: { studentId: student.id }
+      where: { studentId: student.id },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        subjectRef: { select: { id: true, name: true } }
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
     });
-    
+
     const fees = await prisma.fee.findMany({
       where: { studentId: student.id },
       orderBy: { createdAt: 'desc' }
@@ -271,7 +286,9 @@ const getStudentPortalStats = async (req, res) => {
         test: g.test,
         midterm: g.midterm,
         final: g.final
-      }
+      },
+      subjectRef: g.subjectRef || null,
+      classRef: g.class || null,
     }));
 
     const mappedFees = fees.map(f => ({
@@ -367,16 +384,16 @@ const getTeacherPortalStats = async (req, res) => {
     const homeroomSectionClassIds = [...new Set(homeroomSections.map((section) => section.classId).filter(Boolean))];
     const homeroomSectionClasses = homeroomSectionClassIds.length
       ? await prisma.class.findMany({
-          where: { id: { in: homeroomSectionClassIds } },
-          include: {
-            students: {
-              include: {
-                user: { select: { id: true, name: true, email: true } }
-              }
+        where: { id: { in: homeroomSectionClassIds } },
+        include: {
+          students: {
+            include: {
+              user: { select: { id: true, name: true, email: true } }
             }
-          },
-          orderBy: { createdAt: 'desc' }
-        })
+          }
+        },
+        orderBy: { createdAt: 'desc' }
+      })
       : [];
 
     const homeroomClassIds = new Set([
@@ -414,7 +431,7 @@ const getTeacherPortalStats = async (req, res) => {
         },
         _count: true
       });
-      
+
       const attendanceTotal = attendanceAgg.reduce((sum, item) => sum + item._count, 0);
       const attendancePresent = attendanceAgg.find(item => item.status === 'Present')?._count || 0;
 
@@ -551,7 +568,7 @@ const getParentPortalStats = async (req, res) => {
       const grades = await prisma.grade.findMany({
         where: { studentId: childStudent.id }
       });
-      
+
       const fees = await prisma.fee.findMany({
         where: { studentId: childStudent.id },
         include: {
@@ -561,7 +578,7 @@ const getParentPortalStats = async (req, res) => {
         },
         orderBy: { createdAt: 'desc' }
       });
-      
+
       const attendanceRecords = await prisma.attendance.findMany({
         where: {
           records: {
@@ -597,11 +614,11 @@ const getParentPortalStats = async (req, res) => {
         student: f.studentId,
         latestPayment: f.payments?.[0]
           ? {
-              id: f.payments[0].id,
-              status: f.payments[0].status,
-              transactionReference: f.payments[0].transactionReference,
-              bankName: f.payments[0].bankName
-            }
+            id: f.payments[0].id,
+            status: f.payments[0].status,
+            transactionReference: f.payments[0].transactionReference,
+            bankName: f.payments[0].bankName
+          }
           : null
       }));
 

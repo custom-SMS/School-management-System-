@@ -46,7 +46,7 @@ model User {
 model RolePermission {
   id         String   @id @default(uuid())
   role       Role
-  permission String // e.g. "student_registration", "manage_users", "manage_academic_year"
+  permission String
   createdAt  DateTime @default(now())
 
   @@unique([role, permission])
@@ -54,11 +54,11 @@ model RolePermission {
 
 model AcademicYear {
   id                String    @id @default(uuid())
-  year              String    @unique // e.g. "2025/2026"
+  year              String    @unique
   isActive          Boolean   @default(false)
-  registrationOpen  Boolean   @default(false) // legacy flag; effective state is derived from the dates below
-  registrationStart DateTime? // registration window opens
-  registrationEnd   DateTime? // registration window closes
+  registrationOpen  Boolean   @default(false)
+  registrationStart DateTime?
+  registrationEnd   DateTime?
   createdAt         DateTime  @default(now())
 
   // Relations
@@ -75,10 +75,10 @@ model Student {
   userId           String   @unique
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   studentId        String   @unique
-  grade            String // Current grade level
-  personalDetails  Json? // { dateOfBirth, gender, phone, address, admissionDate, previousSchool, emergencyContacts }
-  familyBackground Json? // { fatherName, motherName, guardianName, occupation, notes }
-  guardianContacts Json? // Array of embedded guardian contact details
+  grade            String
+  personalDetails  Json?
+  familyBackground Json?
+  guardianContacts Json?
   enrollmentDate   DateTime @default(now())
 
   // Relations
@@ -117,24 +117,10 @@ model Enrollment {
   grade          String
   sectionId      String?
   section        Section?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
-  status         String       @default("Enrolled") // "Enrolled", "Promoted", "Repeated", "Transferred", "Graduated"
+  status         String       @default("Enrolled")
   createdAt      DateTime     @default(now())
 
   @@unique([studentId, academicYearId])
-}
-
-model Section {
-  id                String   @id @default(uuid())
-  name              String // "A", "B", "C"
-  classId           String
-  class             Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
-  homeroomTeacherId String?
-  homeroomTeacher   Teacher? @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
-
-  // Relations
-  enrollments Enrollment[]
-  timetables  Timetable[]
 }
 
 model Subject {
@@ -158,13 +144,27 @@ model Teacher {
   subject       String
   qualification String   @default("Degree")
   department    String   @default("General")
-  status        String   @default("Active") // "Active", "Inactive"
+  status        String   @default("Active")
   hireDate      DateTime @default(now())
 
   // Relations
   classes          Class[]
   assignments      TeacherAssignment[]
   homeroomSections Section[]
+}
+
+model Section {
+  id                String   @id @default(uuid())
+  name              String
+  classId           String
+  class             Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  homeroomTeacherId String?
+  homeroomTeacher   Teacher? @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
+  createdAt         DateTime @default(now())
+
+  // Relations
+  enrollments Enrollment[]
+  timetables  Timetable[]
 }
 
 model Class {
@@ -208,7 +208,7 @@ model AttendanceRecord {
   attendance   Attendance @relation(fields: [attendanceId], references: [id], onDelete: Cascade)
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  status       String // "Present", "Absent", "Late"
+  status       String
 }
 
 enum AssignmentType {
@@ -254,9 +254,9 @@ model Timetable {
   section        Section?     @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   subjectId      String
   subject        Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  dayOfWeek      String // "Monday", "Tuesday", etc.
-  startTime      String // e.g. "08:30"
-  endTime        String // e.g. "09:30"
+  dayOfWeek      String
+  startTime      String
+  endTime        String
   room           String?
   classroomId    String?
   classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
@@ -270,7 +270,7 @@ model Payment {
   amount               Float
   transactionReference String    @unique
   bankName             String
-  status               String    @default("Pending") // "Pending", "Verified", "Rejected"
+  status               String    @default("Pending")
   verifiedById         String?
   verifiedBy           User?     @relation("VerifiedPayments", fields: [verifiedById], references: [id])
   paymentDate          DateTime  @default(now())
@@ -320,18 +320,18 @@ model Grade {
   student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   classId        String
   class          Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
-  subject        String // Legacy string column for quick fallback
+  subject        String
   subjectId      String?
   subjectRef     Subject?      @relation(fields: [subjectId], references: [id])
   teacherId      String
   teacher        User          @relation(fields: [teacherId], references: [id])
   academicYearId String?
   academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id])
-  quiz           Float         @default(0)
-  assignment     Float         @default(0)
-  test           Float         @default(0)
-  midterm        Float         @default(0)
-  final          Float         @default(0)
+  quiz           Float?
+  assignment     Float?
+  test           Float?
+  midterm        Float?
+  final          Float?
   maxTotal       Float         @default(100)
   total          Float         @default(0)
   percentage     Float         @default(0)
@@ -346,7 +346,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   title     String
   message   String
-  type      String // "LowAttendance", "OverdueFee", "ReportCard"
+  type      String
   read      Boolean  @default(false)
   createdAt DateTime @default(now())
 }
@@ -371,17 +371,14 @@ model ReportCard {
   attendancePercentage Float
   averageScore         Float
   rank                 Int?
-  status               String       @default("Pending") // Pass, Fail, or Pending
+  status               String       @default("Pending")
   teacherComments      String?
   published            Boolean      @default(false)
-
-  // Homeroom Teacher Promotion Tracking
-  promotionStatus String    @default("Pending") // "Promoted", "Not Promoted", "Conditional Promotion", "Pending"
-  promotedById    String?
-  promotedBy      User?     @relation("PromotedBy", fields: [promotedById], references: [id])
-  promotionDate   DateTime?
-
-  createdAt DateTime @default(now())
+  promotionStatus      String       @default("Pending")
+  promotedById         String?
+  promotedBy           User?        @relation("PromotedBy", fields: [promotedById], references: [id])
+  promotionDate        DateTime?
+  createdAt            DateTime     @default(now())
 
   @@unique([studentId, academicYearId])
 }
@@ -398,7 +395,7 @@ model Counter {
 }
 
 model SystemSetting {
-  key       String   @id // e.g. "security", "notifications", "localization", "branding"
+  key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
 }
@@ -409,7 +406,7 @@ model Classroom {
   number     String      @unique
   capacity   Int
   building   String
-  status     String      @default("Active") // "Active", "Inactive"
+  status     String      @default("Active")
   createdAt  DateTime    @default(now())
   timetables Timetable[]
 }
@@ -421,7 +418,7 @@ model AttendanceUnlockRequest {
   teacherId       String
   teacher         User       @relation("UnlockRequester", fields: [teacherId], references: [id], onDelete: Cascade)
   reason          String
-  status          String     @default("Pending") // "Pending", "Approved", "Rejected"
+  status          String     @default("Pending")
   approverId      String?
   approver        User?      @relation("UnlockApprover", fields: [approverId], references: [id], onDelete: SetNull)
   rejectionReason String?

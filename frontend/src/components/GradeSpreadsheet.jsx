@@ -3,14 +3,17 @@ import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import Navbar from './Navbar';
 
-const emptyMarks = { quiz: 0, assignment: 0, midterm: 0, final: 0 };
+const emptyMarks = { quiz: null, assignment: null, midterm: null, final: null };
 
 // Each component is scored out of 100; weights (which sum to 100%) determine the final total.
 const clampMark = (value) => {
-  let nextValue = Number(value);
-  if (Number.isNaN(nextValue)) nextValue = 0;
-  if (nextValue < 0) nextValue = 0;
-  if (nextValue > 100) nextValue = 100;
+  // Treat empty/whitespace/null/undefined as null (teacher intentionally left blank)
+  if (value == null) return null;
+  if (typeof value === 'string' && value.trim() === '') return null;
+  const nextValue = Number(value);
+  if (Number.isNaN(nextValue)) return null;
+  if (nextValue < 0) return 0;
+  if (nextValue > 100) return 100;
   return nextValue;
 };
 
@@ -58,7 +61,7 @@ export default function GradeSpreadsheet() {
       .then((res) => {
         if (res.data) setWeights(res.data);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   useEffect(() => {
@@ -116,9 +119,11 @@ export default function GradeSpreadsheet() {
 
         const roster = (selectedClass.students || []).map((student) => {
           const existing = gradeMap.get(student._id);
+          const existingMarks = existing?.marks || {};
+          const normalized = Object.fromEntries(Object.entries(existingMarks).map(([k, v]) => [k, (typeof v === 'string' && v.trim() === '') ? null : v]));
           return {
             student,
-            marks: { ...emptyMarks, ...(existing?.marks || {}) },
+            marks: { ...emptyMarks, ...normalized },
           };
         });
 
@@ -178,10 +183,10 @@ export default function GradeSpreadsheet() {
       gradesData: rows.map((row) => ({
         student: row.student._id,
         marks: {
-          quiz: row.marks.quiz,
-          assignment: row.marks.assignment,
-          midterm: row.marks.midterm,
-          final: row.marks.final,
+          quiz: row.marks.quiz != null ? row.marks.quiz : null,
+          assignment: row.marks.assignment != null ? row.marks.assignment : null,
+          midterm: row.marks.midterm != null ? row.marks.midterm : null,
+          final: row.marks.final != null ? row.marks.final : null,
         },
       })),
     };
@@ -276,8 +281,11 @@ export default function GradeSpreadsheet() {
                             type="number"
                             min="0"
                             max="100"
-                            value={row.marks[c.field] || ''}
-                            onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+                            value={row.marks[c.field] ?? ''}
+                            onChange={(e) => {
+                              const raw = e.target.value;
+                              handleChange(row.student._id, c.field, raw === '' ? null : raw);
+                            }}
                             className="w-16 p-1 border border-gray-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none text-center"
                           />
                         </td>
@@ -285,9 +293,8 @@ export default function GradeSpreadsheet() {
                       <td className="bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold text-slate-700">
                         {percentage}%
                       </td>
-                      <td className={`bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold ${
-                        letterGrade === 'F' ? 'text-red-600' : 'text-green-600'
-                      }`}>
+                      <td className={`bg-slate-50 px-4 py-4 whitespace-nowrap text-center font-bold ${letterGrade === 'F' ? 'text-red-600' : 'text-green-600'
+                        }`}>
                         {letterGrade}
                       </td>
                     </tr>

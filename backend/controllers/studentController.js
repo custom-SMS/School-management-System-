@@ -4,6 +4,132 @@ const crypto = require('crypto');
 const { isRegistrationOpen } = require('../utils/academicYear');
 const { sendGuardianCredentialsEmail } = require('../utils/emailService');
 
+const resolveGradeSubjectName = (grade) => {
+  if (!grade) return 'Subject';
+  return grade.subjectRef?.name || grade.subject || grade.class?.subject || 'Subject';
+};
+
+const resolveGradeSubjectKey = (grade) => {
+  return String(grade.subjectId || grade.subjectRef?.id || resolveGradeSubjectName(grade));
+};
+
+const resolveGradeCourseCode = (grade) => {
+  if (!grade) return null;
+  return grade.class?.subject || grade.subject || null;
+};
+
+const normalizeNumeric = (value) => {
+  if (value === null || value === undefined || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
+};
+
+const getGradeComponentScore = (grade, field) => {
+  const marks = grade.marks || {};
+  return normalizeNumeric(marks[field] ?? grade[field]);
+};
+
+const buildAssessmentRowsFromGrade = (grade, weights) => {
+  // weights come from the active grading structure; fall back to defaults
+  const w = weights || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+  const componentDefs = [
+    ['quiz', 'Quiz', w.quizWeight],
+    ['assignment', 'Assignment', w.assignmentWeight],
+    ['midterm', 'Midterm', w.midtermWeight],
+    ['final', 'Final', w.finalWeight],
+  ];
+
+  return componentDefs.map(([field, label, weight]) => {
+    const score = getGradeComponentScore(grade, field);
+    // null score means teacher hasn't entered a value — return the row with nulls so
+    // the student portal can display '—' rather than hiding the row entirely
+    if (score === null) {
+      return {
+        id: `${grade.id}-${field}`,
+        type: field,
+        name: label,
+        score: null,
+        max: weight,
+        percentage: null,
+        date: grade.updatedAt || grade.createdAt,
+        recordedAt: grade.updatedAt || grade.createdAt,
+      };
+    }
+    const raw = Number(score);
+    const contribution = raw > weight ? (raw / 100) * weight : raw;
+    const percentage = weight > 0 ? Number(((contribution / weight) * 100).toFixed(2)) : 0;
+    return {
+      id: `${grade.id}-${field}`,
+      type: field,
+      name: label,
+      score: Number(contribution.toFixed(2)),
+      max: weight,
+      percentage,
+      date: grade.updatedAt || grade.createdAt,
+      recordedAt: grade.updatedAt || grade.createdAt,
+    };
+  });
+};
+
+const getPortalStudentByUserId = async (userId) => {
+  return prisma.student.findUnique({
+    where: { userId },
+    include: {
+      user: { select: { id: true, name: true, email: true } },
+      enrollments: {
+        include: {
+          section: { select: { id: true, name: true } },
+          academicYear: { select: { id: true, year: true, isActive: true } }
+        },
+        orderBy: { createdAt: 'desc' }
+      }
+    }
+  });
+};
+
+const resolvePortalStudent = async (req) => {
+  if (req.user.role === 'Parent') {
+    const childStudentId = req.query.childStudentId;
+    if (!childStudentId) {
+      return { error: { status: 400, message: 'childStudentId is required for Parent role.' } };
+    }
+    const parent = await prisma.parent.findUnique({
+      where: { userId: req.user._id },
+      include: { children: { select: { id: true } } }
+    });
+    if (!parent) {
+      return { error: { status: 404, message: 'Parent profile not found' } };
+    }
+    const isLinked = parent.children.some((child) => child.id === childStudentId);
+    if (!isLinked) {
+      return { error: { status: 403, message: 'You are not authorized to view this student.' } };
+    }
+    const student = await prisma.student.findUnique({
+      where: { id: childStudentId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        enrollments: {
+          include: {
+            section: { select: { id: true, name: true } },
+            academicYear: { select: { id: true, year: true, isActive: true } }
+          },
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+    if (!student) {
+      return { error: { status: 404, message: 'Student not found' } };
+    }
+    return { student };
+  }
+
+  const student = await getPortalStudentByUserId(req.user._id);
+  if (!student) {
+    return { error: { status: 404, message: 'Student Profile not found' } };
+  }
+  return { student };
+};
+
 // Helper to generate IDs
 const getNextAvailableStudentId = async () => {
   const latestStudent = await prisma.student.findFirst({
@@ -496,8 +622,8 @@ const registerStudent = async (req, res) => {
       primary: cred.primary,
     }));
 
-    res.status(201).json({ 
-      message: 'Student registered successfully', 
+    res.status(201).json({
+      message: 'Student registered successfully',
       student: responseStudent,
       feeInfo: `Your monthly tuition is ETB ${gradeSettings.amount}`,
       credentials: {
@@ -572,7 +698,7 @@ const getStudents = async (req, res) => {
             include: {
               students: {
                 include: {
-          user: { select: { id: true, name: true, email: true, isActive: true } }
+                  user: { select: { id: true, name: true, email: true, isActive: true } }
                 }
               }
             }
@@ -688,6 +814,189 @@ const getStudents = async (req, res) => {
         limit: Number(limit),
         total,
         totalPages: Math.ceil(total / Number(limit))
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getStudentSubjectSummaries = async (req, res) => {
+  try {
+    const resolved = await resolvePortalStudent(req);
+    if (resolved.error) {
+      return res.status(resolved.error.status).json({ message: resolved.error.message });
+    }
+    const { student } = resolved;
+
+    // Fetch active grading weights so we recalculate correctly on read
+    const gradingStructure = await prisma.gradingStructure.findFirst({
+      where: { isActive: true }
+    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+
+    const componentDefs = [
+      ['quiz', gradingStructure.quizWeight],
+      ['assignment', gradingStructure.assignmentWeight],
+      ['midterm', gradingStructure.midtermWeight],
+      ['final', gradingStructure.finalWeight],
+    ];
+
+    // Recalculate total/percentage from raw marks — never trust the stored value
+    const recalcFromGrade = (grade) => {
+      const filled = componentDefs.filter(([field]) => {
+        const v = grade[field];
+        return v !== null && v !== undefined;
+      });
+      if (filled.length === 0) return { total: null, percentage: null };
+      const totalContrib = filled.reduce((sum, [field, weight]) => {
+        const raw = Number(grade[field]);
+        const contribution = raw > weight ? (raw / 100) * weight : raw;
+        return sum + contribution;
+      }, 0);
+      const filledWeightSum = filled.reduce((s, [, w]) => s + w, 0);
+      const percentage = filledWeightSum > 0
+        ? Number(((totalContrib / filledWeightSum) * 100).toFixed(2))
+        : null;
+      return { total: Number(totalContrib.toFixed(2)), percentage };
+    };
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId: student.id },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        subjectRef: { select: { id: true, name: true } }
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
+    });
+
+    const activeEnrollment = (student.enrollments || []).find((entry) => entry.academicYear?.isActive) || student.enrollments?.[0] || null;
+    const subjectMap = new Map();
+
+    grades.forEach((grade) => {
+      const subjectKey = resolveGradeSubjectKey(grade);
+      const subjectName = resolveGradeSubjectName(grade);
+      const { total, percentage } = recalcFromGrade(grade);
+      const existing = subjectMap.get(subjectKey);
+
+      if (!existing) {
+        subjectMap.set(subjectKey, {
+          subjectKey,
+          subjectId: grade.subjectId || grade.subjectRef?.id || null,
+          subjectName,
+          courseCode: resolveGradeCourseCode(grade),
+          classId: grade.classId || grade.class?.id || null,
+          className: grade.class?.name || null,
+          latestTotalMarks: total,
+          latestPercentage: percentage,
+          assessmentsCount: buildAssessmentRowsFromGrade(grade, gradingStructure).length,
+          recordsCount: 1,
+          updatedAt: grade.updatedAt || grade.createdAt,
+        });
+        return;
+      }
+
+      existing.recordsCount += 1;
+      const candidateUpdatedAt = grade.updatedAt || grade.createdAt;
+      if (new Date(candidateUpdatedAt) > new Date(existing.updatedAt)) {
+        existing.latestTotalMarks = total;
+        existing.latestPercentage = percentage;
+        existing.classId = grade.classId || grade.class?.id || existing.classId;
+        existing.className = grade.class?.name || existing.className;
+        existing.courseCode = resolveGradeCourseCode(grade) || existing.courseCode;
+        existing.assessmentsCount = buildAssessmentRowsFromGrade(grade, gradingStructure).length;
+        existing.updatedAt = candidateUpdatedAt;
+      }
+    });
+
+    const responseStudent = {
+      ...student,
+      _id: student.id,
+      section: activeEnrollment?.section?.name || null,
+      sectionId: activeEnrollment?.section?.id || null,
+      user: student.user ? { ...student.user, _id: student.user.id } : null,
+    };
+
+    res.status(200).json({
+      student: responseStudent,
+      subjects: Array.from(subjectMap.values()).sort((left, right) => left.subjectName.localeCompare(right.subjectName)),
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getStudentSubjectResults = async (req, res) => {
+  try {
+    const { subjectKey } = req.params;
+    const decodedSubjectKey = decodeURIComponent(subjectKey || '');
+    const resolved = await resolvePortalStudent(req);
+    if (resolved.error) {
+      return res.status(resolved.error.status).json({ message: resolved.error.message });
+    }
+    const { student } = resolved;
+
+    // Fetch active grading weights
+    const gradingStructure = await prisma.gradingStructure.findFirst({
+      where: { isActive: true }
+    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId: student.id },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        subjectRef: { select: { id: true, name: true } }
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
+    });
+
+    const subjectGrades = grades.filter((grade) => {
+      const gradeKey = resolveGradeSubjectKey(grade);
+      const gradeName = resolveGradeSubjectName(grade);
+      return gradeKey === decodedSubjectKey || gradeName === decodedSubjectKey;
+    });
+
+    if (!subjectGrades.length) {
+      return res.status(404).json({ message: 'No results found for this subject.' });
+    }
+
+    const latestGrade = subjectGrades[0];
+    const assessments = buildAssessmentRowsFromGrade(latestGrade, gradingStructure);
+
+    // Total and percentage — only count filled components
+    const componentDefs = [
+      ['quiz', gradingStructure.quizWeight],
+      ['assignment', gradingStructure.assignmentWeight],
+      ['midterm', gradingStructure.midtermWeight],
+      ['final', gradingStructure.finalWeight],
+    ];
+    const filledComponents = componentDefs.filter(([field]) => getGradeComponentScore(latestGrade, field) !== null);
+    const totalMarks = filledComponents.reduce((sum, [field, weight]) => {
+      const raw = Number(getGradeComponentScore(latestGrade, field));
+      const contribution = raw > weight ? (raw / 100) * weight : raw;
+      return sum + contribution;
+    }, 0);
+    const filledWeightSum = filledComponents.reduce((s, [, w]) => s + w, 0);
+    const percentage = filledWeightSum > 0 ? Number(((totalMarks / filledWeightSum) * 100).toFixed(2)) : null;
+    const latestTotalMarks = filledComponents.length > 0 ? Number(totalMarks.toFixed(2)) : null;
+    const maxTotal = filledWeightSum > 0 ? filledWeightSum : 100;
+
+    res.status(200).json({
+      subject: {
+        subjectKey: resolveGradeSubjectKey(latestGrade),
+        subjectId: latestGrade.subjectId || latestGrade.subjectRef?.id || null,
+        name: resolveGradeSubjectName(latestGrade),
+        courseCode: resolveGradeCourseCode(latestGrade),
+        classId: latestGrade.classId || latestGrade.class?.id || null,
+        className: latestGrade.class?.name || null,
+      },
+      assessments,
+      summary: {
+        totalMarks: latestTotalMarks,
+        maxTotal,
+        percentage,
+        assessmentsCount: filledComponents.length,
+        recordsCount: subjectGrades.length,
+        updatedAt: latestGrade.updatedAt || latestGrade.createdAt,
       }
     });
   } catch (error) {
@@ -1332,9 +1641,11 @@ const setStudentStatus = async (req, res) => {
   }
 };
 
-module.exports = { 
+module.exports = {
   registerStudent,
   getStudents,
+  getStudentSubjectSummaries,
+  getStudentSubjectResults,
   getStudentPerformance,
   setGradeFee,
   getGradeFees,

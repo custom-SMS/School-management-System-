@@ -143,7 +143,7 @@ router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
  *       200:
  *         description: List of grades
  */
-router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getGrades);
+router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin', 'Student']), getGrades);
 
 // Classes and sections management
 

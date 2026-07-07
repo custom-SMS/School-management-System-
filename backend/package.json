@@ -10,6 +10,8 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "@prisma/adapter-neon": "^7.8.0",
     "@prisma/client": "^6.2.1",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^2.10.0",
@@ -22,7 +24,8 @@
     "pdfkit": "^0.19.1",
     "resend": "^6.14.0",
     "swagger-jsdoc": "^6.3.0",
-    "swagger-ui-express": "^5.0.1"
+    "swagger-ui-express": "^5.0.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",

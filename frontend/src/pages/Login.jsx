@@ -12,7 +12,7 @@ export default function Login() {
   const navigate = useNavigate();
 
   const testAccounts = [
-    { label: 'Student', identifier: 'STU-0010', password: 'b560ed51' },
+    { label: 'Student', identifier: 'STU/0024/18', password: '521a9217' },
     { label: 'Teacher', identifier: 'appleseifu@gmail.com', password: '12345678' },
     { label: 'Admin', identifier: 'teacher@school.com', password: 'admin123' },
     { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },

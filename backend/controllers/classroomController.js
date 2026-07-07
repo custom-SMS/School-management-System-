@@ -47,14 +47,14 @@ const mapGradeToResponse = (grade) => ({
 
 const isTeacherAssignedToClass = async (teacherId, classId, subject = null) => {
   if (!classId) return false;
-  
+
   const assignment = await prisma.teacherAssignment.findFirst({
     where: { teacherId, classId }
   });
-  
+
   // HomeRoomTeacher has full access to the class regardless of subject
   if (assignment && assignment.assignmentType === 'HomeRoomTeacher') return true;
-  
+
   // SubjectTeacher only has access if they're assigned to this class
   if (assignment && assignment.assignmentType === 'SubjectTeacher') {
     // If subject is specified, check if they teach that subject
@@ -369,40 +369,52 @@ const saveGrades = async (req, res) => {
 
     for (let data of gradesData) {
       const marks = data.marks || {};
-      // Each component is scored out of 100 and combined using the configurable weights.
-      const quiz = Number(marks.quiz || 0);
-      const assignment = Number(marks.assignment || 0);
-      const midterm = Number(marks.midterm || 0);
-      const final = Number(marks.final || 0);
-      const test = Number(marks.test || 0); // legacy column, retained but unweighted
+      // Each component may be nullable. Treat null/empty as not provided.
+      const toNumOrNull = (v) => (v === null || v === undefined || (typeof v === 'string' && String(v).trim() === '')) ? null : Number(v);
+      const quiz = toNumOrNull(marks.quiz);
+      const assignment = toNumOrNull(marks.assignment);
+      const midterm = toNumOrNull(marks.midterm);
+      const final = toNumOrNull(marks.final);
+      const test = toNumOrNull(marks.test); // legacy column, retained but unweighted
 
-      // FR-27: Calculate final score automatically based on weights (which sum to 100%)
-      const total = (quiz * (weights.quizWeight / 100)) +
-                    (assignment * (weights.assignmentWeight / 100)) +
-                    (midterm * (weights.midtermWeight / 100)) +
-                    (final * (weights.finalWeight / 100));
+      // FR-27: Calculate final score automatically based on weights, using only provided components.
+      const compWeights = [];
+      if (quiz != null) compWeights.push({ score: quiz, weight: weights.quizWeight });
+      if (assignment != null) compWeights.push({ score: assignment, weight: weights.assignmentWeight });
+      if (midterm != null) compWeights.push({ score: midterm, weight: weights.midtermWeight });
+      if (final != null) compWeights.push({ score: final, weight: weights.finalWeight });
 
-      const percentage = Number(total.toFixed(2)); // Weights sum to 100%, so total is already a percentage
+      let storedTotal = 0;
+      let storedPercentage = 0;
+      if (compWeights.length > 0) {
+        const weightedSum = compWeights.reduce((s, c) => s + (c.score * c.weight), 0);
+        const sumWeights = compWeights.reduce((s, c) => s + c.weight, 0);
+        storedTotal = Number((weightedSum / sumWeights).toFixed(2));
+        storedPercentage = storedTotal;
+      }
 
       const existingGrade = await prisma.grade.findFirst({
         where: { studentId: data.student, classId, subject }
       });
 
       let savedGrade;
+      const gradeFields = {
+        total: storedTotal,
+        percentage: storedPercentage,
+        teacherId: req.user._id,
+        academicYearId: activeYear?.id || null,
+        // Always write every component explicitly — null clears a previously-set value
+        quiz: quiz ?? null,
+        assignment: assignment ?? null,
+        test: test ?? null,
+        midterm: midterm ?? null,
+        final: final ?? null,
+      };
+
       if (existingGrade) {
         savedGrade = await prisma.grade.update({
           where: { id: existingGrade.id },
-          data: {
-            quiz,
-            assignment,
-            test,
-            midterm,
-            final,
-            total,
-            percentage,
-            teacherId: req.user._id,
-            academicYearId: activeYear?.id || null
-          }
+          data: gradeFields,
         });
       } else {
         savedGrade = await prisma.grade.create({
@@ -410,15 +422,7 @@ const saveGrades = async (req, res) => {
             studentId: data.student,
             classId,
             subject,
-            quiz,
-            assignment,
-            test,
-            midterm,
-            final,
-            total,
-            percentage,
-            teacherId: req.user._id,
-            academicYearId: activeYear?.id || null
+            ...gradeFields,
           }
         });
       }
@@ -481,6 +485,41 @@ const getGrades = async (req, res) => {
   try {
     const { classId, subject } = req.params;
 
+    // Students can fetch their own grades
+    if (req.user.role === 'Student') {
+      const student = await prisma.student.findUnique({
+        where: { userId: req.user._id }
+      });
+      if (!student) return res.status(404).json({ message: 'Student profile not found' });
+
+      // Only return the student's own grades
+      const grades = await prisma.grade.findMany({
+        where: { classId, subject, studentId: student.id },
+        include: {
+          student: {
+            include: {
+              user: { select: { id: true, name: true, email: true } }
+            }
+          }
+        }
+      });
+
+      const responseGrades = grades.map(g => {
+        const mapped = mapGradeToResponse(g);
+        if (g.student) {
+          mapped.student = {
+            ...g.student,
+            _id: g.student.id,
+            user: g.student.user ? { ...g.student.user, _id: g.student.user.id } : null
+          };
+        }
+        return mapped;
+      });
+
+      return res.status(200).json(responseGrades);
+    }
+
+    // Teachers and Admins need authorization checks
     if (req.user.role !== 'Admin') {
       const teacher = await getTeacherProfile(req.user._id);
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
@@ -489,7 +528,7 @@ const getGrades = async (req, res) => {
         return res.status(403).json({ message: 'Access denied. This class is not assigned to you.' });
       }
     }
-    
+
     const grades = await prisma.grade.findMany({
       where: { classId, subject },
       include: {
@@ -614,11 +653,11 @@ const getClasses = async (req, res) => {
       const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, klass.id, { fallbackToClass: false });
       const resolvedTeacher = resolvedTeacherId
         ? await prisma.teacher.findUnique({
-            where: { id: resolvedTeacherId },
-            include: {
-              user: { select: { id: true, name: true, email: true } }
-            }
-          })
+          where: { id: resolvedTeacherId },
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        })
         : null;
 
       return {
@@ -878,9 +917,9 @@ const getSectionsByClass = async (req, res) => {
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
     const resolvedTeacher = resolvedTeacherId
       ? await prisma.teacher.findUnique({
-          where: { id: resolvedTeacherId },
-          include: { user: { select: { id: true, name: true, email: true } } }
-        })
+        where: { id: resolvedTeacherId },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      })
       : null;
 
     const sections = await prisma.section.findMany({
@@ -938,9 +977,9 @@ const getSectionById = async (req, res) => {
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, section.classId, { fallbackToClass: false });
     const resolvedTeacher = resolvedTeacherId
       ? await prisma.teacher.findUnique({
-          where: { id: resolvedTeacherId },
-          include: { user: { select: { id: true, name: true, email: true } } }
-        })
+        where: { id: resolvedTeacherId },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      })
       : null;
 
     res.status(200).json({
@@ -1247,9 +1286,9 @@ const assignStudentsToSection = async (req, res) => {
     const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
     const students = uniqueStudentIds.length
       ? await prisma.student.findMany({
-          where: { id: { in: uniqueStudentIds } },
-          select: { id: true, grade: true }
-        })
+        where: { id: { in: uniqueStudentIds } },
+        select: { id: true, grade: true }
+      })
       : [];
 
     if (students.length !== uniqueStudentIds.length) {
@@ -1320,7 +1359,7 @@ module.exports = {
   getAttendanceSessions,
   unlockAttendance,
   saveGrades,
-  getGrades, 
+  getGrades,
   getClassroomOptions,
   createClass,
   getClasses,
