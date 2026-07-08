@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getNotifications, markAsRead, sendParentNotifications, submitStudentRecordRequest, broadcastNotification, getAllNotifications, sendStudentNotifications, sendBothNotifications, getTeachersForStudent, sendParentToTeachers } = require('../controllers/notificationController');
+const { getNotifications, markAsRead, markAllAsRead, sendParentNotifications, submitStudentRecordRequest, broadcastNotification, getAllNotifications, sendStudentNotifications, sendBothNotifications, getTeachersForStudent, sendParentToTeachers } = require('../controllers/notificationController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
 /**
@@ -206,5 +206,6 @@ router.post('/student-request', verifyToken, checkRole(['Student']), submitStude
  *         description: Notification marked as read
  */
 router.patch('/:id/read', verifyToken, markAsRead);
+router.patch('/read-all', verifyToken, markAllAsRead);
 
 module.exports = router;

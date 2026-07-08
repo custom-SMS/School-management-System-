@@ -446,6 +446,19 @@ const markAsRead = async (req, res) => {
   }
 };
 
+// Mark ALL notifications as read for the current user
+const markAllAsRead = async (req, res) => {
+  try {
+    await prisma.notification.updateMany({
+      where: { userId: req.user._id, read: false },
+      data: { read: true }
+    });
+    res.status(200).json({ message: 'All notifications marked as read.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   sendNotification,
   sendParentNotifications,
@@ -457,5 +470,6 @@ module.exports = {
   broadcastNotification,
   getAllNotifications,
   getNotifications,
-  markAsRead
+  markAsRead,
+  markAllAsRead
 };

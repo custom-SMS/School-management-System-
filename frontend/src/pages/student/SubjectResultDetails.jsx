@@ -1,13 +1,16 @@
-import { useCallback, useEffect, useState, useContext } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
 import { toast } from 'react-toastify';
+import { usePublicSettings } from '../../context/SettingsContext';
 
-const passMark = 50;
+const DEFAULT_PASS_MARK = 50;
 
 export default function SubjectResultDetails() {
   const { subjectKey } = useParams();
+  const { grading } = usePublicSettings();
+  const passMark = grading?.passMark ?? DEFAULT_PASS_MARK;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);

@@ -4,11 +4,12 @@ import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { AuthContext } from '../context/AuthContext';
 import { toast } from 'react-toastify';
+import { ETHIOPIAN_MONTHS } from '../constants/school';
 
 export default function Bursar() {
   const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('payments'); // 'payments' or 'verifications'
-  
+
   const [students, setStudents] = useState([]);
   const [defaulters, setDefaulters] = useState([]);
   const [gradeFees, setGradeFees] = useState([]);
@@ -18,7 +19,7 @@ export default function Bursar() {
   const [paidMonth, setPaidMonth] = useState('Meskerem');
   const [paidLoading, setPaidLoading] = useState(false);
   const [paidSummary, setPaidSummary] = useState(null);
-  
+
   const [selectedStudent, setSelectedStudent] = useState('');
   const [amount, setAmount] = useState('');
   const [month, setMonth] = useState('Meskerem');
@@ -34,7 +35,7 @@ export default function Bursar() {
   const [generateMonth, setGenerateMonth] = useState('Meskerem');
   const [generating, setGenerating] = useState(false);
 
-  const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+  const months = ETHIOPIAN_MONTHS;
 
   // Load students immediately for the dropdown
   useEffect(() => {
@@ -181,7 +182,7 @@ export default function Bursar() {
       const res = await axios.post('/fees/generate', { month: generateMonth });
       toast.success(res.data?.message || 'Invoices generated.');
       if (generateMonth === targetMonth) {
-        axios.get(`/fees/defaulters/${targetMonth}`).then((r) => setDefaulters(r.data)).catch(() => {});
+        axios.get(`/fees/defaulters/${targetMonth}`).then((r) => setDefaulters(r.data)).catch(() => { });
       }
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to generate invoices.');
@@ -200,13 +201,13 @@ export default function Bursar() {
         month,
         dueDate: new Date().toISOString()
       };
-      
+
       await axios.post('/fees', payload);
       toast.success(`Payment of ETB ${amount} for ${month} recorded successfully!`);
-      
+
       // Clear form
       setAmount(''); setDesc('Monthly Tuition');
-      
+
       // Auto-refresh defaulters list in case the newly paid student was previously on it
       if (month === targetMonth) {
         axios.get(`/fees/defaulters/${targetMonth}`).then(res => setDefaulters(res.data));
@@ -222,7 +223,7 @@ export default function Bursar() {
       const res = await axios.patch(`/fees/verify/${paymentId}`, { status });
       toast.success(`Payment transaction has been ${status.toLowerCase()}!`);
       fetchPendingPayments();
-      
+
       if (status === 'Verified') {
         // Retrieve generated receipt info
         const receiptRes = await axios.get(`/fees/receipts/${paymentId}`);
@@ -267,255 +268,255 @@ export default function Bursar() {
 
         {activeTab === 'payments' ? (
           <>
-          <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50/60 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.05)]">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Invoicing</p>
-                <h2 className="mt-1 text-xl font-bold text-slate-900">Generate Monthly Invoices</h2>
-                <p className="mt-1 text-sm text-slate-500">Creates unpaid tuition invoices so students/parents can pay online and appear in the defaulters list.</p>
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                <select value={generateMonth} onChange={(e) => setGenerateMonth(e.target.value)} className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10">
-                  {months.map((m) => <option key={`gen-${m}`} value={m}>{m}</option>)}
-                </select>
-                <button onClick={handleGenerateInvoices} disabled={generating} className="rounded-2xl bg-amber-600 px-5 py-2.5 font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 disabled:opacity-50">
-                  {generating ? 'Generating…' : 'Generate Invoices'}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
-            <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-              <div className="mb-6 border-b border-slate-200 pb-4">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Payments</p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">Record Payment</h2>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleTestAutofill}
-                    className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
-                  >
-                    Auto Fill Test Data
+            <div className="mb-6 rounded-3xl border border-amber-200 bg-amber-50/60 p-6 shadow-[0_16px_50px_rgba(15,23,42,0.05)]">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-700">Invoicing</p>
+                  <h2 className="mt-1 text-xl font-bold text-slate-900">Generate Monthly Invoices</h2>
+                  <p className="mt-1 text-sm text-slate-500">Creates unpaid tuition invoices so students/parents can pay online and appear in the defaulters list.</p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <select value={generateMonth} onChange={(e) => setGenerateMonth(e.target.value)} className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10">
+                    {months.map((m) => <option key={`gen-${m}`} value={m}>{m}</option>)}
+                  </select>
+                  <button onClick={handleGenerateInvoices} disabled={generating} className="rounded-2xl bg-amber-600 px-5 py-2.5 font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 disabled:opacity-50">
+                    {generating ? 'Generating…' : 'Generate Invoices'}
                   </button>
                 </div>
               </div>
-              <form className="space-y-4" onSubmit={handleRecordPayment}>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Select Student</label>
-                  <select required value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
-                    <option value="">-- Choose Student --</option>
-                    {students.map(s => (
-                      <option key={s._id} value={s._id}>{s.user?.name} ({s.studentId}) - {s.grade}</option>
-                    ))}
-                  </select>
-                  {selectedStudent && amount && (
-                    <p className="mt-2 text-sm text-slate-500">Auto-filled from the selected student’s class fee.</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Amount (ETB)</label>
-                  <input type="number" min="0" required value={amount} onChange={e => setAmount(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"/>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Target Month</label>
-                  <select value={month} onChange={e => setMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
-                    {months.map(m => <option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
-                  <input type="text" required value={desc} onChange={e => setDesc(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"/>
-                </div>
-
-                <button type="submit" className="w-full rounded-2xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
-                  Confirm Payment
-                </button>
-              </form>
             </div>
-
-            <div className="space-y-6">
+            <div className="grid gap-6 xl:grid-cols-[1fr_1.4fr]">
               <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="mb-6 border-b border-slate-200 pb-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Payments</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Record Payment</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleTestAutofill}
+                      className="inline-flex items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    >
+                      Auto Fill Test Data
+                    </button>
+                  </div>
+                </div>
+                <form className="space-y-4" onSubmit={handleRecordPayment}>
                   <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Paid records</p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">Paid Students by Class</h2>
-                  </div>
-                  <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-                      <label className="text-sm font-semibold text-slate-600">Class:</label>
-                      <select value={paidClassId} onChange={(e) => setPaidClassId(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
-                        <option value="">Select class</option>
-                        {classes.map((klass) => (
-                          <option key={klass._id} value={klass._id}>
-                            {klass.name}{klass.subject ? ` - ${klass.subject}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
-                      <label className="text-sm font-semibold text-slate-600">Month:</label>
-                      <select value={paidMonth} onChange={(e) => setPaidMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
-                        {months.map((m) => <option key={`paid-${m}`} value={m}>{m}</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {paidSummary && (
-                  <div className="mb-4 flex flex-wrap gap-3 text-sm">
-                    <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
-                      {paidSummary.paidCount}/{paidSummary.totalStudents} paid
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
-                      {paidSummary.classInfo?.name}{paidSummary.classInfo?.subject ? ` • ${paidSummary.classInfo.subject}` : ''}
-                    </span>
-                  </div>
-                )}
-
-                <div className="space-y-3 sm:hidden">
-                  {paidLoading ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">Loading paid students…</div>
-                  ) : paidStudents.length > 0 ? (
-                    paidStudents.map((std) => (
-                      <div key={std._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Student ID</div>
-                            <div className="mt-1 font-semibold text-emerald-700">{std.studentId}</div>
-                          </div>
-                          <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
-                            Paid
-                          </div>
-                        </div>
-                        <div className="mt-4 grid gap-3 text-sm text-slate-700">
-                          <div><span className="font-semibold text-slate-900">Name:</span> {std.user?.name}</div>
-                          <div><span className="font-semibold text-slate-900">Grade:</span> {std.grade}</div>
-                          <div><span className="font-semibold text-slate-900">Amount:</span> ETB {std.amount}</div>
-                          <div><span className="font-semibold text-slate-900">Paid On:</span> {std.paymentDate ? new Date(std.paymentDate).toLocaleDateString() : '—'}</div>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">No paid students found for this class and month.</div>
-                  )}
-                </div>
-
-                <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
-                  <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
-                    <thead>
-                      <tr className="bg-emerald-50 text-xs uppercase tracking-[0.18em] text-emerald-700">
-                        <th className="px-4 py-4">Student ID</th>
-                        <th className="px-4 py-4">Name</th>
-                        <th className="px-4 py-4">Grade</th>
-                        <th className="px-4 py-4">Amount</th>
-                        <th className="px-4 py-4">Paid On</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {paidLoading ? (
-                        <tr>
-                          <td colSpan="5" className="px-4 py-8 text-center text-slate-500">Loading paid students…</td>
-                        </tr>
-                      ) : paidStudents.map((std) => (
-                        <tr key={std._id} className="transition hover:bg-slate-50">
-                          <td className="px-4 py-4 font-semibold text-emerald-700">{std.studentId}</td>
-                          <td className="px-4 py-4 text-slate-700">{std.user?.name}</td>
-                          <td className="px-4 py-4 text-slate-600">{std.grade}</td>
-                          <td className="px-4 py-4 font-semibold text-slate-900">ETB {std.amount}</td>
-                          <td className="px-4 py-4 text-slate-600">
-                            {std.paymentDate ? new Date(std.paymentDate).toLocaleDateString() : '—'}
-                          </td>
-                        </tr>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Select Student</label>
+                    <select required value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                      <option value="">-- Choose Student --</option>
+                      {students.map(s => (
+                        <option key={s._id} value={s._id}>{s.user?.name} ({s.studentId}) - {s.grade}</option>
                       ))}
-                      {!paidLoading && paidStudents.length === 0 && (
-                        <tr>
-                          <td colSpan="5" className="px-4 py-8 text-center text-slate-500">
-                            No paid students found for this class and month.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
-                <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-600">Outstanding</p>
-                    <h2 className="mt-2 text-2xl font-bold text-slate-900">Defaulters List</h2>
+                    </select>
+                    {selectedStudent && amount && (
+                      <p className="mt-2 text-sm text-slate-500">Auto-filled from the selected student’s class fee.</p>
+                    )}
                   </div>
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                    <label className="text-sm font-semibold text-slate-600">Filter by Month:</label>
-                    <select value={targetMonth} onChange={e => setTargetMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-rose-50 px-4 py-2 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10 sm:w-auto">
-                      {months.map(m => <option key={`def-${m}`} value={m}>{m}</option>)}
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Amount (ETB)</label>
+                    <input type="number" min="0" required value={amount} onChange={e => setAmount(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10" />
+                  </div>
+
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Target Month</label>
+                    <select value={month} onChange={e => setMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10">
+                      {months.map(m => <option key={m} value={m}>{m}</option>)}
                     </select>
                   </div>
-                </div>
 
-                <div className="space-y-3 sm:hidden">
-                  {defaulters.length > 0 ? (
-                    defaulters.map((std) => (
-                      <div key={std._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Student ID</div>
-                            <div className="mt-1 font-semibold text-rose-700">{std.studentId}</div>
-                          </div>
-                          <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
-                            Unpaid
-                          </span>
-                        </div>
-                        <div className="mt-4 grid gap-3 text-sm text-slate-700">
-                          <div><span className="font-semibold text-slate-900">Name:</span> {std.user?.name}</div>
-                          <div><span className="font-semibold text-slate-900">Status:</span> UNPAID for {targetMonth}</div>
-                        </div>
+                  <div>
+                    <label className="mb-2 block text-sm font-semibold text-slate-700">Description</label>
+                    <input type="text" required value={desc} onChange={e => setDesc(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10" />
+                  </div>
+
+                  <button type="submit" className="w-full rounded-2xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
+                    Confirm Payment
+                  </button>
+                </form>
+              </div>
+
+              <div className="space-y-6">
+                <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+                  <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-600">Paid records</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Paid Students by Class</h2>
+                    </div>
+                    <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row sm:items-center">
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                        <label className="text-sm font-semibold text-slate-600">Class:</label>
+                        <select value={paidClassId} onChange={(e) => setPaidClassId(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
+                          <option value="">Select class</option>
+                          {classes.map((klass) => (
+                            <option key={klass._id} value={klass._id}>
+                              {klass.name}{klass.subject ? ` - ${klass.subject}` : ''}
+                            </option>
+                          ))}
+                        </select>
                       </div>
-                    ))
-                  ) : (
-                    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center font-semibold text-emerald-700">✅ All registered students have paid for {targetMonth}.</div>
+                      <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-3">
+                        <label className="text-sm font-semibold text-slate-600">Month:</label>
+                        <select value={paidMonth} onChange={(e) => setPaidMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10 sm:w-auto">
+                          {months.map((m) => <option key={`paid-${m}`} value={m}>{m}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {paidSummary && (
+                    <div className="mb-4 flex flex-wrap gap-3 text-sm">
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 font-semibold text-emerald-700">
+                        {paidSummary.paidCount}/{paidSummary.totalStudents} paid
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                        {paidSummary.classInfo?.name}{paidSummary.classInfo?.subject ? ` • ${paidSummary.classInfo.subject}` : ''}
+                      </span>
+                    </div>
                   )}
+
+                  <div className="space-y-3 sm:hidden">
+                    {paidLoading ? (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">Loading paid students…</div>
+                    ) : paidStudents.length > 0 ? (
+                      paidStudents.map((std) => (
+                        <div key={std._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Student ID</div>
+                              <div className="mt-1 font-semibold text-emerald-700">{std.studentId}</div>
+                            </div>
+                            <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+                              Paid
+                            </div>
+                          </div>
+                          <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                            <div><span className="font-semibold text-slate-900">Name:</span> {std.user?.name}</div>
+                            <div><span className="font-semibold text-slate-900">Grade:</span> {std.grade}</div>
+                            <div><span className="font-semibold text-slate-900">Amount:</span> ETB {std.amount}</div>
+                            <div><span className="font-semibold text-slate-900">Paid On:</span> {std.paymentDate ? new Date(std.paymentDate).toLocaleDateString() : '—'}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-slate-500">No paid students found for this class and month.</div>
+                    )}
+                  </div>
+
+                  <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
+                    <table className="min-w-190 w-full border-collapse text-left text-sm sm:text-base">
+                      <thead>
+                        <tr className="bg-emerald-50 text-xs uppercase tracking-[0.18em] text-emerald-700">
+                          <th className="px-4 py-4">Student ID</th>
+                          <th className="px-4 py-4">Name</th>
+                          <th className="px-4 py-4">Grade</th>
+                          <th className="px-4 py-4">Amount</th>
+                          <th className="px-4 py-4">Paid On</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {paidLoading ? (
+                          <tr>
+                            <td colSpan="5" className="px-4 py-8 text-center text-slate-500">Loading paid students…</td>
+                          </tr>
+                        ) : paidStudents.map((std) => (
+                          <tr key={std._id} className="transition hover:bg-slate-50">
+                            <td className="px-4 py-4 font-semibold text-emerald-700">{std.studentId}</td>
+                            <td className="px-4 py-4 text-slate-700">{std.user?.name}</td>
+                            <td className="px-4 py-4 text-slate-600">{std.grade}</td>
+                            <td className="px-4 py-4 font-semibold text-slate-900">ETB {std.amount}</td>
+                            <td className="px-4 py-4 text-slate-600">
+                              {std.paymentDate ? new Date(std.paymentDate).toLocaleDateString() : '—'}
+                            </td>
+                          </tr>
+                        ))}
+                        {!paidLoading && paidStudents.length === 0 && (
+                          <tr>
+                            <td colSpan="5" className="px-4 py-8 text-center text-slate-500">
+                              No paid students found for this class and month.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
-                  <table className="min-w-150 w-full border-collapse text-left text-sm sm:text-base">
-                    <thead>
-                      <tr className="bg-rose-50 text-xs uppercase tracking-[0.18em] text-rose-700">
-                        <th className="px-4 py-4">Student ID</th>
-                        <th className="px-4 py-4">Name</th>
-                        <th className="px-4 py-4">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 bg-white">
-                      {defaulters.map(std => (
-                        <tr key={std._id} className="transition hover:bg-slate-50">
-                          <td className="px-4 py-4 font-semibold text-rose-700">{std.studentId}</td>
-                          <td className="px-4 py-4 text-slate-700">{std.user?.name}</td>
-                          <td className="px-4 py-4">
-                            <span className="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
-                              UNPAID for {targetMonth}
+                <div className="rounded-3xl border border-white/60 bg-white p-6 shadow-[0_16px_50px_rgba(15,23,42,0.08)]">
+                  <div className="mb-6 flex flex-col gap-4 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-rose-600">Outstanding</p>
+                      <h2 className="mt-2 text-2xl font-bold text-slate-900">Defaulters List</h2>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <label className="text-sm font-semibold text-slate-600">Filter by Month:</label>
+                      <select value={targetMonth} onChange={e => setTargetMonth(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-rose-50 px-4 py-2 text-sm outline-none transition focus:border-rose-400 focus:bg-white focus:ring-4 focus:ring-rose-500/10 sm:w-auto">
+                        {months.map(m => <option key={`def-${m}`} value={m}>{m}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 sm:hidden">
+                    {defaulters.length > 0 ? (
+                      defaulters.map((std) => (
+                        <div key={std._id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 shadow-sm">
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Student ID</div>
+                              <div className="mt-1 font-semibold text-rose-700">{std.studentId}</div>
+                            </div>
+                            <span className="rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
+                              Unpaid
                             </span>
-                          </td>
+                          </div>
+                          <div className="mt-4 grid gap-3 text-sm text-slate-700">
+                            <div><span className="font-semibold text-slate-900">Name:</span> {std.user?.name}</div>
+                            <div><span className="font-semibold text-slate-900">Status:</span> UNPAID for {targetMonth}</div>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center font-semibold text-emerald-700">✅ All registered students have paid for {targetMonth}.</div>
+                    )}
+                  </div>
+
+                  <div className="hidden overflow-x-auto rounded-2xl border border-slate-200 sm:block">
+                    <table className="min-w-150 w-full border-collapse text-left text-sm sm:text-base">
+                      <thead>
+                        <tr className="bg-rose-50 text-xs uppercase tracking-[0.18em] text-rose-700">
+                          <th className="px-4 py-4">Student ID</th>
+                          <th className="px-4 py-4">Name</th>
+                          <th className="px-4 py-4">Status</th>
                         </tr>
-                      ))}
-                      {defaulters.length === 0 && (
-                        <tr>
-                          <td colSpan="3" className="px-4 py-8 text-center font-semibold text-emerald-700">
-                            ✅ All registered students have paid for {targetMonth}.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {defaulters.map(std => (
+                          <tr key={std._id} className="transition hover:bg-slate-50">
+                            <td className="px-4 py-4 font-semibold text-rose-700">{std.studentId}</td>
+                            <td className="px-4 py-4 text-slate-700">{std.user?.name}</td>
+                            <td className="px-4 py-4">
+                              <span className="inline-flex items-center rounded-full bg-rose-100 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-rose-700">
+                                UNPAID for {targetMonth}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                        {defaulters.length === 0 && (
+                          <tr>
+                            <td colSpan="3" className="px-4 py-8 text-center font-semibold text-emerald-700">
+                              ✅ All registered students have paid for {targetMonth}.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           </>
         ) : (
           <div className="space-y-6">

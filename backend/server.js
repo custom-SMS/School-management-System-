@@ -65,7 +65,20 @@ app.get('/', (req, res) => {
   res.send('School Management System API');
 });
 
+// Global error handler — must be last middleware.
+// Catches any unhandled errors from route handlers and prevents raw Prisma errors
+// (which contain DB hostnames, file paths, stack traces) from reaching the client.
+app.use((err, req, res, next) => {
+  console.error('[unhandled error]', err?.message || err);
+  const isDbDown = err?.message?.includes("Can't reach database") || err?.code === 'P1001';
+  if (isDbDown) {
+    return res.status(503).json({ message: 'Service temporarily unavailable. Please try again shortly.' });
+  }
+  if (res.headersSent) return next(err);
+  res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
+});
+
 // Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
-});
+});

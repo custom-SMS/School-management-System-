@@ -6,10 +6,10 @@ export const SettingsContext = createContext();
 // Mirrors the backend defaults so the UI renders sensibly before the
 // public settings request resolves (and if it ever fails).
 const DEFAULT_BRANDING = {
-  institutionNameEn: 'National Academy of Addis Ababa',
-  institutionNameAm: 'ብሔራዊ የአዲስ አበባ አካዳሚ',
+  institutionNameEn: '',
+  institutionNameAm: '',
   brandColor: '#080845',
-  headerTitle: 'Institutional Excellence Dashboard',
+  headerTitle: '',
   logo: '',
 };
 
@@ -43,7 +43,7 @@ const FALLBACK_CONTEXT = {
   localization: DEFAULT_LOCALIZATION,
   notifications: DEFAULT_NOTIFICATIONS,
   logoUrl: null,
-  refresh: async () => {},
+  refresh: async () => { },
   formatDateTime: (value) => {
     if (!value) return '—';
     const date = new Date(value);

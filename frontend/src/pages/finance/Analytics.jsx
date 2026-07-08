@@ -3,11 +3,12 @@ import { showConfirmDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import CashierLayout from '../../components/CashierLayout';
+import { ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
-const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+const months = ETHIOPIAN_MONTHS;
 
 export default function Analytics() {
   const [targetMonth, setTargetMonth] = useState('Meskerem');
@@ -18,8 +19,8 @@ export default function Analytics() {
   const [sendingReminders, setSendingReminders] = useState(false);
 
   useEffect(() => {
-    axios.get('/fees/structures').then((r) => setStructures(r.data || [])).catch(() => {});
-    axios.get('/stats/admin').then((r) => setStats(r.data)).catch(() => {});
+    axios.get('/fees/structures').then((r) => setStructures(r.data || [])).catch(() => { });
+    axios.get('/stats/admin').then((r) => setStats(r.data)).catch(() => { });
   }, []);
 
   useEffect(() => {

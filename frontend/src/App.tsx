@@ -25,6 +25,7 @@ import Settings from "./pages/Settings";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
 import AuditLogs from "./pages/AuditLogs";
+import SystemAnalytics from "./pages/superadmin/SystemAnalytics";
 import SystemNotifications from "./pages/superadmin/SystemNotifications";
 
 // Admin
@@ -183,7 +184,7 @@ function App() {
               path="/super-admin/analytics"
               element={
                 <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <FinancialOversight /> {/* Reusing for mock analytics view */}
+                  <SystemAnalytics />
                 </ProtectedRoute>
               }
             />
@@ -200,6 +201,17 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["SuperAdmin"]}>
                   <SuperAdminFees />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/registration"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["Admin", "SuperAdmin"]}
+                  requiredPermission="student_registration"
+                >
+                  <RegisterStudent />
                 </ProtectedRoute>
               }
             />
@@ -532,6 +544,17 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
                   <AttendanceChecklist />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/registration"
+              element={
+                <ProtectedRoute
+                  allowedRoles={["Admin", "Teacher"]}
+                  requiredPermission="student_registration"
+                >
+                  <RegisterStudent />
                 </ProtectedRoute>
               }
             />

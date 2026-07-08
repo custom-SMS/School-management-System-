@@ -656,18 +656,30 @@ const getSuperAdminStats = async (req, res) => {
     });
     const totalCashiers = await prisma.user.count({ where: { role: 'Cashier', isActive: true } });
 
-    const revenueStats = await prisma.fee.aggregate({
-      where: { paid: true },
-      _sum: { amount: true }
-    });
-    const totalRevenue = revenueStats._sum.amount || 0;
-
     const activeYearDoc = await prisma.academicYear.findFirst({
       where: { isActive: true }
     });
     const activeYear = activeYearDoc ? activeYearDoc.year : 'None';
+    // Scope all fee queries to the active academic year
+    const feeYearFilter = activeYearDoc ? { academicYearId: activeYearDoc.id } : {};
 
-    const systemHealth = 'Operational';
+    // All-time revenue (across all years) for the executive KPI card
+    const allTimeRevenueStats = await prisma.fee.aggregate({
+      where: { paid: true },
+      _sum: { amount: true }
+    });
+    const allTimeRevenue = allTimeRevenueStats._sum.amount || 0;
+
+    // Active-year revenue
+    const activeYearRevenueStats = await prisma.fee.aggregate({
+      where: { paid: true, ...feeYearFilter },
+      _sum: { amount: true }
+    });
+    const totalRevenue = activeYearRevenueStats._sum.amount || 0;
+
+    // Derive a real system health indicator from active year and DB reachability
+    // If we got this far, DB is reachable. Flag as Degraded only if no active year.
+    const systemHealth = activeYearDoc ? 'Operational' : 'Degraded';
 
     const studentsByGrade = await prisma.student.findMany({
       where: { user: { isActive: true } },
@@ -690,7 +702,7 @@ const getSuperAdminStats = async (req, res) => {
     ];
 
     const fees = await prisma.fee.findMany({
-      where: { paid: true },
+      where: { paid: true, ...feeYearFilter },
       include: { student: { select: { grade: true } } }
     });
     let primaryRev = 0, middleRev = 0, highRev = 0;
@@ -725,9 +737,9 @@ const getSuperAdminStats = async (req, res) => {
       }
     });
     const divisionPerformance = [
-      { division: 'Primary School', score: pCount > 0 ? Math.round(pScore / pCount) : 0 },
-      { division: 'Middle School', score: mCount > 0 ? Math.round(mScore / mCount) : 0 },
-      { division: 'High School', score: hCount > 0 ? Math.round(hScore / hCount) : 0 }
+      { division: 'Primary School', score: pCount > 0 ? Math.round(pScore / pCount) : null },
+      { division: 'Middle School', score: mCount > 0 ? Math.round(mScore / mCount) : null },
+      { division: 'High School', score: hCount > 0 ? Math.round(hScore / hCount) : null }
     ];
 
     const recentAuditLogs = await prisma.auditLog.findMany({
@@ -744,7 +756,8 @@ const getSuperAdminStats = async (req, res) => {
       totalStudents,
       totalTeachers,
       totalCashiers,
-      totalRevenue,
+      totalRevenue,        // active year only
+      allTimeRevenue,      // all academic years combined
       activeYear,
       systemHealth,
       divisionPerformance,

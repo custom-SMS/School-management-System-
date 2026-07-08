@@ -87,12 +87,14 @@ export default function SystemAnalytics() {
                 <div key={i}>
                   <div className="flex justify-between text-sm font-semibold mb-1.5">
                     <span className="text-slate-700">{div.division}</span>
-                    <span className="font-black text-slate-900">{div.score}%</span>
+                    <span className="font-black text-slate-900">
+                      {div.score != null ? `${div.score}%` : '—'}
+                    </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2.5">
                     <div
                       className={`${barColors[i % barColors.length]} h-2.5 rounded-full transition-all`}
-                      style={{ width: `${div.score}%` }}
+                      style={{ width: div.score != null ? `${div.score}%` : '0%' }}
                     />
                   </div>
                 </div>

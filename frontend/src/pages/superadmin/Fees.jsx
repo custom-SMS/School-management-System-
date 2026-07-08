@@ -3,17 +3,14 @@ import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { AuthContext } from '../../context/AuthContext';
+import { GRADES, ETHIOPIAN_MONTHS } from '../../constants/school';
 
-const ALLOWED_GRADES = [
-  'Nursery', 'LKG', 'UKG',
-  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6',
-  'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
-];
+const ALLOWED_GRADES = GRADES;
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
-const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+const months = ETHIOPIAN_MONTHS;
 
 export default function SuperAdminFees() {
   const [structures, setStructures] = useState([]);

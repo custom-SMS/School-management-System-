@@ -146,9 +146,16 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
   const markAsRead = async (id) => {
     try {
       await axios.patch(`/notifications/${id}/read`);
-      fetchNotifications();
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch { /* silent */ }
   };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch { /* silent */ }
+  };;
 
   const handleLogout = () => {
     logout();
@@ -161,7 +168,8 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
   const filteredNavItems = navItems.filter(item => {
     // Only SuperAdmin can see System Settings, Role Management, Permission Management, and Audit Logs
     if (['/settings', '/roles', '/permissions', '/audit'].includes(item.to)) {
-      return user?.role === 'SuperAdmin' ;    }
+      return user?.role === 'SuperAdmin';
+    }
     return true;
   });
 
@@ -178,9 +186,8 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
@@ -214,10 +221,9 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               to={item.to}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
-                  isActive || window.location.pathname.startsWith(item.to)
-                    ? 'bg-slate-100 font-bold text-black'
-                    : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${isActive || window.location.pathname.startsWith(item.to)
+                  ? 'bg-slate-100 font-bold text-black'
+                  : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`
               }
             >
@@ -228,13 +234,13 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
         </nav>
 
         {/* User Profile */}
-         <div className="border-t border-slate-200 p-4 bg-slate-50">
+        <div className="border-t border-slate-200 p-4 bg-slate-50">
           <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-200 cursor-pointer" onClick={handleLogout}>
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black shadow-md text-sm font-bold text-white">
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
               ) : (
-                 initials
+                initials
               )}
             </div>
             <div className="min-w-0">
@@ -290,7 +296,14 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
                 <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-slate-900">Notifications</span>
-                    {unreadCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>}
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
+                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
                     {notifications.length > 0 ? notifications.map(n => (

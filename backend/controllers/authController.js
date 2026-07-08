@@ -4,6 +4,15 @@ const jwt = require('jsonwebtoken');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
+// Sanitize errors before sending to client — never expose DB hostnames, file paths, or stack traces
+const safeError = (err, res) => {
+  console.error('[auth error]', err?.message || err);
+  if (err?.message?.includes("Can't reach database") || err?.code === 'P1001') {
+    return res.status(503).json({ message: 'Service temporarily unavailable. Please try again shortly.' });
+  }
+  res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
+};
+
 // Shared options for the auth cookie. In production cookies must be Secure + SameSite=None
 // to be sent on cross-site requests; in local dev SameSite=Lax over http works.
 const AUTH_COOKIE = 'token';
@@ -116,7 +125,7 @@ const login = async (req, res) => {
       user: responseUser,
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    safeError(err, res);
   }
 };
 
@@ -133,16 +142,16 @@ const logout = (req, res) => {
 const registerInitialAdmin = async (req, res) => {
   try {
     const { name, email, password, role = 'Admin' } = req.body;
-    
+
     const existingUser = await prisma.user.findFirst({
       where: { email }
     });
     if (existingUser) return res.status(400).json({ message: 'User already exists' });
-    
+
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
+
     const admin = await prisma.user.create({
       data: {
         name,
@@ -151,10 +160,10 @@ const registerInitialAdmin = async (req, res) => {
         role: role
       }
     });
-    
+
     res.status(201).json({ message: `${role} user created successfully` });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    safeError(err, res);
   }
 };
 
@@ -163,7 +172,7 @@ const getRolePermissions = async (req, res) => {
     const perms = await prisma.rolePermission.findMany();
     res.status(200).json(perms);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    safeError(err, res);
   }
 };
 
@@ -191,7 +200,7 @@ const updateRolePermissions = async (req, res) => {
 
     res.status(200).json({ message: `Permissions for role ${role} updated successfully.` });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    safeError(err, res);
   }
 };
 
@@ -205,15 +214,15 @@ const getCurrentUserPermissions = async (req, res) => {
     });
     res.json({ permissions: perms.map(p => p.permission) });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    safeError(err, res);
   }
 };
 
-module.exports = { 
-  login, 
-  logout, 
-  registerInitialAdmin, 
-  getRolePermissions, 
-  updateRolePermissions, 
-  getCurrentUserPermissions 
+module.exports = {
+  login,
+  logout,
+  registerInitialAdmin,
+  getRolePermissions,
+  updateRolePermissions,
+  getCurrentUserPermissions
 };

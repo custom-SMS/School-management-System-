@@ -3,28 +3,13 @@ import { showDangerConfirmDialog } from '../../utils/sweetAlert';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
+import { GRADES } from '../../constants/school';
 
-const ALLOWED_CLASS_NAMES = [
-  'Nursery',
-  'LKG',
-  'UKG',
-  'Grade 1',
-  'Grade 2',
-  'Grade 3',
-  'Grade 4',
-  'Grade 5',
-  'Grade 6',
-  'Grade 7',
-  'Grade 8',
-  'Grade 9',
-  'Grade 10',
-  'Grade 11',
-  'Grade 12'
-];
+const ALLOWED_CLASS_NAMES = GRADES;
 
 export default function Classes() {
   const [classes, setClasses] = useState([]);
-  
+
   const [loading, setLoading] = useState(true);
 
   // Create-class modal
@@ -229,16 +214,16 @@ export default function Classes() {
                   <td className="px-6 py-4 text-gray-500">{c.homeroomTeacher?.user?.name || c.teacher?.user?.name || 'Unassigned'}</td>
                   <td className="px-6 py-4">{c.sections?.length || 0}</td>
                   <td className="px-6 py-4 text-right">
-                      <div className="flex justify-end gap-2">
-                        <button onClick={() => handleEditClick(c)} className="text-xs font-bold text-black hover:text-slate-900 bg-slate-100 px-3 py-1 rounded-md">Edit</button>
-                        <button
-                          onClick={() => handleDeleteClass(c)}
-                          disabled={deletingClassId === c.id}
-                          className="text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 px-3 py-1 rounded-md disabled:opacity-50"
-                        >
-                          {deletingClassId === c.id ? 'Deleting...' : 'Delete'}
-                        </button>
-                      </div>
+                    <div className="flex justify-end gap-2">
+                      <button onClick={() => handleEditClick(c)} className="text-xs font-bold text-black hover:text-slate-900 bg-slate-100 px-3 py-1 rounded-md">Edit</button>
+                      <button
+                        onClick={() => handleDeleteClass(c)}
+                        disabled={deletingClassId === c.id}
+                        className="text-xs font-bold text-red-700 hover:text-red-800 bg-red-50 px-3 py-1 rounded-md disabled:opacity-50"
+                      >
+                        {deletingClassId === c.id ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
