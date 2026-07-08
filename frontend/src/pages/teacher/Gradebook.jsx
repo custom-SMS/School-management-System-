@@ -5,13 +5,14 @@ import { AuthContext } from '../../context/AuthContext';
 import TeacherLayout from '../../components/TeacherLayout';
 
 const emptyMarks = { quiz: 0, assignment: 0, midterm: 0, final: 0 };
-const clampMark = (v) => Math.min(100, Math.max(0, Number.isNaN(Number(v)) ? 0 : Number(v)));
+const emptyErrors = { quiz: false, assignment: false, midterm: false, final: false };
 
 export default function Gradebook() {
   const { user } = useContext(AuthContext);
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [rows, setRows] = useState([]);
+  const [markErrors, setMarkErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [publishing, setPublishing] = useState(false);
   const [error, setError] = useState(false);
@@ -79,15 +80,60 @@ export default function Gradebook() {
   }, [selectedClass, components]);
 
   const handleChange = (sid, field, value) => {
-    const component = components.find(c => c.field === field);
-    const maxAllowed = component ? Number(component.weight) : 100;
+    const component = components.find((c) => c.field === field);
+    const maxAllowed = Number(component?.weight || 0);
+
+    // Clear error state when field is emptied
+    if (value === '') {
+      setMarkErrors((prev) => ({ ...prev, [`${sid}_${field}`]: false }));
+      setRows((cur) =>
+        cur.map((row) => (row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: '' } } : row)),
+      );
+      return;
+    }
+
     const numValue = Number(value);
-    const clampedValue = Math.min(maxAllowed, Math.max(0, Number.isNaN(numValue) ? 0 : numValue));
-    setRows((cur) => cur.map((row) => (row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: clampedValue } } : row)));
+    if (Number.isNaN(numValue) || numValue < 0) {
+      setRows((cur) =>
+        cur.map((row) =>
+          row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: 0 } } : row,
+        ),
+      );
+      setMarkErrors((prev) => ({ ...prev, [`${sid}_${field}`]: false }));
+      return;
+    }
+
+    // If value exceeds max, keep the typed value visible and warn the teacher
+    if (numValue > maxAllowed) {
+      setRows((cur) =>
+        cur.map((row) =>
+          row.student._id === sid ? { ...row, marks: { ...row.marks, [field]: numValue } } : row,
+        ),
+      );
+      setMarkErrors((prev) => ({ ...prev, [`${sid}_${field}`]: true }));
+      toast.warn(
+        `⚠️ ${component.label} mark (${numValue}) exceeds the maximum allowed (${maxAllowed}). Please correct it before saving.`,
+        { toastId: `mark-over-${sid}-${field}` }, // prevent duplicate toasts
+      );
+      return;
+    }
+
+    // Valid value — clear any previous error for this cell
+    setMarkErrors((prev) => ({ ...prev, [`${sid}_${field}`]: false }));
+    setRows((cur) =>
+      cur.map((row) =>
+        row.student._id === sid
+          ? { ...row, marks: { ...row.marks, [field]: numValue } }
+          : row,
+      ),
+    );
   };
+
+  const hasMarkErrors = Object.values(markErrors).some(Boolean);
 
   const handleSave = async () => {
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
+    if (hasMarkErrors) return toast.error('Some marks exceed the allowed maximum. Please fix the highlighted fields before saving.');
     setSaving(true);
     try {
       // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
@@ -119,6 +165,7 @@ export default function Gradebook() {
 
   const handlePublish = async () => {
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
+    if (hasMarkErrors) return toast.error('Some marks exceed the allowed maximum. Please fix the highlighted fields before publishing.');
     setPublishing(true);
     try {
       // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
@@ -220,17 +267,26 @@ export default function Gradebook() {
                           <div className="font-semibold text-slate-900">{row.student.user?.name || row.student.studentId}</div>
                           <div className="text-xs text-slate-400">{row.student.studentId}</div>
                         </td>
-                        {components.map((c) => (
-                          <td key={c.field} className="px-3 py-3 text-center">
-                            <input
-                              type="number" min="0" max={c.weight}
-                              value={row.marks[c.field] || ''}
-                              onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
-                              className="w-16 rounded-lg border border-slate-200 bg-slate-50 p-1.5 text-center outline-none focus:border-slate-400 focus:bg-white"
-                            />
-                            <div className="text-[10px] text-slate-400">/ {c.weight}</div>
-                          </td>
-                        ))}
+                        {components.map((c) => {
+                          const isOverLimit = !!markErrors[`${row.student._id}_${c.field}`];
+                          return (
+                            <td key={c.field} className="px-3 py-3 text-center">
+                              <input
+                                type="number" min="0"
+                                value={row.marks[c.field] === 0 ? '' : (row.marks[c.field] || '')}
+                                onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+                                className={`w-16 rounded-lg border p-1.5 text-center outline-none transition-colors ${
+                                  isOverLimit
+                                    ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:bg-red-50'
+                                    : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:bg-white'
+                                }`}
+                              />
+                              <div className={`text-[10px] ${isOverLimit ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+                                / {c.weight}{isOverLimit && ' ⚠️'}
+                              </div>
+                            </td>
+                          );
+                        })}
                         <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>
                       </tr>
                     );

@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   recordAttendance,
+  getAttendanceRegister,
   getAttendanceSessions,
   saveGrades,
   getGrades,
@@ -87,6 +88,8 @@ router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdm
  *       200:
  *         description: List of attendance sessions
  */
+router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getAttendanceRegister);
+
 router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAttendanceSessions);
 
 /**

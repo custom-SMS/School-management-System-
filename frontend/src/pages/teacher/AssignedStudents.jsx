@@ -9,7 +9,6 @@ export default function AssignedStudents() {
   const [classes, setClasses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [gradeFilter, setGradeFilter] = useState('all');
   const [classFilter, setClassFilter] = useState('all');
   const [selected, setSelected] = useState(() => new Set());
   const [sending, setSending] = useState(false);
@@ -53,12 +52,9 @@ export default function AssignedStudents() {
     return Array.from(map.values());
   }, [classes]);
 
-  const grades = useMemo(() => Array.from(new Set(students.map((s) => s.grade).filter(Boolean))), [students]);
   const classNames = useMemo(() => Array.from(new Set(classes.map((c) => c.name).filter(Boolean))), [classes]);
 
-  const filtered = students.filter(
-    (s) => (gradeFilter === 'all' || s.grade === gradeFilter) && (classFilter === 'all' || s.className === classFilter),
-  );
+  const filtered = students.filter((s) => classFilter === 'all' || s.className === classFilter);
 
   const toggle = (id) =>
     setSelected((prev) => {
@@ -108,14 +104,7 @@ export default function AssignedStudents() {
       </div>
 
       {/* Filters */}
-      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <label className="text-xs font-semibold uppercase text-slate-400">Filter by Grade</label>
-          <select value={gradeFilter} onChange={(e) => setGradeFilter(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">
-            <option value="all">All Grades</option>
-            {grades.map((g) => <option key={g} value={g}>{g}</option>)}
-          </select>
-        </div>
+      <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <label className="text-xs font-semibold uppercase text-slate-400">Filter by Class</label>
           <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">

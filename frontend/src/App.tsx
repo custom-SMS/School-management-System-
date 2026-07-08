@@ -57,6 +57,7 @@ import TeacherDashboard from "./pages/teacher/TeacherDashboard";
 import TeacherClasses from "./pages/teacher/AssignedClasses";
 import TeacherStudents from "./pages/teacher/AssignedStudents";
 import TeacherAttendance from "./pages/teacher/TeacherAttendance";
+import TeacherAttendanceRecords from "./pages/teacher/TeacherAttendanceRecords";
 import TeacherGradebook from "./pages/teacher/Gradebook";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import StudentProfile from "./pages/teacher/StudentProfile";
@@ -475,6 +476,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
                   <TeacherAttendance />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/teacher/attendance-records"
+              element={
+                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                  <TeacherAttendanceRecords />
                 </ProtectedRoute>
               }
             />

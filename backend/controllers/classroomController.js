@@ -214,6 +214,33 @@ const ensureTeacherAuthorization = async (req, classId, studentIds = []) => {
 // @desc    Record or update attendance for a class
 // @route   POST /api/classroom/attendance
 // @access  Private (Teacher/Admin)
+const normalizeDateBounds = (value) => {
+  const date = value ? new Date(value) : new Date();
+  const start = new Date(date);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date);
+  end.setHours(23, 59, 59, 999);
+
+  return { date, start, end };
+};
+
+const getAttendanceResponse = (attendance) => ({
+  _id: attendance.id,
+  class: attendance.classId,
+  date: attendance.date,
+  recordedBy: attendance.recordedById,
+  createdAt: attendance.createdAt,
+  records: (attendance.records || []).map((r) => ({
+    _id: r.id,
+    student: r.studentId,
+    status: r.status
+  }))
+});
+
+// @desc    Record or update attendance for a class
+// @route   POST /api/classroom/attendance
+// @access  Private (Teacher/Admin)
 const recordAttendance = async (req, res) => {
   try {
     const { classId, date, records, teacherId } = req.body;
@@ -224,7 +251,7 @@ const recordAttendance = async (req, res) => {
       return res.status(authorization.status).json({ message: authorization.message });
     }
 
-    const attendanceDate = date ? new Date(date) : new Date();
+    const { date: attendanceDate, start: dayStart, end: dayEnd } = normalizeDateBounds(date);
     const today = new Date();
 
     // Prevent future dates
@@ -246,14 +273,59 @@ const recordAttendance = async (req, res) => {
       where: { isActive: true }
     });
 
-    const attendance = await prisma.attendance.create({
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        classId: targetClass.id,
+        date: {
+          gte: dayStart,
+          lte: dayEnd
+        }
+      },
+      include: {
+        records: true
+      }
+    });
+
+    let attendance;
+
+    if (existingAttendance) {
+      if (existingAttendance.locked && req.user.role !== 'SuperAdmin') {
+        return res.status(403).json({ message: 'This attendance session is locked and cannot be modified.' });
+      }
+
+      attendance = await prisma.attendance.update({
+        where: { id: existingAttendance.id },
+        data: {
+          date: attendanceDate,
+          recordedById: req.user._id,
+          academicYearId: activeYear?.id || existingAttendance.academicYearId || null,
+          records: {
+            deleteMany: {},
+            create: records.map((record) => ({
+              studentId: record.student,
+              status: record.status
+            }))
+          }
+        },
+        include: {
+          records: true
+        }
+      });
+
+      return res.status(200).json({
+        message: 'Attendance updated successfully',
+        attendance: getAttendanceResponse(attendance)
+      });
+    }
+
+    attendance = await prisma.attendance.create({
       data: {
         classId: targetClass.id,
         academicYearId: activeYear?.id || null,
         date: attendanceDate,
         recordedById: req.user._id,
         records: {
-          create: records.map(record => ({
+          create: records.map((record) => ({
             studentId: record.student,
             status: record.status
           }))
@@ -264,23 +336,143 @@ const recordAttendance = async (req, res) => {
       }
     });
 
-    const responseAttendance = {
-      _id: attendance.id,
-      class: attendance.classId,
-      date: attendance.date,
-      recordedBy: attendance.recordedById,
-      createdAt: attendance.createdAt,
-      records: attendance.records.map(r => ({
-        _id: r.id,
-        student: r.studentId,
-        status: r.status
-      }))
-    };
-
-    res.status(201).json({ message: 'Attendance recorded successfully', attendance: responseAttendance });
+    res.status(201).json({
+      message: 'Attendance recorded successfully',
+      attendance: getAttendanceResponse(attendance)
+    });
   } catch (error) {
     console.error('Attendance Error:', error);
     res.status(400).json({ message: error.message });
+  }
+};
+
+const getAttendanceRegister = async (req, res) => {
+  try {
+    const { classId, startDate, endDate } = req.query;
+
+    if (!classId || !startDate || !endDate) {
+      return res.status(400).json({ message: 'classId, startDate, and endDate are required.' });
+    }
+
+    const authorization = await ensureTeacherAuthorization(req, classId);
+    if (!authorization.ok) {
+      return res.status(authorization.status).json({ message: authorization.message });
+    }
+
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      return res.status(400).json({ message: 'Invalid date range supplied.' });
+    }
+
+    if (start > end) {
+      return res.status(400).json({ message: 'startDate cannot be after endDate.' });
+    }
+
+    const targetClass = await prisma.class.findUnique({
+      where: { id: classId },
+      include: {
+        students: {
+          include: {
+            user: { select: { name: true } }
+          },
+          orderBy: { studentId: 'asc' }
+        }
+      }
+    });
+
+    if (!targetClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const dates = [];
+    for (let cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
+      dates.push(new Date(cursor));
+    }
+
+    const attendanceSessions = await prisma.attendance.findMany({
+      where: {
+        classId,
+        date: {
+          gte: start,
+          lte: end
+        }
+      },
+      include: {
+        records: true
+      },
+      orderBy: { date: 'asc' }
+    });
+
+    const sessionByDate = new Map(
+      attendanceSessions.map((session) => {
+        const key = new Date(session.date).toISOString().slice(0, 10);
+        return [key, session];
+      })
+    );
+
+    const dateColumns = dates.map((entry) => {
+      const iso = entry.toISOString().slice(0, 10);
+      return {
+        date: iso,
+        day: entry.getDate(),
+        weekday: entry.toLocaleDateString('en-US', { weekday: 'short' }),
+        hasSession: sessionByDate.has(iso)
+      };
+    });
+
+    const students = (targetClass.students || []).map((student) => {
+      const marksByDate = {};
+      let present = 0;
+      let absent = 0;
+      let late = 0;
+
+      dateColumns.forEach((column) => {
+        const session = sessionByDate.get(column.date);
+        const record = session?.records?.find((item) => item.studentId === student.id);
+        const shortStatus = record?.status === 'Present' ? 'P' : record?.status === 'Absent' ? 'A' : record?.status === 'Late' ? 'L' : '';
+
+        if (shortStatus === 'P') present += 1;
+        if (shortStatus === 'A') absent += 1;
+        if (shortStatus === 'L') late += 1;
+
+        marksByDate[column.date] = shortStatus;
+      });
+
+      return {
+        id: student.id,
+        name: student.user?.name || 'Student',
+        studentId: student.studentId,
+        grade: student.grade,
+        marksByDate,
+        totals: {
+          present,
+          absent,
+          late
+        }
+      };
+    });
+
+    res.status(200).json({
+      class: {
+        id: targetClass.id,
+        name: targetClass.name,
+        subject: targetClass.subject || ''
+      },
+      period: {
+        startDate: start.toISOString().slice(0, 10),
+        endDate: end.toISOString().slice(0, 10)
+      },
+      dates: dateColumns,
+      students
+    });
+  } catch (error) {
+    console.error('Attendance Register Error:', error);
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -366,6 +558,18 @@ const saveGrades = async (req, res) => {
     });
 
     const results = [];
+    const componentLimits = {
+      quiz: Number(weights.quizWeight || 0),
+      assignment: Number(weights.assignmentWeight || 0),
+      midterm: Number(weights.midtermWeight || 0),
+      final: Number(weights.finalWeight || 0)
+    };
+    const componentLabels = {
+      quiz: 'Quiz',
+      assignment: 'Assignment',
+      midterm: 'Midterm',
+      final: 'Final'
+    };
 
     for (let data of gradesData) {
       const marks = data.marks || {};
@@ -375,6 +579,21 @@ const saveGrades = async (req, res) => {
       const midterm = Number(marks.midterm || 0);
       const final = Number(marks.final || 0);
       const test = Number(marks.test || 0); // legacy column, retained but unweighted
+
+      const invalidComponent = Object.entries(componentLimits).find(([field, maxAllowed]) => {
+        const value = Number(marks[field] || 0);
+        return Number.isNaN(value) || value < 0 || value > maxAllowed;
+      });
+
+      if (invalidComponent) {
+        const [field, maxAllowed] = invalidComponent;
+        return res.status(400).json({
+          message: `${componentLabels[field]} score cannot be greater than ${maxAllowed}.`,
+          field,
+          maxAllowed,
+          studentId: data.student
+        });
+      }
 
       // FR-27: Calculate final score automatically based on weights (which sum to 100%)
       const total = (quiz * (weights.quizWeight / 100)) +
@@ -1317,6 +1536,7 @@ const assignStudentsToSection = async (req, res) => {
 
 module.exports = {
   recordAttendance,
+  getAttendanceRegister,
   getAttendanceSessions,
   unlockAttendance,
   saveGrades,

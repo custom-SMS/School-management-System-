@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { sendParentMessageEmail } = require('../utils/emailService');
 
 // Helper to dispatch notification
 const sendNotification = async (userId, title, message, type = 'System') => {
@@ -51,7 +52,7 @@ const sendParentNotifications = async (req, res) => {
         user: { select: { name: true } },
         guardians: {
           include: {
-            user: { select: { id: true } }
+            user: { select: { id: true, email: true, name: true } }
           }
         }
       }
@@ -105,9 +106,21 @@ const sendParentNotifications = async (req, res) => {
     students.forEach((student) => {
       (student.guardians || []).forEach((guardian) => {
         if (guardian.user?.id) {
+          const existing = recipients.get(guardian.user.id);
+          const nextStudentName = student.user?.name || 'your child';
+
+          if (existing) {
+            existing.studentNames.add(nextStudentName);
+            if (!existing.parentName && guardian.user?.name) existing.parentName = guardian.user.name;
+            if (!existing.email && guardian.user?.email) existing.email = guardian.user.email;
+            return;
+          }
+
           recipients.set(guardian.user.id, {
             userId: guardian.user.id,
-            studentName: student.user?.name || 'your child'
+            parentName: guardian.user?.name || guardian.fullName || 'Parent',
+            email: guardian.user?.email || guardian.email || '',
+            studentNames: new Set([nextStudentName])
           });
         }
       });
@@ -124,8 +137,10 @@ const sendParentNotifications = async (req, res) => {
       : `Student: ${students[0].user?.name || 'Student'}`;
     const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
 
+    const recipientList = Array.from(recipients.values());
+
     await prisma.notification.createMany({
-      data: Array.from(recipients.values()).map((recipient) => ({
+      data: recipientList.map((recipient) => ({
         userId: recipient.userId,
         title,
         message: notificationMessage,
@@ -133,9 +148,49 @@ const sendParentNotifications = async (req, res) => {
       }))
     });
 
+    const emailResults = await Promise.allSettled(
+      recipientList
+        .filter((recipient) => recipient.email)
+        .map((recipient) =>
+          sendParentMessageEmail({
+            to: recipient.email,
+            parentName: recipient.parentName,
+            studentNames: Array.from(recipient.studentNames),
+            senderLabel,
+            title,
+            message: rawMessage
+          })
+        )
+    );
+
+    const emailedCount = emailResults.filter((result) => result.status === 'fulfilled').length;
+    const failedResults = emailResults.filter((result) => result.status === 'rejected');
+    const emailFailureCount = failedResults.length;
+
+    // Collect the first failure reason to show in the response
+    const firstEmailError = failedResults.length > 0
+      ? (failedResults[0].reason?.message || 'Email delivery failed')
+      : null;
+
+    // Determine the response message based on what actually worked
+    let responseMsg = `Notification sent to ${recipientList.length} parent account${recipientList.length === 1 ? '' : 's'}`;
+    if (emailedCount > 0) {
+      responseMsg += ` and email delivered to ${emailedCount}`;
+    }
+    if (emailFailureCount > 0) {
+      responseMsg += `. ⚠️ ${emailFailureCount} email(s) failed to send`;
+      if (firstEmailError) responseMsg += `: ${firstEmailError}`;
+    }
+    if (recipientList.filter(r => r.email).length === 0) {
+      responseMsg += '. No parent email addresses are on file — only in-app notification was sent.';
+    }
+
     res.status(201).json({
-      message: `Notification sent to ${recipients.size} parent account${recipients.size === 1 ? '' : 's'}.`,
-      recipients: recipients.size
+      message: responseMsg,
+      recipients: recipientList.length,
+      emailed: emailedCount,
+      emailFailed: emailFailureCount,
+      emailError: firstEmailError || undefined,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });

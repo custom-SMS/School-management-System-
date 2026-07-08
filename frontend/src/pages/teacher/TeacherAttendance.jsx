@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import { AuthContext } from '../../context/AuthContext';
@@ -111,10 +111,23 @@ export default function TeacherAttendance() {
           <label className="text-xs font-semibold uppercase text-slate-400">Date</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none" />
         </div>
-        <button onClick={() => setAll('Present')} className="ml-auto flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
-          Mark All Present
-        </button>
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <Link
+            to={selectedClassId ? `/teacher/attendance-records?classId=${selectedClassId}` : '/teacher/attendance-records'}
+            className={`flex items-center gap-2 rounded-xl border px-5 py-2.5 text-sm font-bold transition ${
+              selectedClassId
+                ? 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                : 'pointer-events-none border-slate-200 bg-slate-100 text-slate-400'
+            }`}
+          >
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5zm2 0v14h12V9h-4V5H6zm2 7h8v2H8v-2zm0-4h5v2H8V8zm0 8h8v2H8v-2z" /></svg>
+            View Attendance
+          </Link>
+          <button onClick={() => setAll('Present')} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
+            Mark All Present
+          </button>
+        </div>
       </div>
 
       {/* Summary cards */}
