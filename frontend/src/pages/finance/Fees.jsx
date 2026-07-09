@@ -4,11 +4,12 @@ import { toast } from 'react-toastify';
 import CashierLayout from '../../components/CashierLayout';
 import { useContext } from 'react';
 import { AuthContext } from '../../context/AuthContext';
+import { ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
-const months = ['Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
+const months = ETHIOPIAN_MONTHS;
 
 export default function Fees() {
   const [structures, setStructures] = useState([]);

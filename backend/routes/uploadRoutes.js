@@ -72,7 +72,11 @@ const uploadToCloudinary = (file) => new Promise((resolve, reject) => {
 router.post('/', (req, res) => {
   upload.single('file')(req, res, async (err) => {
     if (err) {
-      return res.status(400).json({ message: err.message });
+      // Multer errors (file too large, wrong type) are safe user-facing messages
+      const isMulterError = err.code && err.code.startsWith('LIMIT_');
+      return res.status(400).json({
+        message: isMulterError ? err.message : 'File upload failed. Please try again.'
+      });
     }
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded.' });

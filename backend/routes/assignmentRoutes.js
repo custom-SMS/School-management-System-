@@ -108,6 +108,6 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       200:
  *         description: List of all assignments
  */
-router.get('/', verifyToken, checkRole(['Admin']), getAllAssignments);
+router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAllAssignments);
 
 module.exports = router;

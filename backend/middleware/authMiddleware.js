@@ -52,7 +52,12 @@ const checkPermission = (permission) => {
 
       next();
     } catch (err) {
-      res.status(500).json({ message: 'Error checking permissions', error: err.message });
+      console.error('[permission check error]', err?.message || err);
+      const isDbDown = err?.message?.includes("Can't reach database") || err?.code === 'P1001';
+      if (isDbDown) {
+        return res.status(503).json({ message: 'Service temporarily unavailable. Please try again shortly.' });
+      }
+      res.status(500).json({ message: 'An unexpected error occurred checking permissions.' });
     }
   };
 };

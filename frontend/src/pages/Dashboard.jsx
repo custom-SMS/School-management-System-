@@ -139,7 +139,7 @@ export default function Dashboard() {
       badgeColor: 'text-green-600',
       icon: (
         <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
-          <path d="M18 2a10 10 0 1 0 0 20A10 10 0 0 0 18 2zM4 34c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#000" strokeWidth="2"/>
+          <path d="M18 2a10 10 0 1 0 0 20A10 10 0 0 0 18 2zM4 34c0-7.732 6.268-14 14-14s14 6.268 14 14" stroke="#000" strokeWidth="2" />
         </svg>
       )
     },
@@ -150,8 +150,8 @@ export default function Dashboard() {
       badgeColor: 'text-green-600',
       icon: (
         <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
-          <circle cx="18" cy="18" r="14" stroke="#000" strokeWidth="2"/>
-          <path d="m11 18 5 5 9-10" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <circle cx="18" cy="18" r="14" stroke="#000" strokeWidth="2" />
+          <path d="m11 18 5 5 9-10" stroke="#000" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       )
     },
@@ -162,8 +162,8 @@ export default function Dashboard() {
       badgeColor: 'text-gray-500',
       icon: (
         <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
-          <rect x="3" y="7" width="30" height="22" rx="2" stroke="#000" strokeWidth="2"/>
-          <path d="M3 13h30M12 13v16M24 13v16" stroke="#000" strokeWidth="2"/>
+          <rect x="3" y="7" width="30" height="22" rx="2" stroke="#000" strokeWidth="2" />
+          <path d="M3 13h30M12 13v16M24 13v16" stroke="#000" strokeWidth="2" />
         </svg>
       )
     },
@@ -175,8 +175,8 @@ export default function Dashboard() {
       danger: true,
       icon: (
         <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
-          <path d="M18 3L33 30H3L18 3z" stroke="#000" strokeWidth="2" strokeLinejoin="round"/>
-          <path d="M18 14v7M18 25h.01" stroke="#000" strokeWidth="2" strokeLinecap="round"/>
+          <path d="M18 3L33 30H3L18 3z" stroke="#000" strokeWidth="2" strokeLinejoin="round" />
+          <path d="M18 14v7M18 25h.01" stroke="#000" strokeWidth="2" strokeLinecap="round" />
         </svg>
       )
     },
@@ -190,7 +190,7 @@ export default function Dashboard() {
             onClick={() => navigate('/register-student')}
             className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800"
           >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
             Add Student
           </button>
         )}
@@ -198,11 +198,11 @@ export default function Dashboard() {
           onClick={() => navigate('/teachers')}
           className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50"
         >
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
           Assign Teacher
         </button>
         <button className="flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-50">
-          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
           Print Reports
         </button>
       </div>
@@ -210,7 +210,7 @@ export default function Dashboard() {
       {/* Page Title */}
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Principal's Dashboard</h2>
-        <p className="text-sm text-gray-500">St. George Academy – Academic Session 2023/24</p>
+        <p className="text-sm text-gray-500">Real-time school operations and administration.</p>
       </div>
 
       {loading && <div className="py-12 text-center text-sm text-gray-500">Loading dashboard data…</div>}
@@ -241,52 +241,68 @@ export default function Dashboard() {
             <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-start justify-between">
                 <div>
-                  <h3 className="text-lg font-bold text-gray-900">Daily Attendance Trend</h3>
-                  <p className="text-sm text-gray-500">Comparative analysis of past 7 days</p>
-                </div>
-                <div className="flex items-center gap-4 text-xs">
-                  <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-black"></span><span className="text-gray-700 font-semibold">This Week</span></div>
-                  <div className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full bg-gray-300"></span><span className="text-gray-500">Target</span></div>
+                  <h3 className="text-lg font-bold text-gray-900">Attendance by Class (Last 30 Days)</h3>
+                  <p className="text-sm text-gray-500">Sessions recorded per class</p>
                 </div>
               </div>
-
-              {/* Mini Bar Chart */}
-              <div className="relative h-48">
-                <div className="flex h-full items-end justify-between gap-2 px-2">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => {
-                    const heights = [72, 88, 64, 94, 80, 56, 78];
-                    return (
-                      <div key={day} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="w-full rounded-t bg-black/90 transition-all" style={{ height: `${heights[i]}%` }}></div>
-                        <span className="text-xs text-gray-500">{day}</span>
-                      </div>
-                    );
-                  })}
+              {(stats?.attendanceSummary || []).length === 0 ? (
+                <div className="flex h-48 items-center justify-center text-sm text-gray-400">No attendance data yet.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-100 text-xs font-bold uppercase tracking-wider text-gray-400">
+                        <th className="py-2 pr-4">Class</th>
+                        <th className="py-2 pr-4">Sessions</th>
+                        <th className="py-2 pr-4">Present</th>
+                        <th className="py-2">Rate</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50 text-gray-700">
+                      {(stats.attendanceSummary || []).slice(0, 6).map((row) => (
+                        <tr key={row.classId}>
+                          <td className="py-2 pr-4 font-bold text-gray-900">{row.className}</td>
+                          <td className="py-2 pr-4">{row.sessions}</td>
+                          <td className="py-2 pr-4">{row.present}/{row.checked}</td>
+                          <td className="py-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-20 bg-gray-100 rounded-full h-1.5">
+                                <div
+                                  className={`h-1.5 rounded-full ${row.attendanceRate >= 80 ? 'bg-emerald-500' : row.attendanceRate >= 60 ? 'bg-amber-500' : 'bg-red-500'}`}
+                                  style={{ width: `${row.attendanceRate}%` }}
+                                />
+                              </div>
+                              <span className="text-xs font-bold">{row.attendanceRate}%</span>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* School Status Dark Card */}
+            {/* Fee Collection Summary */}
             <div className="flex flex-col justify-between rounded-xl bg-black p-6 text-white shadow-sm">
               <div>
-                <h3 className="mb-1 text-xl font-bold">School Status</h3>
-                <p className="mb-6 text-sm text-gray-400">Real-time system health and operational capacity.</p>
+                <h3 className="mb-1 text-xl font-bold">Fee Collection</h3>
+                <p className="mb-6 text-sm text-gray-400">School-wide revenue summary.</p>
                 <div className="space-y-4">
-                  {[
-                    { label: 'LMS Server', status: 'ONLINE', color: 'text-green-400' },
-                    { label: 'Exam Portal', status: 'STABLE', color: 'text-green-400' },
-                    { label: 'Staff Connectivity', status: 'DEGRADED', color: 'text-red-400' },
-                  ].map((item) => (
-                    <div key={item.label} className="flex items-center justify-between border-b border-white/10 pb-4">
-                      <span className="text-sm text-gray-300">{item.label}</span>
-                      <span className={`text-sm font-bold ${item.color}`}>{item.status}</span>
-                    </div>
-                  ))}
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <span className="text-sm text-gray-300">Total Collected</span>
+                    <span className="text-sm font-bold">ETB {stats?.totalRevenue ? (stats.totalRevenue / 1000).toFixed(1) + 'k' : '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <span className="text-sm text-gray-300">Pending Revenue</span>
+                    <span className="text-sm font-bold text-amber-400">ETB {stats?.totalPendingRevenue ? (stats.totalPendingRevenue / 1000).toFixed(1) + 'k' : '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between border-b border-white/10 pb-4">
+                    <span className="text-sm text-gray-300">Students Checked Today</span>
+                    <span className="text-sm font-bold">{stats?.attendance?.totalChecked ?? 0}</span>
+                  </div>
                 </div>
               </div>
-              <button className="mt-6 w-full rounded-lg border border-white/20 py-3 text-sm font-bold text-white transition hover:bg-white/10">
-                View Full Network Log
-              </button>
             </div>
           </div>
 
@@ -315,20 +331,22 @@ export default function Dashboard() {
                     const initials = log.user?.name ? log.user.name.substring(0, 2).toUpperCase() : 'SY';
                     const color = log.action.includes('Delete') ? 'bg-red-500' : 'bg-blue-500';
                     return (
-                    <tr key={log.id} className="transition hover:bg-gray-50">
-                      <td className="px-6 py-4 font-bold text-gray-900 truncate max-w-[120px]">{log.id}</td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${color}`}>{initials}</div>
-                          <span className="font-semibold text-gray-900">{log.user?.name || 'System'}</span>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-gray-600">{log.action}</td>
-                      <td className="px-6 py-4">
-                        <span className={`inline-flex rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide bg-teal-50 text-teal-700`}>COMPLETED</span>
-                      </td>
-                      <td className="px-6 py-4 text-right text-gray-500">{new Date(log.timestamp).toLocaleString()}</td>
-                    </tr>
+                      <tr key={log.id} className="transition hover:bg-gray-50">
+                        <td className="px-6 py-4 font-bold text-gray-900 truncate max-w-[120px]">{log.id}</td>
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${color}`}>{initials}</div>
+                            <span className="font-semibold text-gray-900">{log.user?.name || 'System'}</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-gray-600">{log.action}</td>
+                        <td className="px-6 py-4">
+                          <span className={`inline-flex rounded px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${log.action?.toLowerCase().includes('delete') || log.action?.toLowerCase().includes('reject') ? STATUS_STYLES.FAILED : STATUS_STYLES.COMPLETED}`}>
+                            {log.action?.toLowerCase().includes('delete') || log.action?.toLowerCase().includes('reject') ? 'MODIFIED' : 'COMPLETED'}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-right text-gray-500">{new Date(log.timestamp).toLocaleString()}</td>
+                      </tr>
                     );
                   })}
                   {(!stats?.recentAuditLogs || stats.recentAuditLogs.length === 0) && (
@@ -342,7 +360,7 @@ export default function Dashboard() {
           {/* Footer */}
           <div className="rounded-xl bg-gray-900 px-8 py-6">
             <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-              <p className="text-sm text-gray-400">© 2024 Institutional Intelligence Platform. All rights reserved.</p>
+              <p className="text-sm text-gray-400">© {new Date().getFullYear()} School Management System. All rights reserved.</p>
               <div className="flex gap-6 text-sm text-gray-400">
                 <button className="hover:text-gray-200">Privacy Policy</button>
                 <button className="hover:text-gray-200">Security Standards</button>

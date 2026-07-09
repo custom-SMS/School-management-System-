@@ -1,7 +1,8 @@
-import { useContext, useState } from 'react';
+import { useContext, useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useBranding } from '../context/SettingsContext';
+import axios from '../api/axios';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
@@ -98,8 +99,10 @@ const navItems = [
   { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
   { to: '/super-admin/financial-oversight', label: 'Financial Oversight', icon: <FinanceIcon /> },
   { to: '/super-admin/fees', label: 'Fees', icon: <FinanceIcon /> },
+  { to: '/super-admin/grades', label: 'Grade Management', icon: <ActivityIcon /> },
   { to: '/super-admin/analytics', label: 'System Analytics', icon: <ActivityIcon /> },
   { to: '/super-admin/notifications', label: 'Notifications', icon: <BellIcon /> },
+  { to: '/super-admin/registration', label: 'Student Registration', icon: <UsersIcon /> },
   { to: '/super-admin/audit-logs', label: 'Audit Logs', icon: <ActivityIcon /> },
   { to: '/super-admin/settings', label: 'System Settings', icon: <SettingsIcon /> },
 ];
@@ -109,11 +112,41 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
   const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const notificationsRef = useRef(null);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const markAsRead = async (id) => {
+    try {
+      await axios.patch(`/notifications/${id}/read`);
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch { /* silent */ }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch { /* silent */ }
+  };
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await axios.get('/notifications');
+      setNotifications(res.data || []);
+    } catch { /* silent */ }
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
 
   const initials = (user?.name || 'SA').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
@@ -130,9 +163,8 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         {/* Brand */}
         <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
@@ -166,10 +198,9 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               to={item.to}
               onClick={() => setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${
-                  isActive || window.location.pathname.startsWith(item.to)
-                    ? 'bg-indigo-50 font-bold '
-                    : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
+                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${isActive || window.location.pathname.startsWith(item.to)
+                  ? 'bg-indigo-50 font-bold '
+                  : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
                 }`
               }
             >
@@ -186,7 +217,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               {user?.profileImage ? (
                 <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
               ) : (
-                 initials
+                initials
               )}
             </div>
             <div className="min-w-0">
@@ -225,10 +256,48 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               />
             </div>
 
-            <button className="relative text-slate-400 hover:text-indigo-600 transition">
-              <BellIcon />
-              <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-            </button>
+            <div className="relative" ref={notificationsRef}>
+              <button
+                className="relative text-slate-400 hover:text-black transition"
+                onClick={() => setNotificationsOpen(o => !o)}
+                aria-label="Notifications"
+              >
+                <BellIcon />
+                {unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {notificationsOpen && (
+                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
+                    <span className="text-sm font-black text-slate-900">Notifications</span>
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
+                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <div className="max-h-72 space-y-2 overflow-y-auto">
+                    {notifications.length > 0 ? notifications.map(n => (
+                      <button key={n.id} type="button" onClick={() => markAsRead(n.id)}
+                        className={`w-full rounded-xl p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                      >
+                        <span className="block font-bold">{n.title}</span>
+                        <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
+                        <span className={`mt-2 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{new Date(n.createdAt).toLocaleString()}</span>
+                      </button>
+                    )) : (
+                      <p className="py-6 text-center text-sm text-slate-400">No notifications yet.</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4">{headerAction}</div>}
           </div>

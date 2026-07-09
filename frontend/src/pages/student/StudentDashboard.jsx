@@ -21,6 +21,7 @@ function FetchError({ onRetry }) {
 
 export default function StudentDashboard() {
   const [stats, setStats] = useState(null);
+  const [subjects, setSubjects] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
   const [loading, setLoading] = useState(true);
@@ -32,14 +33,17 @@ export default function StudentDashboard() {
     let statsOk = false;
     const p1 = axios.get('/stats/student/me')
       .then((r) => { setStats(r.data); statsOk = true; })
-      .catch(() => {});
+      .catch(() => { });
     const p2 = axios.get('/timetables/student/me')
       .then((r) => setTimetable(r.data?.timetable || []))
-      .catch(() => {});
+      .catch(() => { });
     const p3 = axios.get('/settings/public')
       .then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 }))
-      .catch(() => {});
-    Promise.all([p1, p2, p3]).finally(() => {
+      .catch(() => { });
+    const p4 = axios.get('/students/me/subjects')
+      .then((r) => setSubjects(r.data?.subjects || []))
+      .catch(() => { });
+    Promise.all([p1, p2, p3, p4]).finally(() => {
       if (!statsOk) setError(true);
       setLoading(false);
     });
@@ -50,10 +54,16 @@ export default function StudentDashboard() {
   const name = stats?.profile?.user?.name || 'Student';
   const firstName = name.split(' ')[0];
   const grades = stats?.grades || [];
-  const avgPct = grades.length ? grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length : 0;
-  const gpa = (avgPct / 100 * 4).toFixed(2);
   const attendanceRate = stats?.attendanceRate ?? 0;
-  const passStatus = avgPct >= gradingSettings.passMark ? 'Pass' : 'Fail';
+
+  // Only show average when every subject has all 4 components filled
+  // latestPercentage is null when not all components are graded
+  const allComplete = subjects.length > 0 && subjects.every((s) => s.latestPercentage != null && s.assessmentsCount === 4);
+  const avgPct = allComplete
+    ? subjects.reduce((sum, s) => sum + Number(s.latestPercentage), 0) / subjects.length
+    : null;
+  const gpa = avgPct != null ? (avgPct / 100 * 4).toFixed(2) : null;
+  const passStatus = avgPct != null ? (avgPct >= gradingSettings.passMark ? 'Pass' : 'Fail') : null;
 
   const todayName = dayNames[new Date().getDay()] || 'Monday';
   const todaySlots = timetable.filter((s) => s.dayOfWeek === todayName).sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));
@@ -101,15 +111,33 @@ export default function StudentDashboard() {
               {gradingSettings.gpaEnabled ? (
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Current GPA</div>
-                  <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{gpa}</div>
-                  <div className="mt-3 text-xs text-slate-400">Based on {grades.length} graded item{grades.length === 1 ? '' : 's'}</div>
+                  {gpa != null ? (
+                    <>
+                      <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{gpa}</div>
+                      <div className="mt-3 text-xs text-slate-400">Based on {subjects.length} subject{subjects.length === 1 ? '' : 's'}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-200 text-sm font-bold text-slate-400">—</div>
+                      <div className="mt-3 text-xs text-slate-400">Available when all assessments are graded</div>
+                    </>
+                  )}
                 </div>
               ) : (
                 <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Average Score</div>
-                  <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{avgPct.toFixed(0)}%</div>
-                  <div className={`mt-3 text-xs font-semibold ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {passStatus}</div>
-                  <div className="mt-1 text-xs text-slate-400">Pass mark: {gradingSettings.passMark}%</div>
+                  {avgPct != null ? (
+                    <>
+                      <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-3xl font-black text-slate-900">{avgPct.toFixed(0)}%</div>
+                      <div className={`mt-3 text-xs font-semibold ${passStatus === 'Pass' ? 'text-emerald-600' : 'text-rose-600'}`}>Status: {passStatus}</div>
+                      <div className="mt-1 text-xs text-slate-400">Pass mark: {gradingSettings.passMark}%</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-200 text-sm font-bold text-slate-400">—</div>
+                      <div className="mt-3 text-xs text-slate-400">Available when all assessments are graded</div>
+                    </>
+                  )}
                 </div>
               )}
               <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
@@ -146,6 +174,37 @@ export default function StudentDashboard() {
                 );
               })}
               {grades.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No grades published yet.</p>}
+            </div>
+          </section>
+
+          {/* Attendance history */}
+          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-slate-900">Attendance History</h2>
+              <Link to="/student/attendance" className="text-sm font-semibold text-slate-500 hover:text-slate-900">View Full History</Link>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
+                    <th className="py-3 pr-4 font-semibold">Date</th>
+                    <th className="py-3 pr-4 font-semibold">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {(stats?.attendance || []).slice(0, 8).map((a, i) => (
+                    <tr key={i} className="text-slate-700">
+                      <td className="py-3 pr-4 font-semibold text-slate-900">{a.date ? new Date(a.date).toLocaleDateString() : '—'}</td>
+                      <td className="py-3 pr-4">
+                        <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${a.status === 'Absent' ? 'bg-rose-50 text-rose-700' : a.status === 'Late' ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'}`}>{(a.status || 'Unknown').toUpperCase()}</span>
+                      </td>
+                    </tr>
+                  ))}
+                  {(stats?.attendance || []).length === 0 && (
+                    <tr><td colSpan="2" className="py-8 text-center text-sm text-slate-400">No attendance records available.</td></tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </section>
         </>

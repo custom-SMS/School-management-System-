@@ -306,7 +306,7 @@ export default function Students() {
     <AdminLayout pageTitle="System Management" headerAction={
       canManage && (
         <button
-          onClick={() => navigate('/register-student')}
+          onClick={() => navigate('/admin/registration')}
           className="flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800"
         >
           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
@@ -461,16 +461,16 @@ export default function Students() {
                           <>
                             <div className="fixed inset-0 z-10" onClick={() => setMenuOpenId(null)} />
                             <div className="absolute right-0 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg">
-                              <button
+                              {/* <button
                                 onClick={() => { setMenuOpenId(null); navigate(`/teacher/students/${student._id}`); }}
                                 className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-                              >View profile</button>
-                              {canManage && (
+                              >View profile</button> */}
+                              {/* {canManage && (
                                 <button
                                   onClick={() => { setMenuOpenId(null); navigate(`/students/${student._id}/edit`); }}
                                   className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
                                 >Edit</button>
-                              )}
+                              )} */}
                               {canManage && (
                                 <button
                                   onClick={() => handleStatusToggle(student)}

@@ -3,12 +3,12 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 
-export default function Navbar({ actionsDisabled = false, onAction = () => {} } = {}) {
+export default function Navbar({ actionsDisabled = false, onAction = () => { } } = {}) {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const profileMenuRef = useRef(null);
   const notifMenuRef = useRef(null);
-  
+
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [studentProfile, setStudentProfile] = useState(null);
@@ -60,7 +60,16 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
   const handleMarkAsRead = async (id) => {
     try {
       await axios.patch(`/notifications/${id}/read`);
-      fetchNotifications();
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await axios.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch (err) {
       console.error(err);
     }
@@ -112,33 +121,33 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
     ...(user.role === 'Parent' ? [{ to: '/my-fees', label: 'My Fees' }] : []),
     ...((user.role === 'Admin' || user.role === 'SuperAdmin' || user.role === 'Teacher')
       ? [
-          { to: '/teacher/dashboard', label: 'Teacher Portal' },
-          { to: '/register-student', label: 'Registration' },
-          { to: '/classroom/attendance', label: 'Attendance' },
-          { to: '/classroom/grades', label: 'Grades' },
-        ]
+        { to: '/teacher/dashboard', label: 'Teacher Portal' },
+        { to: '/register-student', label: 'Registration' },
+        { to: '/classroom/attendance', label: 'Attendance' },
+        { to: '/classroom/grades', label: 'Grades' },
+      ]
       : []),
     ...((user.role === 'Admin' || user.role === 'SuperAdmin')
       ? [
-          { to: '/assignments', label: 'T.Assignments' },
-          { to: '/registrar', label: 'Registrar' },
-          { to: '/academics', label: 'Academics' },
-          { to: '/students', label: 'Students' },
-          { to: '/teachers', label: 'Teachers' },
-          { to: '/bursar', label: 'Fees' },
-          { to: '/report-cards-admin', label: 'Report Cards' },
-        ]
+        { to: '/assignments', label: 'T.Assignments' },
+        { to: '/registrar', label: 'Registrar' },
+        { to: '/academics', label: 'Academics' },
+        { to: '/students', label: 'Students' },
+        { to: '/teachers', label: 'Teachers' },
+        { to: '/bursar', label: 'Fees' },
+        { to: '/report-cards-admin', label: 'Report Cards' },
+      ]
       : []),
     ...(user.role === 'SuperAdmin' ? [{ to: '/settings', label: 'Settings' }, { to: '/finance/fees', label: 'Fees' }] : []),
     ...((user.role === 'Cashier' || user.role === 'Admin' || user.role === 'SuperAdmin')
       ? [
-          { to: '/finance/dashboard', label: 'Finance Suite' },
-        ]
+        { to: '/finance/dashboard', label: 'Finance Suite' },
+      ]
       : []),
     ...(user.role === 'Cashier'
       ? [
-          { to: '/bursar', label: 'Fees' },
-        ]
+        { to: '/bursar', label: 'Fees' },
+      ]
       : []),
     ...(user.role === 'Parent' ? [{ to: '/parent-portal', label: 'Parent Portal', end: true }] : []),
   ];
@@ -171,7 +180,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
           >
             SMS
           </Link>
-          
+
           <div className="flex items-center gap-2">
             {/* Mobile Notification Bell */}
             <div className="relative" ref={notifMenuRef}>
@@ -191,6 +200,9 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
                 <div className="absolute right-0 mt-3 w-72 rounded-3xl border border-white/10 bg-slate-950 p-4 text-white shadow-2xl z-50">
                   <div className="flex items-center justify-between border-b border-white/10 pb-2 mb-2">
                     <span className="font-bold text-xs">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button type="button" onClick={handleMarkAllAsRead} className="text-[10px] font-semibold text-white/60 hover:text-white transition">Mark all read</button>
+                    )}
                   </div>
                   <div className="max-h-48 overflow-y-auto space-y-2">
                     {notifications.length > 0 ? (
@@ -269,11 +281,14 @@ export default function Navbar({ actionsDisabled = false, onAction = () => {} } 
                 <div className="absolute right-0 mt-3 w-80 rounded-3xl border border-white/10 bg-slate-950 p-4 text-white shadow-[0_20px_50px_rgba(15,23,42,0.35)] z-50">
                   <div className="flex items-center justify-between border-b border-white/10 pb-3 mb-3">
                     <span className="font-bold text-sm">Notifications</span>
-                    {unreadCount > 0 && (
-                      <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-semibold text-rose-300">
-                        {unreadCount} New
-                      </span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="rounded-full bg-rose-500/25 px-2 py-0.5 text-[10px] font-semibold text-rose-300">{unreadCount} New</span>
+                          <button type="button" onClick={handleMarkAllAsRead} className="text-[10px] font-semibold text-white/60 hover:text-white transition">Mark all read</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-64 overflow-y-auto space-y-2">
                     {notifications.length > 0 ? (

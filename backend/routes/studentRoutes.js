@@ -3,6 +3,8 @@ const router = express.Router();
 const {
   registerStudent,
   getStudents,
+  getStudentSubjectSummaries,
+  getStudentSubjectResults,
   getStudentPerformance,
   setGradeFee,
   getGradeFees,
@@ -37,6 +39,9 @@ const { verifyToken, checkRole, checkPermission } = require('../middleware/authM
  *         description: List of students
  */
 router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), getStudents);
+
+router.get('/me/subjects', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectSummaries);
+router.get('/me/subjects/:subjectKey/results', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectResults);
 
 // Aggregated performance (grades + attendance) for one student
 /**

@@ -6,6 +6,7 @@ const {
   getAttendanceSessions,
   saveGrades,
   getGrades,
+  getStudentAllGrades,
   getClassroomOptions,
   createClass,
   getClasses,
@@ -146,7 +147,11 @@ router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
  *       200:
  *         description: List of grades
  */
-router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getGrades);
+// Get all grades for a single student across all subjects (Admin/SuperAdmin only)
+// MUST be before /grades/:classId/:subject to avoid route conflict
+router.get('/grades/student/:studentId', verifyToken, checkRole(['Admin', 'SuperAdmin']), getStudentAllGrades);
+
+router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin', 'Student']), getGrades);
 
 // Classes and sections management
 

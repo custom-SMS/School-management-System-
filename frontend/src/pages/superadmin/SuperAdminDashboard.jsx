@@ -83,8 +83,9 @@ export default function SuperAdminDashboard() {
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>}
         />
         <StatCard
-          title="Total Revenue"
+          title={`Total Revenue (${stats?.activeYear || 'Active Year'})`}
           value={`ETB ${((stats?.totalRevenue || 0) / 1000000).toFixed(2)}M`}
+          subtitle={stats?.allTimeRevenue > stats?.totalRevenue ? `All-time: ETB ${((stats?.allTimeRevenue || 0) / 1000000).toFixed(2)}M` : undefined}
           colorClass="bg-emerald-600"
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
@@ -99,7 +100,7 @@ export default function SuperAdminDashboard() {
           title="System Health"
           value={stats?.systemHealth || 'OK'}
           subtitle="Status"
-          colorClass={stats?.systemHealth === 'Operational' ? 'bg-green-600' : 'bg-red-600' }
+          colorClass={stats?.systemHealth === 'Operational' ? 'bg-green-600' : 'bg-red-600'}
           icon={<svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
         />
       </div>
@@ -117,10 +118,15 @@ export default function SuperAdminDashboard() {
                 <div key={i}>
                   <div className="flex justify-between text-sm font-semibold mb-1.5">
                     <span className="text-slate-700">{div.division}</span>
-                    <span className="text-slate-900 font-black">{div.score}%</span>
+                    <span className="text-slate-900 font-black">
+                      {div.score != null ? `${div.score}%` : '—'}
+                    </span>
                   </div>
                   <div className="w-full bg-slate-100 rounded-full h-2.5">
-                    <div className={`${barColors[i % barColors.length]} h-2.5 rounded-full transition-all`} style={{ width: `${div.score}%` }}></div>
+                    <div
+                      className={`${barColors[i % barColors.length]} h-2.5 rounded-full transition-all`}
+                      style={{ width: div.score != null ? `${div.score}%` : '0%' }}
+                    />
                   </div>
                 </div>
               ))
@@ -185,11 +191,7 @@ export default function SuperAdminDashboard() {
 
         {/* Action Highlights */}
         <div className="space-y-4">
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-6 flex flex-col justify-center items-center text-center">
-            <h4 className="text-amber-600 font-black text-3xl">{stats?.unlockRequestsCount || 0}</h4>
-            <span className="text-amber-900 text-sm font-semibold mt-1">Pending Unlock Requests</span>
-            <button onClick={() => navigate('/admin/reports/attendance')} className="mt-4 px-4 py-2 bg-amber-500 text-white text-xs font-bold rounded-lg hover:bg-amber-600 w-full transition">Review Requests</button>
-          </div>
+
           <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col">
             <h4 className="text-white font-bold text-lg">System Settings</h4>
             <span className="text-slate-400 text-xs font-medium mt-1">Manage global system configurations</span>

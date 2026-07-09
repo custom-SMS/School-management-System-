@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  recordPayment, 
-  getDefaulters, 
+const {
+  recordPayment,
+  getDefaulters,
   getPaidStudentsByClass,
   createFeeStructure,
+  deleteFeeStructure,
   getFeeStructures,
   generateMonthlyFees,
   sendBulkFeeReminders,
@@ -136,6 +137,26 @@ router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *         description: Fee structure created
  */
 router.post('/structures', verifyToken, checkRole(['SuperAdmin']), createFeeStructure);
+
+/**
+ * @swagger
+ * /fees/structures/{id}:
+ *   delete:
+ *     summary: Delete a fee structure
+ *     tags: [Fees]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Fee structure deleted
+ */
+router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), deleteFeeStructure);
 
 /**
  * @swagger

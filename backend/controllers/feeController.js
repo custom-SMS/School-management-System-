@@ -115,7 +115,7 @@ const getDefaulters = async (req, res) => {
         paid: true
       }
     });
-    
+
     // Extract IDs of students who have paid
     const paidStudentIds = paidFees.map(fee => fee.studentId);
 
@@ -223,19 +223,34 @@ const getPaidStudentsByClass = async (req, res) => {
 
 const createFeeStructure = async (req, res) => {
   try {
-    const { grade, amount, description } = req.body;
-    if (!grade || !amount) {
+    const { grade: rawGrade, amount, description } = req.body;
+    if (!rawGrade || !amount) {
       return res.status(400).json({ message: 'Grade and amount are required.' });
     }
 
-    const feeStructure = await prisma.feeStructure.upsert({
-      where: { grade },
-      update: { amount: Number(amount), description },
-      create: { grade, amount: Number(amount), description }
+    // Normalize grade string to prevent case/spacing duplicates
+    const grade = String(rawGrade).trim();
+
+    // Check if a fee for this grade already exists (case-insensitive check)
+    const existing = await prisma.feeStructure.findFirst({
+      where: { grade: { equals: grade, mode: 'insensitive' } }
     });
 
+    let feeStructure;
+    if (existing) {
+      // Update the existing record using its actual stored grade key
+      feeStructure = await prisma.feeStructure.update({
+        where: { id: existing.id },
+        data: { amount: Number(amount), description }
+      });
+    } else {
+      feeStructure = await prisma.feeStructure.create({
+        data: { grade, amount: Number(amount), description }
+      });
+    }
+
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Set Fee Structure', feeStructure.id, `Set tuition for Grade ${grade} to ETB ${amount}`);
+    await logActivity(req.user._id, 'Set Fee Structure', feeStructure.id, `Set tuition for ${grade} to ETB ${amount}`);
 
     res.status(200).json(feeStructure);
   } catch (error) {
@@ -249,6 +264,22 @@ const getFeeStructures = async (req, res) => {
       orderBy: { grade: 'asc' }
     });
     res.status(200).json(structures);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const deleteFeeStructure = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.feeStructure.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Fee structure not found.' });
+    }
+    await prisma.feeStructure.delete({ where: { id } });
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Delete Fee Structure', id, `Deleted fee structure for ${existing.grade}`);
+    res.status(200).json({ message: `Fee structure for ${existing.grade} deleted.` });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -481,11 +512,11 @@ const getMyFees = async (req, res) => {
         status,
         latestPayment: latestPayment
           ? {
-              id: latestPayment.id,
-              status: latestPayment.status,
-              transactionReference: latestPayment.transactionReference,
-              bankName: latestPayment.bankName
-            }
+            id: latestPayment.id,
+            status: latestPayment.status,
+            transactionReference: latestPayment.transactionReference,
+            bankName: latestPayment.bankName
+          }
           : null
       };
     });
@@ -890,7 +921,7 @@ const getReceipt = async (req, res) => {
 const downloadReceiptPdf = async (req, res) => {
   try {
     const { paymentId } = req.params;
-    
+
     const receipt = await prisma.receipt.findUnique({
       where: { paymentId },
       include: {
@@ -969,6 +1000,7 @@ module.exports = {
   getDefaulters,
   getPaidStudentsByClass,
   createFeeStructure,
+  deleteFeeStructure,
   getFeeStructures,
   generateMonthlyFees,
   sendBulkFeeReminders,

@@ -3,12 +3,13 @@ import { Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import CashierLayout from '../../components/CashierLayout';
+import { GRADES, ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
-const MONTHS = ['All Months', 'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit', 'Miyazya', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume'];
-const GRADE_OPTIONS = ['All Grades', 'Class 1', 'Class 2', 'Class 3', 'Class 4', 'Class 5', 'Class 6', 'Class 7', 'Class 8', 'Class 9', 'Class 10', 'Class 11', 'Class 12'];
+const MONTHS = ['All Months', ...ETHIOPIAN_MONTHS];
+const GRADE_OPTIONS = ['All Grades', ...GRADES];
 
 export default function Payments() {
   const [payments, setPayments] = useState([]);

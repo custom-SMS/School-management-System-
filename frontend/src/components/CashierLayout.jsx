@@ -27,9 +27,9 @@ const icons = {
   ),
   support: (
     <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 15.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm1.6-5.3c-.7.5-.9.8-.9 1.4v.4h-1.4v-.5c0-1.1.5-1.7 1.3-2.3.7-.5.9-.8.9-1.3 0-.6-.5-1-1.2-1-.7 0-1.2.4-1.4 1.1l-1.3-.5c.3-1.2 1.3-2 2.8-2 1.6 0 2.7.9 2.7 2.3 0 1-.5 1.6-1.4 2.2z" />
-  
+
   ),
-    logout: <path d="M16 17v-3H9v-4h7V7l5 5-5 5zM14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" />,
+  logout: <path d="M16 17v-3H9v-4h7V7l5 5-5 5zM14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" />,
 
 };
 
@@ -94,10 +94,15 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
   const markAsRead = async (id) => {
     try {
       await axios.patch(`/notifications/${id}/read`);
-      fetchNotifications();
-    } catch (error) {
-      console.error('Failed to mark notification as read', error);
-    }
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    } catch { /* silent */ }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch { /* silent */ }
   };
 
   const linkClass = ({ isActive }) =>
@@ -184,7 +189,7 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
         {/* Main column */}
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Top bar */}
-           <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+          <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}
@@ -225,7 +230,14 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
                 <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-slate-900">Notifications</span>
-                    {unreadCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>}
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
+                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
                     {notifications.length > 0 ? (

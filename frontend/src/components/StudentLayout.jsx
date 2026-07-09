@@ -22,7 +22,6 @@ const navItems = [
   { to: '/student/attendance', label: 'Attendance', icon: 'attendance' },
   { to: '/student/academics', label: 'Academics', icon: 'academics' },
   { to: '/student/finance', label: 'Finance', icon: 'finance' },
-  { to: '/student/reports', label: 'Reports', icon: 'reports' },
 ];
 
 export default function StudentLayout({ children, searchPlaceholder = 'Search records...' }) {
@@ -67,9 +66,18 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
   const markAsRead = async (id) => {
     try {
       await axios.patch(`/notifications/${id}/read`);
-      fetchNotifications();
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch (error) {
       console.error('Failed to mark notification as read', error);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await axios.patch('/notifications/read-all');
+      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+    } catch (error) {
+      console.error('Failed to mark all as read', error);
     }
   };
 
@@ -150,7 +158,14 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
                 <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-slate-900">Notifications</span>
-                    {unreadCount > 0 && <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>}
+                    <div className="flex items-center gap-2">
+                      {unreadCount > 0 && (
+                        <>
+                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
+                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
                     {notifications.length > 0 ? (
