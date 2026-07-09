@@ -22,7 +22,6 @@ const navItems = [
   { to: '/student/attendance', label: 'Attendance', icon: 'attendance' },
   { to: '/student/academics', label: 'Academics', icon: 'academics' },
   { to: '/student/finance', label: 'Finance', icon: 'finance' },
-  { to: '/student/reports', label: 'Reports', icon: 'reports' },
 ];
 
 export default function StudentLayout({ children, searchPlaceholder = 'Search records...' }) {

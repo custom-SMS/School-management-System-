@@ -376,27 +376,21 @@ const saveGrades = async (req, res) => {
       const marks = data.marks || {};
       // Each component may be nullable. Treat null/empty as not provided.
       const toNumOrNull = (v) => (v === null || v === undefined || (typeof v === 'string' && String(v).trim() === '')) ? null : Number(v);
-      const quiz = toNumOrNull(marks.quiz);
-      const assignment = toNumOrNull(marks.assignment);
-      const midterm = toNumOrNull(marks.midterm);
-      const final = toNumOrNull(marks.final);
+      // Clamp each mark to its respective maximum (the weight value)
+      const clamp = (v, max) => v == null ? null : Math.max(0, Math.min(v, max));
+      const quiz = clamp(toNumOrNull(marks.quiz), weights.quizWeight);
+      const assignment = clamp(toNumOrNull(marks.assignment), weights.assignmentWeight);
+      const midterm = clamp(toNumOrNull(marks.midterm), weights.midtermWeight);
+      const final = clamp(toNumOrNull(marks.final), weights.finalWeight);
       const test = toNumOrNull(marks.test); // legacy column, retained but unweighted
 
-      // FR-27: Calculate final score automatically based on weights, using only provided components.
-      const compWeights = [];
-      if (quiz != null) compWeights.push({ score: quiz, weight: weights.quizWeight });
-      if (assignment != null) compWeights.push({ score: assignment, weight: weights.assignmentWeight });
-      if (midterm != null) compWeights.push({ score: midterm, weight: weights.midtermWeight });
-      if (final != null) compWeights.push({ score: final, weight: weights.finalWeight });
-
+      // Simple sum of provided marks (each already out of its max)
       let storedTotal = 0;
-      let storedPercentage = 0;
-      if (compWeights.length > 0) {
-        const weightedSum = compWeights.reduce((s, c) => s + (c.score * c.weight), 0);
-        const sumWeights = compWeights.reduce((s, c) => s + c.weight, 0);
-        storedTotal = Number((weightedSum / sumWeights).toFixed(2));
-        storedPercentage = storedTotal;
-      }
+      if (quiz != null) storedTotal += quiz;
+      if (assignment != null) storedTotal += assignment;
+      if (midterm != null) storedTotal += midterm;
+      if (final != null) storedTotal += final;
+      const storedPercentage = storedTotal;
 
       const existingGrade = await prisma.grade.findFirst({
         where: { studentId: data.student, classId, subject }

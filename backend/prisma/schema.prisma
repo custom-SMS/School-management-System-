@@ -369,10 +369,18 @@ model ReportCard {
   academicYear         AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   grade                String
   attendancePercentage Float
+  attendancePresent    Int          @default(0)
+  attendanceAbsent     Int          @default(0)
+  attendanceLate       Int          @default(0)
+  attendanceTotal      Int          @default(0)
   averageScore         Float
   rank                 Int?
-  status               String       @default("Pending")
-  teacherComments      String?
+  status               String       @default("Pending") // Pass / Fail / Pending
+  teacherComments      String?      // Subject teacher comments
+  homeroomRemarks      String?      // Homeroom teacher remarks
+  conductGrade         String?      // e.g. "Excellent", "Good", "Satisfactory", "Needs Improvement"
+  workflowStatus       String       @default("Draft")
+  // Draft → HomeroomReview → AdminReview → Published
   published            Boolean      @default(false)
   promotionStatus      String       @default("Pending")
   promotedById         String?

@@ -9,26 +9,15 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-const clampMark = (value) => {
+const clampMark = (value, max = 100) => {
   if (value == null) return null;
   if (typeof value === 'string' && value.trim() === '') return null;
   const n = Number(value);
   if (Number.isNaN(n)) return null;
   if (n < 0) return 0;
-  if (n > 100) return 100;
+  if (n > max) return max;
   return n;
 };
-
-const letterFor = (pct) => {
-  if (pct == null) return '—';
-  if (pct >= 90) return 'A';
-  if (pct >= 80) return 'B';
-  if (pct >= 70) return 'C';
-  if (pct >= 60) return 'D';
-  return 'F';
-};
-
-const fmt = (n) => (n != null ? Number(n).toFixed(1) : '—');
 
 // ─── component ────────────────────────────────────────────────────────────────
 export default function GradesContent({ canEdit = false }) {
@@ -50,16 +39,9 @@ export default function GradesContent({ canEdit = false }) {
     { field: 'final',      label: 'Final',       weight: weights.finalWeight },
   ], [weights]);
 
-  const calcTotal = useCallback((marks) => {
-    const filled = components.filter((c) => marks?.[c.field] != null);
-    if (filled.length === 0) return null;
-    const sum = filled.reduce((s, c) => {
-      const raw = Number(marks[c.field]);
-      const contrib = raw > c.weight ? (raw / 100) * c.weight : raw;
-      return s + contrib;
-    }, 0);
-    const wSum = filled.reduce((s, c) => s + c.weight, 0);
-    return wSum > 0 ? (sum / wSum) * 100 : null;
+  const getMaxForField = useCallback((field) => {
+    const comp = components.find((c) => c.field === field);
+    return comp ? comp.weight : 100;
   }, [components]);
 
   // ── class list view ──────────────────────────────────────────────────────
@@ -151,7 +133,7 @@ export default function GradesContent({ canEdit = false }) {
   };
 
   const handleEditChange = (field, value) => {
-    setEditMarks((prev) => ({ ...prev, [field]: clampMark(value) }));
+    setEditMarks((prev) => ({ ...prev, [field]: clampMark(value, getMaxForField(field)) }));
   };
 
   const handleSave = async (grade) => {
@@ -182,11 +164,7 @@ export default function GradesContent({ canEdit = false }) {
   };
 
   // ── class summary stats ──────────────────────────────────────────────────
-  const gradedRows = classRows.filter((r) => calcTotal(r.marks) != null);
-  const classAvg = gradedRows.length
-    ? gradedRows.reduce((s, r) => s + calcTotal(r.marks), 0) / gradedRows.length : null;
-  const highest = gradedRows.length ? Math.max(...gradedRows.map((r) => calcTotal(r.marks))) : null;
-  const lowest  = gradedRows.length ? Math.min(...gradedRows.map((r) => calcTotal(r.marks))) : null;
+  const gradedRows = classRows.filter((r) => components.some((c) => r.marks?.[c.field] != null));
 
   // ── render ────────────────────────────────────────────────────────────────
   return selectedStudent ? (
@@ -250,7 +228,6 @@ export default function GradesContent({ canEdit = false }) {
       ) : (
         <div className="space-y-4">
           {studentGrades.map((grade) => {
-            const total = calcTotal(grade.marks || {});
             const isEditing = editingId === grade._id;
             const displayMarks = isEditing ? editMarks : (grade.marks || {});
 
@@ -263,14 +240,6 @@ export default function GradesContent({ canEdit = false }) {
                     <div className="text-xs text-slate-400">{grade.classRef?.name || '—'}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      <div className={`text-lg font-black ${total == null ? 'text-slate-300' : total >= 50 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                        {total != null ? `${fmt(total)}%` : '—'}
-                      </div>
-                      <div className={`text-xs font-bold ${total == null ? 'text-slate-300' : total >= 70 ? 'text-emerald-600' : total >= 50 ? 'text-amber-600' : 'text-rose-600'}`}>
-                        {letterFor(total)}
-                      </div>
-                    </div>
                     {canEdit && (
                       isEditing ? (
                         <div className="flex gap-2">
@@ -305,13 +274,13 @@ export default function GradesContent({ canEdit = false }) {
                   {components.map((c) => (
                     <div key={c.field} className="rounded-xl bg-slate-50 p-3">
                       <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                        {c.label} <span className="font-normal">({c.weight}%)</span>
+                        {c.label} <span className="font-normal">(out of {c.weight})</span>
                       </div>
                       {isEditing ? (
                         <input
                           type="number"
                           min="0"
-                          max="100"
+                          max={c.weight}
                           value={displayMarks[c.field] ?? ''}
                           onChange={(e) => handleEditChange(c.field, e.target.value === '' ? null : e.target.value)}
                           className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-sm font-bold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
@@ -321,7 +290,7 @@ export default function GradesContent({ canEdit = false }) {
                         <div className={`mt-2 text-xl font-black ${displayMarks[c.field] != null ? 'text-slate-900' : 'text-slate-300'}`}>
                           {displayMarks[c.field] != null ? displayMarks[c.field] : '—'}
                           {displayMarks[c.field] != null && (
-                            <span className="ml-1 text-xs font-normal text-slate-400">/100</span>
+                            <span className="ml-1 text-xs font-normal text-slate-400">/ {c.weight}</span>
                           )}
                         </div>
                       )}
@@ -374,18 +343,11 @@ export default function GradesContent({ canEdit = false }) {
 
       {/* Summary cards */}
       {gradedRows.length > 0 && (
-        <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            { label: 'Graded',        value: `${gradedRows.length} / ${classRows.length}` },
-            { label: 'Class Average', value: classAvg != null ? `${fmt(classAvg)}%` : '—' },
-            { label: 'Highest',       value: highest  != null ? `${fmt(highest)}%`  : '—' },
-            { label: 'Lowest',        value: lowest   != null ? `${fmt(lowest)}%`   : '—' },
-          ].map((s) => (
-            <div key={s.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">{s.label}</p>
-              <p className="mt-1.5 text-2xl font-black text-slate-900">{s.value}</p>
-            </div>
-          ))}
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Graded</p>
+            <p className="mt-1.5 text-2xl font-black text-slate-900">{gradedRows.length} / {classRows.length}</p>
+          </div>
         </div>
       )}
 
@@ -409,16 +371,13 @@ export default function GradesContent({ canEdit = false }) {
                   {components.map((c) => (
                     <th key={c.field} className="px-4 py-4 font-semibold">
                       {c.label}
-                      <span className="ml-1 font-normal text-slate-300">({c.weight}%)</span>
+                      <span className="ml-1 font-normal text-slate-300">(/{c.weight})</span>
                     </th>
                   ))}
-                  <th className="px-4 py-4 font-semibold">Total</th>
-                  <th className="px-4 py-4 font-semibold">Grade</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredClassRows.map((row) => {
-                  const total = calcTotal(row.marks);
                   return (
                     <tr key={row.student._id} className="transition hover:bg-slate-50">
                       <td className="px-5 py-3.5">
@@ -432,25 +391,10 @@ export default function GradesContent({ canEdit = false }) {
                       {components.map((c) => (
                         <td key={c.field} className="px-4 py-3.5">
                           <span className={row.marks[c.field] != null ? 'font-semibold text-slate-800' : 'text-slate-300'}>
-                            {row.marks[c.field] != null ? row.marks[c.field] : '—'}
+                            {row.marks[c.field] != null ? `${row.marks[c.field]} / ${c.weight}` : '—'}
                           </span>
                         </td>
                       ))}
-                      <td className="px-4 py-3.5">
-                        <span className={`font-bold ${total == null ? 'text-slate-300' : total >= 50 ? 'text-emerald-700' : 'text-rose-600'}`}>
-                          {total != null ? `${fmt(total)}%` : '—'}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <span className={`inline-flex items-center justify-center rounded-lg px-2.5 py-1 text-xs font-black ${
-                          total == null       ? 'bg-slate-100 text-slate-400'
-                          : total >= 70       ? 'bg-emerald-50 text-emerald-700'
-                          : total >= 50       ? 'bg-amber-50 text-amber-700'
-                          :                     'bg-rose-50 text-rose-700'
-                        }`}>
-                          {letterFor(total)}
-                        </span>
-                      </td>
                     </tr>
                   );
                 })}

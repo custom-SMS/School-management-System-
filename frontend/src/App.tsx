@@ -77,9 +77,7 @@ import StudentAcademics from "./pages/student/StudentAcademics";
 import SubjectResultDetails from "./pages/student/SubjectResultDetails";
 import StudentFinance from "./pages/student/StudentFinance";
 import StudentPayment from "./pages/student/StudentPayment";
-import StudentReports from "./pages/student/StudentReports";
 import StudentFees from "./pages/StudentFees";
-import ReportCard from "./pages/ReportCard";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
@@ -581,16 +579,6 @@ function App() {
               STUDENT / PARENT ROUTES
               ======================================================== */}
             <Route
-              path="/report-card"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Teacher", "Student", "Parent", "SuperAdmin"]}
-                >
-                  <ReportCard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
               path="/my-fees"
               element={
                 <ProtectedRoute allowedRoles={["Student", "Parent"]}>
@@ -656,16 +644,6 @@ function App() {
                   allowedRoles={["Student", "Parent", "SuperAdmin"]}
                 >
                   <StudentPayment />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/reports"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentReports />
                 </ProtectedRoute>
               }
             />
