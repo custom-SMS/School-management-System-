@@ -99,6 +99,7 @@ const navItems = [
   { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
   { to: '/super-admin/financial-oversight', label: 'Financial Oversight', icon: <FinanceIcon /> },
   { to: '/super-admin/fees', label: 'Fees', icon: <FinanceIcon /> },
+  { to: '/super-admin/grades', label: 'Grade Management', icon: <ActivityIcon /> },
   { to: '/super-admin/analytics', label: 'System Analytics', icon: <ActivityIcon /> },
   { to: '/super-admin/notifications', label: 'Notifications', icon: <BellIcon /> },
   { to: '/super-admin/registration', label: 'Student Registration', icon: <UsersIcon /> },

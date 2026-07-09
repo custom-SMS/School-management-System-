@@ -99,6 +99,7 @@ const navItems = [
   { to: '/admin/subjects', label: 'Subjects', icon: <CalendarIcon /> },
   { to: '/admin/classes', label: 'Classes', icon: <SystemIcon /> },
   { to: '/admin/sections', label: 'Sections', icon: <SystemIcon /> },
+  { to: '/admin/grades', label: 'Grades', icon: <ActivityIcon /> },
   { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
   { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
   { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },

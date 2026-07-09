@@ -193,7 +193,7 @@ const getClassroomOptions = async (req, res) => {
 };
 
 const ensureTeacherAuthorization = async (req, classId, studentIds = []) => {
-  if (req.user.role === 'Admin') return { ok: true };
+  if (req.user.role === 'Admin' || req.user.role === 'SuperAdmin') return { ok: true };
 
   const teacher = await getTeacherProfile(req.user._id);
   if (!teacher) {
@@ -351,6 +351,11 @@ const saveGrades = async (req, res) => {
 
     const studentIds = (gradesData || []).map((data) => data.student).filter(Boolean);
 
+    // Only SuperAdmin can edit grades — Admin gets read-only access
+    if (req.user.role === 'Admin') {
+      return res.status(403).json({ message: 'Admins have view-only access to grades. Only SuperAdmin can edit grades.' });
+    }
+
     const authorization = await ensureTeacherAuthorization(req, classId, studentIds);
     if (!authorization.ok) {
       return res.status(authorization.status).json({ message: authorization.message });
@@ -478,6 +483,31 @@ const getGradingStructure = async (req, res) => {
   }
 };
 
+// @desc    Get all grades for a specific student (all subjects) — Admin/SuperAdmin
+// @route   GET /api/classroom/grades/student/:studentId
+// @access  Private (Admin/SuperAdmin)
+const getStudentAllGrades = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId },
+      include: {
+        class: { select: { id: true, name: true, subject: true } },
+        subjectRef: { select: { id: true, name: true } }
+      },
+      orderBy: [{ subject: 'asc' }, { updatedAt: 'desc' }]
+    });
+
+    res.status(200).json(grades.map(g => ({
+      ...mapGradeToResponse(g),
+      classRef: g.class || null,
+    })));
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 // @desc    Get grades for a specific class and subject
 // @route   GET /api/classroom/grades/:classId/:subject
 // @access  Private (Teacher/Admin)
@@ -520,7 +550,7 @@ const getGrades = async (req, res) => {
     }
 
     // Teachers and Admins need authorization checks
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SuperAdmin') {
       const teacher = await getTeacherProfile(req.user._id);
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
       const allowed = await isTeacherAssignedToClass(teacher.id, classId);
@@ -1360,6 +1390,7 @@ module.exports = {
   unlockAttendance,
   saveGrades,
   getGrades,
+  getStudentAllGrades,
   getClassroomOptions,
   createClass,
   getClasses,

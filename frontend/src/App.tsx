@@ -21,6 +21,7 @@ import AcademicYears from "./pages/superadmin/AcademicYears";
 import AttendanceGovernance from "./pages/superadmin/AttendanceGovernance";
 import FinancialOversight from "./pages/superadmin/FinancialOversight";
 import SuperAdminFees from "./pages/superadmin/Fees";
+import SuperAdminGrades from "./pages/superadmin/SuperAdminGrades";
 import Settings from "./pages/Settings";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
@@ -30,6 +31,7 @@ import SystemNotifications from "./pages/superadmin/SystemNotifications";
 
 // Admin
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminGrades from "./pages/admin/AdminGrades";
 import RegisterStudent from "./pages/StudentRegistrationWizard";
 import Students from "./pages/Students";
 import Teachers from "./pages/Teachers";
@@ -197,6 +199,14 @@ function App() {
               }
             />
             <Route
+              path="/super-admin/grades"
+              element={
+                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                  <SuperAdminGrades />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/super-admin/fees"
               element={
                 <ProtectedRoute allowedRoles={["SuperAdmin"]}>
@@ -258,6 +268,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/grades"
+              element={
+                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                  <AdminGrades />
                 </ProtectedRoute>
               }
             />
