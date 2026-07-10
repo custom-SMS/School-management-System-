@@ -25,7 +25,9 @@ export function BranchProvider({ children }) {
 
   // The branch the admin is currently "working in"
   // For BranchAdmin / LevelAdmin this is locked to their assigned branch
-  const [selectedBranchId, setSelectedBranchId] = useState(activeBranchId || null);
+  const [selectedBranchId, setSelectedBranchId] = useState(() => {
+    return activeBranchId || localStorage.getItem('selectedBranchId') || null;
+  });
   const [selectedLevelId,  setSelectedLevelId]  = useState(activeLevelId  || null);
 
   const [loading, setLoading] = useState(false);
@@ -51,6 +53,7 @@ export function BranchProvider({ children }) {
       // Auto-select first branch for SuperAdmin / SchoolAdmin if none selected
       if ((isSuper || isSchoolAdmin) && !selectedBranchId && list.length > 0) {
         setSelectedBranchId(list[0].id);
+        localStorage.setItem('selectedBranchId', list[0].id);
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
@@ -100,6 +103,11 @@ export function BranchProvider({ children }) {
   const switchBranch = (branchId) => {
     if (!canSwitchBranch) return;
     setSelectedBranchId(branchId);
+    if (branchId) {
+      localStorage.setItem('selectedBranchId', branchId);
+    } else {
+      localStorage.removeItem('selectedBranchId');
+    }
     setSelectedLevelId(null);
   };
 
