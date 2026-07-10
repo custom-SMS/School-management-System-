@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getAdminStats, 
+const {
+  getAdminStats,
   getSuperAdminStats,
-  getStudentPortalStats, 
-  getParentPortalStats, 
-  getTeacherPortalStats 
+  getStudentPortalStats,
+  getParentPortalStats,
+  getTeacherPortalStats
 } = require('../controllers/statsController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -32,7 +32,7 @@ router.use(verifyToken);
  *       200:
  *         description: Dashboard stats for Admin
  */
-router.get('/admin', checkRole(['Admin', 'SuperAdmin', 'Cashier']), getAdminStats);
+router.get('/admin', checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getAdminStats);
 
 // Get SuperAdmin dashboard stats
 /**

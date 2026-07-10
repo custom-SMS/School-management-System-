@@ -2,6 +2,7 @@ import { useContext, useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useBranding } from '../context/SettingsContext';
+import { useBranch } from '../context/BranchContext';
 import axios from '../api/axios';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -19,6 +20,12 @@ const UsersIcon = () => (
     <circle cx="9" cy="7" r="4" />
     <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
     <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+const BriefcaseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+    <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
   </svg>
 );
 const RoleIcon = () => (
@@ -94,6 +101,8 @@ const CloseIcon = () => (
 const navItems = [
   { to: '/super-admin/dashboard', label: 'Executive Dashboard', icon: <DashboardIcon /> },
   { to: '/super-admin/users', label: 'User Management', icon: <UsersIcon /> },
+  { to: '/super-admin/employees', label: 'Employee Management', icon: <BriefcaseIcon /> },
+  { to: '/super-admin/branches', label: 'Branch Management', icon: <SystemIcon /> },
   { to: '/super-admin/roles', label: 'Roles & Permissions', icon: <RoleIcon /> },
   { to: '/super-admin/academic-years', label: 'Academic Years', icon: <CalendarIcon /> },
   { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
@@ -110,6 +119,7 @@ const navItems = [
 export default function SuperAdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useContext(AuthContext);
   const { branding, logoUrl } = useBranding();
+  const { branches, levels, selectedBranch, selectedLevel, selectedBranchId, canSwitchBranch, switchBranch, switchLevel } = useBranch();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -245,6 +255,31 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
           </div>
 
           <div className="flex items-center gap-3 sm:gap-6">
+            {canSwitchBranch && branches.length > 0 && (
+              <div className="hidden lg:flex items-center gap-2">
+                <select
+                  value={selectedBranchId || ''}
+                  onChange={(e) => switchBranch(e.target.value)}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                >
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                {levels.length > 0 && (
+                  <select
+                    value={selectedLevel?.id || ''}
+                    onChange={(e) => switchLevel(e.target.value || null)}
+                    className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                  >
+                    <option value="">All Levels</option>
+                    {levels.map((l) => (
+                      <option key={l.id} value={l.id}>{l.name}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            )}
             <div className="relative hidden items-center md:flex">
               <span className="absolute left-3">
                 <SearchIcon />

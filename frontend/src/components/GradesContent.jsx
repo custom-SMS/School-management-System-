@@ -211,7 +211,7 @@ export default function GradesContent({ canEdit = false }) {
           <svg className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 15.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm1-5h-2V7h2v5.5z" />
           </svg>
-          <p className="text-xs font-medium text-blue-800">View-only. Only SuperAdmin can edit grades.</p>
+          <p className="text-xs font-medium text-blue-800">View-only.</p>
         </div>
       )}
 

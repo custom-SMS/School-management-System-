@@ -42,7 +42,7 @@ export const AuthProvider = ({ children }) => {
 
     localStorage.setItem('user', JSON.stringify(user));
     setUser(user);
-    
+
     // Fetch permissions right after login
     try {
       const res = await api.get('/auth/permissions/me');
@@ -50,7 +50,7 @@ export const AuthProvider = ({ children }) => {
     } catch {
       setPermissions([]);
     }
-    
+
     return user;
   };
 
@@ -66,7 +66,26 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, permissions, login, logout, loading }}>
+    <AuthContext.Provider value={{
+      user,
+      permissions,
+      login,
+      logout,
+      loading,
+      // Scope helpers — derived from the user object set at login
+      isSuper: user?.role === 'SuperAdmin',
+      isSchoolAdmin: user?.scopeType === 'SchoolAdmin',
+      isBranchAdmin: user?.scopeType === 'BranchAdmin',
+      isLevelAdmin: user?.scopeType === 'LevelAdmin',
+      isCashierScope: user?.scopeType === 'Cashier',
+      // Convenience: true for any admin-type scope
+      isAnyAdmin: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(user?.scopeType) || user?.role === 'SuperAdmin',
+      // Active scope IDs
+      activeBranchId: user?.branchId || null,
+      activeLevelId: user?.levelId || null,
+      activeSchoolId: user?.schoolId || null,
+      scopeType: user?.scopeType || null,
+    }}>
       {children}
     </AuthContext.Provider>
   );

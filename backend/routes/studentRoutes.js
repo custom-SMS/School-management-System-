@@ -15,7 +15,7 @@ const {
   repeatStudent,
   setStudentStatus
 } = require('../controllers/studentController');
-const { verifyToken, checkRole, checkPermission } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -38,7 +38,7 @@ const { verifyToken, checkRole, checkPermission } = require('../middleware/authM
  *       200:
  *         description: List of students
  */
-router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), getStudents);
+router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), injectBranchFilter, getStudents);
 
 router.get('/me/subjects', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectSummaries);
 router.get('/me/subjects/:subjectKey/results', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectResults);
