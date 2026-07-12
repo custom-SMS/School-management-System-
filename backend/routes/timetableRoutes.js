@@ -7,7 +7,7 @@ const {
   getStudentTimetable,
   deleteTimetableSlot
 } = require('../controllers/timetableController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -40,7 +40,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: Timetable data
  */
-router.get('/class/:classId/:academicYearId', verifyToken, getTimetablesByClass);
+router.get('/class/:classId/:academicYearId', verifyToken, injectBranchFilter, getTimetablesByClass);
 
 /**
  * @swagger
@@ -110,7 +110,7 @@ router.get('/student/me', verifyToken, checkRole(['Student', 'Parent', 'SuperAdm
  *       201:
  *         description: Timetable slot created
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), createTimetableSlot);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createTimetableSlot);
 
 /**
  * @swagger

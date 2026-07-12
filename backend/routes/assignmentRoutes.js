@@ -23,7 +23,11 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       200:
  *         description: List of assignment options
  */
+<<<<<<< HEAD
 router.get('/options', verifyToken, checkRole(['Admin']), injectBranchFilter, getAssignmentOptions);
+=======
+router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAssignmentOptions);
+>>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
 
 /**
  * @swagger
@@ -57,7 +61,7 @@ router.get('/options', verifyToken, checkRole(['Admin']), injectBranchFilter, ge
  *       201:
  *         description: Assignment created
  */
-router.post('/', verifyToken, checkRole(['Admin']), createAssignment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createAssignment);
 
 /**
  * @swagger
@@ -108,6 +112,6 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       200:
  *         description: List of all assignments
  */
-router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAllAssignments);
+router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAllAssignments);
 
 module.exports = router;

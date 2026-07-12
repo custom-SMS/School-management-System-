@@ -4,14 +4,22 @@ const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = requi
 const getAssignmentOptions = async (req, res) => {
   try {
     const teachers = await prisma.teacher.findMany({
+<<<<<<< HEAD
       where: req.branchFilter || {},
+=======
+      where: { ...(req.branchFilter || {}) },
+>>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       include: {
         user: { select: { id: true, name: true, email: true } }
       }
     });
 
     const classes = await prisma.class.findMany({
+<<<<<<< HEAD
       where: req.branchFilter || {},
+=======
+      where: { ...(req.branchFilter || {}) },
+>>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       orderBy: { name: 'asc' },
       include: {
         teacher: { select: { teacherId: true } },
@@ -37,7 +45,11 @@ const getAssignmentOptions = async (req, res) => {
     });
 
     const sections = await prisma.section.findMany({
+<<<<<<< HEAD
       where: req.branchFilter?.branchId ? { class: { branchId: req.branchFilter.branchId } } : {},
+=======
+      where: { class: { ...(req.branchFilter || {}) } },
+>>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       orderBy: [
         { class: { name: 'asc' } },
         { name: 'asc' }
@@ -92,11 +104,16 @@ const createAssignment = async (req, res) => {
       return res.status(400).json({ message: 'Home Room Teacher can only be assigned to one class at a time.' });
     }
 
+    const branchId = req.branchFilter?.branchId || null;
+
     const teacher = await prisma.teacher.findUnique({
       where: { id: teacherId }
     });
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
+    }
+    if (branchId && teacher.branchId !== branchId) {
+      return res.status(403).json({ message: 'Access denied. Teacher belongs to another branch.' });
     }
 
     let resolvedClasses = [];
@@ -111,6 +128,9 @@ const createAssignment = async (req, res) => {
       if (!resolvedSection) {
         return res.status(404).json({ message: 'Section not found' });
       }
+      if (branchId && resolvedSection.class?.branchId !== branchId) {
+        return res.status(403).json({ message: 'Access denied. Section belongs to another branch.' });
+      }
 
       resolvedClasses = [{ id: resolvedSection.classId }];
     } else {
@@ -120,11 +140,14 @@ const createAssignment = async (req, res) => {
       if (classes.length !== normalizedClassIds.length) {
         return res.status(404).json({ message: 'One or more classes were not found' });
       }
+      if (branchId && classes.some(c => c.branchId !== branchId)) {
+        return res.status(403).json({ message: 'Access denied. One or more classes belong to another branch.' });
+      }
 
       const specificClassDocs = [];
       for (const className of normalizedSpecificClassNames) {
         let existingClass = await prisma.class.findFirst({
-          where: { name: className }
+          where: { name: className, branchId }
         });
         if (existingClass) {
           specificClassDocs.push(existingClass);
@@ -135,6 +158,7 @@ const createAssignment = async (req, res) => {
           data: {
             name: className,
             subject: 'General',
+            branchId
           }
         });
         specificClassDocs.push(createdClass);
@@ -262,7 +286,13 @@ const getMyAssignments = async (req, res) => {
 
 const getAllAssignments = async (req, res) => {
   try {
+    const where = {};
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.class = { ...(req.branchFilter || {}) };
+    }
+
     const assignments = await prisma.teacherAssignment.findMany({
+      where,
       include: {
         teacher: {
           include: {
