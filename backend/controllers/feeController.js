@@ -547,6 +547,7 @@ const submitBankPayment = async (req, res) => {
             id: true,
             userId: true,
             studentId: true,
+            branchId: true,
             user: { select: { name: true } }
           }
         }
@@ -593,7 +594,19 @@ const submitBankPayment = async (req, res) => {
     });
 
     const cashiers = await prisma.user.findMany({
-      where: { role: { in: ['Cashier', 'Admin', 'SuperAdmin'] } },
+      where: {
+        OR: [
+          { role: 'SuperAdmin' },
+          {
+            role: { in: ['Cashier', 'Admin'] },
+            userScope: {
+              some: {
+                branchId: fee.student?.branchId
+              }
+            }
+          }
+        ]
+      },
       select: { id: true }
     });
 

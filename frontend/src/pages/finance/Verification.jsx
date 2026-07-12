@@ -115,8 +115,12 @@ export default function Verification() {
               {/* Slip image + meta */}
               <div className="space-y-4">
                 <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                  <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 text-sm text-slate-400">
-                    Bank slip image preview
+                  <div className="flex h-64 items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 overflow-hidden">
+                    {active.receiptImageUrl ? (
+                      <img src={active.receiptImageUrl} alt="Bank slip" className="h-full w-full object-contain" />
+                    ) : (
+                      <span className="text-sm text-slate-400">No bank slip provided</span>
+                    )}
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3">

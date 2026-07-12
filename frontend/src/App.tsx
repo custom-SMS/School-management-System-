@@ -299,6 +299,14 @@ function App() {
               }
             />
             <Route
+              path="/admin/users/:id"
+              element={
+                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                  <UserDetails />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/admin/grades"
               element={
                 <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>

@@ -208,7 +208,7 @@ export default function UserManagement() {
                       </div>
                       <div>
                         <Link
-                          to={`/super-admin/users/${u.id}`}
+                          to={currentUser?.role === 'SuperAdmin' ? `/super-admin/users/${u.id}` : `/admin/users/${u.id}`}
                           className="font-bold text-slate-900 transition hover:text-gray-600 "
                         >
                           {u.name}

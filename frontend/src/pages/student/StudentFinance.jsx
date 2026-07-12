@@ -28,25 +28,31 @@ export default function StudentFinance() {
   useEffect(load, []);
 
   const totals = useMemo(() => {
-    let billed = 0, paid = 0, due = 0;
+    let billed = 0, paid = 0, due = 0, verifying = 0;
     fees.forEach((f) => {
       const amt = Number(f.amount || 0);
       billed += amt;
-      if (f.paid) paid += amt; else due += amt;
+      if (f.paid) paid += amt;
+      else if (f.status === 'Pending Verification') verifying += amt;
+      else due += amt;
     });
-    return { billed, paid, due, pct: billed ? Math.round((paid / billed) * 100) : 0 };
+    return { billed, paid, due, verifying, pct: billed ? Math.round((paid / billed) * 100) : 0 };
   }, [fees]);
 
   const paidCount = fees.filter((f) => f.paid).length;
   const pendingCount = fees.filter((f) => !f.paid).length;
 
   const handlePayNow = () => {
-    const firstUnpaid = fees.find((f) => !f.paid);
-    navigate('/student/finance/pay', { state: { feeId: firstUnpaid?._id } });
+    const firstPayable = fees.find((f) => !f.paid && f.status !== 'Pending Verification');
+    if (firstPayable) {
+      navigate('/student/finance/pay', { state: { feeId: firstPayable._id } });
+    }
   };
 
   const statusPill = (f) => {
     if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
+    if (f.status === 'Pending Verification') return <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">VERIFYING</span>;
+    if (f.status === 'Rejected') return <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">REJECTED</span>;
     const overdue = f.dueDate && new Date(f.dueDate) < new Date();
     return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
   };
@@ -63,7 +69,7 @@ export default function StudentFinance() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       toast.success('Receipt downloaded.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to download receipt.');
@@ -101,6 +107,7 @@ export default function StudentFinance() {
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Balance Due</div>
           <div className="mt-1 text-3xl font-black text-slate-900">{etb(totals.due)} <span className="text-base font-bold text-slate-400">ETB</span></div>
+          {totals.verifying > 0 && <div className="mt-2 text-sm font-semibold text-blue-600">ℹ {etb(totals.verifying)} ETB under verification</div>}
           {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ Payment outstanding</div>}
           <button
             onClick={handlePayNow}

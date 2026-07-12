@@ -50,7 +50,7 @@ export default function ParentFinance() {
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.URL.revokeObjectURL(url);
+      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       toast.success('Receipt downloaded.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to download receipt.');

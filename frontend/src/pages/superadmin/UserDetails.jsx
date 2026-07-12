@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
+import AdminLayout from '../../components/AdminLayout';
+import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const ROLE_COLORS = {
@@ -44,6 +46,10 @@ const SectionCard = ({ title, description, children }) => (
 
 export default function UserDetails() {
   const { id } = useParams();
+  const { user: currentUser } = useContext(AuthContext);
+  const Layout = currentUser?.role === 'SuperAdmin' ? SuperAdminLayout : AdminLayout;
+  const backLink = currentUser?.role === 'SuperAdmin' ? "/super-admin/users" : "/admin/users";
+
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,20 +70,20 @@ export default function UserDetails() {
 
   if (loading) {
     return (
-      <SuperAdminLayout pageTitle="User Details">
+      <Layout pageTitle="User Details">
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-500">
           Loading user details...
         </div>
-      </SuperAdminLayout>
+      </Layout>
     );
   }
 
   if (!user) {
     return (
-      <SuperAdminLayout pageTitle="User Details">
+      <Layout pageTitle="User Details">
         <div className="space-y-4">
           <Link
-            to="/super-admin/users"
+            to={backLink}
             className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800"
           >
             ← Back to User Management
@@ -86,7 +92,7 @@ export default function UserDetails() {
             User details could not be found.
           </div>
         </div>
-      </SuperAdminLayout>
+      </Layout>
     );
   }
 
@@ -105,12 +111,12 @@ export default function UserDetails() {
   const familyBackground = studentProfile?.familyBackground || {};
 
   return (
-    <SuperAdminLayout pageTitle="User Details">
+    <Layout pageTitle="User Details">
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
             <Link
-              to="/super-admin/users"
+              to={backLink}
               className="inline-flex items-center text-sm font-semibold text-indigo-600 hover:text-indigo-800"
             >
               ← Back to User Management
@@ -408,6 +414,6 @@ export default function UserDetails() {
           </SectionCard>
         )}
       </div>
-    </SuperAdminLayout>
+    </Layout>
   );
 }
