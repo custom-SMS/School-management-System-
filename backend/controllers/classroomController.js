@@ -1122,7 +1122,9 @@ const createClass = async (req, res) => {
 
           mode: 'insensitive'
 
-        }
+        },
+
+        ...(req.branchFilter || {})
 
       }
 
@@ -1164,7 +1166,9 @@ const createClass = async (req, res) => {
 
         teacherId: teacherId || null,
 
-        schedule: schedule || null
+        schedule: schedule || null,
+
+        ...(req.branchFilter || {})
 
       }
 

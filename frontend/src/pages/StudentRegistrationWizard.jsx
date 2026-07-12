@@ -73,7 +73,10 @@ export default function StudentRegistrationWizard() {
 
   useEffect(() => {
     axios.get('/students/grade-fee').then((r) => setGradeFees(r.data || [])).catch(() => {});
-    axios.get('/students/classes').then((r) => setClasses(r.data || [])).catch(() => setClasses([]));
+    axios.get('/students/classes').then((r) => {
+      const all = r.data || [];
+      setClasses(all.filter(c => c.feeConfigured !== false));
+    }).catch(() => setClasses([]));
     axios.get('/academic-years')
       .then((r) => setActiveYear((r.data || []).find((y) => y.isActive) || null))
       .catch(() => setActiveYear(null));
