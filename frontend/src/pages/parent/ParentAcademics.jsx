@@ -13,7 +13,7 @@ export default function ParentAcademics() {
     <ParentLayout kids={children} childId={childId} onSelectChild={setChildId}>
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Academic Performance</h1>
-        <p className="text-sm text-slate-500">{name} · {selectedChild?.profile?.grade || ''} · ID {selectedChild?.profile?.studentId || ''}</p>
+        <p className="text-sm text-slate-500">{name} · {selectedChild?.profile?.grade || ''}{selectedChild?.profile?.stream ? ` (${selectedChild.profile.stream})` : ''} · ID {selectedChild?.profile?.studentId || ''}</p>
       </div>
 
       {loading ? (

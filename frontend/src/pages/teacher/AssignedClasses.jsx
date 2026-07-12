@@ -108,7 +108,7 @@ export default function AssignedClasses() {
                 {classes.map((c) => (
                   <tr key={c.classId} className="text-slate-700">
                     <td className="px-4 py-4 font-bold text-slate-900">{c.subject}</td>
-                    <td className="px-4 py-4">{c.className}</td>
+                    <td className="px-4 py-4">{c.className} {c.stream ? `(${c.stream})` : ''}</td>
                     <td className="px-4 py-4 text-right">{c.studentCount}</td>
                     <td className="px-4 py-4 text-right">{c.attendanceSessions}</td>
                     <td className="px-4 py-4 text-right font-semibold">{c.averageGrade}%</td>
@@ -127,7 +127,7 @@ export default function AssignedClasses() {
           <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col rounded-3xl bg-white shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
               <div>
-                <h3 className="text-xl font-bold text-slate-900">Manage Promotions: {selectedClass?.className}</h3>
+                <h3 className="text-xl font-bold text-slate-900">Manage Promotions: {selectedClass?.className} {selectedClass?.stream ? `(${selectedClass.stream})` : ''}</h3>
                 <p className="text-sm text-slate-500">Year-End Promotion Decision</p>
               </div>
               <button onClick={() => setPromotionModalOpen(false)} className="rounded-full p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition">

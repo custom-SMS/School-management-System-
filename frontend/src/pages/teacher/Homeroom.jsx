@@ -46,7 +46,7 @@ export default function Homeroom() {
             <div key={hm.classId} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{hm.className}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">{hm.className} {hm.stream ? `(${hm.stream})` : ''}</h3>
                   <p className="text-sm text-slate-500">{hm.subject || '—'}</p>
                 </div>
                 <div className="text-right">

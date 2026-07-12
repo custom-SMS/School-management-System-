@@ -17,10 +17,8 @@ export const GRADES = [
   'Grade 8',
   'Grade 9',
   'Grade 10',
-  'Grade 11 Natural',
-  'Grade 11 Social',
-  'Grade 12 Natural',
-  'Grade 12 Social',
+  'Grade 11',
+  'Grade 12',
 ];
 
 export const ETHIOPIAN_MONTHS = [

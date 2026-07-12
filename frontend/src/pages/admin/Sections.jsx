@@ -212,7 +212,7 @@ export default function Sections() {
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Class</label>
                 <div className="w-full rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm font-semibold text-gray-700">
-                  {selectedClass ? selectedClass.name : '—'}
+                  {selectedClass ? `${selectedClass.name}${selectedClass.stream ? ` (${selectedClass.stream})` : ''}` : '—'}
                 </div>
               </div>
 
@@ -313,8 +313,8 @@ export default function Sections() {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-        <div className="sticky top-16 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 bg-gray-50/90 p-6 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 bg-white p-6">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Sections</h2>
             <p className="text-sm font-medium text-gray-500">
@@ -331,7 +331,7 @@ export default function Sections() {
               <option value="">Select a class</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {c.name} {c.stream ? `(${c.stream})` : ''}
                 </option>
               ))}
             </select>
@@ -364,12 +364,12 @@ export default function Sections() {
         ) : sections.length === 0 ? (
           <div className="p-12 text-center text-gray-500">
             <p className="text-lg font-semibold text-gray-600">No sections created yet.</p>
-            <p className="mt-1 text-sm">Click “+ New Section” to add one to {selectedClass?.name}.</p>
+            <p className="mt-1 text-sm">Click “+ New Section” to add one to {selectedClass?.name}{selectedClass?.stream ? ` (${selectedClass.stream})` : ''}.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full whitespace-nowrap text-left text-sm">
-              <thead className="border-b border-gray-200 bg-gray-50">
+              <thead className="border-b-2 border-gray-200 bg-gray-100">
                 <tr>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Section</th>
                   <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-gray-500">Class</th>
@@ -381,8 +381,8 @@ export default function Sections() {
               <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
                 {sections.map((s) => (
                   <tr key={s.id} className="transition hover:bg-gray-50">
-                    <td className="px-6 py-4 font-bold text-gray-900">{`${selectedClass?.name || ''}${s.name}`}</td>
-                    <td className="px-6 py-4 text-gray-500">{selectedClass?.name}</td>
+                    <td className="px-6 py-4 font-bold text-gray-900">{`${selectedClass?.name || ''}${selectedClass?.stream ? ` (${selectedClass.stream})` : ''}${s.name}`}</td>
+                    <td className="px-6 py-4 text-gray-500">{selectedClass?.name} {selectedClass?.stream ? `(${selectedClass.stream})` : ''}</td>
                     <td className="px-6 py-4 text-gray-500">{s.homeroomTeacher?.user?.name || 'Unassigned'}</td>
                     <td className="px-6 py-4 text-gray-500">
                       {s.createdAt ? new Date(s.createdAt).toLocaleDateString() : '—'}

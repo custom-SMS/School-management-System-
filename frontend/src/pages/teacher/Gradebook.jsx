@@ -403,7 +403,7 @@ export default function Gradebook() {
 
             <option value="">Select class</option>
 
-            {classes.map((k) => <option key={k._id} value={k._id}>{k.name} · {k.subject}</option>)}
+            {classes.map((k) => <option key={k._id} value={k._id}>{k.name} {k.stream ? `(${k.stream})` : ''} · {k.subject}</option>)}
 
           </select>
 

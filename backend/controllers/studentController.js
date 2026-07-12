@@ -414,6 +414,7 @@ const registerStudent = async (req, res) => {
       guardianName,
       occupation,
       notes,
+      stream,
     } = req.body;
 
     // Enforce active academic year
@@ -510,7 +511,8 @@ const registerStudent = async (req, res) => {
           userId: user.id,
           studentId: studentId,
           grade,
-          branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
+          stream,
+          branchId: req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
           personalDetails: resolvedPersonalDetails,
           familyBackground: resolvedFamilyBackground,
           guardianContacts: []
@@ -524,7 +526,8 @@ const registerStudent = async (req, res) => {
             userId: user.id,
             studentId: fallbackStudentId,
             grade,
-            branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
+            stream,
+            branchId: req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
             personalDetails: resolvedPersonalDetails,
             familyBackground: resolvedFamilyBackground,
             guardianContacts: []
@@ -542,6 +545,7 @@ const registerStudent = async (req, res) => {
         studentId: student.id,
         academicYearId: activeYear.id,
         grade,
+        stream,
         status: 'Enrolled'
       }
     });
@@ -1209,6 +1213,7 @@ const getRegistrationClasses = async (req, res) => {
           _id: c.id,
           name: c.name,
           subject: c.subject,
+          stream: c.stream || null,
           teacherName: c.teacher?.user?.name || null,
           grade,
           feeConfigured: Boolean(fee),
@@ -1231,6 +1236,7 @@ const updateStudent = async (req, res) => {
       name,
       email,
       grade: gradeFromBody,
+      stream,
       classId,
       personalDetails,
       familyBackground
@@ -1319,6 +1325,7 @@ const updateStudent = async (req, res) => {
         where: { id },
         data: {
           ...(grade !== undefined ? { grade } : {}),
+          ...(stream !== undefined ? { stream } : {}),
           ...(personalDetails !== undefined ? { personalDetails } : {}),
           ...(familyBackground !== undefined ? { familyBackground } : {}),
           ...(nextGuardianContacts !== undefined ? { guardianContacts: nextGuardianContacts } : {})

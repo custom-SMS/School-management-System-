@@ -15,8 +15,19 @@ export default function Academics() {
   const [selectedGrades, setSelectedGrades] = useState([]);
 
   // Class form
-  const [className, setClassName] = useState('');
+  const [classGrade, setClassGrade] = useState('');
+  const [classStream, setClassStream] = useState('');
+  const [classSection, setClassSection] = useState('');
   const [classTeacherId, setClassTeacherId] = useState('');
+
+  // Derived class name from grade + stream + section
+  const derivedClassName = (() => {
+    if (!classGrade) return '';
+    const gradeLabel = `Grade ${classGrade}`;
+    const streamLabel = (classGrade === '11' || classGrade === '12') && classStream ? ` ${classStream}` : '';
+    const sectionLabel = classSection ? ` ${classSection}` : '';
+    return `${gradeLabel}${streamLabel}${sectionLabel}`;
+  })();
 
   // Modal
   const [showModal, setShowModal] = useState(false);
@@ -59,14 +70,19 @@ export default function Academics() {
     const extracted = classes
       .map((cls) => {
         const gradeMatch = cls.name?.match(/\d+/);
-        return gradeMatch ? `Grade ${gradeMatch[0]}` : null;
+        if (gradeMatch) {
+          const num = gradeMatch[0];
+          return cls.stream ? `Grade ${num} (${cls.stream})` : `Grade ${num}`;
+        }
+        return cls.name || null;
       })
       .filter(Boolean);
 
     return [...new Set(extracted)].sort((a, b) => {
       const aNum = Number(a.match(/\d+/)?.[0] || 0);
       const bNum = Number(b.match(/\d+/)?.[0] || 0);
-      return aNum - bNum;
+      if (aNum !== bNum) return aNum - bNum;
+      return a.localeCompare(b);
     });
   }, [classes]);
 
@@ -116,13 +132,27 @@ if (!result) return;
 
   const handleCreateClass = async (e) => {
     e.preventDefault();
+    if (!classGrade) {
+      toast.error('Please select a grade.');
+      return;
+    }
+    if ((classGrade === '11' || classGrade === '12') && !classStream) {
+      toast.error('Please select a stream (Natural or Social) for Grade 11/12.');
+      return;
+    }
+    const finalName = derivedClassName;
     try {
       await axios.post('/classroom/classes', {
-        name: className,
+        name: finalName,
+        grade: Number(classGrade),
+        stream: classStream || undefined,
+        section: classSection || undefined,
         teacherId: classTeacherId || undefined
       });
-      toast.success(`Class "${className}" created.`);
-      setClassName('');
+      toast.success(`Class "${finalName}" created.`);
+      setClassGrade('');
+      setClassStream('');
+      setClassSection('');
       setClassTeacherId('');
       fetchClasses();
       setShowModal(false);
@@ -257,17 +287,68 @@ if (!result) return;
 
             {modalMode === 'class' && (
               <form onSubmit={handleCreateClass} className="space-y-4">
+
+                {/* Grade selector */}
                 <div>
-                  <label className="mb-1 block text-sm font-semibold text-gray-700">Class Name</label>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Grade <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={classGrade}
+                    onChange={(e) => { setClassGrade(e.target.value); setClassStream(''); }}
+                    className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+                  >
+                    <option value="">Select grade…</option>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map((g) => (
+                      <option key={g} value={String(g)}>Grade {g}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Stream — only for Grade 11 and 12 */}
+                {(classGrade === '11' || classGrade === '12') && (
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-700">Stream <span className="text-red-500">*</span></label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {['Natural', 'Social'].map((stream) => (
+                        <button
+                          key={stream}
+                          type="button"
+                          onClick={() => setClassStream(stream)}
+                          className={`rounded-lg border-2 px-4 py-3 text-sm font-semibold transition-all ${
+                            classStream === stream
+                              ? 'border-black bg-black text-white'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-gray-400'
+                          }`}
+                        >
+                          {stream === 'Natural' ? '🔬' : '📚'} {stream}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">Select the academic stream for this class.</p>
+                  </div>
+                )}
+
+                {/* Optional section label */}
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Section <span className="text-gray-400 font-normal">(optional)</span></label>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. Class 1"
-                    value={className}
-                    onChange={(e) => setClassName(e.target.value)}
+                    placeholder="e.g. A, B, C"
+                    value={classSection}
+                    onChange={(e) => setClassSection(e.target.value)}
                     className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
                   />
                 </div>
+
+                {/* Preview of generated class name */}
+                {derivedClassName && (
+                  <div className="rounded-lg bg-gray-50 border border-gray-200 px-4 py-3">
+                    <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Class name preview: </span>
+                    <span className="text-sm font-bold text-gray-900">{derivedClassName}</span>
+                  </div>
+                )}
+
+                {/* Homeroom teacher */}
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-700">Homeroom Teacher (optional)</label>
                   <select
@@ -283,6 +364,7 @@ if (!result) return;
                     ))}
                   </select>
                 </div>
+
                 <div className="mt-2 flex justify-end gap-3">
                   <button
                     type="button"

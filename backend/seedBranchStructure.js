@@ -105,6 +105,8 @@ async function main() {
     console.log(`✅ Backfilled branchId on ${feesToFix.length} fee structure(s)`);
   }
 
+  
+
   // ── 6. Backfill branchId on Class ─────────────────────────────────────────
   const classResult = await prisma.class.updateMany({
     where: { branchId: null },

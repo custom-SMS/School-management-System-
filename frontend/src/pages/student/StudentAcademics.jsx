@@ -90,7 +90,7 @@ export default function StudentAcademics() {
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Academic Performance</h1>
           <p className="text-sm text-slate-500">
-            Student ID: {stats?.studentId || '—'} · {stats?.grade || ''}
+            Student ID: {stats?.studentId || '—'} · {stats?.grade || ''}{stats?.stream ? ` (${stats.stream})` : ''}
             {(() => {
               // Try several possible locations for the student's section/stream
               const section = stats?.section

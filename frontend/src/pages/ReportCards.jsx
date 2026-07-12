@@ -9,7 +9,7 @@ import { printReportCard } from '../utils/printReportCard';
 const getStudentOptionId = (s) => s?._id || s?.id || '';
 const getStudentDisplayName = (s) => s?.user?.name || s?.name || 'Student';
 const getGradeSubjectLabel = (g) => g?.subjectRef?.name || g?.subject || g?.class?.subject || 'Subject';
-const getGradeClassLabel = (g) => g?.class?.name || '—';
+const getGradeClassLabel = (g) => g?.class ? `${g.class.name}${g.class.stream ? ` (${g.class.stream})` : ''}` : '—';
 
 const WORKFLOW_LABELS = {
   Draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-500' },
@@ -294,7 +294,7 @@ export default function ReportCards() {
               className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
             >
               {classes.map((c) => (
-                <option key={c._id || c.id} value={c._id || c.id}>{c.name} · {c.subject}</option>
+                <option key={c._id || c.id} value={c._id || c.id}>{c.name} {c.stream ? `(${c.stream})` : ''} · {c.subject}</option>
               ))}
             </select>
           </div>
@@ -394,7 +394,7 @@ export default function ReportCards() {
             <option value="">Select a student…</option>
             {sortedStudents.map((s) => (
               <option key={getStudentOptionId(s)} value={getStudentOptionId(s)}>
-                {getStudentDisplayName(s)} ({s.studentId}) — {s.grade}
+                {getStudentDisplayName(s)} ({s.studentId}) — {s.grade} {s.stream ? `(${s.stream})` : ''}
               </option>
             ))}
           </select>

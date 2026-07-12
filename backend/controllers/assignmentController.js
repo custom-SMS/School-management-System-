@@ -43,7 +43,7 @@ const getAssignmentOptions = async (req, res) => {
         { name: 'asc' }
       ],
       include: {
-        class: { select: { id: true, name: true } }
+        class: { select: { id: true, name: true, stream: true } }
       }
     });
 
@@ -51,7 +51,7 @@ const getAssignmentOptions = async (req, res) => {
       ...s,
       _id: s.id,
       className: s.class?.name || '',
-      label: `${(s.class?.name || '').trim()} ${s.name || ''}`.trim()
+      label: `${(s.class?.name || '').trim()}${s.class?.stream ? ` (${s.class.stream})` : ''} ${s.name || ''}`.trim()
     }));
 
     const specificClasses = Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`);

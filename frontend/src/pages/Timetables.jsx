@@ -192,7 +192,7 @@ export default function Timetables() {
               <div className="flex flex-col gap-1.5 w-64">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Select Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className={inputClass}>
-                  {classes.map(c => <option key={c._id} value={c._id}>{c.name} ({c.subject})</option>)}
+                  {classes.map(c => <option key={c._id} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''} ({c.subject})</option>)}
                 </select>
               </div>
             </>
@@ -240,7 +240,7 @@ export default function Timetables() {
                               </span>
                             </div>
                             <div className="text-xs text-slate-500 space-y-1">
-                              <div>Class: <span className="font-semibold text-slate-700">{slot.class?.name}</span></div>
+                              <div>Class: <span className="font-semibold text-slate-700">{slot.class?.name} {slot.class?.stream ? `(${slot.class.stream})` : ''}</span></div>
                               {slot.section && <div>Section: <span className="font-semibold text-slate-700">{slot.section?.name}</span></div>}
                               {slot.room && <div>Room: <span className="font-semibold text-slate-700">{slot.room}</span></div>}
                             </div>
@@ -274,7 +274,7 @@ export default function Timetables() {
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Select Class</label>
                 <select value={formClass} onChange={e => setFormClass(e.target.value)} className={inputClass}>
-                  {classes.map(c => <option key={`form-c-${c._id}`} value={c._id}>{c.name}</option>)}
+                  {classes.map(c => <option key={`form-c-${c._id}`} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''}</option>)}
                 </select>
               </div>
 

@@ -114,7 +114,7 @@ export default function SectionStudents() {
                 ← Back to Sections
               </button>
               <h1 className="text-2xl font-bold text-gray-900">
-                {section ? `${section.className}${section.name} Students` : 'Section Students'}
+                {section ? `${section.className}${section.classStream ? ` (${section.classStream})` : ''}${section.name} Students` : 'Section Students'}
               </h1>
               <p className="mt-1 text-sm text-gray-500">
                 Assign students to this section and save the selected list.

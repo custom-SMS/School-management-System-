@@ -25,6 +25,7 @@ export default function HomeroomReportCards() {
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeYear, setActiveYear] = useState(null);
+  const [classes, setClasses] = useState([]);
 
   // Per-card editing state: { [rcId]: { homeroomRemarks, conductGrade, promotionStatus } }
   const [edits, setEdits] = useState({});
@@ -40,6 +41,11 @@ export default function HomeroomReportCards() {
       const yrs = await axios.get('/academic-years');
       const ay = (yrs.data || []).find((y) => y.isActive) || (yrs.data || [])[0];
       setActiveYear(ay || null);
+      // Fetch classes details
+      const statsRes = await axios.get('/stats/teacher/me');
+      const classSummaries = statsRes.data?.classSummaries || [];
+      setClasses(classSummaries);
+
       if (!classId || !ay) { setReportCards([]); return; }
       const res = await axios.get(`/report-cards/class/${classId}/${ay.id}`);
       const cards = res.data || [];
@@ -119,6 +125,8 @@ export default function HomeroomReportCards() {
     draft: reportCards.filter((rc) => rc.workflowStatus === 'Draft').length,
   }), [reportCards]);
 
+  const activeClass = classes.find((c) => c.classId === classId);
+
   return (
     <TeacherLayout searchPlaceholder="Search students...">
       <div className="mb-6">
@@ -132,7 +140,9 @@ export default function HomeroomReportCards() {
           </svg>
           Back
         </button>
-        <h1 className="text-3xl font-black tracking-tight text-slate-900">Class Report Cards</h1>
+        <h1 className="text-3xl font-black tracking-tight text-slate-900">
+          Class Report Cards{activeClass ? `: ${activeClass.className}${activeClass.stream ? ` (${activeClass.stream})` : ''}` : ''}
+        </h1>
         <p className="text-sm text-slate-500">
           Academic Year: <span className="font-semibold">{activeYear?.year || '—'}</span>
           {' · '}Review each student, add remarks and conduct grade, then submit to Admin.

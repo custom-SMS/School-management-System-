@@ -326,7 +326,7 @@ export default function GradesContent({ canEdit = false }) {
           >
             {classes.length === 0 && <option value="">No classes</option>}
             {classes.map((c) => (
-              <option key={c._id} value={c._id}>{c.name} · {c.subject}</option>
+              <option key={c._id} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''} · {c.subject}</option>
             ))}
           </select>
         </div>

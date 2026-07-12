@@ -63,6 +63,7 @@ const initialForm = {
   parentPhone: "",
   parentRelationship: "",
   parentAddress: "",
+  stream: "",
 };
 
 const createGuardian = (primary = false): GuardianForm => ({
@@ -120,6 +121,7 @@ export default function RegisterStudentEnhanced() {
         {
           ...formData,
           guardians: activeGuardians,
+          stream: formData.stream,
           personalDetails: {
             dateOfBirth: formData.dateOfBirth,
             gender: formData.gender,
@@ -352,6 +354,25 @@ export default function RegisterStudentEnhanced() {
                       ))}
                     </select>
                   </div>
+                  {(formData.grade.includes("11") || formData.grade.includes("12")) && (
+                    <div className="sm:col-span-2">
+                      <label className="mb-2 block text-sm font-semibold text-slate-700">
+                        Stream
+                      </label>
+                      <select
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-blue-400 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+                        required
+                        value={formData.stream}
+                        onChange={(e) =>
+                          setFormData({ ...formData, stream: e.target.value })
+                        }
+                      >
+                        <option value="">Select Stream</option>
+                        <option value="Natural Science">Natural Science</option>
+                        <option value="Social Science">Social Science</option>
+                      </select>
+                    </div>
+                  )}
                   <div>
                     <label className="mb-2 block text-sm font-semibold text-slate-700">
                       Date of Birth
