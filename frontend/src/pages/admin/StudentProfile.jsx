@@ -378,7 +378,7 @@ export default function StudentProfile() {
               <div>
                 <div className="text-sm uppercase tracking-[0.24em] text-gray-500">Student Profile</div>
                 <h1 className="mt-2 text-3xl font-black text-slate-900">{studentName}</h1>
-                <p className="mt-1 text-sm text-gray-500">ID: {student.studentId || '—'} · Grade {student.grade || '—'}{student.section ? ` · ${student.section}` : ''}</p>
+                <p className="mt-1 text-sm text-gray-500">ID: {student.studentId || '—'} · Grade {student.grade || '—'}{student.stream ? ` (${student.stream})` : ''}{student.section ? ` · ${student.section}` : ''}</p>
                 {student.enrollmentDate && (
                   <p className="mt-1 text-sm text-gray-500">Enrollment: {formatDate(student.enrollmentDate)}</p>
                 )}
@@ -437,7 +437,9 @@ export default function StudentProfile() {
                 >
                   <option value="">Keep existing grade</option>
                   {classes.map((klass) => (
-                    <option key={klass.id || klass._id} value={klass.id || klass._id}>{klass.name || klass.grade || klass.label}</option>
+                    <option key={klass.id || klass._id} value={klass.id || klass._id}>
+                      {klass.name || klass.grade || klass.label}{klass.stream ? ` (${klass.stream})` : ''}
+                    </option>
                   ))}
                 </select>
               </div>

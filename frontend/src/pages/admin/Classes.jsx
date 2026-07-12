@@ -19,6 +19,7 @@ export default function Classes() {
   const [editingClassId, setEditingClassId] = useState(null);
   const [error, setError] = useState(false);
   const [name, setName] = useState('');
+  const [stream, setStream] = useState('');
   // const [subject, setSubject] = useState('');
 
   const availableClassOptions = useMemo(() => {
@@ -50,11 +51,13 @@ export default function Classes() {
   const resetForm = () => {
     setEditingClassId(null);
     setName('');
+    setStream('');
   };
 
   const handleEditClick = (klass) => {
     setEditingClassId(klass.id);
     setName(klass.name || '');
+    setStream(klass.stream || '');
     setShowModal(true);
   };
 
@@ -74,7 +77,8 @@ export default function Classes() {
       return;
     }
 
-    if (!ALLOWED_CLASS_NAMES.includes(normalizedName)) {
+    // Only validate name against allowed list when creating (not editing — name is locked)
+    if (!editingClassId && !ALLOWED_CLASS_NAMES.includes(normalizedName)) {
       toast.error('Please select a valid class from the dropdown.');
       return;
     }
@@ -85,22 +89,33 @@ export default function Classes() {
       return;
     }
 
+    // For grade 11/12, stream is required
+    const needsStream = normalizedName.includes('11') || normalizedName.includes('12');
+    if (needsStream && !stream) {
+      toast.error('Please select a stream (Natural or Social).');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingClassId) {
-        toast.info('Edit is not available yet because the backend update endpoint is missing.');
-        return;
+        // When editing, only stream can change (name is locked in dropdown)
+        await axios.put(`/classroom/classes/${editingClassId}`, {
+          stream: needsStream ? stream : null
+        });
+        toast.success(`Class "${normalizedName}" updated.`);
+      } else {
+        await axios.post('/classroom/classes', {
+          name: normalizedName,
+          stream: needsStream ? stream : null
+        });
+        toast.success(`Class "${normalizedName}" created.`);
       }
-
-      await axios.post('/classroom/classes', {
-        name: normalizedName
-      });
-      toast.success(`Class "${normalizedName}" created.`);
       resetForm();
       setShowModal(false);
       await fetchClasses();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create class.');
+      toast.error(err.response?.data?.message || (editingClassId ? 'Failed to update class.' : 'Failed to create class.'));
     } finally {
       setSaving(false);
     }
@@ -159,6 +174,21 @@ export default function Classes() {
                   <p className="mt-2 text-xs font-medium text-amber-700">All classes from Nursery to Grade 12 have already been created.</p>
                 )}
               </div>
+              {(name.includes('11') || name.includes('12')) && (
+                <div>
+                  <label className="mb-1 block text-sm font-semibold text-gray-700">Stream <span className="text-red-500">*</span></label>
+                  <select
+                    required
+                    value={stream}
+                    onChange={(e) => setStream(e.target.value)}
+                    className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+                  >
+                    <option value="">Select Stream</option>
+                    <option value="Natural">🔬 Natural</option>
+                    <option value="Social">📚 Social</option>
+                  </select>
+                </div>
+              )}
               {/* <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Subject</label>
                 {subjects.length > 0 ? (
@@ -181,8 +211,8 @@ export default function Classes() {
         </div>
       )}
 
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-        <div className="sticky top-16 z-40 p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/90 backdrop-blur-sm -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+      <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
+        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
             <p className="text-sm font-medium text-gray-500">View and manage grade levels and their homeroom teachers.</p>
@@ -197,10 +227,10 @@ export default function Classes() {
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm whitespace-nowrap">
-            <thead className="bg-gray-50 border-b border-gray-200">
+            <thead className="bg-gray-100 border-b-2 border-gray-200">
               <tr>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Class Name</th>
-                {/* <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Subject</th> */}
+                <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Stream</th>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Teacher</th>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs">Sections</th>
                 <th className="px-6 py-4 font-bold text-gray-500 uppercase tracking-wider text-xs text-right">Actions</th>
@@ -210,7 +240,17 @@ export default function Classes() {
               {classes.map((c) => (
                 <tr key={c.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4 font-bold text-gray-900">{c.name}</td>
-                  {/* <td className="px-6 py-4">{c.subject}</td> */}
+                  <td className="px-6 py-4">
+                    {c.stream ? (
+                      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+                        c.stream === 'Natural' ? 'bg-green-50 text-green-700' : 'bg-blue-50 text-blue-700'
+                      }`}>
+                        {c.stream === 'Natural' ? '🔬' : '📚'} {c.stream}
+                      </span>
+                    ) : (
+                      <span className="text-gray-400 text-xs">—</span>
+                    )}
+                  </td>
                   <td className="px-6 py-4 text-gray-500">{c.homeroomTeacher?.user?.name || c.teacher?.user?.name || 'Unassigned'}</td>
                   <td className="px-6 py-4">{c.sections?.length || 0}</td>
                   <td className="px-6 py-4 text-right">
@@ -228,9 +268,9 @@ export default function Classes() {
                 </tr>
               ))}
               {error ? (
-                <tr><td colSpan="4" className="p-4 text-center font-semibold text-rose-500">Failed to load classes.</td></tr>
+                <tr><td colSpan="5" className="p-4 text-center font-semibold text-rose-500">Failed to load classes.</td></tr>
               ) : classes.length === 0 && (
-                <tr><td colSpan="4" className="p-4 text-center text-gray-500">No classes found.</td></tr>
+                <tr><td colSpan="5" className="p-4 text-center text-gray-500">No classes found.</td></tr>
               )}
             </tbody>
           </table>

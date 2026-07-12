@@ -20,6 +20,8 @@ const {
 
   deleteClass,
 
+  updateClass,
+
   deleteSection,
 
   forceDeleteClass,
@@ -416,6 +418,8 @@ router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']
  */
 
 router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteClass);
+
+router.put('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateClass);
 
 router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), forceDeleteClass);
 

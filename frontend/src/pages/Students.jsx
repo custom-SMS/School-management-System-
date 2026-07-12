@@ -440,7 +440,10 @@ export default function Students() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-5 py-4 text-gray-600">{student.grade ? `${student.grade}${student.section ? ` ${student.section}` : ''}` : '—'}</td>
+                    <td className="px-5 py-4 text-gray-600">
+                      <div>{student.grade ? `${student.grade}${student.section ? ` ${student.section}` : ''}` : '—'}</div>
+                      {student.stream && <div className="text-xs text-blue-600 font-medium">{student.stream}</div>}
+                    </td>
                     <td className="px-5 py-4">
                       <div className="text-gray-700">{guardian?.phone || '—'}</div>
                       <div className="text-xs text-gray-400">{guardian?.relationship || (guardian ? 'Guardian' : 'No contact')}</div>

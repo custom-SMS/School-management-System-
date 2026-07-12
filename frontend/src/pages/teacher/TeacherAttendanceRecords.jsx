@@ -190,7 +190,7 @@ export default function TeacherAttendanceRecords() {
             <option value="">Select class</option>
             {classes.map((item) => (
               <option key={item._id} value={item._id}>
-                {item.name}
+                {item.name} {item.stream ? `(${item.stream})` : ''}
                 {item.subject ? ` - ${item.subject}` : ''}
               </option>
             ))}
@@ -212,7 +212,7 @@ export default function TeacherAttendanceRecords() {
           <div className="mt-2 text-lg font-black text-slate-900">{formatMonthLabel(selectedMonth)}</div>
           <div className="mt-1 text-sm text-slate-500">
             {selectedClass
-              ? `${selectedClass.name}${selectedClass.subject ? ` - ${selectedClass.subject}` : ''}`
+              ? `${selectedClass.name}${selectedClass.stream ? ` (${selectedClass.stream})` : ''}${selectedClass.subject ? ` - ${selectedClass.subject}` : ''}`
               : 'Choose a class to view attendance'}
           </div>
         </div>

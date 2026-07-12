@@ -43,6 +43,8 @@ export default function AssignedStudents() {
             studentId: s.studentId,
             grade: s.grade || k.name,
             className: k.name,
+            classId: k.id || k._id,
+            classStream: k.stream || '',
             subject: k.subject,
             guardians: s.guardians || s.guardianContacts || [],
           });
@@ -52,9 +54,18 @@ export default function AssignedStudents() {
     return Array.from(map.values());
   }, [classes]);
 
-  const classNames = useMemo(() => Array.from(new Set(classes.map((c) => c.name).filter(Boolean))), [classes]);
+  const classesFilterOptions = useMemo(() => {
+    const map = new Map();
+    classes.forEach((c) => {
+      const id = c.id || c._id;
+      if (id && !map.has(id)) {
+        map.set(id, { id, name: c.name, stream: c.stream });
+      }
+    });
+    return Array.from(map.values());
+  }, [classes]);
 
-  const filtered = students.filter((s) => classFilter === 'all' || s.className === classFilter);
+  const filtered = students.filter((s) => classFilter === 'all' || s.classId === classFilter);
 
   const toggle = (id) =>
     setSelected((prev) => {
@@ -109,7 +120,7 @@ export default function AssignedStudents() {
           <label className="text-xs font-semibold uppercase text-slate-400">Filter by Class</label>
           <select value={classFilter} onChange={(e) => setClassFilter(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">
             <option value="all">All Classes</option>
-            {classNames.map((c) => <option key={c} value={c}>{c}</option>)}
+            {classesFilterOptions.map((c) => <option key={c.id} value={c.id}>{c.name} {c.stream ? `(${c.stream})` : ''}</option>)}
           </select>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -163,7 +174,7 @@ export default function AssignedStudents() {
                       </Link>
                     </td>
                     <td className="px-4 py-4 font-mono">{s.studentId}</td>
-                    <td className="px-4 py-4">{s.grade}</td>
+                    <td className="px-4 py-4">{s.grade} {s.classStream ? `(${s.classStream})` : ''}</td>
                     <td className="px-4 py-4">
                       {s.guardians?.length > 0 ? (
                         <div className="flex flex-col text-xs text-slate-500">

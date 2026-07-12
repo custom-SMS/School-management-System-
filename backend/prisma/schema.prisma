@@ -181,6 +181,7 @@ model Student {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   studentId        String   @unique
   grade            String
+  stream           String?  // e.g. "Natural Science", "Social Science"
   branchId         String?
   branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   levelId          String?
@@ -226,6 +227,7 @@ model Enrollment {
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   grade          String
+  stream         String?      // e.g. "Natural Science", "Social Science"
   sectionId      String?
   section        Section?     @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   status         String       @default("Enrolled")
@@ -296,6 +298,7 @@ model Class {
   branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   levelId   String?
   level     EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  stream    String?
   createdAt DateTime          @default(now())
 
   students    Student[]           @relation("ClassStudents")

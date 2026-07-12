@@ -190,7 +190,7 @@ const getReportCard = async (req, res) => {
     const grades = await prisma.grade.findMany({
       where: { studentId, academicYearId },
       include: {
-        class: { select: { id: true, name: true, subject: true } },
+        class: { select: { id: true, name: true, subject: true, stream: true } },
         subjectRef: { select: { id: true, name: true } },
       },
       orderBy: [{ subject: 'asc' }, { createdAt: 'asc' }],

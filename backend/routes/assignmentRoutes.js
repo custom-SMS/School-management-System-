@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment } = require('../controllers/assignmentController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -23,7 +23,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: List of assignment options
  */
-router.get('/options', verifyToken, checkRole(['Admin']), getAssignmentOptions);
+router.get('/options', verifyToken, checkRole(['Admin']), injectBranchFilter, getAssignmentOptions);
 
 /**
  * @swagger

@@ -203,7 +203,7 @@ export default function GradeSpreadsheet() {
     }
   };
 
-  const selectedClassName = selectedClass ? `${selectedClass.name} • ${selectedClass.subject}` : 'No class selected';
+  const selectedClassName = selectedClass ? `${selectedClass.name}${selectedClass.stream ? ` (${selectedClass.stream})` : ''} • ${selectedClass.subject}` : 'No class selected';
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -237,7 +237,7 @@ export default function GradeSpreadsheet() {
                 <option value="">{loadingClasses ? 'Loading classes…' : 'Select a class'}</option>
                 {classes.map((klass) => (
                   <option key={klass._id} value={klass._id}>
-                    {klass.name} • {klass.subject}
+                    {klass.name} {klass.stream ? `(${klass.stream})` : ''} • {klass.subject}
                   </option>
                 ))}
               </select>

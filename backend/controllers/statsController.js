@@ -236,7 +236,7 @@ const getStudentPortalStats = async (req, res) => {
     const grades = await prisma.grade.findMany({
       where: { studentId: student.id },
       include: {
-        class: { select: { id: true, name: true, subject: true } },
+        class: { select: { id: true, name: true, subject: true, stream: true } },
         subjectRef: { select: { id: true, name: true } }
       },
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
@@ -462,6 +462,7 @@ const getTeacherPortalStats = async (req, res) => {
         classId: klass.id,
         className: normalizeClassLabel(klass.name),
         subject: normalizeClassLabel(klass.subject),
+        stream: klass.stream || '',
         studentCount: klass.students?.length || 0,
         attendanceSessions: await prisma.attendance.count({ where: { classId: klass.id } }),
         attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
@@ -484,7 +485,7 @@ const getTeacherPortalStats = async (req, res) => {
             user: { select: { id: true, name: true, email: true } }
           }
         },
-        class: { select: { id: true, name: true, subject: true } }
+        class: { select: { id: true, name: true, subject: true, stream: true } }
       },
       orderBy: { createdAt: 'desc' },
       take: 8
@@ -571,7 +572,10 @@ const getParentPortalStats = async (req, res) => {
       if (!childStudent) continue;
 
       const grades = await prisma.grade.findMany({
-        where: { studentId: childStudent.id }
+        where: { studentId: childStudent.id },
+        include: {
+          class: { select: { id: true, name: true, subject: true, stream: true } }
+        }
       });
 
       const fees = await prisma.fee.findMany({
@@ -610,7 +614,8 @@ const getParentPortalStats = async (req, res) => {
           test: g.test,
           midterm: g.midterm,
           final: g.final
-        }
+        },
+        classRef: g.class || null
       }));
 
       const mappedFees = fees.map(f => ({

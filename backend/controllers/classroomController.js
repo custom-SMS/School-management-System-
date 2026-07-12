@@ -15,11 +15,24 @@ const ALLOWED_CLASS_NAMES = [
   'Grade 8',
   'Grade 9',
   'Grade 10',
+  'Grade 11',
+  'Grade 12',
+  'Class 1',
+  'Class 2',
+  'Class 3',
+  'Class 4',
+  'Class 5',
+  'Class 6',
+  'Class 7',
+  'Class 8',
+  'Class 9',
+  'Class 10',
+  'Class 11',
+  'Class 12',
   'Grade 11 Natural',
   'Grade 11 Social',
   'Grade 12 Natural',
   'Grade 12 Social',
-
 ];
 
 const getTeacherProfile = async (userId) => {
@@ -761,7 +774,7 @@ const getNextSectionLetter = (sectionNames = []) => {
 
 const createClass = async (req, res) => {
   try {
-    const { name, teacherId, schedule } = req.body;
+    const { name, teacherId, schedule, stream } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Class name is required.' });
     }
@@ -804,13 +817,11 @@ const createClass = async (req, res) => {
     const newClass = await prisma.class.create({
       data: {
         name: normalizedName,
-        subject: 'General',
         teacherId: teacherId || null,
-
-        schedule: schedule || null,
-
-        ...(req.branchFilter || {})
-
+        subject: 'General',
+        schedule,
+        stream,
+        branchId
       }
     });
 
@@ -888,6 +899,67 @@ const getClasses = async (req, res) => {
   }
 };
 
+const updateClass = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, stream, teacherId } = req.body;
+
+    const existingClass = await prisma.class.findUnique({ where: { id } });
+    if (!existingClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const updateData = {};
+
+    if (name !== undefined) {
+      const normalizedName = name.trim();
+      if (!ALLOWED_CLASS_NAMES.includes(normalizedName)) {
+        return res.status(400).json({
+          message: `Invalid class name. Allowed classes are: ${ALLOWED_CLASS_NAMES.join(', ')}.`
+        });
+      }
+      // Check duplicate name (excluding self)
+      const duplicate = await prisma.class.findFirst({
+        where: {
+          name: { equals: normalizedName, mode: 'insensitive' },
+          id: { not: id },
+          ...(req.branchFilter || {})
+        }
+      });
+      if (duplicate) {
+        return res.status(400).json({ message: `Class "${normalizedName}" already exists.` });
+      }
+      updateData.name = normalizedName;
+    }
+
+    if (stream !== undefined) {
+      updateData.stream = stream || null;
+    }
+
+    if (teacherId !== undefined) {
+      if (teacherId) {
+        const homeroomCheck = await ensureHomeroomAssignmentAllowed(prisma, { teacherId, excludeClassId: id });
+        if (!homeroomCheck.ok) {
+          return res.status(400).json({ message: homeroomCheck.message });
+        }
+      }
+      updateData.teacherId = teacherId || null;
+    }
+
+    const updatedClass = await prisma.class.update({
+      where: { id },
+      data: updateData
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Class', id, `Updated class: ${updatedClass.name}`);
+
+    res.status(200).json(updatedClass);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 const deleteClass = async (req, res) => {
   try {
     const { id } = req.params;
@@ -901,7 +973,6 @@ const deleteClass = async (req, res) => {
             attendances: true,
             grades: true,
             assignments: true,
-            sections: true,
             timetables: true
           }
         }
@@ -917,12 +988,13 @@ const deleteClass = async (req, res) => {
       (existingClass._count?.attendances || 0) +
       (existingClass._count?.grades || 0) +
       (existingClass._count?.assignments || 0) +
-      (existingClass._count?.sections || 0) +
       (existingClass._count?.timetables || 0);
+    // Note: sections are NOT counted here because they have onDelete: Cascade
+    // and are automatically removed when the class is deleted.
 
     if (relatedCount > 0) {
       return res.status(400).json({
-        message: 'Cannot delete this class because it has related students, sections, attendance, grades, assignments, or timetable records.'
+        message: 'Cannot delete this class because it has related students, attendance, grades, assignments, or timetable records.'
       });
     }
 
@@ -1158,7 +1230,7 @@ const getSectionById = async (req, res) => {
     const section = await prisma.section.findUnique({
       where: { id: sectionId },
       include: {
-        class: { select: { id: true, name: true } },
+        class: { select: { id: true, name: true, stream: true } },
         homeroomTeacher: {
           include: {
             user: { select: { id: true, name: true, email: true } }
@@ -1360,7 +1432,7 @@ const getSectionStudents = async (req, res) => {
       where: { id: sectionId },
       include: {
         class: {
-          select: { id: true, name: true }
+          select: { id: true, name: true, stream: true }
         },
         homeroomTeacher: {
           include: {
@@ -1431,7 +1503,8 @@ const getSectionStudents = async (req, res) => {
         id: section.id,
         name: section.name,
         classId: section.class?.id,
-        className: section.class?.name || ''
+        className: section.class?.name || '',
+        classStream: section.class?.stream || ''
       },
       students: eligibleStudents.map((student) => {
         const currentEnrollment = getCurrentEnrollment(student);
@@ -1560,6 +1633,7 @@ module.exports = {
   getGrades, 
   getClassroomOptions,
   createClass,
+  updateClass,
   getClasses,
   deleteClass,
   forceDeleteClass,

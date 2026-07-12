@@ -100,7 +100,7 @@ export default function TeacherAttendance() {
           <label className="text-xs font-semibold uppercase text-slate-400">Section</label>
           <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">
             <option value="">Select class</option>
-            {classes.map((k) => <option key={k._id} value={k._id}>{k.name}{k.subject ? ` - ${k.subject}` : ''}</option>)}
+            {classes.map((k) => <option key={k._id} value={k._id}>{k.name} {k.stream ? `(${k.stream})` : ''}{k.subject ? ` - ${k.subject}` : ''}</option>)}
           </select>
         </div>
         <div>

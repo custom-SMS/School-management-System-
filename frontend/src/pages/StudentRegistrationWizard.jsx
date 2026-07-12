@@ -431,7 +431,7 @@ export default function StudentRegistrationWizard() {
                               <option value="">{classes.length ? 'Select a class…' : 'No classes available yet'}</option>
                               {classes.map((c) => (
                                 <option key={c.id || c._id} value={c.id || c._id}>
-                                  {c.name}{c.teacherName ? ` — ${c.teacherName}` : ' — no teacher assigned'}{c.feeConfigured === false ? ' (no fee set)' : ''}
+                                  {c.name}{c.stream ? ` (${c.stream})` : ''}{c.teacherName ? ` — ${c.teacherName}` : ' — no teacher assigned'}{c.feeConfigured === false ? ' (no fee set)' : ''}
                                 </option>
                               ))}
                             </select>
@@ -457,7 +457,7 @@ export default function StudentRegistrationWizard() {
                           <div className="text-xs font-semibold uppercase text-slate-400">Registration Summary</div>
                           <div className="mt-2 space-y-2 text-sm">
                             <div className="flex justify-between"><span className="text-slate-400">Academic Year</span><span className="font-bold">{activeYear?.year || '—'}</span></div>
-                            <div className="flex justify-between"><span className="text-slate-400">Assigned Class</span><span className="font-bold">{selectedClass?.name || '—'}</span></div>
+                            <div className="flex justify-between"><span className="text-slate-400">Assigned Class</span><span className="font-bold">{selectedClass ? `${selectedClass.name}${selectedClass.stream ? ` (${selectedClass.stream})` : ''}` : '—'}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Grade Level</span><span className="font-bold">{selectedClass?.grade || '—'}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Monthly Fee</span><span className="font-bold">{selectedClass?.feeAmount != null ? `ETB ${selectedClass.feeAmount}` : '—'}</span></div>
                             <div className="flex justify-between"><span className="text-slate-400">Transport</span><span className="font-bold">{form.transport ? 'Yes' : 'No'}</span></div>
@@ -536,7 +536,7 @@ export default function StudentRegistrationWizard() {
                       ]} />
                       <ReviewCard title="Enrollment Details" onEdit={() => setStepIdx(2)} rows={[
                         ['Academic Year', activeYear?.year || '—'],
-                        ['Assigned Class', selectedClass ? `${selectedClass.name}${selectedClass.teacherName ? ` (${selectedClass.teacherName})` : ''}` : '—'],
+                        ['Assigned Class', selectedClass ? `${selectedClass.name}${selectedClass.stream ? ` (${selectedClass.stream})` : ''}${selectedClass.teacherName ? ` — ${selectedClass.teacherName}` : ''}` : '—'],
                         ['Grade Level', selectedClass?.grade || '—'],
                         ['Transport Service', form.transport ? 'Yes' : 'No'],
                         ['National ID Uploaded', docs['National ID / Kebele ID']?.status === 'done' ? 'Yes' : 'No'],
