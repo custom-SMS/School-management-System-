@@ -4,22 +4,14 @@ const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = requi
 const getAssignmentOptions = async (req, res) => {
   try {
     const teachers = await prisma.teacher.findMany({
-<<<<<<< HEAD
-      where: req.branchFilter || {},
-=======
       where: { ...(req.branchFilter || {}) },
->>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       include: {
         user: { select: { id: true, name: true, email: true } }
       }
     });
 
     const classes = await prisma.class.findMany({
-<<<<<<< HEAD
-      where: req.branchFilter || {},
-=======
       where: { ...(req.branchFilter || {}) },
->>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       orderBy: { name: 'asc' },
       include: {
         teacher: { select: { teacherId: true } },
@@ -45,11 +37,7 @@ const getAssignmentOptions = async (req, res) => {
     });
 
     const sections = await prisma.section.findMany({
-<<<<<<< HEAD
-      where: req.branchFilter?.branchId ? { class: { branchId: req.branchFilter.branchId } } : {},
-=======
       where: { class: { ...(req.branchFilter || {}) } },
->>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
       orderBy: [
         { class: { name: 'asc' } },
         { name: 'asc' }

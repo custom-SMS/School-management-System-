@@ -23,11 +23,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       200:
  *         description: List of assignment options
  */
-<<<<<<< HEAD
-router.get('/options', verifyToken, checkRole(['Admin']), injectBranchFilter, getAssignmentOptions);
-=======
 router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAssignmentOptions);
->>>>>>> 54a86c6da40b4b649a8bd0293a752042a4d70c04
 
 /**
  * @swagger
