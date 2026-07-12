@@ -5,7 +5,7 @@ const router = express.Router();
 const {
 
   recordAttendance,
-
+  getAttendanceRegister,
   getAttendanceSessions,
 
   saveGrades,
@@ -175,10 +175,9 @@ router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdm
  *         description: List of attendance sessions
 
  */
+router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getAttendanceRegister);
 
-router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceSessions);
-
-
+router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAttendanceSessions);
 
 /**
 

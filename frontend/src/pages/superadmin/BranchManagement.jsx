@@ -29,9 +29,9 @@ export default function BranchManagement() {
   const load = async () => {
     try {
       const [sr, br, ur] = await Promise.all([
-        axios.get('/branches/schools'),
-        axios.get('/branches/branches'),
-        axios.get('/users'),
+        axios.get('/branches/schools',  { skipGlobalErrorToast: true }),
+        axios.get('/branches/branches', { skipGlobalErrorToast: true }),
+        axios.get('/users',             { skipGlobalErrorToast: true }),
       ]);
       setSchools(sr.data || []);
       setBranches(br.data || []);
@@ -41,7 +41,7 @@ export default function BranchManagement() {
 
   const loadScopes = async () => {
     try {
-      const res = await axios.get('/branches/scopes');
+      const res = await axios.get('/branches/scopes', { skipGlobalErrorToast: true });
       setScopes(res.data || []);
     } catch { /* silent */ }
   };

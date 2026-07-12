@@ -46,7 +46,20 @@ export default function TeacherNotifications() {
       if (recipient === 'students') url = '/notifications/students';
       if (recipient === 'both') url = '/notifications/both';
       const res = await axios.post(url, payload);
-      toast.success(res.data?.message || 'Notification sent.');
+      const data = res.data;
+
+      // Show in-app notification success
+      toast.success(data?.message || 'Notification sent.');
+
+      // Show a separate warning if email delivery failed
+      if (data?.emailFailed > 0) {
+        const reason = data?.emailError || 'Unknown reason';
+        toast.warn(
+          `⚠️ In-app notification was sent, but email delivery failed: ${reason}`,
+          { autoClose: 8000 }
+        );
+      }
+
       setTitle(''); setMessage(''); setSelectedStudentIds([]);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send notification.');

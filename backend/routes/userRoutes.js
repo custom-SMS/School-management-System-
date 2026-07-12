@@ -33,10 +33,10 @@ router.use(verifyToken);
  *         description: List of users
  */
 router.route('/')
-  .get(getUsers);
+  .get(checkRole(['SuperAdmin', 'Admin']), getUsers);
 
 router.route('/:id')
-  .get(checkRole(['SuperAdmin']), getUserById);
+  .get(checkRole(['SuperAdmin', 'Admin']), getUserById);
 
 /**
  * @swagger
@@ -129,6 +129,6 @@ router.route('/:id/role')
  *         description: Password reset successfully
  */
 router.route('/:id/reset-password')
-  .post(checkRole(['SuperAdmin']), resetUserPassword);
+  .post(checkRole(['SuperAdmin', 'Admin']), resetUserPassword);
 
 module.exports = router;
