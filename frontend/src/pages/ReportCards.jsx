@@ -278,14 +278,8 @@ export default function ReportCards() {
             className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50">
             {busy === 'compile' ? 'Compiling…' : '⚙ Compile Report Cards'}
           </button>
-          {/* <button onClick={handlePublish} disabled={!selectedYear || busy === 'publish'}
-            className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50">
-            {busy === 'publish' ? 'Publishing…' : '✓ Publish All'}
-          </button>
-          <button onClick={handleUnpublish} disabled={!selectedYear || busy === 'unpublish'}
-            className="rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
-            {busy === 'unpublish' ? 'Unpublishing…' : '✕ Unpublish All'}
-          </button> */}
+          {/* Publish/Unpublish buttons removed */}
+
         </div>
       </div>
 
@@ -327,7 +321,6 @@ export default function ReportCards() {
                   <th className="px-4 py-3 text-center">Conduct</th>
                   <th className="px-4 py-3 text-center">Promotion</th>
                   <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-center">Workflow</th>
                   <th className="px-4 py-3 text-center">Action</th>                </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -361,19 +354,7 @@ export default function ReportCards() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <WorkflowBadge status={rc.workflowStatus} />
-                    </td>
-                    <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1.5">
-                        <button
-                          onClick={() => handleToggleOne(rc)}
-                          className={`rounded-lg px-2.5 py-1.5 text-xs font-bold transition ${rc.published
-                            ? 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                            : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-                            }`}
-                        >
-                          {rc.published ? 'Unpublish' : 'Publish'}
-                        </button>
                         <button
                           title="Download PDF"
                           onClick={() => printReportCard({
