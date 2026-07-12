@@ -23,15 +23,24 @@ export default function Classes() {
   // const [subject, setSubject] = useState('');
 
   const availableClassOptions = useMemo(() => {
-    const existingClassNames = new Set(
-      classes
-        .map((klass) => (klass?.name || '').trim().toLowerCase())
-        .filter(Boolean)
-    );
+    const existingMap = classes.reduce((acc, klass) => {
+      const name = (klass?.name || '').trim().toLowerCase();
+      const stream = (klass?.stream || '').trim().toLowerCase();
+      if (!acc[name]) acc[name] = new Set();
+      acc[name].add(stream || 'none');
+      return acc;
+    }, {});
 
-    return ALLOWED_CLASS_NAMES.filter(
-      (className) => !existingClassNames.has(className.toLowerCase())
-    );
+    return ALLOWED_CLASS_NAMES.filter(className => {
+      const lowerName = className.toLowerCase();
+      const streams = existingMap[lowerName];
+      if (!streams) return true;
+      
+      if (lowerName.includes('11') || lowerName.includes('12')) {
+        return !streams.has('natural') || !streams.has('social');
+      }
+      return false;
+    });
   }, [classes]);
 
   const fetchClasses = () => {
@@ -83,17 +92,23 @@ export default function Classes() {
       return;
     }
 
-    const existingClassNames = new Set(classes.map((klass) => (klass?.name || '').trim().toLowerCase()));
-    if (!editingClassId && existingClassNames.has(normalizedName.toLowerCase())) {
-      toast.error(`Class "${normalizedName}" already exists.`);
-      return;
-    }
-
     // For grade 11/12, stream is required
     const needsStream = normalizedName.includes('11') || normalizedName.includes('12');
     if (needsStream && !stream) {
       toast.error('Please select a stream (Natural or Social).');
       return;
+    }
+
+    if (!editingClassId) {
+      const isDuplicate = classes.some(c => 
+        (c?.name || '').trim().toLowerCase() === normalizedName.toLowerCase() && 
+        (!needsStream || (c?.stream || '').trim().toLowerCase() === (stream || '').trim().toLowerCase())
+      );
+      
+      if (isDuplicate) {
+        toast.error(`Class "${normalizedName}"${needsStream ? ` (${stream})` : ''} already exists.`);
+        return;
+      }
     }
 
     setSaving(true);

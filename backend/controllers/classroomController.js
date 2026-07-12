@@ -16,23 +16,7 @@ const ALLOWED_CLASS_NAMES = [
   'Grade 9',
   'Grade 10',
   'Grade 11',
-  'Grade 12',
-  'Class 1',
-  'Class 2',
-  'Class 3',
-  'Class 4',
-  'Class 5',
-  'Class 6',
-  'Class 7',
-  'Class 8',
-  'Class 9',
-  'Class 10',
-  'Class 11',
-  'Class 12',
-  'Grade 11 Natural',
-  'Grade 11 Social',
-  'Grade 12 Natural',
-  'Grade 12 Social',
+  'Grade 12'
 ];
 
 const getTeacherProfile = async (userId) => {
@@ -799,11 +783,9 @@ const createClass = async (req, res) => {
         name: {
           equals: normalizedName,
           mode: 'insensitive'
-
         },
-
+        stream: stream || null,
         ...(req.branchFilter || {})
-
       }
     });
 
