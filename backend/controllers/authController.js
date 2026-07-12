@@ -83,9 +83,45 @@ const login = async (req, res) => {
       return res.status(400).json({ message: 'Invalid email or password' });
     }
 
+    // Look up UserScope for scoped admin roles
+    let scopeType = null;
+    let schoolId = null;
+    let branchId = null;
+    let levelId = null;
+
+    if (['Admin', 'Cashier'].includes(user.role)) {
+      const scope = await prisma.userScope.findFirst({
+        where: { userId: user.id },
+      });
+      if (scope) {
+        scopeType = scope.scopeType;
+        schoolId = scope.schoolId;
+        branchId = scope.branchId;
+        levelId = scope.levelId;
+      }
+    }
+
+    // For Teachers, store their branchId too
+    if (user.role === 'Teacher' && teacherProfile) {
+      branchId = teacherProfile.branchId || process.env.DEFAULT_BRANCH_ID || null;
+    }
+
+    // For Students, store their branchId
+    if (user.role === 'Student' && studentProfile) {
+      branchId = studentProfile.branchId || process.env.DEFAULT_BRANCH_ID || null;
+      levelId = studentProfile.levelId || null;
+    }
+
     // 3. Create and assign a token
     const token = jwt.sign(
-      { _id: user.id, role: user.role },
+      {
+        _id: user.id,
+        role: user.role,
+        scopeType,            // null for Teacher/Student/Parent/SuperAdmin
+        schoolId,
+        branchId,
+        levelId,
+      },
       process.env.JWT_SECRET || 'fallback_secret_key',
       { expiresIn: '1d' }
     );
@@ -95,6 +131,10 @@ const login = async (req, res) => {
       name: user.name,
       email: user.email,
       role: user.role,
+      scopeType: scopeType || null,
+      schoolId: schoolId || null,
+      branchId: branchId || null,
+      levelId: levelId || null,
     };
 
     if (user.role === 'Student') {

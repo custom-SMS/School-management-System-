@@ -65,6 +65,7 @@ const registerTeacher = async (req, res) => {
               userId: user.id,
               teacherId,
               subject,
+              branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
             },
             include: { user: true }
           });
@@ -121,6 +122,7 @@ const registerTeacher = async (req, res) => {
 const getTeachers = async (req, res) => {
   try {
     const teachers = await prisma.teacher.findMany({
+      where: { ...(req.branchFilter || {}) },
       include: {
         user: {
           select: {

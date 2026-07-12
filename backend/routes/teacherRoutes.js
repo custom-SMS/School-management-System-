@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
 const { registerTeacher, getTeachers, updateTeacher, deleteTeacher } = require('../controllers/teacherController');
 
 /**
@@ -23,7 +23,7 @@ const { registerTeacher, getTeachers, updateTeacher, deleteTeacher } = require('
  *       200:
  *         description: List of teachers
  */
-router.get('/', verifyToken, checkRole(['Admin']), getTeachers);
+router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getTeachers);
 
 /**
  * @swagger
@@ -53,7 +53,7 @@ router.get('/', verifyToken, checkRole(['Admin']), getTeachers);
  *       201:
  *         description: Teacher registered
  */
-router.post('/', verifyToken, checkRole(['Admin']), registerTeacher);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), registerTeacher);
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.post('/', verifyToken, checkRole(['Admin']), registerTeacher);
  *       200:
  *         description: Teacher updated
  */
-router.put('/:id', verifyToken, checkRole(['Admin']), updateTeacher);
+router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateTeacher);
 
 /**
  * @swagger
@@ -101,6 +101,6 @@ router.put('/:id', verifyToken, checkRole(['Admin']), updateTeacher);
  *       200:
  *         description: Teacher deleted
  */
-router.delete('/:id', verifyToken, checkRole(['Admin']), deleteTeacher);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteTeacher);
 
 module.exports = router;

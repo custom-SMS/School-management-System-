@@ -18,7 +18,7 @@ const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173,http:
 // Middleware
 app.use(cors({
   origin: allowedOrigins,
-  credentials: true, // allow the browser to send/receive the auth cookie
+  credentials: true,
 }));
 app.use(express.json());
 app.use(cookieParser());
@@ -40,6 +40,7 @@ prisma.$connect()
 
 // Routes
 app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/branches', require('./routes/branchRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/classroom', require('./routes/classroomRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));
@@ -55,6 +56,7 @@ app.use('/api/report-cards', require('./routes/reportCardRoutes'));
 app.use('/api/audit-logs', require('./routes/auditLogRoutes'));
 app.use('/api/uploads', require('./routes/uploadRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/email', require('./routes/email'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
 

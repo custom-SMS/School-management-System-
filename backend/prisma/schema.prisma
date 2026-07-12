@@ -7,14 +7,110 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
 enum Role {
   SuperAdmin
-  Admin
+  Admin        // legacy — kept for backward compat; real scoping via UserScope
   Cashier
   Teacher
   Student
   Parent
 }
+
+enum ScopeType {
+  SchoolAdmin  // manages one entire school (all branches + levels)
+  BranchAdmin  // manages one branch (all levels within it)
+  LevelAdmin   // manages one level within one branch
+  Cashier      // financial access scoped to a branch
+}
+
+enum AssignmentType {
+  SubjectTeacher
+  HomeRoomTeacher
+}
+
+// ─── School ───────────────────────────────────────────────────────────────────
+
+model School {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   @unique
+  address   String?
+  phone     String?
+  email     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  branches   Branch[]
+  userScopes UserScope[]
+}
+
+// ─── Branch ───────────────────────────────────────────────────────────────────
+
+model Branch {
+  id        String   @id @default(uuid())
+  schoolId  String
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name      String
+  code      String
+  address   String?
+  phone     String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  levels          EducationalLevel[]
+  userScopes      UserScope[]
+  classes         Class[]
+  students        Student[]
+  teachers        Teacher[]
+  academicYears   AcademicYear[]
+  feeStructures   FeeStructure[]
+  gradingStructures GradingStructure[]
+
+  @@unique([schoolId, code])
+}
+
+// ─── EducationalLevel ─────────────────────────────────────────────────────────
+
+model EducationalLevel {
+  id         String   @id @default(uuid())
+  branchId   String
+  branch     Branch   @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  name       String   // e.g. "Kindergarten", "Elementary", "High School", "Preparatory"
+  order      Int      @default(0)
+  gradeRange String?  // e.g. "Grade 1–6"
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  userScopes        UserScope[]
+  classes           Class[]
+  students          Student[]
+  gradingStructures GradingStructure[]
+
+  @@unique([branchId, name])
+}
+
+// ─── UserScope ────────────────────────────────────────────────────────────────
+// Links an Admin-type user to a School / Branch / Level scope
+
+model UserScope {
+  id        String            @id @default(uuid())
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scopeType ScopeType
+  schoolId  String?
+  school    School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  branchId  String?
+  branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  levelId   String?
+  level     EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  createdAt DateTime          @default(now())
+
+  @@unique([userId, branchId, levelId])
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────────
 
 model User {
   id        String   @id @default(uuid())
@@ -27,10 +123,10 @@ model User {
   updatedAt DateTime @updatedAt
   isActive  Boolean  @default(true)
 
-  // Relations
   studentProfile          Student?
   teacherProfile          Teacher?
   parentProfile           Parent?
+  userScope               UserScope[]
   recordedAttendance      Attendance[]
   assignedBy              TeacherAssignment[]       @relation("AssignedBy")
   gradedEntries           Grade[]
@@ -43,6 +139,8 @@ model User {
   promotedReportCards     ReportCard[]              @relation("PromotedBy")
 }
 
+// ─── RolePermission ───────────────────────────────────────────────────────────
+
 model RolePermission {
   id         String   @id @default(uuid())
   role       Role
@@ -52,23 +150,30 @@ model RolePermission {
   @@unique([role, permission])
 }
 
+// ─── AcademicYear ─────────────────────────────────────────────────────────────
+
 model AcademicYear {
   id                String    @id @default(uuid())
-  year              String    @unique
+  year              String
+  branchId          String?   // null = global (legacy); set = branch-specific
+  branch            Branch?   @relation(fields: [branchId], references: [id], onDelete: SetNull)
   isActive          Boolean   @default(false)
   registrationOpen  Boolean   @default(false)
   registrationStart DateTime?
   registrationEnd   DateTime?
   createdAt         DateTime  @default(now())
 
-  // Relations
   enrollments Enrollment[]
   attendances Attendance[]
   grades      Grade[]
   fees        Fee[]
   timetables  Timetable[]
   reportCards ReportCard[]
+
+  @@unique([year, branchId])
 }
+
+// ─── Student ──────────────────────────────────────────────────────────────────
 
 model Student {
   id               String   @id @default(uuid())
@@ -76,12 +181,15 @@ model Student {
   user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   studentId        String   @unique
   grade            String
+  branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  levelId          String?
+  level            EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
   personalDetails  Json?
   familyBackground Json?
   guardianContacts Json?
   enrollmentDate   DateTime @default(now())
 
-  // Relations
   guardians         Parent[]            @relation("StudentGuardians")
   classes           Class[]             @relation("ClassStudents")
   assignments       TeacherAssignment[] @relation("TeacherAssignmentStudents")
@@ -91,6 +199,8 @@ model Student {
   enrollments       Enrollment[]
   reportCards       ReportCard[]
 }
+
+// ─── Parent ───────────────────────────────────────────────────────────────────
 
 model Parent {
   id           String   @id @default(uuid())
@@ -104,9 +214,10 @@ model Parent {
   address      String?
   createdAt    DateTime @default(now())
 
-  // Relations
   children Student[] @relation("StudentGuardians")
 }
+
+// ─── Enrollment ───────────────────────────────────────────────────────────────
 
 model Enrollment {
   id             String       @id @default(uuid())
@@ -123,6 +234,8 @@ model Enrollment {
   @@unique([studentId, academicYearId])
 }
 
+// ─── Subject ──────────────────────────────────────────────────────────────────
+
 model Subject {
   id            String   @id @default(uuid())
   name          String   @unique
@@ -130,11 +243,12 @@ model Subject {
   gradesOffered String[] @default([])
   createdAt     DateTime @default(now())
 
-  // Relations
   teacherAssignments TeacherAssignment[]
   grades             Grade[]
   timetables         Timetable[]
 }
+
+// ─── Teacher ──────────────────────────────────────────────────────────────────
 
 model Teacher {
   id            String   @id @default(uuid())
@@ -145,13 +259,16 @@ model Teacher {
   qualification String   @default("Degree")
   department    String   @default("General")
   status        String   @default("Active")
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   hireDate      DateTime @default(now())
 
-  // Relations
   classes          Class[]
   assignments      TeacherAssignment[]
   homeroomSections Section[]
 }
+
+// ─── Section ──────────────────────────────────────────────────────────────────
 
 model Section {
   id                String   @id @default(uuid())
@@ -162,21 +279,25 @@ model Section {
   homeroomTeacher   Teacher? @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
   createdAt         DateTime @default(now())
 
-  // Relations
   enrollments Enrollment[]
   timetables  Timetable[]
 }
 
+// ─── Class ────────────────────────────────────────────────────────────────────
+
 model Class {
-  id        String   @id @default(uuid())
+  id        String            @id @default(uuid())
   name      String
   teacherId String?
-  teacher   Teacher? @relation(fields: [teacherId], references: [id])
+  teacher   Teacher?          @relation(fields: [teacherId], references: [id])
   subject   String
   schedule  String?
-  createdAt DateTime @default(now())
+  branchId  String?
+  branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  levelId   String?
+  level     EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  createdAt DateTime          @default(now())
 
-  // Relations
   students    Student[]           @relation("ClassStudents")
   attendances Attendance[]
   grades      Grade[]
@@ -184,6 +305,8 @@ model Class {
   sections    Section[]
   timetables  Timetable[]
 }
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
 
 model Attendance {
   id             String        @id @default(uuid())
@@ -197,7 +320,6 @@ model Attendance {
   locked         Boolean       @default(false)
   createdAt      DateTime      @default(now())
 
-  // Relations
   records        AttendanceRecord[]
   unlockRequests AttendanceUnlockRequest[]
 }
@@ -211,10 +333,7 @@ model AttendanceRecord {
   status       String
 }
 
-enum AssignmentType {
-  SubjectTeacher
-  HomeRoomTeacher
-}
+// ─── TeacherAssignment ────────────────────────────────────────────────────────
 
 model TeacherAssignment {
   id             String         @id @default(uuid())
@@ -230,12 +349,17 @@ model TeacherAssignment {
   assignedById   String
   createdAt      DateTime       @default(now())
 
-  // Relations
   students Student[] @relation("TeacherAssignmentStudents")
 }
 
+// ─── GradingStructure ─────────────────────────────────────────────────────────
+
 model GradingStructure {
   id               String   @id @default(uuid())
+  branchId         String?
+  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  levelId          String?
+  level            EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
   quizWeight       Float    @default(10)
   assignmentWeight Float    @default(20)
   midtermWeight    Float    @default(30)
@@ -243,6 +367,8 @@ model GradingStructure {
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
 }
+
+// ─── Timetable ────────────────────────────────────────────────────────────────
 
 model Timetable {
   id             String       @id @default(uuid())
@@ -262,6 +388,8 @@ model Timetable {
   classroom      Classroom?   @relation(fields: [classroomId], references: [id], onDelete: SetNull)
   createdAt      DateTime     @default(now())
 }
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
 
 model Payment {
   id                   String    @id @default(uuid())
@@ -288,6 +416,8 @@ model Receipt {
   createdAt     DateTime @default(now())
 }
 
+// ─── Fee ──────────────────────────────────────────────────────────────────────
+
 model Fee {
   id             String        @id @default(uuid())
   studentId      String
@@ -302,43 +432,52 @@ model Fee {
   paymentDate    DateTime?
   createdAt      DateTime      @default(now())
 
-  // Relations
   payments Payment[]
 }
 
+// ─── FeeStructure ─────────────────────────────────────────────────────────────
+
 model FeeStructure {
   id          String   @id @default(uuid())
-  grade       String   @unique
+  grade       String
+  branchId    String?
+  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
   amount      Float
   description String?
   createdAt   DateTime @default(now())
+
+  @@unique([grade, branchId])
 }
 
+// ─── Grade ────────────────────────────────────────────────────────────────────
+
 model Grade {
-  id             String        @id @default(uuid())
+  id             String            @id @default(uuid())
   studentId      String
-  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  student        Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
   classId        String
-  class          Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class          Class             @relation(fields: [classId], references: [id], onDelete: Cascade)
   subject        String
   subjectId      String?
-  subjectRef     Subject?      @relation(fields: [subjectId], references: [id])
+  subjectRef     Subject?          @relation(fields: [subjectId], references: [id])
   teacherId      String
-  teacher        User          @relation(fields: [teacherId], references: [id])
+  teacher        User              @relation(fields: [teacherId], references: [id])
   academicYearId String?
-  academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id])
+  academicYear   AcademicYear?     @relation(fields: [academicYearId], references: [id])
   quiz           Float?
   assignment     Float?
   test           Float?
   midterm        Float?
   final          Float?
-  maxTotal       Float         @default(100)
-  total          Float         @default(0)
-  percentage     Float         @default(0)
+  maxTotal       Float             @default(100)
+  total          Float             @default(0)
+  percentage     Float             @default(0)
   comments       String?
-  createdAt      DateTime      @default(now())
-  updatedAt      DateTime      @updatedAt
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 }
+
+// ─── Notification ─────────────────────────────────────────────────────────────
 
 model Notification {
   id        String   @id @default(uuid())
@@ -351,6 +490,8 @@ model Notification {
   createdAt DateTime @default(now())
 }
 
+// ─── AuditLog ─────────────────────────────────────────────────────────────────
+
 model AuditLog {
   id             String   @id @default(uuid())
   userId         String?
@@ -358,8 +499,11 @@ model AuditLog {
   action         String
   affectedRecord String?
   details        String?
+  branchId       String?  // which branch this action occurred in
   timestamp      DateTime @default(now())
 }
+
+// ─── ReportCard ───────────────────────────────────────────────────────────────
 
 model ReportCard {
   id                   String       @id @default(uuid())
@@ -375,12 +519,11 @@ model ReportCard {
   attendanceTotal      Int          @default(0)
   averageScore         Float
   rank                 Int?
-  status               String       @default("Pending") // Pass / Fail / Pending
-  teacherComments      String?      // Subject teacher comments
-  homeroomRemarks      String?      // Homeroom teacher remarks
-  conductGrade         String?      // e.g. "Excellent", "Good", "Satisfactory", "Needs Improvement"
+  status               String       @default("Pending")
+  teacherComments      String?
+  homeroomRemarks      String?
+  conductGrade         String?
   workflowStatus       String       @default("Draft")
-  // Draft → HomeroomReview → AdminReview → Published
   published            Boolean      @default(false)
   promotionStatus      String       @default("Pending")
   promotedById         String?
@@ -391,8 +534,9 @@ model ReportCard {
   @@unique([studentId, academicYearId])
 }
 
-model GradeFee {
-  id     String @id @default(uuid())
+// ─── Misc ─────────────────────────────────────────────────────────────────────
+
+model GradeFee {  id     String @id @default(uuid())
   grade  String @unique
   amount Float
 }
@@ -433,3 +577,4 @@ model AttendanceUnlockRequest {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
+

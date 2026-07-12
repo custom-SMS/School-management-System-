@@ -278,14 +278,14 @@ export default function ReportCards() {
             className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50">
             {busy === 'compile' ? 'Compiling…' : '⚙ Compile Report Cards'}
           </button>
-          <button onClick={handlePublish} disabled={!selectedYear || busy === 'publish'}
+          {/* <button onClick={handlePublish} disabled={!selectedYear || busy === 'publish'}
             className="rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50">
             {busy === 'publish' ? 'Publishing…' : '✓ Publish All'}
           </button>
           <button onClick={handleUnpublish} disabled={!selectedYear || busy === 'unpublish'}
             className="rounded-xl border border-rose-300 bg-rose-50 px-5 py-3 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
             {busy === 'unpublish' ? 'Unpublishing…' : '✕ Unpublish All'}
-          </button>
+          </button> */}
         </div>
       </div>
 
@@ -398,7 +398,7 @@ export default function ReportCards() {
         )}
       </div>
 
-      {/* Individual preview + comments */}
+      {/* Individual preview + comme\nts */}
       <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
         <div className="border-b border-slate-100 bg-slate-50 p-6">
           <h3 className="text-lg font-bold text-slate-900">Preview & Edit Student Report Card</h3>
@@ -539,7 +539,7 @@ export default function ReportCards() {
                     </svg>
                     Download / Print PDF
                   </button>
-                  <button
+                  {/* <button
                     onClick={() => handleToggleOne(card)}
                     className={`rounded-xl px-5 py-2.5 text-sm font-bold transition ${card.published
                       ? 'border border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100'
@@ -547,7 +547,7 @@ export default function ReportCards() {
                       }`}
                   >
                     {card.published ? 'Unpublish This Card' : 'Publish This Card'}
-                  </button>
+                  </button> */}
                 </div>
               </div>
             </div>

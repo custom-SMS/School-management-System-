@@ -94,6 +94,7 @@ const CloseIcon = () => (
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/admin/users', label: 'User Management', icon: <UsersIcon /> },
   { to: '/admin/students', label: 'Students', icon: <UsersIcon /> },
   { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
   { to: '/admin/subjects', label: 'Subjects', icon: <CalendarIcon /> },

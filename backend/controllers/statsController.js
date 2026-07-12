@@ -32,14 +32,15 @@ const compareClassLabels = (left, right) => {
 // @access  Private (Admin)
 const getAdminStats = async (req, res) => {
   try {
-    // 1. Total Students
-    const totalStudents = await prisma.student.count();
+    const bf = req.branchFilter || {};
+
+    // 1. Total Students — scoped to branch
+    const totalStudents = await prisma.student.count({ where: { ...bf } });
 
     const studentsByClassRaw = await prisma.student.groupBy({
       by: ['grade'],
-      _count: {
-        _all: true
-      }
+      where: { ...bf },
+      _count: { _all: true }
     });
 
     const studentsByClass = studentsByClassRaw
@@ -56,7 +57,7 @@ const getAdminStats = async (req, res) => {
     const feeYearFilter = activeYear ? { academicYearId: activeYear.id } : {};
 
     const revenueStats = await prisma.fee.aggregate({
-      where: { paid: true, ...feeYearFilter },
+      where: { paid: true, ...feeYearFilter, student: { ...bf } },
       _sum: { amount: true }
     });
     const totalRevenue = revenueStats._sum.amount || 0;
@@ -67,7 +68,8 @@ const getAdminStats = async (req, res) => {
 
     const attendancesToday = await prisma.attendance.findMany({
       where: {
-        date: { gte: today }
+        date: { gte: today },
+        class: { ...bf }
       },
       include: {
         records: true
@@ -89,7 +91,8 @@ const getAdminStats = async (req, res) => {
 
     const attendancesAll = await prisma.attendance.findMany({
       where: {
-        date: { gte: thirtyDaysAgo }
+        date: { gte: thirtyDaysAgo },
+        class: { ...bf }
       },
       include: {
         records: true
@@ -126,6 +129,7 @@ const getAdminStats = async (req, res) => {
     });
 
     const classes = await prisma.class.findMany({
+      where: { ...bf },
       select: { id: true, name: true }
     });
     const classNameById = new Map(
@@ -140,7 +144,7 @@ const getAdminStats = async (req, res) => {
     attendanceSummary.sort((left, right) => compareClassLabels(left.className, right.className));
 
     const feeRecords = await prisma.fee.findMany({
-      where: { ...feeYearFilter },
+      where: { ...feeYearFilter, student: { ...bf } },
       include: {
         student: {
           select: { grade: true }
@@ -186,6 +190,7 @@ const getAdminStats = async (req, res) => {
     const avgAttendance = totalCount > 0 ? Number(((presentCount / totalCount) * 100).toFixed(2)) : 0;
 
     const recentAuditLogs = await prisma.auditLog.findMany({
+      where: { ...bf },
       orderBy: { timestamp: 'desc' },
       take: 10,
       include: { user: { select: { name: true, role: true } } }

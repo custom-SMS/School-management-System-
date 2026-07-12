@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
+import AdminLayout from '../../components/AdminLayout';
+import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
 
 const ROLES = ['SuperAdmin', 'Admin', 'Teacher', 'Cashier', 'Student', 'Parent'];
@@ -60,6 +62,9 @@ function ResetPasswordModal({ user, onClose, onSave }) {
 }
 
 export default function UserManagement() {
+  const { user: currentUser } = useContext(AuthContext);
+  const Layout = currentUser?.role === 'SuperAdmin' ? SuperAdminLayout : AdminLayout;
+
   const [users, setUsers]       = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
@@ -128,7 +133,7 @@ export default function UserManagement() {
   });
 
   return (
-    <SuperAdminLayout pageTitle="User Management">
+    <Layout pageTitle="User Management">
       {resetTarget && (
         <ResetPasswordModal
           user={resetTarget}
@@ -263,6 +268,6 @@ export default function UserManagement() {
           </table>
         </div>
       </div>
-    </SuperAdminLayout>
+    </Layout>
   );
 }

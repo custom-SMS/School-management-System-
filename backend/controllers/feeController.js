@@ -101,6 +101,7 @@ const getDefaulters = async (req, res) => {
 
     // Find all students
     const allStudents = await prisma.student.findMany({
+      where: { ...(req.branchFilter || {}) },
       include: {
         user: {
           select: { id: true, name: true, email: true }
@@ -303,6 +304,7 @@ const generateMonthlyFees = async (req, res) => {
     const feeByGrade = new Map(feeStructures.map((fs) => [normalizeGradeKey(fs.grade), fs.amount]));
 
     const students = await prisma.student.findMany({
+      where: { ...(req.branchFilter || {}) },
       select: {
         id: true,
         studentId: true,
@@ -382,7 +384,8 @@ const sendBulkFeeReminders = async (req, res) => {
     const fees = await prisma.fee.findMany({
       where: {
         month,
-        paid: false
+        paid: false,
+        student: { ...(req.branchFilter || {}) }
       },
       include: {
         student: {
@@ -628,6 +631,10 @@ const getOutstandingFees = async (req, res) => {
         : {}),
     };
 
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.student = { ...(where.student || {}), ...req.branchFilter };
+    }
+
     if (q) {
       const query = String(q).trim();
       where.OR = [
@@ -732,7 +739,10 @@ const markFeePaidInCash = async (req, res) => {
 const getPendingPayments = async (req, res) => {
   try {
     const payments = await prisma.payment.findMany({
-      where: { status: 'Pending' },
+      where: { 
+        status: 'Pending',
+        fee: { student: { ...(req.branchFilter || {}) } }
+      },
       include: {
         fee: {
           include: {
@@ -758,6 +768,10 @@ const getCashierPayments = async (req, res) => {
     const take = Math.min(Math.max(Number(limit) || 50, 1), 100);
 
     const where = {};
+
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.fee = { student: { ...req.branchFilter } };
+    }
 
     if (status && ['Pending', 'Verified', 'Rejected'].includes(status)) {
       where.status = status;

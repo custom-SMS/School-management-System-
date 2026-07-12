@@ -510,6 +510,7 @@ const registerStudent = async (req, res) => {
           userId: user.id,
           studentId: studentId,
           grade,
+          branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
           personalDetails: resolvedPersonalDetails,
           familyBackground: resolvedFamilyBackground,
           guardianContacts: []
@@ -523,6 +524,7 @@ const registerStudent = async (req, res) => {
             userId: user.id,
             studentId: fallbackStudentId,
             grade,
+            branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
             personalDetails: resolvedPersonalDetails,
             familyBackground: resolvedFamilyBackground,
             guardianContacts: []
@@ -759,6 +761,7 @@ const getStudents = async (req, res) => {
     const skip = (Number(page) - 1) * Number(limit);
 
     const whereClause = {
+      ...(req.branchFilter || {}),  // scope to branch automatically
       ...(grade && { grade }),
       ...(search && {
         user: {

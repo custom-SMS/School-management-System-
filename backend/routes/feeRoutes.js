@@ -19,7 +19,7 @@ const {
   getReceipt,
   downloadReceiptPdf
 } = require('../controllers/feeController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), rec
  *       200:
  *         description: List of defaulters
  */
-router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getDefaulters);
+router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getDefaulters);
 
 /**
  * @swagger
@@ -106,7 +106,7 @@ router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 
  *       200:
  *         description: List of paid students
  */
-router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPaidStudentsByClass);
+router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getPaidStudentsByClass);
 
 // Fee structures management by grade level
 
@@ -202,7 +202,7 @@ router.get('/structures', verifyToken, getFeeStructures);
  *       201:
  *         description: Invoices generated
  */
-router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), generateMonthlyFees);
+router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, generateMonthlyFees);
 
 /**
  * @swagger
@@ -217,7 +217,7 @@ router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier
  *       200:
  *         description: Reminders sent
  */
-router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), sendBulkFeeReminders);
+router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sendBulkFeeReminders);
 
 // Cashier desk
 
@@ -234,7 +234,7 @@ router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashie
  *       200:
  *         description: List of outstanding invoices
  */
-router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getOutstandingFees);
+router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getOutstandingFees);
 
 /**
  * @swagger
@@ -255,7 +255,7 @@ router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashi
  *       200:
  *         description: Fee marked as paid
  */
-router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getCashierPayments);
+router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getCashierPayments);
 
 router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), markFeePaidInCash);
 
@@ -327,7 +327,7 @@ router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmi
  *       200:
  *         description: List of pending payments
  */
-router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), getPendingPayments);
+router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getPendingPayments);
 
 /**
  * @swagger

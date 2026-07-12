@@ -6,6 +6,7 @@ import {
 } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { SettingsProvider } from "./context/SettingsContext";
+import { BranchProvider } from "./context/BranchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -17,11 +18,13 @@ import Dashboard from "./pages/Dashboard";
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
 import UserManagement from "./pages/superadmin/UserManagement";
 import UserDetails from "./pages/superadmin/UserDetails";
+import EmployeeManagement from "./pages/superadmin/EmployeeManagement";
 import AcademicYears from "./pages/superadmin/AcademicYears";
 import AttendanceGovernance from "./pages/superadmin/AttendanceGovernance";
 import FinancialOversight from "./pages/superadmin/FinancialOversight";
 import SuperAdminFees from "./pages/superadmin/Fees";
 import SuperAdminGrades from "./pages/superadmin/SuperAdminGrades";
+import BranchManagement from "./pages/superadmin/BranchManagement";
 import Settings from "./pages/Settings";
 import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
@@ -92,7 +95,8 @@ function App() {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <Router>
+        <BranchProvider>
+          <Router>
           <ToastContainer position="top-right" autoClose={3000} />
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -126,10 +130,26 @@ function App() {
               }
             />
             <Route
+              path="/super-admin/branches"
+              element={
+                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                  <BranchManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/super-admin/users"
               element={
                 <ProtectedRoute allowedRoles={["SuperAdmin"]}>
                   <UserManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/super-admin/employees"
+              element={
+                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                  <EmployeeManagement />
                 </ProtectedRoute>
               }
             />
@@ -267,6 +287,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                   <AdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/users"
+              element={
+                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                  <UserManagement />
                 </ProtectedRoute>
               }
             />
@@ -707,6 +735,7 @@ function App() {
             />
           </Routes>
         </Router>
+        </BranchProvider>
       </SettingsProvider>
     </AuthProvider>
   );
