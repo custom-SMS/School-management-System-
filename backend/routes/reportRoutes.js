@@ -6,7 +6,7 @@ const {
   getEnrollmentReport,
   getFinancialReport,
 } = require('../controllers/reportController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -15,7 +15,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *   description: System Reports
  */
 
-router.use(verifyToken, checkRole(['Admin', 'SuperAdmin']));
+router.use(verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter);
 
 /**
  * @swagger

@@ -12,24 +12,15 @@ const plain = (n) => (n === null || n === undefined || n === '' ? '—' : n);
 const REPORTS = {
   academic: {
     title: 'Academic Report',
-    subtitle: 'Grade distribution and subject performance across the school.',
+    subtitle: 'Grade performance and top performers across the school.',
     summary: [
       { key: 'totalEntries', label: 'Graded Entries' },
       { key: 'overallAverage', label: 'Overall Average', format: pct },
       { key: 'subjectsAssessed', label: 'Subjects Assessed' },
       { key: 'passRate', label: 'Pass Rate', format: pct },
     ],
-    tables: [
-      { title: 'Grade Distribution', dataKey: 'gradeDistribution', columns: [
-        { key: 'grade', label: 'Grade' }, { key: 'count', label: 'Students' }, { key: 'percentage', label: 'Share', format: pct },
-      ] },
-      { title: 'Subject Performance', dataKey: 'subjectPerformance', columns: [
-        { key: 'subject', label: 'Subject' }, { key: 'entries', label: 'Entries' }, { key: 'averageScore', label: 'Average', format: pct }, { key: 'passRate', label: 'Pass Rate', format: pct },
-      ] },
-      { title: 'Top Performers', dataKey: 'topPerformers', columns: [
-        { key: 'name', label: 'Student' }, { key: 'averageScore', label: 'Average', format: pct }, { key: 'entries', label: 'Entries' },
-      ] },
-    ],
+    tables: [],
+    custom: 'gradePerformance',
   },
   attendance: {
     title: 'Attendance Report',
@@ -42,11 +33,13 @@ const REPORTS = {
       { key: 'tardinessRate', label: 'Tardiness', format: pct },
     ],
     tables: [
-      { title: 'By Class', dataKey: 'byClass', columns: [
-        { key: 'className', label: 'Class' }, { key: 'subject', label: 'Subject' }, { key: 'sessions', label: 'Sessions' },
-        { key: 'present', label: 'Present' }, { key: 'absent', label: 'Absent' }, { key: 'late', label: 'Late' },
-        { key: 'attendanceRate', label: 'Rate', format: pct }, { key: 'tardinessRate', label: 'Tardiness', format: pct },
-      ] },
+      {
+        title: 'By Class', dataKey: 'byClass', columns: [
+          { key: 'className', label: 'Class' }, { key: 'subject', label: 'Subject' }, { key: 'sessions', label: 'Sessions' },
+          { key: 'present', label: 'Present' }, { key: 'absent', label: 'Absent' }, { key: 'late', label: 'Late' },
+          { key: 'attendanceRate', label: 'Rate', format: pct }, { key: 'tardinessRate', label: 'Tardiness', format: pct },
+        ]
+      },
     ],
   },
   enrollment: {
@@ -60,12 +53,16 @@ const REPORTS = {
       { key: 'activeYear', label: 'Active Year' },
     ],
     tables: [
-      { title: 'By Grade', dataKey: 'byGrade', columns: [
-        { key: 'grade', label: 'Grade' }, { key: 'count', label: 'Students' }, { key: 'percentage', label: 'Share', format: pct },
-      ] },
-      { title: 'By Gender', dataKey: 'byGender', columns: [
-        { key: 'gender', label: 'Gender' }, { key: 'count', label: 'Students' }, { key: 'percentage', label: 'Share', format: pct },
-      ] },
+      {
+        title: 'By Grade', dataKey: 'byGrade', columns: [
+          { key: 'grade', label: 'Grade' }, { key: 'count', label: 'Students' }, { key: 'percentage', label: 'Share', format: pct },
+        ]
+      },
+      {
+        title: 'By Gender', dataKey: 'byGender', columns: [
+          { key: 'gender', label: 'Gender' }, { key: 'count', label: 'Students' }, { key: 'percentage', label: 'Share', format: pct },
+        ]
+      },
     ],
   },
   financial: {
@@ -79,13 +76,17 @@ const REPORTS = {
       { key: 'invoices', label: 'Invoices' },
     ],
     tables: [
-      { title: 'By Month', dataKey: 'byMonth', columns: [
-        { key: 'month', label: 'Month' }, { key: 'billed', label: 'Billed', format: money }, { key: 'collected', label: 'Collected', format: money }, { key: 'pending', label: 'Pending', format: money },
-      ] },
-      { title: 'By Grade', dataKey: 'byGrade', columns: [
-        { key: 'grade', label: 'Grade' }, { key: 'billed', label: 'Billed', format: money }, { key: 'collected', label: 'Collected', format: money },
-        { key: 'pending', label: 'Pending', format: money }, { key: 'collectionRate', label: 'Collection Rate', format: pct },
-      ] },
+      {
+        title: 'By Month', dataKey: 'byMonth', columns: [
+          { key: 'month', label: 'Month' }, { key: 'billed', label: 'Billed', format: money }, { key: 'collected', label: 'Collected', format: money }, { key: 'pending', label: 'Pending', format: money },
+        ]
+      },
+      {
+        title: 'By Grade', dataKey: 'byGrade', columns: [
+          { key: 'grade', label: 'Grade' }, { key: 'billed', label: 'Billed', format: money }, { key: 'collected', label: 'Collected', format: money },
+          { key: 'pending', label: 'Pending', format: money }, { key: 'collectionRate', label: 'Collection Rate', format: pct },
+        ]
+      },
     ],
   },
 };
@@ -139,6 +140,17 @@ export default function ReportView() {
       lines.push('');
     });
 
+    // Grade performance custom section
+    if (config.custom === 'gradePerformance') {
+      (data.gradePerformance || []).forEach(({ gradeLevel, topStudents }) => {
+        lines.push(`Grade Performance — ${gradeLevel}`);
+        lines.push('Rank,Student,Average Score,Entries');
+        topStudents.forEach((s, i) => {
+          lines.push(`"${i + 1}","${s.name}","${pct(s.averageScore)}","${s.entries}"`);
+        });
+        lines.push('');
+      });
+    }
     const blob = new Blob([lines.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -235,6 +247,54 @@ export default function ReportView() {
               </div>
             );
           })}
+
+          {/* Grade Performance — custom section */}
+          {config.custom === 'gradePerformance' && (() => {
+            const gradePerformance = data.gradePerformance || [];
+            return (
+              <>
+                <div className="mb-4">
+                  <h3 className="text-xl font-bold text-gray-900">Grade Performance</h3>
+                  <p className="text-sm text-gray-500">Top 5 students per grade level (all sections combined), based on recorded marks.</p>
+                </div>
+                {gradePerformance.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center text-gray-500">
+                    No grade performance data available — marks have not been recorded yet.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {gradePerformance.map(({ gradeLevel, topStudents }) => (
+                      <div key={gradeLevel} className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <div className="border-b border-gray-100 bg-gray-50 px-6 py-4">
+                          <h4 className="text-base font-bold text-gray-900">{gradeLevel}</h4>
+                          <p className="text-xs text-gray-500">Top {topStudents.length} performer{topStudents.length !== 1 ? 's' : ''} · all sections</p>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {topStudents.map((student, idx) => (
+                            <div key={idx} className="flex items-center gap-4 px-6 py-3">
+                              {/* Rank badge */}
+                              <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold
+                                ${idx === 0 ? 'bg-yellow-100 text-yellow-700' : idx === 1 ? 'bg-gray-200 text-gray-600' : idx === 2 ? 'bg-orange-100 text-orange-600' : 'bg-gray-100 text-gray-500'}`}>
+                                {idx + 1}
+                              </span>
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-gray-900">{student.name}</p>
+                                <p className="text-xs text-gray-500">{student.entries} subject{student.entries !== 1 ? 's' : ''} graded</p>
+                              </div>
+                              <span className={`shrink-0 rounded-lg px-2.5 py-1 text-sm font-bold
+                                ${student.averageScore >= 90 ? 'bg-green-100 text-green-700' : student.averageScore >= 75 ? 'bg-blue-100 text-blue-700' : student.averageScore >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                                {pct(student.averageScore)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </>
       )}
     </AdminLayout>

@@ -19,83 +19,85 @@ const compareLabels = (left, right) => {
 
 const round = (value) => Number(Number(value || 0).toFixed(2));
 
-const letterFor = (pct) => {
-  if (pct >= 90) return 'A';
-  if (pct >= 80) return 'B';
-  if (pct >= 70) return 'C';
-  if (pct >= 60) return 'D';
-  return 'F';
-};
-
-// @desc    Academic report — grade distribution & subject performance
+// @desc    Academic report — grade performance & top performers per grade
 // @route   GET /api/reports/academic
 // @access  Private (Admin/SuperAdmin)
 const getAcademicReport = async (req, res) => {
   try {
+    const where = {};
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.class = { ...(req.branchFilter || {}) };
+    }
     const grades = await prisma.grade.findMany({
+      where,
       include: {
-        student: { include: { user: { select: { name: true } } } },
-        class: { select: { name: true } }
-      }
+        student: {
+          select: {
+            id: true,
+            grade: true,
+            user: { select: { name: true } },
+          },
+        },
+        class: { select: { name: true } },
+      },
     });
 
-    // Grade distribution by letter
-    const distributionMap = { A: 0, B: 0, C: 0, D: 0, F: 0 };
-    grades.forEach((g) => { distributionMap[letterFor(Number(g.percentage || 0))] += 1; });
-    const gradeDistribution = Object.entries(distributionMap).map(([grade, count]) => ({
-      grade,
-      count,
-      percentage: grades.length ? round((count / grades.length) * 100) : 0,
-    }));
-
-    // Subject performance (group by subject string)
-    const subjectMap = new Map();
-    grades.forEach((g) => {
-      const subject = normalizeLabel(g.subject);
-      if (!subjectMap.has(subject)) subjectMap.set(subject, { subject, total: 0, count: 0, pass: 0 });
-      const bucket = subjectMap.get(subject);
-      bucket.total += Number(g.percentage || 0);
-      bucket.count += 1;
-      if (Number(g.percentage || 0) >= 50) bucket.pass += 1;
-    });
-    const subjectPerformance = Array.from(subjectMap.values())
-      .map((b) => ({
-        subject: b.subject,
-        entries: b.count,
-        averageScore: b.count ? round(b.total / b.count) : 0,
-        passRate: b.count ? round((b.pass / b.count) * 100) : 0,
-      }))
-      .sort((a, b) => b.averageScore - a.averageScore);
-
-    // Top performers (per-student average)
-    const studentMap = new Map();
-    grades.forEach((g) => {
-      const id = g.studentId;
-      const name = g.student?.user?.name || 'Student';
-      if (!studentMap.has(id)) studentMap.set(id, { name, total: 0, count: 0 });
-      const bucket = studentMap.get(id);
-      bucket.total += Number(g.percentage || 0);
-      bucket.count += 1;
-    });
-    const topPerformers = Array.from(studentMap.values())
-      .map((b) => ({ name: b.name, averageScore: b.count ? round(b.total / b.count) : 0, entries: b.count }))
-      .sort((a, b) => b.averageScore - a.averageScore)
-      .slice(0, 10);
+    // Count unique subjects assessed
+    const subjectSet = new Set();
+    grades.forEach((g) => subjectSet.add(normalizeLabel(g.subject)));
 
     const overallAverage = grades.length
       ? round(grades.reduce((sum, g) => sum + Number(g.percentage || 0), 0) / grades.length)
       : 0;
 
+    // Grade performance: group grade entries by the student's grade level (e.g. "Grade 10")
+    // Then compute per-student averages and pick top 5 per grade level.
+    // Only grade levels that have at least one mark entry are included.
+    const gradeLevelMap = new Map(); // gradeName -> Map<studentId, { name, total, count }>
+
+    grades.forEach((g) => {
+      const gradeLevel = normalizeLabel(g.student?.grade);
+      const studentId = g.studentId;
+      const studentName = g.student?.user?.name || 'Student';
+
+      if (!gradeLevelMap.has(gradeLevel)) gradeLevelMap.set(gradeLevel, new Map());
+      const studentMap = gradeLevelMap.get(gradeLevel);
+
+      if (!studentMap.has(studentId)) studentMap.set(studentId, { name: studentName, total: 0, count: 0 });
+      const bucket = studentMap.get(studentId);
+      bucket.total += Number(g.percentage || 0);
+      bucket.count += 1;
+    });
+
+    // Build gradePerformance array — each entry is one grade level with its top 5 students
+    const gradePerformance = Array.from(gradeLevelMap.entries())
+      .sort((a, b) => compareLabels(a[0], b[0]))
+      .map(([gradeLevel, studentMap]) => {
+        const topStudents = Array.from(studentMap.values())
+          .map((b) => ({
+            name: b.name,
+            averageScore: b.count ? round(b.total / b.count) : 0,
+            entries: b.count,
+          }))
+          .sort((a, b) => b.averageScore - a.averageScore)
+          .slice(0, 5);
+
+        return {
+          gradeLevel,
+          topStudents,
+        };
+      });
+
     res.status(200).json({
       summary: {
         totalEntries: grades.length,
         overallAverage,
-        subjectsAssessed: subjectMap.size,
-        passRate: grades.length ? round((grades.filter((g) => Number(g.percentage || 0) >= 50).length / grades.length) * 100) : 0,
+        subjectsAssessed: subjectSet.size,
+        passRate: grades.length
+          ? round((grades.filter((g) => Number(g.percentage || 0) >= 50).length / grades.length) * 100)
+          : 0,
       },
-      gradeDistribution,
-      subjectPerformance,
-      topPerformers,
+      gradePerformance,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -107,7 +109,12 @@ const getAcademicReport = async (req, res) => {
 // @access  Private (Admin/SuperAdmin)
 const getAttendanceReport = async (req, res) => {
   try {
+    const where = {};
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.class = { ...(req.branchFilter || {}) };
+    }
     const attendances = await prisma.attendance.findMany({
+      where,
       include: {
         class: { select: { id: true, name: true, subject: true } },
         records: true,
@@ -170,12 +177,14 @@ const getAttendanceReport = async (req, res) => {
 // @access  Private (Admin/SuperAdmin)
 const getEnrollmentReport = async (req, res) => {
   try {
-    const students = await prisma.student.findMany({
-      where: {
-        user: {
-          isActive: true,
-        },
+    const where = {
+      user: {
+        isActive: true,
       },
+      ...(req.branchFilter || {})
+    };
+    const students = await prisma.student.findMany({
+      where,
       select: { id: true, grade: true, personalDetails: true, enrollmentDate: true }
     });
 
@@ -218,15 +227,16 @@ const getEnrollmentReport = async (req, res) => {
     const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
     const enrollmentsThisYear = activeYear
       ? await prisma.enrollment.count({
-          where: {
-            academicYearId: activeYear.id,
-            student: {
-              user: {
-                isActive: true,
-              },
+        where: {
+          academicYearId: activeYear.id,
+          student: {
+            user: {
+              isActive: true,
             },
+            ...(req.branchFilter || {})
           },
-        })
+        },
+      })
       : 0;
 
     res.status(200).json({
@@ -250,7 +260,12 @@ const getEnrollmentReport = async (req, res) => {
 // @access  Private (Admin/SuperAdmin)
 const getFinancialReport = async (req, res) => {
   try {
+    const where = {};
+    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
+      where.student = { ...(req.branchFilter || {}) };
+    }
     const fees = await prisma.fee.findMany({
+      where,
       include: { student: { select: { grade: true } } }
     });
 

@@ -16,7 +16,7 @@ export default function AcademicReports() {
             </div>
             <div>
               <h3 className="text-lg font-bold text-gray-900">Academic Reports</h3>
-              <p className="text-sm font-medium text-gray-500">Grade distribution, subject performance.</p>
+              <p className="text-sm font-medium text-gray-500">Grade performance and top performers per grade.</p>
             </div>
           </div>
           <button onClick={() => navigate('/admin/reports/academic')} className="w-full py-2 bg-gray-50 text-black font-bold rounded-lg hover:bg-gray-100 transition">Generate Report</button>
