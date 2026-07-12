@@ -144,11 +144,8 @@ export default function BranchManagement() {
       {/* ── Schools ───────────────────────────────────────────────── */}
       <section className="mb-6">
         <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-900">Schools</h2>
-          <button onClick={() => openModal('school')}
-            className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white hover:bg-slate-800">
-            + Add School
-          </button>
+          <h2 className="text-lg font-bold text-slate-900">School</h2>
+
         </div>
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {schools.map((s) => (
@@ -161,12 +158,7 @@ export default function BranchManagement() {
                   <div className="text-xs text-slate-400 mt-0.5">Code: {s.code}</div>
                   {s.address && <div className="text-xs text-slate-400">{s.address}</div>}
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); openModal('school', s); }}
-                  className="text-xs font-semibold text-indigo-600 hover:underline">Edit</button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteSchool(s.id); }} 
-                className="text-xs font-semibold text-red-600 hover:underline">
-                Delete
-              </button>
+
               </div>
               
               <div className="mt-3 text-xs font-semibold text-slate-500">

@@ -398,10 +398,11 @@ const updateUserRole = async (req, res) => {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Only allow Admin -> SuperAdmin promotion
-    if (user.role !== 'Admin' || role !== 'SuperAdmin') {
+    // Only allow toggling between Admin and SuperAdmin
+    const validRoles = ['Admin', 'SuperAdmin'];
+    if (!validRoles.includes(user.role) || !validRoles.includes(role)) {
       return res.status(403).json({
-        message: 'Only Admin users can be promoted to SuperAdmin.'
+        message: 'Role change is only permitted between Admin and SuperAdmin.'
       });
     }
 
