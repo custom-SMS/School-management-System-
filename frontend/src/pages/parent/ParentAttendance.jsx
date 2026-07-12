@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
+
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ParentAttendance() {
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
@@ -9,6 +12,34 @@ export default function ParentAttendance() {
   const late = attendance.filter((a) => a.status === 'Late').length;
   const rate = attendance.length ? Math.round((present / attendance.length) * 100) : 0;
   const name = selectedChild?.profile?.user?.name || 'Child';
+
+  const statusByDate = useMemo(() => {
+    const map = {};
+    (attendance || []).forEach((a) => {
+      const d = a.date ? new Date(a.date) : null;
+      if (d) {
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        map[`${year}-${month}-${day}`] = a.status;
+      }
+    });
+    return map;
+  }, [attendance]);
+
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const firstDay = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const cells = [...Array(firstDay).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
+
+  const tone = (status) => {
+    if (status === 'Present') return 'bg-emerald-100 text-emerald-700';
+    if (status === 'Absent') return 'bg-rose-100 text-rose-700';
+    if (status === 'Late') return 'bg-amber-100 text-amber-700';
+    return 'text-slate-600';
+  };
 
   return (
     <ParentLayout kids={children} childId={childId} onSelectChild={setChildId}>
@@ -26,34 +57,75 @@ export default function ParentAttendance() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase text-slate-400">Attendance Rate</div>
-              <div className="mt-1 text-3xl font-black text-slate-900">{rate}%</div>
-            </div>
-            <div className="rounded-2xl border-l-4 border-emerald-500 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase text-slate-400">Present</div>
-              <div className="mt-1 text-3xl font-black text-emerald-600">{present}</div>
-            </div>
-            <div className="rounded-2xl border-l-4 border-rose-500 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase text-slate-400">Absent</div>
-              <div className="mt-1 text-3xl font-black text-rose-600">{absent}</div>
-            </div>
-            <div className="rounded-2xl border-l-4 border-amber-500 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase text-slate-400">Late</div>
-              <div className="mt-1 text-3xl font-black text-amber-600">{late}</div>
-            </div>
-          </div>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.6fr]">
+            {/* Left: stats + warning */}
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Overall Attendance Rate</div>
+                <div className="mt-1 text-4xl font-black text-slate-900">{rate}%</div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
+                  <div className={`h-full rounded-full ${rate >= 85 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
+                </div>
+                <div className="mt-5 grid grid-cols-3 gap-3 text-center">
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">Present</div>
+                    <div className="text-lg font-black text-slate-900">{present}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">Absent</div>
+                    <div className="text-lg font-black text-rose-600">{absent}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">Late</div>
+                    <div className="text-lg font-black text-amber-600">{late}</div>
+                  </div>
+                </div>
+              </div>
 
-          {rate < 90 && attendance.length > 0 && (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4">
-              <svg className="h-6 w-6 shrink-0 text-rose-500" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 1 21h22L12 2zm0 6 6.5 11h-13L12 8zm-1 4v3h2v-3h-2zm0 4v2h2v-2h-2z" /></svg>
-              <div>
-                <div className="font-bold text-rose-700">Attendance below 90%</div>
-                <p className="text-sm text-rose-600">{name}'s attendance is under the institutional threshold. Please review recent absences below.</p>
+              {rate < 90 && attendance.length > 0 && (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
+                  <div className="flex items-center gap-2 font-bold text-rose-700"><span>⚠</span> Low Attendance Alert</div>
+                  <p className="mt-1 text-sm text-rose-600">{name}'s attendance has dropped below the 90% institutional threshold. Please review recent absences.</p>
+                </div>
+              )}
+
+              <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Summary</div>
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-600">Total Sessions</span>
+                    <span className="font-bold text-slate-900">{attendance.length}</span>
+                  </div>
+                </div>
               </div>
             </div>
-          )}
+
+            {/* Right: calendar */}
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="text-lg font-bold text-slate-900">{today.toLocaleString('en-US', { month: 'long' })} {year}</h2>
+                <div className="flex items-center gap-3 text-xs font-semibold text-slate-400">
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-emerald-400" /> Present</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-rose-400" /> Absent</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-amber-400" /> Late</span>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {WEEKDAYS.map((d) => <div key={d} className="text-center text-xs font-bold uppercase text-slate-400">{d}</div>)}
+                {cells.map((day, i) => {
+                  if (!day) return <div key={`e${i}`} />;
+                  const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const status = statusByDate[key];
+                  const isToday = day === today.getDate();
+                  return (
+                    <div key={day} className={`flex h-12 flex-col items-center justify-center rounded-lg text-sm font-bold ${tone(status)} ${isToday ? 'ring-2 ring-slate-900' : ''}`}>
+                      {day}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-lg font-bold text-slate-900">Session History</h2>
@@ -67,11 +139,11 @@ export default function ParentAttendance() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {attendance.map((a, i) => {
-                    const tone = a.status === 'Present' ? 'bg-emerald-50 text-emerald-700' : a.status === 'Late' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700';
+                    const toneBadge = a.status === 'Present' ? 'bg-emerald-50 text-emerald-700' : a.status === 'Late' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700';
                     return (
                       <tr key={i} className="text-slate-700">
                         <td className="py-3 pr-4">{new Date(a.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                        <td className="py-3 pr-4"><span className={`rounded-md px-2.5 py-1 text-xs font-bold ${tone}`}>{a.status}</span></td>
+                        <td className="py-3 pr-4"><span className={`rounded-md px-2.5 py-1 text-xs font-bold ${toneBadge}`}>{a.status}</span></td>
                       </tr>
                     );
                   })}
@@ -85,3 +157,4 @@ export default function ParentAttendance() {
     </ParentLayout>
   );
 }
+

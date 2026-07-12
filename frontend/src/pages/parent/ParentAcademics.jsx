@@ -1,7 +1,7 @@
 import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
 
-const letter = (t) => (t >= 90 ? 'A' : t >= 80 ? 'B' : t >= 70 ? 'C' : t >= 60 ? 'D' : 'F');
+
 
 export default function ParentAcademics() {
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
@@ -25,7 +25,7 @@ export default function ParentAcademics() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-xs font-semibold uppercase text-slate-400">Average Score</div>
               <div className="mt-1 text-3xl font-black text-slate-900">{avg}%</div>
@@ -33,10 +33,6 @@ export default function ParentAcademics() {
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-xs font-semibold uppercase text-slate-400">Subjects Graded</div>
               <div className="mt-1 text-3xl font-black text-slate-900">{grades.length}</div>
-            </div>
-            <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
-              <div className="text-xs font-semibold uppercase text-slate-300">Overall Standing</div>
-              <div className="mt-1 text-3xl font-black">{letter(Number(avg))}</div>
             </div>
           </div>
 
@@ -49,7 +45,7 @@ export default function ParentAcademics() {
                   <div key={g._id}>
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-semibold text-slate-700">{g.subject}</span>
-                      <span className="font-bold text-slate-900">{p.toFixed(0)}% · {letter(p)}</span>
+                      <span className="font-bold text-slate-900">{p.toFixed(0)}%</span>
                     </div>
                     <div className="mt-1.5 h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
                       <div className={`h-full rounded-full ${p < 70 ? 'bg-rose-500' : 'bg-slate-900'}`} style={{ width: `${p}%` }} />

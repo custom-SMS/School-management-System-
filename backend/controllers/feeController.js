@@ -532,7 +532,7 @@ const getMyFees = async (req, res) => {
 
 const submitBankPayment = async (req, res) => {
   try {
-    const { feeId, amount, transactionReference, bankName } = req.body;
+    const { feeId, amount, transactionReference, bankName, receiptImageUrl } = req.body;
 
     if (!feeId || !amount || !transactionReference || !bankName) {
       return res.status(400).json({ message: 'feeId, amount, transactionReference, and bankName are required.' });
@@ -587,6 +587,7 @@ const submitBankPayment = async (req, res) => {
         amount: Number(amount),
         transactionReference,
         bankName,
+        receiptImageUrl: receiptImageUrl || null,
         status: 'Pending'
       }
     });

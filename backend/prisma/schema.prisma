@@ -401,6 +401,7 @@ model Payment {
   amount               Float
   transactionReference String    @unique
   bankName             String
+  receiptImageUrl      String?
   status               String    @default("Pending")
   verifiedById         String?
   verifiedBy           User?     @relation("VerifiedPayments", fields: [verifiedById], references: [id])
