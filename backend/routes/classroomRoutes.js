@@ -287,7 +287,7 @@ router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
 
  */
 
-router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getGrades);
+router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getGrades);
 
 
 

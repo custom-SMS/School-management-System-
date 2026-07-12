@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment } = require('../controllers/assignmentController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -23,7 +23,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: List of assignment options
  */
-router.get('/options', verifyToken, checkRole(['Admin']), getAssignmentOptions);
+router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAssignmentOptions);
 
 /**
  * @swagger
@@ -57,7 +57,7 @@ router.get('/options', verifyToken, checkRole(['Admin']), getAssignmentOptions);
  *       201:
  *         description: Assignment created
  */
-router.post('/', verifyToken, checkRole(['Admin']), createAssignment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createAssignment);
 
 /**
  * @swagger
@@ -108,6 +108,6 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       200:
  *         description: List of all assignments
  */
-router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAllAssignments);
+router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAllAssignments);
 
 module.exports = router;

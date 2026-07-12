@@ -699,14 +699,19 @@ const getGradingStructure = async (req, res) => {
   }
 };
 
-// @desc    Get grades for a specific class and subject
-// @route   GET /api/classroom/grades/:classId/:subject
-// @access  Private (Teacher/Admin)
 const getGrades = async (req, res) => {
   try {
     const { classId, subject } = req.params;
 
-    if (req.user.role !== 'Admin') {
+    if (req.user.role === 'Admin') {
+      const targetClass = await prisma.class.findUnique({
+        where: { id: classId },
+        select: { branchId: true }
+      });
+      if (targetClass && req.branchFilter?.branchId && targetClass.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Class is not in your branch.' });
+      }
+    } else if (req.user.role !== 'Admin' && req.user.role !== 'SuperAdmin') {
       const teacher = await getTeacherProfile(req.user._id);
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
       const allowed = await isTeacherAssignedToClass(teacher.id, classId);

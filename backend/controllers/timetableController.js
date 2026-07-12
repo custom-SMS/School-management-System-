@@ -16,6 +16,16 @@ const createTimetableSlot = async (req, res) => {
       room
     } = req.body;
 
+    if (req.user.role === 'Admin') {
+      const targetClass = await prisma.class.findUnique({
+        where: { id: classId },
+        select: { branchId: true }
+      });
+      if (targetClass && req.branchFilter?.branchId && targetClass.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Cannot assign schedule to a class in another branch.' });
+      }
+    }
+
     if (startTime >= endTime) {
       return res.status(400).json({
         message: 'startTime must be before endTime.'
@@ -131,6 +141,16 @@ const getTimetablesByClass = async (req, res) => {
   try {
     const { classId, academicYearId } = req.params;
     const { sectionId } = req.query;
+
+    if (req.user.role === 'Admin') {
+      const targetClass = await prisma.class.findUnique({
+        where: { id: classId },
+        select: { branchId: true }
+      });
+      if (targetClass && req.branchFilter?.branchId && targetClass.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Class is in another branch.' });
+      }
+    }
 
     const whereClause = {
       classId,
