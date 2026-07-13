@@ -3,9 +3,8 @@ import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 
-const SCOPE_TYPES = ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin', 'Cashier'];
+const SCOPE_TYPES = ['BranchAdmin', 'LevelAdmin', 'Cashier'];
 const SCOPE_COLORS = {
-  SchoolAdmin: 'bg-purple-50 text-purple-700',
   BranchAdmin: 'bg-blue-50 text-blue-700',
   LevelAdmin: 'bg-indigo-50 text-indigo-700',
   Cashier: 'bg-emerald-50 text-emerald-700',
@@ -29,9 +28,9 @@ export default function BranchManagement() {
   const load = async () => {
     try {
       const [sr, br, ur] = await Promise.all([
-        axios.get('/branches/schools',  { skipGlobalErrorToast: true }),
+        axios.get('/branches/schools', { skipGlobalErrorToast: true }),
         axios.get('/branches/branches', { skipGlobalErrorToast: true }),
-        axios.get('/users',             { skipGlobalErrorToast: true }),
+        axios.get('/users', { skipGlobalErrorToast: true }),
       ]);
       setSchools(sr.data || []);
       setBranches(br.data || []);
@@ -68,21 +67,21 @@ export default function BranchManagement() {
     if (!window.confirm('Delete this school? This will also delete all its branches and levels.')) return;
     try {
       await axios.delete(`/branches/schools/${id}`);
-        toast.success('School deleted.');
+      toast.success('School deleted.');
       setActiveSchool(null);
       setActiveBranch(null);
       load();
     } catch (e) { toast.error(e.response?.data?.message || 'Failed to delete school.'); }
   };
-  const deleteBranch = async (id) => {  
-  if (!window.confirm('Delete this branch? This will also delete all its levels.')) return; 
-    try { 
+  const deleteBranch = async (id) => {
+    if (!window.confirm('Delete this branch? This will also delete all its levels.')) return;
+    try {
       await axios.delete(`/branches/branches/${id}`);
       toast.success('Branch deleted.');
       setActiveBranch(null);
       load();
     } catch (e) { toast.error(e.response?.data?.message || 'Failed to delete branch.'); }
-  };  
+  };
 
   const saveBranch = async () => {
     setSaving(true);
@@ -160,7 +159,7 @@ export default function BranchManagement() {
                 </div>
 
               </div>
-              
+
               <div className="mt-3 text-xs font-semibold text-slate-500">
                 {branchesOfSchool(s.id).length} branch(es)
               </div>
@@ -198,10 +197,10 @@ export default function BranchManagement() {
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); openModal('branch', b); }}
                     className="text-xs font-semibold text-blue-600 hover:underline">Edit</button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id); }} 
-                className="text-xs font-semibold text-red-600 hover:underline">
-                Delete
-              </button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id); }}
+                    className="text-xs font-semibold text-red-600 hover:underline">
+                    Delete
+                  </button>
                 </div>
                 <div className="mt-3 text-xs font-semibold text-slate-500">
                   {levelsOfBranch(b.id).length} level(s)
@@ -414,19 +413,11 @@ export default function BranchManagement() {
                   </select>
                 </div>
                 <div className="mb-3">
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">School</label>
-                  <select value={form.schoolId || ''} onChange={(e) => set('schoolId', e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
-                    <option value="">— Select school —</option>
-                    {schools.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
-                  </select>
-                </div>
-                <div className="mb-3">
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">Branch {form.scopeType === 'SchoolAdmin' ? '(not required)' : ''}</label>
+                  <label className="mb-1 block text-xs font-semibold text-slate-600">Branch</label>
                   <select value={form.branchId || ''} onChange={(e) => { set('branchId', e.target.value); set('levelId', null); }}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
-                    <option value="">— All branches —</option>
-                    {branches.filter((b) => !form.schoolId || b.schoolId === form.schoolId).map((b) => (
+                    <option value="">— Select branch —</option>
+                    {branches.map((b) => (
                       <option key={b.id} value={b.id}>{b.name}</option>
                     ))}
                   </select>
@@ -444,7 +435,7 @@ export default function BranchManagement() {
                   </div>
                 )}
                 <div className="mt-4 flex gap-2">
-                  <button onClick={saveScope} disabled={saving || !form.userId || !form.scopeType}
+                  <button onClick={saveScope} disabled={saving || !form.userId || !form.scopeType || !form.branchId}
                     className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">
                     {saving ? 'Saving…' : 'Assign Scope'}
                   </button>

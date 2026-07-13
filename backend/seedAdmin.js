@@ -7,11 +7,11 @@ async function main() {
   const adminEmail = 'admin@school.com';
   const superadminEmail = 'superadmin@school.com';
   const cashierEmail = 'cashier@school.com';
-  
+
   const adminHashed = await bcrypt.hash('admin', 10);
   const superadminHashed = await bcrypt.hash('superadmin', 10);
   const cashierHashed = await bcrypt.hash('cashier', 10);
-  
+
   const admin = await prisma.user.upsert({
     where: { email: adminEmail },
     update: { password: adminHashed },
@@ -126,22 +126,23 @@ async function main() {
     }
   });
 
-  // Seed default permissions for Admin role
-  const defaultAdminPermissions = ['student_registration', 'manage_academic_year'];
-  for (const perm of defaultAdminPermissions) {
-    await prisma.rolePermission.upsert({
-      where: {
-        role_permission: {
-          role: 'Admin',
-          permission: perm
-        }
-      },
-      update: {},
-      create: {
-        role: 'Admin',
-        permission: perm
-      }
-    });
+  // Seed default permissions for all roles
+  const defaultPermissions = {
+    Admin: ['manage_academic_year', 'generate_reports', 'manage_users'],
+    Cashier: ['manage_fees', 'verify_payments'],
+    Teacher: ['student_registration', 'manage_grades', 'manage_attendance'],
+    Student: [],
+    Parent: [],
+  };
+
+  for (const [role, perms] of Object.entries(defaultPermissions)) {
+    for (const perm of perms) {
+      await prisma.rolePermission.upsert({
+        where: { role_permission: { role, permission: perm } },
+        update: {},
+        create: { role, permission: perm }
+      });
+    }
   }
 
   console.log('\n✅ Seed data is ready!\n');

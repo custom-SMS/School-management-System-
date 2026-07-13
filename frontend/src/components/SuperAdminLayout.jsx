@@ -103,7 +103,7 @@ const navItems = [
   { to: '/super-admin/users', label: 'User Management', icon: <UsersIcon /> },
   { to: '/super-admin/employees', label: 'Employee Management', icon: <BriefcaseIcon /> },
   { to: '/super-admin/branches', label: 'Branch Management', icon: <SystemIcon /> },
-  { to: '/super-admin/roles', label: 'Roles & Permissions', icon: <RoleIcon /> },
+  { to: '/super-admin/permissions', label: 'Roles & Permissions', icon: <RoleIcon /> },
   { to: '/super-admin/academic-years', label: 'Academic Years', icon: <CalendarIcon /> },
   { to: '/super-admin/attendance-governance', label: 'Attendance Governance', icon: <ShieldIcon /> },
   { to: '/super-admin/financial-oversight', label: 'Financial Oversight', icon: <FinanceIcon /> },

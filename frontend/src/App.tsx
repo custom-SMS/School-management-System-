@@ -13,6 +13,7 @@ import { ToastContainer } from "react-toastify";
 // General
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import RegistrationGuard from "./components/RegistrationGuard";
 
 // Super Admin
 import SuperAdminDashboard from "./pages/superadmin/SuperAdminDashboard";
@@ -26,7 +27,6 @@ import SuperAdminFees from "./pages/superadmin/Fees";
 import SuperAdminGrades from "./pages/superadmin/SuperAdminGrades";
 import BranchManagement from "./pages/superadmin/BranchManagement";
 import Settings from "./pages/Settings";
-import Roles from "./pages/Roles";
 import Permissions from "./pages/Permissions";
 import AuditLogs from "./pages/AuditLogs";
 import SystemAnalytics from "./pages/superadmin/SystemAnalytics";
@@ -97,652 +97,652 @@ function App() {
       <SettingsProvider>
         <BranchProvider>
           <Router>
-          <ToastContainer position="top-right" autoClose={3000} />
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route
-              path="/parent-portal"
-              element={<Navigate to="/parent/dashboard" replace />}
-            />
+            <ToastContainer position="top-right" autoClose={3000} />
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="/parent-portal"
+                element={<Navigate to="/parent/dashboard" replace />}
+              />
 
-            {/* Fallback Dashboard for non-admin/superadmin */}
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Teacher", "Student", "Parent", "Cashier"]}
-                >
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
+              {/* Fallback Dashboard for non-admin/superadmin */}
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Teacher", "Student", "Parent", "Cashier"]}
+                  >
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ========================================================
+              {/* ========================================================
               SUPER ADMIN ROUTES
               ======================================================== */}
-            <Route
-              path="/super-admin/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <SuperAdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/branches"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <BranchManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/users"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/employees"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <EmployeeManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/users/:id"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <UserDetails />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/roles"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/permissions"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <Permissions />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/academic-years"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <AcademicYears />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/attendance-governance"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <AttendanceGovernance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/financial-oversight"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <FinancialOversight />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/analytics"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <SystemAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <SystemNotifications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/grades"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <SuperAdminGrades />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/fees"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <SuperAdminFees />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/registration"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Admin", "SuperAdmin"]}
-                  requiredPermission="student_registration"
-                >
-                  <RegisterStudent />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/audit-logs"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <AuditLogs />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/super-admin/settings"
-              element={
-                <ProtectedRoute allowedRoles={["SuperAdmin"]}>
-                  <Settings />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/super-admin/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <SuperAdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/branches"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <BranchManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/users"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/employees"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <EmployeeManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/users/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <UserDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/roles"
+                element={<Navigate to="/super-admin/permissions" replace />}
+              />
+              <Route
+                path="/super-admin/permissions"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <Permissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/academic-years"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <AcademicYears />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/attendance-governance"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <AttendanceGovernance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/financial-oversight"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <FinancialOversight />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/analytics"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <SystemAnalytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <SystemNotifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/grades"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <SuperAdminGrades />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/fees"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <SuperAdminFees />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/registration"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Admin", "SuperAdmin"]}
+                    requiredPermission="student_registration"
+                  >
+                    <RegistrationGuard>
+                      <RegisterStudent />
+                    </RegistrationGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/audit-logs"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <AuditLogs />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/super-admin/settings"
+                element={
+                  <ProtectedRoute allowedRoles={["SuperAdmin"]}>
+                    <Settings />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* Legacy links that might be accessed, redirect to new paths */}
-            <Route
-              path="/settings"
-              element={<Navigate to="/super-admin/settings" replace />}
-            />
-            <Route
-              path="/roles"
-              element={<Navigate to="/super-admin/roles" replace />}
-            />
-            <Route
-              path="/permissions"
-              element={<Navigate to="/super-admin/permissions" replace />}
-            />
-            <Route
-              path="/audit"
-              element={<Navigate to="/super-admin/audit-logs" replace />}
-            />
+              {/* Legacy links that might be accessed, redirect to new paths */}
+              <Route
+                path="/settings"
+                element={<Navigate to="/super-admin/settings" replace />}
+              />
+              <Route
+                path="/roles"
+                element={<Navigate to="/super-admin/roles" replace />}
+              />
+              <Route
+                path="/permissions"
+                element={<Navigate to="/super-admin/permissions" replace />}
+              />
+              <Route
+                path="/audit"
+                element={<Navigate to="/super-admin/audit-logs" replace />}
+              />
 
-            {/* ========================================================
+              {/* ========================================================
               ADMIN ROUTES
               ======================================================== */}
-            <Route
-              path="/admin/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/users"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <UserManagement />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/users/:id"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <UserDetails />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/grades"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <AdminGrades />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/students"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Students />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/teachers"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Teachers />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/subjects"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Academics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/classes"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Classes />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sections"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Sections />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/sections/:sectionId/students"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <SectionStudents />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/assignments"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Assignments />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/timetables"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Timetables />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/report-cards"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <ReportCards />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/academic-reports"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <AcademicReports />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/reports/:type"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <ReportView />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/registration"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Admin", "SuperAdmin"]}
-                  requiredPermission="student_registration"
-                >
-                  <RegisterStudent />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/students/:id/edit"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Admin", "SuperAdmin"]}
-                  requiredPermission="student_registration"
-                >
-                  <RegisterStudent />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/admin/students/:id"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <AdminStudentProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/registrar"
-              element={
-                <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
-                  <Registrar />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="manage_users">
+                    <UserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/users/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="manage_users">
+                    <UserDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/grades"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <AdminGrades />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/students"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Students />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/teachers"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Teachers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/subjects"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Academics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/classes"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Classes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/sections"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Sections />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/sections/:sectionId/students"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <SectionStudents />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/assignments"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Assignments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/timetables"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Timetables />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/report-cards"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <ReportCards />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/academic-reports"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="generate_reports">
+                    <AcademicReports />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/reports/:type"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]} requiredPermission="generate_reports">
+                    <ReportView />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/registration"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Admin", "SuperAdmin"]}
+                    requiredPermission="student_registration"
+                  >
+                    <RegistrationGuard>
+                      <RegisterStudent />
+                    </RegistrationGuard>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/students/:id/edit"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Admin", "SuperAdmin"]}
+                    requiredPermission="student_registration"
+                  >
+                    <RegisterStudent />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/students/:id"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <AdminStudentProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/registrar"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <Registrar />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ========================================================
+              {/* ========================================================
               FINANCE (CASHIER) ROUTES
               ======================================================== */}
-            <Route
-              path="/finance/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <FinanceDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/finance/payments"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <FinancePayments />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/finance/verification"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <FinanceVerification />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/finance/analytics"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <FinanceAnalytics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/finance/fees"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <FinanceFees />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/bursar"
-              element={
-                <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
-                  <Bursar />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/finance/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
+                    <FinanceDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance/payments"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]} requiredPermission="verify_payments">
+                    <FinancePayments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance/verification"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]} requiredPermission="verify_payments">
+                    <FinanceVerification />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance/analytics"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
+                    <FinanceAnalytics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/finance/fees"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]} requiredPermission="manage_fees">
+                    <FinanceFees />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/bursar"
+                element={
+                  <ProtectedRoute allowedRoles={["Cashier", "SuperAdmin"]}>
+                    <Bursar />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ========================================================
+              {/* ========================================================
               TEACHER ROUTES
               ======================================================== */}
-            <Route
-              path="/teacher/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/classes"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherClasses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/students"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherStudents />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/students/:studentId"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <StudentProfile />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/students/:studentId/attendance"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <StudentAttendanceDetail />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/attendance"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherAttendance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/attendance-records"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherAttendanceRecords />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/homeroom"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <Homeroom />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/homeroom/report-cards"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <HomeroomReportCards />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherNotifications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/grades"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherGradebook />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/timetable"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <TeacherTimetable />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classroom/grades"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <GradeSpreadsheet />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/classroom/attendance"
-              element={
-                <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                  <AttendanceChecklist />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/teacher/registration"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Admin", "Teacher"]}
-                  requiredPermission="student_registration"
-                >
-                  <RegisterStudent />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/teacher/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/classes"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherClasses />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/students"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherStudents />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/students/:studentId"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <StudentProfile />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/students/:studentId/attendance"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <StudentAttendanceDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/attendance"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherAttendance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/attendance-records"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherAttendanceRecords />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/homeroom"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <Homeroom />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/homeroom/report-cards"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <HomeroomReportCards />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherNotifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/grades"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherGradebook />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/timetable"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherTimetable />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/classroom/grades"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <GradeSpreadsheet />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/classroom/attendance"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <AttendanceChecklist />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/teacher/registration"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Admin", "Teacher"]}
+                    requiredPermission="student_registration"
+                  >
+                    <RegisterStudent />
+                  </ProtectedRoute>
+                }
+              />
 
-            {/* ========================================================
+              {/* ========================================================
               STUDENT / PARENT ROUTES
               ======================================================== */}
-            <Route
-              path="/my-fees"
-              element={
-                <ProtectedRoute allowedRoles={["Student", "Parent"]}>
-                  <StudentFees />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/my-fees"
+                element={
+                  <ProtectedRoute allowedRoles={["Student", "Parent"]}>
+                    <StudentFees />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/student/dashboard"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/attendance"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentAttendancePortal />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/academics"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentAcademics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/academics/:subjectKey"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <SubjectResultDetails />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/finance"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentFinance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/student/finance/pay"
-              element={
-                <ProtectedRoute
-                  allowedRoles={["Student", "Parent", "SuperAdmin"]}
-                >
-                  <StudentPayment />
-                </ProtectedRoute>
-              }
-            />
+              <Route
+                path="/student/dashboard"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/attendance"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentAttendancePortal />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/academics"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentAcademics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/academics/:subjectKey"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <SubjectResultDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/finance"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentFinance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/student/finance/pay"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentPayment />
+                  </ProtectedRoute>
+                }
+              />
 
-            <Route
-              path="/parent/dashboard"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/parent/academics"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentAcademics />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/parent/attendance"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentAttendance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/parent/notifications"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentNotifications />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/parent/finance"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentFinance />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/parent/finance/pay"
-              element={
-                <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
-                  <ParentPayment />
-                </ProtectedRoute>
-              }
-            />
-          </Routes>
-        </Router>
+              <Route
+                path="/parent/dashboard"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/academics"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentAcademics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/attendance"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentAttendance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentNotifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/finance"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentFinance />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/finance/pay"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentPayment />
+                  </ProtectedRoute>
+                }
+              />
+            </Routes>
+          </Router>
         </BranchProvider>
       </SettingsProvider>
     </AuthProvider>

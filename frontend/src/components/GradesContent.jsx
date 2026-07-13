@@ -7,6 +7,7 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
+import { useBranch } from '../context/BranchContext';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const clampMark = (value, max = 100) => {
@@ -21,6 +22,8 @@ const clampMark = (value, max = 100) => {
 
 // ─── component ────────────────────────────────────────────────────────────────
 export default function GradesContent({ canEdit = false }) {
+  const { selectedBranchId } = useBranch();
+
   // ── grading weights ──────────────────────────────────────────────────────
   const [weights, setWeights] = useState({
     quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40,
@@ -29,14 +32,14 @@ export default function GradesContent({ canEdit = false }) {
   useEffect(() => {
     axios.get('/classroom/grading-structure')
       .then((r) => { if (r.data) setWeights(r.data); })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   const components = useMemo(() => [
-    { field: 'quiz',       label: 'Quiz',       weight: weights.quizWeight },
-    { field: 'assignment', label: 'Assignment',  weight: weights.assignmentWeight },
-    { field: 'midterm',    label: 'Midterm',     weight: weights.midtermWeight },
-    { field: 'final',      label: 'Final',       weight: weights.finalWeight },
+    { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
+    { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
+    { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
+    { field: 'final', label: 'Final', weight: weights.finalWeight },
   ], [weights]);
 
   const getMaxForField = useCallback((field) => {
@@ -66,12 +69,17 @@ export default function GradesContent({ canEdit = false }) {
             (r.data || []).map((a) => a.class).filter(Boolean).map((c) => [c._id, c]),
           ).values(),
         );
-        setClasses(available);
-        if (available.length > 0) setSelectedClassId(available[0]._id);
+        // Filter classes by selected branch if SuperAdmin has a branch selected
+        const filtered = selectedBranchId
+          ? available.filter(c => c.branchId === selectedBranchId)
+          : available;
+        setClasses(filtered);
+        if (filtered.length > 0) setSelectedClassId(filtered[0]._id);
+        else setSelectedClassId('');
       })
       .catch(() => toast.error('Failed to load classes.'))
       .finally(() => setLoadingClasses(false));
-  }, []);
+  }, [selectedBranchId]);
 
   useEffect(() => {
     if (!selectedClass) { setClassRows([]); return; }
@@ -125,10 +133,10 @@ export default function GradesContent({ canEdit = false }) {
   const startEdit = (grade) => {
     setEditingId(grade._id);
     setEditMarks({
-      quiz:       grade.marks?.quiz       ?? null,
+      quiz: grade.marks?.quiz ?? null,
       assignment: grade.marks?.assignment ?? null,
-      midterm:    grade.marks?.midterm    ?? null,
-      final:      grade.marks?.final      ?? null,
+      midterm: grade.marks?.midterm ?? null,
+      final: grade.marks?.final ?? null,
     });
   };
 
@@ -145,10 +153,10 @@ export default function GradesContent({ canEdit = false }) {
         gradesData: [{
           student: selectedStudent._id,
           marks: {
-            quiz:       editMarks.quiz       ?? null,
+            quiz: editMarks.quiz ?? null,
             assignment: editMarks.assignment ?? null,
-            midterm:    editMarks.midterm    ?? null,
-            final:      editMarks.final      ?? null,
+            midterm: editMarks.midterm ?? null,
+            final: editMarks.final ?? null,
           },
         }],
       });

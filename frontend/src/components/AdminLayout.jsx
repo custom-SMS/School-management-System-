@@ -94,7 +94,7 @@ const CloseIcon = () => (
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/admin/users', label: 'User Management', icon: <UsersIcon /> },
+  { to: '/admin/users', label: 'User Management', icon: <UsersIcon />, permission: 'manage_users' },
   { to: '/admin/students', label: 'Students', icon: <UsersIcon /> },
   { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
   { to: '/admin/subjects', label: 'Subjects', icon: <CalendarIcon /> },
@@ -104,16 +104,16 @@ const navItems = [
   { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
   { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
   { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },
-  { to: '/admin/academic-reports', label: 'General Reports', icon: <ActivityIcon /> },
-  { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon /> },
-  { to: '/roles', label: 'Role Management', icon: <RoleIcon /> },
-  { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon /> },
-  { to: '/audit', label: 'Audit Logs', icon: <ActivityIcon /> },
-  { to: '/settings', label: 'System Settings', icon: <SettingsIcon /> },
+  { to: '/admin/academic-reports', label: 'General Reports', icon: <ActivityIcon />, permission: 'generate_reports' },
+  { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon />, permission: 'student_registration' },
+  { to: '/roles', label: 'Role Management', icon: <RoleIcon />, superAdminOnly: true },
+  { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon />, superAdminOnly: true },
+  { to: '/audit', label: 'Audit Logs', icon: <ActivityIcon />, superAdminOnly: true },
+  { to: '/settings', label: 'System Settings', icon: <SettingsIcon />, superAdminOnly: true },
 ];
 
 export default function AdminLayout({ children, pageTitle, headerAction }) {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, permissions } = useContext(AuthContext);
   const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -168,9 +168,9 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
   const unreadCount = notifications.filter(n => !n.read).length;
 
   const filteredNavItems = navItems.filter(item => {
-    // Only SuperAdmin can see System Settings, Role Management, Permission Management, and Audit Logs
-    if (['/settings', '/roles', '/permissions', '/audit'].includes(item.to)) {
-      return user?.role === 'SuperAdmin';
+    if (item.superAdminOnly) return user?.role === 'SuperAdmin';
+    if (item.permission && user?.role !== 'SuperAdmin') {
+      return permissions.includes('*') || permissions.includes(item.permission);
     }
     return true;
   });

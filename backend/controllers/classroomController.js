@@ -47,14 +47,14 @@ const mapGradeToResponse = (grade) => ({
 
 const isTeacherAssignedToClass = async (teacherId, classId, subject = null) => {
   if (!classId) return false;
-  
+
   const assignment = await prisma.teacherAssignment.findFirst({
     where: { teacherId, classId }
   });
-  
+
   // HomeRoomTeacher has full access to the class regardless of subject
   if (assignment && assignment.assignmentType === 'HomeRoomTeacher') return true;
-  
+
   // SubjectTeacher only has access if they're assigned to this class
   if (assignment && assignment.assignmentType === 'SubjectTeacher') {
     // If subject is specified, check if they teach that subject
@@ -151,9 +151,9 @@ const getClassroomOptions = async (req, res) => {
         return res.status(404).json({ message: 'Teacher profile not found' });
       }
 
-      where = { 
+      where = {
         ...where,
-        teacherId: teacher.id 
+        teacherId: teacher.id
       };
     }
 
@@ -600,9 +600,9 @@ const saveGrades = async (req, res) => {
 
       // FR-27: Calculate final score automatically based on weights (which sum to 100%)
       const total = (quiz * (weights.quizWeight / 100)) +
-                    (assignment * (weights.assignmentWeight / 100)) +
-                    (midterm * (weights.midtermWeight / 100)) +
-                    (final * (weights.finalWeight / 100));
+        (assignment * (weights.assignmentWeight / 100)) +
+        (midterm * (weights.midtermWeight / 100)) +
+        (final * (weights.finalWeight / 100));
 
       const percentage = Number(total.toFixed(2)); // Weights sum to 100%, so total is already a percentage
 
@@ -716,7 +716,7 @@ const getGrades = async (req, res) => {
         return res.status(403).json({ message: 'Access denied. This class is not assigned to you.' });
       }
     }
-    
+
     const grades = await prisma.grade.findMany({
       where: { classId, subject },
       include: {
@@ -737,6 +737,53 @@ const getGrades = async (req, res) => {
           user: g.student.user ? { ...g.student.user, _id: g.student.user.id } : null
         };
       }
+      return mapped;
+    });
+
+    res.status(200).json(responseGrades);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getStudentGrades = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+
+    // Authorization: SuperAdmin can see all, Admin only their branch, Teacher only their students
+    if (req.user.role === 'Admin') {
+      const student = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { branchId: true }
+      });
+      if (student && req.branchFilter?.branchId && student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student is not in your branch.' });
+      }
+    } else if (req.user.role === 'Teacher') {
+      const teacher = await getTeacherProfile(req.user._id);
+      if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
+      const allowed = await isTeacherAssignedToStudents(teacher.id, [studentId]);
+      if (!allowed) {
+        return res.status(403).json({ message: 'Access denied. This student is not assigned to you.' });
+      }
+    }
+
+    const grades = await prisma.grade.findMany({
+      where: { studentId },
+      include: {
+        class: {
+          select: { id: true, name: true, subject: true, stream: true }
+        }
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
+    });
+
+    const responseGrades = grades.map(g => {
+      const mapped = mapGradeToResponse(g);
+      mapped.classRef = g.class ? {
+        ...g.class,
+        _id: g.class.id
+      } : null;
       return mapped;
     });
 
@@ -848,11 +895,11 @@ const getClasses = async (req, res) => {
       const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, klass.id, { fallbackToClass: false });
       const resolvedTeacher = resolvedTeacherId
         ? await prisma.teacher.findUnique({
-            where: { id: resolvedTeacherId },
-            include: {
-              user: { select: { id: true, name: true, email: true } }
-            }
-          })
+          where: { id: resolvedTeacherId },
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        })
         : null;
 
       return {
@@ -1173,9 +1220,9 @@ const getSectionsByClass = async (req, res) => {
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
     const resolvedTeacher = resolvedTeacherId
       ? await prisma.teacher.findUnique({
-          where: { id: resolvedTeacherId },
-          include: { user: { select: { id: true, name: true, email: true } } }
-        })
+        where: { id: resolvedTeacherId },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      })
       : null;
 
     const sections = await prisma.section.findMany({
@@ -1233,9 +1280,9 @@ const getSectionById = async (req, res) => {
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, section.classId, { fallbackToClass: false });
     const resolvedTeacher = resolvedTeacherId
       ? await prisma.teacher.findUnique({
-          where: { id: resolvedTeacherId },
-          include: { user: { select: { id: true, name: true, email: true } } }
-        })
+        where: { id: resolvedTeacherId },
+        include: { user: { select: { id: true, name: true, email: true } } }
+      })
       : null;
 
     res.status(200).json({
@@ -1543,9 +1590,9 @@ const assignStudentsToSection = async (req, res) => {
     const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
     const students = uniqueStudentIds.length
       ? await prisma.student.findMany({
-          where: { id: { in: uniqueStudentIds } },
-          select: { id: true, grade: true }
-        })
+        where: { id: { in: uniqueStudentIds } },
+        select: { id: true, grade: true }
+      })
       : [];
 
     if (students.length !== uniqueStudentIds.length) {
@@ -1617,7 +1664,8 @@ module.exports = {
   getAttendanceSessions,
   unlockAttendance,
   saveGrades,
-  getGrades, 
+  getGrades,
+  getStudentGrades,
   getClassroomOptions,
   createClass,
   updateClass,

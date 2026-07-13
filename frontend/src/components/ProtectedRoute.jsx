@@ -17,8 +17,6 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
-const ADMIN_SCOPES = ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'];
-
 export default function ProtectedRoute({
   children,
   allowedRoles = [],
@@ -46,6 +44,8 @@ export default function ProtectedRoute({
 
   // SuperAdmin bypasses everything
   const isSuper = role === 'SuperAdmin';
+
+  const ADMIN_SCOPES = ['BranchAdmin', 'LevelAdmin'];
 
   // Evaluate access
   const roleAllowed = allowedRoles.length === 0 || allowedRoles.includes(role);
@@ -82,7 +82,8 @@ export default function ProtectedRoute({
   }
 
   // Permission check (granular — e.g. student_registration)
-  if (requiredPermission && !isSuper && !ADMIN_SCOPES.includes(scopeType)) {
+  // Applies to ALL non-SuperAdmin roles including Admin/BranchAdmin/LevelAdmin.
+  if (requiredPermission && !isSuper) {
     const hasPermission = permissions.includes('*') || permissions.includes(requiredPermission);
     if (!hasPermission) {
       return (
@@ -100,7 +101,7 @@ export default function ProtectedRoute({
               <span className="font-mono font-bold text-slate-800 bg-slate-100 px-1.5 py-0.5 rounded text-xs">
                 {requiredPermission}
               </span>{' '}
-              permission to access this page.
+              permission to access this page. Contact your administrator.
             </p>
           </div>
         </div>

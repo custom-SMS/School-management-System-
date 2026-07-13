@@ -2,12 +2,15 @@ const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const { logActivity } = require('../middleware/auditLogger');
 
-// Helper to check if a target user is within the requesting admin's school/branch scope
+// Helper to check if a target user is within the requesting admin's branch scope
 const isUserInScope = async (reqUser, targetUserId) => {
   if (reqUser.role === 'SuperAdmin') return true;
   if (reqUser.role !== 'Admin') return false;
 
-  const { scopeType, schoolId, branchId } = reqUser;
+  const { branchId } = reqUser;
+
+  // All admins below SuperAdmin must have a branchId
+  if (!branchId) return false;
 
   const targetUser = await prisma.user.findUnique({
     where: { id: targetUserId },
@@ -18,64 +21,23 @@ const isUserInScope = async (reqUser, targetUserId) => {
       teacherProfile: { select: { branchId: true } },
       parentProfile: {
         select: {
-          children: {
-            select: { branchId: true, branch: { select: { schoolId: true } } }
-          }
+          children: { select: { branchId: true } }
         }
       },
-      userScope: {
-        select: {
-          schoolId: true,
-          branchId: true
-        }
-      }
+      userScope: { select: { branchId: true } }
     }
   });
 
   if (!targetUser) return false;
-  
+
   // Normal admins cannot manage or view SuperAdmins
   if (targetUser.role === 'SuperAdmin') return false;
 
-  // SchoolAdmin check
-  if (scopeType === 'SchoolAdmin' && schoolId) {
-    // 1. Target is student in same school
-    if (targetUser.studentProfile?.branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: targetUser.studentProfile.branchId },
-        select: { schoolId: true }
-      });
-      if (branch?.schoolId === schoolId) return true;
-    }
-    // 2. Target is teacher in same school
-    if (targetUser.teacherProfile?.branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: targetUser.teacherProfile.branchId },
-        select: { schoolId: true }
-      });
-      if (branch?.schoolId === schoolId) return true;
-    }
-    // 3. Target is parent with child in same school
-    if (targetUser.parentProfile?.children?.some(c => c.branch?.schoolId === schoolId)) {
-      return true;
-    }
-    // 4. Target has userScope in same school
-    if (targetUser.userScope?.some(s => s.schoolId === schoolId)) {
-      return true;
-    }
-  }
-
-  // BranchAdmin/other check
-  if (branchId) {
-    // 1. Target is student in same branch
-    if (targetUser.studentProfile?.branchId === branchId) return true;
-    // 2. Target is teacher in same branch
-    if (targetUser.teacherProfile?.branchId === branchId) return true;
-    // 3. Target is parent with child in same branch
-    if (targetUser.parentProfile?.children?.some(c => c.branchId === branchId)) return true;
-    // 4. Target has userScope in same branch
-    if (targetUser.userScope?.some(s => s.branchId === branchId)) return true;
-  }
+  // Check branch membership
+  if (targetUser.studentProfile?.branchId === branchId) return true;
+  if (targetUser.teacherProfile?.branchId === branchId) return true;
+  if (targetUser.parentProfile?.children?.some(c => c.branchId === branchId)) return true;
+  if (targetUser.userScope?.some(s => s.branchId === branchId)) return true;
 
   return false;
 };
@@ -86,20 +48,11 @@ const isUserInScope = async (reqUser, targetUserId) => {
 const getUsers = async (req, res) => {
   try {
     const { role, scopeType, schoolId, branchId } = req.user || {};
-    
+
     let where = {};
-    
+
     if (role === 'Admin') {
-      if (scopeType === 'SchoolAdmin' && schoolId) {
-        where = {
-          OR: [
-            { studentProfile: { branch: { schoolId } } },
-            { teacherProfile: { branch: { schoolId } } },
-            { parentProfile: { children: { some: { branch: { schoolId } } } } },
-            { userScope: { some: { schoolId } } }
-          ]
-        };
-      } else if (branchId) {
+      if (branchId) {
         where = {
           OR: [
             { studentProfile: { branchId } },
@@ -109,6 +62,7 @@ const getUsers = async (req, res) => {
           ]
         };
       } else {
+        // Admin without a branch scope sees nothing
         where = { id: '__none__' };
       }
     }

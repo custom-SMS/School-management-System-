@@ -12,6 +12,8 @@ const {
 
   getGrades,
 
+  getStudentGrades,
+
   getClassroomOptions,
 
   createClass,
@@ -290,6 +292,27 @@ router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
  */
 
 router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getGrades);
+
+/**
+ * @swagger
+ * /classroom/grades/student/{studentId}:
+ *   get:
+ *     summary: Get all grades for a specific student
+ *     tags: [Classroom]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: studentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of student grades across all subjects
+ */
+router.get('/grades/student/:studentId', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getStudentGrades);
 
 
 

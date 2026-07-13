@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from '../components/SuperAdminLayout';
@@ -8,12 +7,10 @@ import {
   EDITABLE_ROLES,
   PERMISSION_CATALOG,
   PERMISSION_CATEGORIES,
+  DEFAULT_PERMISSIONS,
 } from '../constants/accessControl';
 
 export default function Permissions() {
-  const navigate = useNavigate();
-
-  // grants: { [role]: Set<permissionKey> } for editable roles only.
   const [grants, setGrants] = useState({});
   const [initial, setInitial] = useState({});
   const [loading, setLoading] = useState(true);
@@ -23,14 +20,38 @@ export default function Permissions() {
     setLoading(true);
     try {
       const res = await axios.get('/auth/permissions');
+
+      // Build a set of which roles actually have any saved row in the DB
+      const rolesWithSavedData = new Set((res.data || []).map((p) => p.role));
+
       const map = {};
-      EDITABLE_ROLES.forEach((r) => { map[r] = new Set(); });
+      EDITABLE_ROLES.forEach((r) => {
+        if (rolesWithSavedData.has(r)) {
+          // Role has been explicitly saved before — use exactly what the DB has
+          map[r] = new Set();
+        } else {
+          // Role has never been saved — seed with defaults so the UI shows them pre-ticked
+          map[r] = new Set(DEFAULT_PERMISSIONS[r] || []);
+        }
+      });
       (res.data || []).forEach((p) => {
         if (map[p.role]) map[p.role].add(p.permission);
       });
       setGrants(map);
-      // Snapshot for dirty-checking (serialize sets to sorted arrays).
       setInitial(serialize(map));
+
+      // Auto-save defaults for any role that had no DB rows, so the backend also
+      // reflects these defaults without requiring the admin to manually click Save.
+      const rolesNeedingDefaultSave = EDITABLE_ROLES.filter(
+        (r) => !rolesWithSavedData.has(r) && (DEFAULT_PERMISSIONS[r] || []).length > 0
+      );
+      if (rolesNeedingDefaultSave.length > 0) {
+        await Promise.all(
+          rolesNeedingDefaultSave.map((role) =>
+            axios.post('/auth/permissions', { role, permissions: [...map[role]] })
+          )
+        );
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load permissions.');
     } finally {
@@ -121,16 +142,6 @@ export default function Permissions() {
     >
       <div className="space-y-6">
         <div className="space-y-3">
-          <button
-            type="button"
-            onClick={() => navigate('/super-admin/roles')}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" />
-            </svg>
-            Back to Role Management
-          </button>
           <div>
             <h2 className="text-2xl font-black tracking-tight text-slate-900">Permission Management</h2>
             <p className="text-sm text-slate-500">

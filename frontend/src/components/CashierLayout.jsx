@@ -43,14 +43,14 @@ function NavIcon({ name }) {
 
 const navItems = [
   { to: '/finance/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/finance/payments', label: 'Payments', icon: 'payments' },
-  { to: '/finance/verification', label: 'Verification', icon: 'verification' },
+  { to: '/finance/payments', label: 'Payments', icon: 'payments', permission: 'verify_payments' },
+  { to: '/finance/verification', label: 'Verification', icon: 'verification', permission: 'verify_payments' },
   { to: '/finance/analytics', label: 'Analytics', icon: 'analytics' },
-  { to: '/finance/fees', label: 'Fees', icon: 'fees' },
+  { to: '/finance/fees', label: 'Fees', icon: 'fees', permission: 'manage_fees' },
 ];
 
 export default function CashierLayout({ children, searchPlaceholder = 'Search students, receipts...' }) {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, permissions } = useContext(AuthContext);
   const { branding, logoUrl } = useBranding();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
@@ -142,12 +142,18 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
 
       {/* Primary nav */}
       <nav className="mt-8 flex-1 space-y-1.5">
-        {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setMobileOpen(false)}>
-            <NavIcon name={item.icon} />
-            <span>{item.label}</span>
-          </NavLink>
-        ))}
+        {navItems
+          .filter(item =>
+            !item.permission ||
+            permissions.includes('*') ||
+            permissions.includes(item.permission)
+          )
+          .map((item) => (
+            <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setMobileOpen(false)}>
+              <NavIcon name={item.icon} />
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
       </nav>
 
       {/* Footer nav */}

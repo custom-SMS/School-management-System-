@@ -658,13 +658,28 @@ const getParentPortalStats = async (req, res) => {
 
 const getSuperAdminStats = async (req, res) => {
   try {
+    // Accept optional branchId query parameter for filtering
+    const { branchId } = req.query;
+    const branchFilter = branchId ? { branchId } : {};
+
     const totalStudents = await prisma.student.count({
-      where: { user: { isActive: true } }
+      where: { user: { isActive: true }, ...branchFilter }
     });
     const totalTeachers = await prisma.teacher.count({
-      where: { user: { isActive: true } }
+      where: { user: { isActive: true }, ...branchFilter }
     });
-    const totalCashiers = await prisma.user.count({ where: { role: 'Cashier', isActive: true } });
+    const totalCashiers = await prisma.user.count({
+      where: {
+        role: 'Cashier',
+        isActive: true,
+        ...(branchId ? {
+          OR: [
+            { scopeType: 'BranchAdmin', scopeBranchId: branchId },
+            { scopeType: 'LevelAdmin', scopeBranchId: branchId }
+          ]
+        } : {})
+      }
+    });
 
     const activeYearDoc = await prisma.academicYear.findFirst({
       where: { isActive: true }
@@ -675,14 +690,14 @@ const getSuperAdminStats = async (req, res) => {
 
     // All-time revenue (across all years) for the executive KPI card
     const allTimeRevenueStats = await prisma.fee.aggregate({
-      where: { paid: true },
+      where: { paid: true, student: branchFilter },
       _sum: { amount: true }
     });
     const allTimeRevenue = allTimeRevenueStats._sum.amount || 0;
 
     // Active-year revenue
     const activeYearRevenueStats = await prisma.fee.aggregate({
-      where: { paid: true, ...feeYearFilter },
+      where: { paid: true, ...feeYearFilter, student: branchFilter },
       _sum: { amount: true }
     });
     const totalRevenue = activeYearRevenueStats._sum.amount || 0;
@@ -692,7 +707,7 @@ const getSuperAdminStats = async (req, res) => {
     const systemHealth = activeYearDoc ? 'Operational' : 'Degraded';
 
     const studentsByGrade = await prisma.student.findMany({
-      where: { user: { isActive: true } },
+      where: { user: { isActive: true }, ...branchFilter },
       select: { grade: true }
     });
     let primaryCount = 0, middleCount = 0, highCount = 0;
@@ -712,7 +727,7 @@ const getSuperAdminStats = async (req, res) => {
     ];
 
     const fees = await prisma.fee.findMany({
-      where: { paid: true, ...feeYearFilter },
+      where: { paid: true, ...feeYearFilter, student: branchFilter },
       include: { student: { select: { grade: true } } }
     });
     let primaryRev = 0, middleRev = 0, highRev = 0;
@@ -733,6 +748,7 @@ const getSuperAdminStats = async (req, res) => {
     ];
 
     const grades = await prisma.grade.findMany({
+      where: { student: branchFilter },
       include: { student: { select: { grade: true } } }
     });
     let pScore = 0, pCount = 0, mScore = 0, mCount = 0, hScore = 0, hCount = 0;
@@ -753,10 +769,48 @@ const getSuperAdminStats = async (req, res) => {
     ];
 
     const recentAuditLogs = await prisma.auditLog.findMany({
+      where: branchId ? { branchId } : {},
       orderBy: { timestamp: 'desc' },
       take: 5,
       include: { user: { select: { name: true } } }
     });
+
+    const studentsByClass = await prisma.student.groupBy({
+      by: ['grade'],
+      where: { user: { isActive: true }, ...branchFilter },
+      _count: { _all: true }
+    });
+
+    const normalizeClassLabel = (value) => {
+      const label = String(value ?? '').trim();
+      if (!label) return 'Unassigned';
+      return label.replace(/^(\w)/u, (c) => c.toUpperCase())
+        .replace(/\b(grade|class|lkg|ukg|nursery)\b/gi, (w) =>
+          w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()
+        );
+    };
+
+    const classSortWeight = (value) => {
+      const label = normalizeClassLabel(value);
+      const match = label.match(/\d+/);
+      return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+    };
+
+    const compareClassLabels = (left, right) => {
+      const leftWeight = classSortWeight(left);
+      const rightWeight = classSortWeight(right);
+      if (leftWeight !== rightWeight) {
+        return leftWeight - rightWeight;
+      }
+      return normalizeClassLabel(left).localeCompare(normalizeClassLabel(right));
+    };
+
+    const studentsByClassFormatted = studentsByClass
+      .map((entry) => ({
+        className: normalizeClassLabel(entry.grade),
+        studentCount: entry._count._all,
+      }))
+      .sort((left, right) => compareClassLabels(left.className, right.className));
 
     const unlockRequestsCount = await prisma.attendance.count({
       where: { locked: true } // Simplified: count of locked sessions that might need unlocking
@@ -773,6 +827,7 @@ const getSuperAdminStats = async (req, res) => {
       divisionPerformance,
       revenueByDivision,
       studentDistribution,
+      studentsByClass: studentsByClassFormatted,
       unlockRequestsCount,
       recentAuditLogs
     });
