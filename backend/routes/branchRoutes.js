@@ -16,8 +16,8 @@ router.delete('/schools/:id', verifyToken, checkRole(['SuperAdmin']), deleteScho
 router.delete('/branches/:id', verifyToken, checkRole(['SuperAdmin']), deleteBranch);
 
 // SuperAdmin + SchoolAdmin can manage Branches
-router.get('/branches',      verifyToken, checkScope({ allowedScopes: ['SchoolAdmin'], allowedRoles: ['SuperAdmin'] }), getBranches);
-router.get('/branches/:id',  verifyToken, checkScope({ allowedScopes: ['SchoolAdmin'], allowedRoles: ['SuperAdmin'] }), getBranchById);
+router.get('/branches',      verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin', 'Cashier'], allowedRoles: ['SuperAdmin'] }), getBranches);
+router.get('/branches/:id',  verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin', 'Cashier'], allowedRoles: ['SuperAdmin'] }), getBranchById);
 router.post('/branches',     verifyToken, checkRole(['SuperAdmin']), createBranch);
 router.put('/branches/:id',  verifyToken, checkScope({ allowedScopes: ['SchoolAdmin'], allowedRoles: ['SuperAdmin'] }), updateBranch);
 

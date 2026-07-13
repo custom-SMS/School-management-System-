@@ -186,7 +186,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-3">
               {studentsByClass.slice(0, 7).map((row) => (
-                <div key={row.className} className="flex items-center justify-between text-sm">
+                <div key={row.classId} className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-gray-700">{row.className}</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 bg-gray-100 rounded-full h-2">
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-gray-50 font-medium text-gray-700 text-xs">
                   {feeSummaryByClass.slice(0, 7).map((row) => (
-                    <tr key={row.className} className="hover:bg-gray-50">
+                    <tr key={row.classId} className="hover:bg-gray-50">
                       <td className="py-2.5 pr-3 font-bold text-gray-900">{row.className}</td>
                       <td className="py-2.5 pr-3 text-emerald-700 font-bold">ETB {fmt(row.paidAmount)}</td>
                       <td className="py-2.5 pr-3 text-amber-700 font-bold">ETB {fmt(row.pendingAmount)}</td>
