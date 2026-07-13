@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const { logActivity } = require('../middleware/auditLogger');
 const { isRegistrationOpen } = require('../utils/academicYear');
+const { seedSemestersForYear } = require('./semesterController');
 
 // Validate a registration window pair. Returns an error string or null.
 const validateWindow = (start, end) => {
@@ -40,9 +41,19 @@ const createAcademicYear = async (req, res) => {
       }
     });
 
+    // Auto-seed Semester 1 and Semester 2 for the new year.
+    // Semester 1 is NOT automatically made globally active — SuperAdmin
+    // explicitly sets the active semester via /api/semesters/:id/active.
+    await seedSemestersForYear(newYear.id);
+
     await logActivity(req.user._id, 'Create Academic Year', newYear.id, `Created academic year: ${year}`);
 
-    res.status(201).json(newYear);
+    // Return the year with its freshly-seeded semesters
+    const withSemesters = await prisma.academicYear.findUnique({
+      where: { id: newYear.id },
+      include: { semesters: { orderBy: { order: 'asc' } } },
+    });
+    res.status(201).json(withSemesters);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -52,7 +63,8 @@ const createAcademicYear = async (req, res) => {
 const getAcademicYears = async (req, res) => {
   try {
     const years = await prisma.academicYear.findMany({
-      orderBy: { year: 'desc' }
+      orderBy: { year: 'desc' },
+      include: { semesters: { orderBy: { order: 'asc' } } },
     });
     const withComputed = years.map((y) => ({
       ...y,

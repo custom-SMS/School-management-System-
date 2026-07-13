@@ -25,14 +25,48 @@ const canTeacherAccessClass = async (teacherId, classId) => {
   return Boolean(assigned);
 };
 
+// ─── Helper: resolve active semesterId from DB ────────────────────────────────
+const resolveActiveSemesterId = async () => {
+  const active = await prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } });
+  return active?.id || null;
+};
+
 // ─── Compile ─────────────────────────────────────────────────────────────────
+/**
+ * Compile (or re-compile) report cards for all enrolled students.
+ *
+ * Body: { academicYearId, semesterId }
+ *
+ * If semesterId is omitted, the globally active semester is used.
+ * Semester 2 report cards automatically compute a combinedAverage
+ * from the stored semester1Snapshot + current semester 2 average.
+ */
 const compileReportCards = async (req, res) => {
   try {
     const { academicYearId } = req.body;
+    let { semesterId } = req.body;
+
     if (!academicYearId) return res.status(400).json({ message: 'academicYearId is required.' });
 
-    const year = await prisma.academicYear.findUnique({ where: { id: academicYearId } });
+    // Resolve semesterId from active semester when not supplied
+    if (!semesterId) {
+      semesterId = await resolveActiveSemesterId();
+    }
+    if (!semesterId) {
+      return res.status(400).json({ message: 'semesterId is required and no active semester is set.' });
+    }
+
+    const [year, semester] = await Promise.all([
+      prisma.academicYear.findUnique({ where: { id: academicYearId } }),
+      prisma.semester.findUnique({ where: { id: semesterId } }),
+    ]);
     if (!year) return res.status(404).json({ message: 'Academic year not found.' });
+    if (!semester) return res.status(404).json({ message: 'Semester not found.' });
+    if (semester.academicYearId !== academicYearId) {
+      return res.status(400).json({ message: 'Semester does not belong to this academic year.' });
+    }
+
+    const isSemester2 = semester.order === 2;
 
     const enrollments = await prisma.enrollment.findMany({
       where: { academicYearId },
@@ -48,7 +82,7 @@ const compileReportCards = async (req, res) => {
 
     const [grades, attendanceRecords] = await Promise.all([
       prisma.grade.findMany({
-        where: { academicYearId, studentId: { in: studentIds } },
+        where: { academicYearId, semesterId, studentId: { in: studentIds } },
         select: { studentId: true, classId: true, percentage: true },
       }),
       prisma.attendanceRecord.findMany({
@@ -77,6 +111,22 @@ const compileReportCards = async (req, res) => {
       attSummary.set(r.studentId, b);
     });
 
+    // If Semester 2, fetch existing Semester 1 report cards to capture sem1Snapshot
+    let sem1Cards = new Map();
+    if (isSemester2) {
+      const sem1 = await prisma.semester.findFirst({
+        where: { academicYearId, order: 1 },
+        select: { id: true },
+      });
+      if (sem1) {
+        const sem1Reports = await prisma.reportCard.findMany({
+          where: { academicYearId, semesterId: sem1.id, studentId: { in: studentIds } },
+          select: { studentId: true, averageScore: true },
+        });
+        sem1Reports.forEach((r) => sem1Cards.set(r.studentId, r.averageScore));
+      }
+    }
+
     const compiledData = enrollments.map((enrollment) => {
       const sid = enrollment.studentId;
       const gs = gradeSummary.get(sid) || { total: 0, count: 0, classIds: new Set() };
@@ -84,6 +134,13 @@ const compileReportCards = async (req, res) => {
       const avgScore = gs.count > 0 ? gs.total / gs.count : 0;
       const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
       const classIds = new Set([...gs.classIds, ...as.classIds]);
+
+      // Semester 2: compute combined average from sem1Snapshot + sem2 avg
+      const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
+      const combinedAverage = isSemester2 && sem1Snapshot !== null
+        ? Number(((sem1Snapshot + avgScore) / 2).toFixed(2))
+        : null;
+
       return {
         studentId: sid,
         gradeLevel: normalizeLabel(enrollment.grade),
@@ -95,6 +152,8 @@ const compileReportCards = async (req, res) => {
         attendanceTotal: as.total,
         status: avgScore >= passMark ? 'Pass' : 'Fail',
         classKey: Array.from(classIds).sort().join(',') || null,
+        sem1Snapshot,
+        combinedAverage,
       };
     });
 
@@ -113,7 +172,7 @@ const compileReportCards = async (req, res) => {
     await prisma.$transaction(
       compiledData.map((d) =>
         prisma.reportCard.upsert({
-          where: { studentId_academicYearId: { studentId: d.studentId, academicYearId } },
+          where: { studentId_academicYearId_semesterId: { studentId: d.studentId, academicYearId, semesterId } },
           update: {
             grade: d.gradeLevel,
             attendancePercentage: d.attendancePercentage,
@@ -125,10 +184,13 @@ const compileReportCards = async (req, res) => {
             rank: d.rank,
             status: d.status,
             workflowStatus: 'Draft',
+            ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+            ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
           },
           create: {
             studentId: d.studentId,
             academicYearId,
+            semesterId,
             grade: d.gradeLevel,
             attendancePercentage: d.attendancePercentage,
             attendancePresent: d.attendancePresent,
@@ -140,30 +202,63 @@ const compileReportCards = async (req, res) => {
             status: d.status,
             published: false,
             workflowStatus: 'Draft',
+            ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+            ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
           },
         })
       )
     );
 
-    await logActivity(req.user._id, 'Compile Report Cards', academicYearId, `Compiled report cards for ${year.year}`);
-    res.status(200).json({ message: `Successfully compiled report cards for ${compiledData.length} students.` });
+    await logActivity(
+      req.user._id,
+      'Compile Report Cards',
+      academicYearId,
+      `Compiled report cards for ${year.year} — ${semester.name}`
+    );
+    res.status(200).json({
+      message: `Successfully compiled ${semester.name} report cards for ${compiledData.length} students.`,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
 // ─── Get one report card ─────────────────────────────────────────────────────
+/**
+ * GET /api/report-cards/:studentId/:academicYearId
+ * Optional query param: ?semesterId=  — defaults to globally active semester.
+ */
 const getReportCard = async (req, res) => {
   try {
     const { studentId, academicYearId } = req.params;
+    let { semesterId } = req.query;
 
-    const reportCard = await prisma.reportCard.findUnique({
-      where: { studentId_academicYearId: { studentId, academicYearId } },
-      include: {
-        student: { include: { user: { select: { name: true, email: true } } } },
-        academicYear: true,
-      },
-    });
+    // Fall back to the active semester when none supplied
+    if (!semesterId) {
+      semesterId = await resolveActiveSemesterId();
+    }
+
+    let reportCard;
+    if (semesterId) {
+      reportCard = await prisma.reportCard.findUnique({
+        where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
+        include: {
+          student: { include: { user: { select: { name: true, email: true } } } },
+          academicYear: true,
+          semester: true,
+        },
+      });
+    } else {
+      // Legacy fallback — find any report card for student+year
+      reportCard = await prisma.reportCard.findFirst({
+        where: { studentId, academicYearId },
+        include: {
+          student: { include: { user: { select: { name: true, email: true } } } },
+          academicYear: true,
+          semester: true,
+        },
+      });
+    }
 
     if (!reportCard) return res.status(404).json({ message: 'Compiled report card not found for this student and academic year.' });
 
@@ -187,8 +282,12 @@ const getReportCard = async (req, res) => {
       if (!isAuthorized) return res.status(403).json({ message: 'You are not authorized to view this report card.' });
     }
 
+    // Fetch grades scoped to the semester (or all if no semesterId)
+    const gradesWhere = { studentId, academicYearId };
+    if (semesterId) gradesWhere.semesterId = semesterId;
+
     const grades = await prisma.grade.findMany({
-      where: { studentId, academicYearId },
+      where: gradesWhere,
       include: {
         class: { select: { id: true, name: true, subject: true, stream: true } },
         subjectRef: { select: { id: true, name: true } },
@@ -203,21 +302,28 @@ const getReportCard = async (req, res) => {
 };
 
 // ─── Publish all ─────────────────────────────────────────────────────────────
+/**
+ * POST /api/report-cards/publish
+ * Body: { academicYearId, semesterId? }
+ */
 const publishReportCards = async (req, res) => {
   try {
-    const { academicYearId } = req.body;
+    const { academicYearId, semesterId } = req.body;
     if (!academicYearId) return res.status(400).json({ message: 'academicYearId is required.' });
 
     const year = await prisma.academicYear.findUnique({ where: { id: academicYearId } });
     if (!year) return res.status(404).json({ message: 'Academic year not found.' });
 
+    const where = { academicYearId };
+    if (semesterId) where.semesterId = semesterId;
+
     await prisma.reportCard.updateMany({
-      where: { academicYearId },
+      where,
       data: { published: true, workflowStatus: 'Published' },
     });
 
-    // Notify teachers and admins — no student/parent notifications since report cards are admin-only
-    await logActivity(req.user._id, 'Publish Report Cards', academicYearId, `Published all report cards for ${year.year}`);
+    const semLabel = semesterId ? ` (semester ${semesterId})` : '';
+    await logActivity(req.user._id, 'Publish Report Cards', academicYearId, `Published all report cards for ${year.year}${semLabel}`);
     res.status(200).json({ message: `Successfully published report cards for ${year.year}.` });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -225,13 +331,20 @@ const publishReportCards = async (req, res) => {
 };
 
 // ─── Unpublish all ────────────────────────────────────────────────────────────
+/**
+ * POST /api/report-cards/unpublish
+ * Body: { academicYearId, semesterId? }
+ */
 const unpublishReportCards = async (req, res) => {
   try {
-    const { academicYearId } = req.body;
+    const { academicYearId, semesterId } = req.body;
     if (!academicYearId) return res.status(400).json({ message: 'academicYearId is required.' });
 
+    const where = { academicYearId };
+    if (semesterId) where.semesterId = semesterId;
+
     await prisma.reportCard.updateMany({
-      where: { academicYearId },
+      where,
       data: { published: false, workflowStatus: 'AdminReview' },
     });
 
@@ -395,9 +508,14 @@ const setPromotionStatus = async (req, res) => {
 };
 
 // ─── Get report cards by class ────────────────────────────────────────────────
+/**
+ * GET /api/report-cards/class/:classId/:academicYearId
+ * Optional query param: ?semesterId=
+ */
 const getReportCardsByClass = async (req, res) => {
   try {
     const { classId, academicYearId } = req.params;
+    const { semesterId } = req.query;
 
     const classData = await prisma.class.findUnique({
       where: { id: classId },
@@ -413,10 +531,15 @@ const getReportCardsByClass = async (req, res) => {
     }
 
     const studentIds = classData.students.map((s) => s.id);
+    const where = { academicYearId, studentId: { in: studentIds } };
+    if (semesterId) where.semesterId = semesterId;
 
     const reportCards = await prisma.reportCard.findMany({
-      where: { academicYearId, studentId: { in: studentIds } },
-      include: { student: { include: { user: { select: { name: true, email: true } } } } },
+      where,
+      include: {
+        student: { include: { user: { select: { name: true, email: true } } } },
+        semester: { select: { id: true, name: true, order: true } },
+      },
       orderBy: [{ rank: 'asc' }, { averageScore: 'desc' }],
     });
 

@@ -560,6 +560,14 @@ const saveGrades = async (req, res) => {
       where: { isActive: true }
     });
 
+    // Resolve the active semester — prefer explicit body param, fall back to global active
+    const activeSemester = await (async () => {
+      if (req.body.semesterId) {
+        return prisma.semester.findUnique({ where: { id: req.body.semesterId } });
+      }
+      return prisma.semester.findFirst({ where: { isActive: true } });
+    })();
+
     const results = [];
     const componentLimits = {
       quiz: Number(weights.quizWeight || 0),
@@ -607,7 +615,12 @@ const saveGrades = async (req, res) => {
       const percentage = Number(total.toFixed(2)); // Weights sum to 100%, so total is already a percentage
 
       const existingGrade = await prisma.grade.findFirst({
-        where: { studentId: data.student, classId, subject }
+        where: {
+          studentId: data.student,
+          classId,
+          subject,
+          ...(activeSemester?.id ? { semesterId: activeSemester.id } : {}),
+        }
       });
 
       let savedGrade;
@@ -623,7 +636,8 @@ const saveGrades = async (req, res) => {
             total,
             percentage,
             teacherId: req.user._id,
-            academicYearId: activeYear?.id || null
+            academicYearId: activeYear?.id || null,
+            semesterId: activeSemester?.id || null,
           }
         });
       } else {
@@ -640,7 +654,8 @@ const saveGrades = async (req, res) => {
             total,
             percentage,
             teacherId: req.user._id,
-            academicYearId: activeYear?.id || null
+            academicYearId: activeYear?.id || null,
+            semesterId: activeSemester?.id || null,
           }
         });
       }
@@ -699,6 +714,7 @@ const getGradingStructure = async (req, res) => {
 const getGrades = async (req, res) => {
   try {
     const { classId, subject } = req.params;
+    const { semesterId } = req.query;
 
     if (req.user.role === 'Admin') {
       const targetClass = await prisma.class.findUnique({
@@ -717,14 +733,25 @@ const getGrades = async (req, res) => {
       }
     }
 
+    // Build where clause — filter by semester if provided
+    const where = { classId, subject };
+    if (semesterId) {
+      where.semesterId = semesterId;
+    } else {
+      // Resolve global active semester when no explicit filter
+      const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } });
+      if (activeSemester) where.semesterId = activeSemester.id;
+    }
+
     const grades = await prisma.grade.findMany({
-      where: { classId, subject },
+      where,
       include: {
         student: {
           include: {
             user: { select: { id: true, name: true, email: true } }
           }
-        }
+        },
+        semester: { select: { id: true, name: true, order: true } },
       }
     });
 
@@ -737,6 +764,7 @@ const getGrades = async (req, res) => {
           user: g.student.user ? { ...g.student.user, _id: g.student.user.id } : null
         };
       }
+      mapped.semester = g.semester || null;
       return mapped;
     });
 
@@ -749,6 +777,7 @@ const getGrades = async (req, res) => {
 const getStudentGrades = async (req, res) => {
   try {
     const { studentId } = req.params;
+    const { semesterId, academicYearId } = req.query;
 
     // Authorization: SuperAdmin can see all, Admin only their branch, Teacher only their students
     if (req.user.role === 'Admin') {
@@ -768,12 +797,22 @@ const getStudentGrades = async (req, res) => {
       }
     }
 
+    // Build filter — semester scoping
+    const where = { studentId };
+    if (semesterId) {
+      where.semesterId = semesterId;
+    }
+    if (academicYearId) {
+      where.academicYearId = academicYearId;
+    }
+
     const grades = await prisma.grade.findMany({
-      where: { studentId },
+      where,
       include: {
         class: {
           select: { id: true, name: true, subject: true, stream: true }
-        }
+        },
+        semester: { select: { id: true, name: true, order: true } },
       },
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
     });
@@ -784,6 +823,7 @@ const getStudentGrades = async (req, res) => {
         ...g.class,
         _id: g.class.id
       } : null;
+      mapped.semester = g.semester || null;
       return mapped;
     });
 

@@ -1,12 +1,15 @@
 /**
  * BranchContext
  *
- * Provides branch/level data and helpers to all components.
+ * Provides branch/level/semester data and helpers to all components.
  * - Fetches branches and levels visible to the current user
  * - Exposes a "selected branch" switcher for SuperAdmin / SchoolAdmin
  *   (BranchAdmin and below are locked to their assigned branch)
  * - Injects X-Branch-Id header on every axios request so the backend
  *   can use it when branchFilter is needed beyond the JWT claim
+ * - Fetches the globally active semester and exposes it as `activeSemester`
+ * - Injects X-Semester-Id header on every request so backend controllers
+ *   can resolve the semester context without body params
  */
 
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
@@ -29,6 +32,10 @@ export function BranchProvider({ children }) {
     return activeBranchId || localStorage.getItem('selectedBranchId') || null;
   });
   const [selectedLevelId,  setSelectedLevelId]  = useState(activeLevelId  || null);
+
+  // ── Semester state ────────────────────────────────────────────────────────
+  const [activeSemester,  setActiveSemester]  = useState(null);
+  const [semesters,       setSemesters]       = useState([]);
 
   const [loading, setLoading] = useState(false);
 
@@ -68,29 +75,62 @@ export function BranchProvider({ children }) {
     } catch { setLevels([]); }
   }, []);
 
+  // ── Fetch active semester ─────────────────────────────────────────────────
+  const fetchActiveSemester = useCallback(async () => {
+    if (!user) return;
+    try {
+      const res = await axios.get('/semesters/active');
+      setActiveSemester(res.data || null);
+    } catch { /* silent */ }
+  }, [user]);
+
+  // ── Fetch all semesters (useful for management UI) ────────────────────────
+  const fetchSemesters = useCallback(async (academicYearId) => {
+    if (!user) return;
+    try {
+      const params = academicYearId ? { academicYearId } : {};
+      const res = await axios.get('/semesters', { params });
+      setSemesters(res.data || []);
+    } catch { setSemesters([]); }
+  }, [user]);
+
+  // ── Switch active semester (SuperAdmin only) ──────────────────────────────
+  const switchSemester = useCallback(async (semesterId) => {
+    try {
+      const res = await axios.patch(`/semesters/${semesterId}/active`);
+      setActiveSemester(res.data.semester || null);
+      return { ok: true, semester: res.data.semester };
+    } catch (err) {
+      return { ok: false, message: err.response?.data?.message || 'Failed to switch semester' };
+    }
+  }, []);
+
   useEffect(() => {
     if (user) {
       fetchSchools();
       fetchBranches();
+      fetchActiveSemester();
     }
-  }, [user, fetchSchools, fetchBranches]);
+  }, [user, fetchSchools, fetchBranches, fetchActiveSemester]);
 
   useEffect(() => {
     fetchLevels(selectedBranchId);
   }, [selectedBranchId, fetchLevels]);
 
-  // ── Inject X-Branch-Id header on all axios requests ───────────────────────
-  // This lets the backend use it as a fallback when branchId is not in JWT
+  // ── Inject X-Branch-Id and X-Semester-Id headers on all axios requests ────
+  // This lets the backend use them as fallbacks.
   useEffect(() => {
     const id = axios.interceptors.request.use((config) => {
       const bid = selectedBranchId || activeBranchId;
       if (bid) config.headers['X-Branch-Id'] = bid;
       const lid = selectedLevelId || activeLevelId;
       if (lid) config.headers['X-Level-Id'] = lid;
+      // Inject active semester ID so backend can resolve it without body params
+      if (activeSemester?.id) config.headers['X-Semester-Id'] = activeSemester.id;
       return config;
     });
     return () => axios.interceptors.request.eject(id);
-  }, [selectedBranchId, selectedLevelId, activeBranchId, activeLevelId]);
+  }, [selectedBranchId, selectedLevelId, activeBranchId, activeLevelId, activeSemester]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const selectedBranch = branches.find((b) => b.id === selectedBranchId) || null;
@@ -127,11 +167,17 @@ export function BranchProvider({ children }) {
       selectedLevelId,
       loading,
       canSwitchBranch,
+      // semester data
+      activeSemester,
+      semesters,
       // actions
       switchBranch,
       switchLevel,
+      switchSemester,
       refetchBranches: fetchBranches,
       refetchLevels:   () => fetchLevels(selectedBranchId),
+      refetchSemester: fetchActiveSemester,
+      fetchSemesters,
     }}>
       {children}
     </BranchContext.Provider>

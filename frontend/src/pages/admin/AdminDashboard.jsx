@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
+import { useBranch } from '../../context/BranchContext';
 
 const StatCard = ({ title, value, colorClass, icon, loading }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex items-center justify-between hover:shadow-md transition">
@@ -24,6 +25,7 @@ const fmt = (n) =>
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { activeSemester } = useBranch();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -53,8 +55,28 @@ export default function AdminDashboard() {
   return (
     <AdminLayout pageTitle="Daily Operations">
       <div className="mb-6">
-        <h2 className="text-2xl font-black tracking-tight text-gray-900">Operations Overview</h2>
-        <p className="text-sm font-medium text-gray-500">Monitor daily school activities and administration.</p>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-gray-900">Operations Overview</h2>
+            <p className="text-sm font-medium text-gray-500">Monitor daily school activities and administration.</p>
+          </div>
+          {activeSemester && (
+            <div className="flex items-center gap-2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-2.5">
+              <div className="h-2 w-2 rounded-full bg-violet-500 animate-pulse"></div>
+              <div>
+                <div className="text-xs font-bold text-violet-700">Active Semester</div>
+                <div className="text-sm font-black text-violet-900">
+                  {activeSemester.name}
+                  {activeSemester.academicYear?.year && (
+                    <span className="ml-1.5 text-xs font-semibold text-violet-600">
+                      {activeSemester.academicYear.year}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPI CARDS */}
@@ -92,7 +114,7 @@ export default function AdminDashboard() {
           </div>
           {loading ? (
             <div className="space-y-3">
-              {[1,2,3,4].map(i => (
+              {[1, 2, 3, 4].map(i => (
                 <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />
               ))}
             </div>
@@ -142,7 +164,7 @@ export default function AdminDashboard() {
           </div>
           {loading ? (
             <div className="mt-6 space-y-3">
-              {[1,2,3].map(i => <div key={i} className="h-6 bg-indigo-700 animate-pulse rounded" />)}
+              {[1, 2, 3].map(i => <div key={i} className="h-6 bg-indigo-700 animate-pulse rounded" />)}
             </div>
           ) : (
             <div className="mt-6 space-y-4">
@@ -179,14 +201,14 @@ export default function AdminDashboard() {
           </div>
           {loading ? (
             <div className="space-y-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />)}
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />)}
             </div>
           ) : studentsByClass.length === 0 ? (
             <p className="text-sm text-gray-500 py-8 text-center">No students enrolled yet.</p>
           ) : (
             <div className="space-y-3">
-              {studentsByClass.slice(0, 7).map((row) => (
-                <div key={row.classId} className="flex items-center justify-between text-sm">
+              {studentsByClass.slice(0, 7).map((row, idx) => (
+                <div key={`${row.className}-${row.classId || idx}`} className="flex items-center justify-between text-sm">
                   <span className="font-semibold text-gray-700">{row.className}</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 bg-gray-100 rounded-full h-2">
@@ -216,7 +238,7 @@ export default function AdminDashboard() {
           </div>
           {loading ? (
             <div className="space-y-3">
-              {[1,2,3,4].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />)}
+              {[1, 2, 3, 4].map(i => <div key={i} className="h-8 bg-gray-100 animate-pulse rounded-lg" />)}
             </div>
           ) : feeSummaryByClass.length === 0 ? (
             <p className="text-sm text-gray-500 py-8 text-center">No fee records yet.</p>

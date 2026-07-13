@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
+import { useBranch } from '../../context/BranchContext';
 
 const letterFor = (p) => (p >= 90 ? 'A+' : p >= 85 ? 'A' : p >= 80 ? 'A-' : p >= 75 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 
@@ -19,18 +20,40 @@ function FetchError({ onRetry }) {
 }
 
 export default function StudentAcademics() {
+  const { activeSemester } = useBranch();
+  const [semesters, setSemesters] = useState([]);
+  const [selectedSemId, setSelectedSemId] = useState('');
   const [stats, setStats] = useState(null);
   const [subjects, setSubjects] = useState([]);
   const [timetable, setTimetable] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  // Fetch semesters of active academic year
+  useEffect(() => {
+    if (activeSemester?.academicYearId) {
+      axios.get(`/semesters?academicYearId=${activeSemester.academicYearId}`)
+        .then((r) => {
+          setSemesters(r.data || []);
+        })
+        .catch(console.error);
+    }
+  }, [activeSemester]);
+
+  // Set the default selected semester to the active one
+  useEffect(() => {
+    if (activeSemester) {
+      setSelectedSemId(activeSemester.id);
+    }
+  }, [activeSemester]);
+
   const load = () => {
     setLoading(true);
     setError(false);
     let statsOk = false;
     let subjectsOk = false;
-    const p1 = axios.get('/stats/student/me')
+    const params = selectedSemId ? `?semesterId=${selectedSemId}` : '';
+    const p1 = axios.get(`/stats/student/me${params}`)
       .then((r) => { setStats(r.data); statsOk = true; })
       .catch(() => {});
     const p2 = axios.get('/timetables/student/me')
@@ -45,7 +68,7 @@ export default function StudentAcademics() {
     });
   };
 
-  useEffect(load, []);
+  useEffect(load, [selectedSemId]);
 
   const grades = stats?.grades || [];
 
@@ -84,11 +107,20 @@ export default function StudentAcademics() {
         return Array.from(map.values());
       })();
 
+  const selectedSem = semesters.find(s => s.id === selectedSemId) || activeSemester;
+
   return (
     <StudentLayout searchPlaceholder="Search records...">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">Academic Performance</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+            Academic Performance
+            {selectedSem && (
+              <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+                {selectedSem.name}
+              </span>
+            )}
+          </h1>
           <p className="text-sm text-slate-500">
             Student ID: {stats?.studentId || '—'} · {stats?.grade || ''}{stats?.stream ? ` (${stats.stream})` : ''}
             {(() => {
@@ -115,6 +147,25 @@ export default function StudentAcademics() {
         <FetchError onRetry={load} />
       ) : (
         <>
+          {/* Semester Tabs/Pills Toggle */}
+          {semesters.length > 1 && (
+            <div className="mb-6 flex border-b border-slate-100">
+              {semesters.map((sem) => (
+                <button
+                  key={sem.id}
+                  onClick={() => setSelectedSemId(sem.id)}
+                  className={`border-b-2 px-6 py-3 text-sm font-bold transition ${
+                    selectedSemId === sem.id
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {sem.name}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Top cards */}
             <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
               <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
