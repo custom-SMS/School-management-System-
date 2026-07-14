@@ -1,6 +1,13 @@
 const prisma = require('../prisma');
 const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
 
+const cleanGradeName = (name) => {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/grade|class/g, '');
+};
+
 const ALLOWED_CLASS_NAMES = [
   'Nursery',
   'LKG',
@@ -911,8 +918,15 @@ const createClass = async (req, res) => {
 
 const getClasses = async (req, res) => {
   try {
+    // If a specific branchId filter is set (branch admin), also include classes
+    // that have no branchId assigned (global/shared classes), so branch admins
+    // can see sections they created on unassigned classes.
+    const branchFilterClause = req.branchFilter?.branchId
+      ? { OR: [{ branchId: req.branchFilter.branchId }, { branchId: null }] }
+      : { ...(req.branchFilter || {}) };
+
     const classes = await prisma.class.findMany({
-      where: { ...(req.branchFilter || {}) },
+      where: branchFilterClause,
       include: {
         teacher: {
           include: {
@@ -1536,8 +1550,9 @@ const getSectionStudents = async (req, res) => {
       where: { isActive: true }
     });
 
-    const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
+    const classClean = cleanGradeName(section.class?.name);
     const allStudents = await prisma.student.findMany({
+      where: { ...(req.branchFilter || {}) },
       include: {
         user: { select: { id: true, name: true, email: true, isActive: true } },
         enrollments: {
@@ -1560,10 +1575,10 @@ const getSectionStudents = async (req, res) => {
     };
 
     const eligibleStudents = allStudents.filter((student) => {
-      const studentGradeNumber = String(student.grade || '').match(/(\d+)/)?.[1] || '';
+      const studentClean = cleanGradeName(student.grade);
       const currentEnrollment = getCurrentEnrollment(student);
       const assignedToAnotherSection = currentEnrollment?.sectionId && currentEnrollment.sectionId !== sectionId;
-      return classNumber && studentGradeNumber === classNumber && !assignedToAnotherSection;
+      return classClean && studentClean === classClean && !assignedToAnotherSection;
     });
 
     const assignedIds = new Set(
@@ -1628,7 +1643,7 @@ const assignStudentsToSection = async (req, res) => {
       return res.status(400).json({ message: 'No active academic year found.' });
     }
 
-    const classNumber = String(section.class?.name || '').match(/(\d+)/)?.[1] || '';
+    const classClean = cleanGradeName(section.class?.name);
     const students = uniqueStudentIds.length
       ? await prisma.student.findMany({
         where: { id: { in: uniqueStudentIds } },
@@ -1641,8 +1656,8 @@ const assignStudentsToSection = async (req, res) => {
     }
 
     const invalidStudent = students.find((student) => {
-      const studentGradeNumber = String(student.grade || '').match(/(\d+)/)?.[1] || '';
-      return !classNumber || studentGradeNumber !== classNumber;
+      const studentClean = cleanGradeName(student.grade);
+      return !classClean || studentClean !== classClean;
     });
 
     if (invalidStudent) {

@@ -16,6 +16,15 @@ const verifyToken = (req, res, next) => {
   }
 };
 
+const verifyTokenOptional = (req, res, next) => {
+  const token = req.cookies?.token;
+  if (!token) return next();
+  try {
+    req.user = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
+  } catch (err) {}
+  next();
+};
+
 // ─── checkRole ────────────────────────────────────────────────────────────────
 // Legacy flat-role check — still used for Teacher/Student/Parent/Cashier routes
 const checkRole = (roles) => (req, res, next) => {
@@ -123,4 +132,4 @@ const checkPermission = (permission) => async (req, res, next) => {
   }
 };
 
-module.exports = { verifyToken, checkRole, checkScope, checkPermission, injectBranchFilter };
+module.exports = { verifyToken, verifyTokenOptional, checkRole, checkScope, checkPermission, injectBranchFilter };

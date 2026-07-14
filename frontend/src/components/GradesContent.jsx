@@ -4,10 +4,11 @@
  * - SuperAdmin: view + edit (canEdit=true)
  * Pass canEdit as a prop from the wrapper page.
  */
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import { useBranch } from '../context/BranchContext';
+import { AuthContext } from '../context/AuthContext';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const clampMark = (value, max = 100) => {
@@ -63,15 +64,25 @@ export default function GradesContent({ canEdit = false }) {
     [classes, selectedClassId],
   );
 
+  const { user } = useContext(AuthContext);
+
   useEffect(() => {
     setLoadingClasses(true);
-    axios.get('/assignments')
+    const isAdminOrSuper = user?.role === 'SuperAdmin' || ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(user?.scopeType);
+    const endpoint = isAdminOrSuper ? '/classroom/options' : '/assignments';
+
+    axios.get(endpoint)
       .then((r) => {
-        const available = Array.from(
-          new Map(
-            (r.data || []).map((a) => a.class).filter(Boolean).map((c) => [c._id, c]),
-          ).values(),
-        );
+        let available = [];
+        if (isAdminOrSuper) {
+          available = r.data?.classes || [];
+        } else {
+          available = Array.from(
+            new Map(
+              (r.data || []).map((a) => a.class).filter(Boolean).map((c) => [c._id, c]),
+            ).values(),
+          );
+        }
         // Filter classes by selected branch if SuperAdmin has a branch selected
         const filtered = selectedBranchId
           ? available.filter(c => c.branchId === selectedBranchId)
@@ -82,7 +93,7 @@ export default function GradesContent({ canEdit = false }) {
       })
       .catch(() => toast.error('Failed to load classes.'))
       .finally(() => setLoadingClasses(false));
-  }, [selectedBranchId]);
+  }, [selectedBranchId, user]);
 
   useEffect(() => {
     if (!selectedClass) { setClassRows([]); return; }

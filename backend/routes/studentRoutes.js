@@ -15,7 +15,7 @@ const {
   repeatStudent,
   setStudentStatus
 } = require('../controllers/studentController');
-const { verifyToken, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
+const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -82,7 +82,7 @@ router.get('/:id/performance', verifyToken, checkRole(['Teacher', 'Admin', 'Supe
  *       201:
  *         description: Student registered
  */
-router.post('/', registerStudent);
+router.post('/', verifyTokenOptional, registerStudent);
 
 // Manage grade fee rules
 /**

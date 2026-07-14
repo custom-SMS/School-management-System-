@@ -69,7 +69,10 @@ const compileReportCards = async (req, res) => {
     const isSemester2 = semester.order === 2;
 
     const enrollments = await prisma.enrollment.findMany({
-      where: { academicYearId },
+      where: {
+        academicYearId,
+        student: { ...(req.branchFilter || {}) },
+      },
       include: { student: { include: { user: { select: { id: true, name: true } } } } },
     });
     if (!enrollments.length) return res.status(400).json({ message: 'No student enrollments found for this academic year.' });

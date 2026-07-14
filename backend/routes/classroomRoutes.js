@@ -538,17 +538,22 @@ router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), create
 
  */
 
-router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionsByClass);
 
+// NOTE: /sections/detail/* routes MUST be declared BEFORE /sections/:classId
+// to prevent Express from matching 'detail' as the :classId parameter.
 router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionById);
 
 router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateSection);
 
 router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteSection);
 
-router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionStudents);
+router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionStudents);
 
-router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), assignStudentsToSection);
+router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, assignStudentsToSection);
+
+router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionsByClass);
+
+
 
 
 

@@ -194,6 +194,13 @@ const resolveClassNameFromGrade = (grade) => {
   return gradeText ? `Class ${gradeText}` : 'Class 1';
 };
 
+const cleanGradeName = (name) => {
+  return String(name || '')
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/grade|class/g, '');
+};
+
 // Fee rules and class names are configured with slightly different labels
 // ("Class 5" vs "Grade 5"). Match on the numeric level when present, and fall
 // back to a case/space-insensitive comparison of the full label otherwise.
@@ -219,13 +226,20 @@ const findFeeForGrade = async (grade) => {
 
 const attachStudentToGradeClass = async (student, grade) => {
   const className = resolveClassNameFromGrade(grade);
+  const branchId = student.branchId || null;
 
-  let klass = await prisma.class.findFirst({ where: { name: className } });
+  let klass = await prisma.class.findFirst({
+    where: {
+      name: className,
+      branchId: branchId
+    }
+  });
   if (!klass) {
     klass = await prisma.class.create({
       data: {
         name: className,
         subject: 'General',
+        branchId: branchId,
         students: {
           connect: { id: student.id }
         }
@@ -713,13 +727,13 @@ const getStudents = async (req, res) => {
       });
 
       const allowedStudentIds = new Set();
-      const allowedClassNumbers = new Set();
+      const allowedGradeNames = new Set();
 
       assignments.forEach((assignment) => {
         const className = String(assignment.class?.name || '');
-        const classNumber = className.match(/(\d+)/)?.[1];
-        if (classNumber) {
-          allowedClassNumbers.add(classNumber);
+        const classClean = cleanGradeName(className);
+        if (classClean) {
+          allowedGradeNames.add(classClean);
         }
 
         (assignment.class?.students || []).forEach((student) => {
@@ -743,8 +757,8 @@ const getStudents = async (req, res) => {
       const students = allStudents.filter((student) => {
         if (allowedStudentIds.has(student.id)) return true;
 
-        const gradeNumber = String(student.grade || '').match(/(\d+)/)?.[1];
-        return gradeNumber ? allowedClassNumbers.has(gradeNumber) : false;
+        const gradeClean = cleanGradeName(student.grade);
+        return gradeClean ? allowedGradeNames.has(gradeClean) : false;
       });
 
       const responseStudents = students.map(student => {
