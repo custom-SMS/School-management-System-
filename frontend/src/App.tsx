@@ -65,6 +65,7 @@ import TeacherStudents from "./pages/teacher/AssignedStudents";
 import TeacherAttendance from "./pages/teacher/TeacherAttendance";
 import TeacherAttendanceRecords from "./pages/teacher/TeacherAttendanceRecords";
 import TeacherGradebook from "./pages/teacher/Gradebook";
+import TeacherGrades from "./pages/teacher/TeacherGrades";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import StudentProfile from "./pages/teacher/StudentProfile";
 import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
@@ -78,6 +79,7 @@ import HomeroomReportCards from "./pages/teacher/HomeroomReportCards";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import StudentAttendancePortal from "./pages/student/StudentAttendance";
 import StudentAcademics from "./pages/student/StudentAcademics";
+import StudentGrades from "./pages/student/StudentGrades";
 import SubjectResultDetails from "./pages/student/SubjectResultDetails";
 import StudentFinance from "./pages/student/StudentFinance";
 import StudentPayment from "./pages/student/StudentPayment";
@@ -86,6 +88,7 @@ import StudentFees from "./pages/StudentFees";
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
 import ParentAcademics from "./pages/parent/ParentAcademics";
+import ParentGrades from "./pages/parent/ParentGrades";
 import ParentAttendance from "./pages/parent/ParentAttendance";
 import ParentFinance from "./pages/parent/ParentFinance";
 import ParentPayment from "./pages/parent/ParentPayment";
@@ -580,7 +583,7 @@ function App() {
                 path="/teacher/grades"
                 element={
                   <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                    <TeacherGradebook />
+                    <TeacherGrades />
                   </ProtectedRoute>
                 }
               />
@@ -663,6 +666,16 @@ function App() {
                 }
               />
               <Route
+                path="/student/grades"
+                element={
+                  <ProtectedRoute
+                    allowedRoles={["Student", "Parent", "SuperAdmin"]}
+                  >
+                    <StudentGrades />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/student/academics/:subjectKey"
                 element={
                   <ProtectedRoute
@@ -706,6 +719,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
                     <ParentAcademics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/grades"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentGrades />
                   </ProtectedRoute>
                 }
               />

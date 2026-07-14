@@ -1,48 +1,46 @@
 require('dotenv').config();
-const { Resend } = require('resend');
+const nodemailer = require('nodemailer');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const transporter = nodemailer.createTransport({
+  host: process.env.MAIL_HOST || 'smtp.gmail.com',
+  port: parseInt(process.env.EMAIL_PORT || '587', 10),
+  secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.replace(/"/g, '') : '',
+  },
+});
 
 /**
- * Send an email via Resend.
+ * Send an email via Nodemailer SMTP.
  * @param {string} to      Recipient email address
  * @param {string} subject Email subject
  * @param {string} html    HTML content
  * @returns {Promise<{ success: boolean, id?: string, error?: string }>}
  */
 async function sendEmail(to, subject, html) {
-  if (!process.env.RESEND_API_KEY) {
-    console.error('[sendEmail] RESEND_API_KEY is not set. Email not sent.');
-    return { success: false, error: 'RESEND_API_KEY is not configured' };
+  if (!process.env.EMAIL_USER) {
+    console.error('[sendEmail] EMAIL_USER is not set. Email not sent.');
+    return { success: false, error: 'EMAIL_USER is not configured' };
   }
 
-  if (!process.env.EMAIL_FROM) {
-    console.error('[sendEmail] EMAIL_FROM is not set. Email not sent.');
-    return { success: false, error: 'EMAIL_FROM is not configured' };
-  }
+  const fromAddress = process.env.EMAIL_FROM || process.env.EMAIL_USER;
 
   try {
-    const response = await resend.emails.send({
-      from: process.env.EMAIL_FROM,
+    const info = await transporter.sendMail({
+      from: `School Management System <${fromAddress}>`,
       to,
       subject,
       html,
     });
 
-    console.log('[sendEmail] Resend response:', JSON.stringify({
+    console.log('[sendEmail] Nodemailer info:', JSON.stringify({
       to,
       subject,
-      data: response.data,
-      error: response.error,
+      messageId: info.messageId,
     }));
 
-    if (response.error) {
-      const msg = response.error.message || JSON.stringify(response.error);
-      console.error('[sendEmail] Resend API error:', msg);
-      return { success: false, error: msg };
-    }
-
-    return { success: true, id: response.data?.id };
+    return { success: true, id: info.messageId };
   } catch (err) {
     console.error('[sendEmail] Unexpected error:', err.message);
     return { success: false, error: err.message };

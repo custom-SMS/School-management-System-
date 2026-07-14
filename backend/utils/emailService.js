@@ -1,63 +1,15 @@
-const { Resend } = require('resend');
+const { sendEmail } = require('./sendEmail');
 
-// ---------------------------------------------------------------------------
-// Validate configuration at module load time – print clear warnings so the
-// developer knows immediately if something is misconfigured.
-// ---------------------------------------------------------------------------
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const EMAIL_FROM     = process.env.EMAIL_FROM;
+const EMAIL_FROM = process.env.EMAIL_FROM;
 
-if (!RESEND_API_KEY) {
-  console.error('[emailService] ⚠️  RESEND_API_KEY is not set. Emails will NOT be sent.');
+if (!process.env.EMAIL_USER) {
+  console.error('[emailService] ⚠️  EMAIL_USER is not set. SMTP Emails will NOT be sent.');
 }
 
-if (!EMAIL_FROM) {
-  console.warn('[emailService] ⚠️  EMAIL_FROM is not set in .env. Falling back to onboarding@resend.dev (test-only).');
-}
-
-// Warn about Resend's sandbox restriction.  onboarding@resend.dev can only
-// deliver to the account owner's email address – it will silently drop any
-// other recipient in production.
-if (EMAIL_FROM === 'onboarding@resend.dev') {
-  console.warn(
-    '[emailService] ⚠️  EMAIL_FROM is set to "onboarding@resend.dev".\n' +
-    '  This is Resend\'s test sender and can ONLY deliver to the Resend account owner\'s email.\n' +
-    '  Emails to other addresses (parents, teachers, etc.) will be blocked by Resend.\n' +
-    '  To send real emails, add a verified domain in the Resend dashboard and update EMAIL_FROM.\n' +
-    '  Example: EMAIL_FROM=noreply@yourschool.com'
-  );
-}
-
-const resend = new Resend(RESEND_API_KEY);
-
-// ---------------------------------------------------------------------------
-// Internal helper – wraps resend.emails.send with full error surfacing.
-// Returns { success, id, error } – never throws.
-// ---------------------------------------------------------------------------
 const _send = async (payload) => {
-  if (!RESEND_API_KEY) {
-    const msg = 'RESEND_API_KEY is not configured. Email not sent.';
-    console.error('[emailService]', msg);
-    return { success: false, error: msg };
-  }
-
   try {
-    const response = await resend.emails.send(payload);
-
-    console.log('[emailService] Resend raw response:', JSON.stringify({
-      to: payload.to,
-      subject: payload.subject,
-      data: response.data,
-      error: response.error,
-    }));
-
-    if (response.error) {
-      const msg = response.error.message || JSON.stringify(response.error);
-      console.error('[emailService] Resend API error:', msg);
-      return { success: false, error: msg };
-    }
-
-    return { success: true, id: response.data?.id };
+    const response = await sendEmail(payload.to, payload.subject, payload.html);
+    return response;
   } catch (err) {
     console.error('[emailService] Unexpected exception while sending email:', err.message);
     return { success: false, error: err.message };

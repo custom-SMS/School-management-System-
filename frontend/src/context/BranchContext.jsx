@@ -16,19 +16,17 @@ import { AuthContext } from './AuthContext';
 export const BranchContext = createContext();
 
 export function BranchProvider({ children }) {
-  const { user, isSuper, isSchoolAdmin, activeBranchId, activeLevelId } = useContext(AuthContext);
+  const { user, isSuper, isSchoolAdmin, activeBranchId } = useContext(AuthContext);
 
   // All branches the current user can see
   const [branches, setBranches]   = useState([]);
-  const [levels,   setLevels]     = useState([]);   // levels of selectedBranchId
   const [schools,  setSchools]    = useState([]);   // only for SuperAdmin
 
   // The branch the admin is currently "working in"
-  // For BranchAdmin / LevelAdmin this is locked to their assigned branch
+  // For BranchAdmin this is locked to their assigned branch
   const [selectedBranchId, setSelectedBranchId] = useState(() => {
     return activeBranchId || localStorage.getItem('selectedBranchId') || null;
   });
-  const [selectedLevelId,  setSelectedLevelId]  = useState(activeLevelId  || null);
 
   const [loading, setLoading] = useState(false);
 
@@ -59,15 +57,6 @@ export function BranchProvider({ children }) {
     finally { setLoading(false); }
   }, [user, isSuper, isSchoolAdmin, selectedBranchId]);
 
-  // ── Fetch levels for selected branch ──────────────────────────────────────
-  const fetchLevels = useCallback(async (branchId) => {
-    if (!branchId) { setLevels([]); return; }
-    try {
-      const res = await axios.get(`/branches/branches/${branchId}/levels`);
-      setLevels(res.data || []);
-    } catch { setLevels([]); }
-  }, []);
-
   useEffect(() => {
     if (user) {
       fetchSchools();
@@ -75,26 +64,19 @@ export function BranchProvider({ children }) {
     }
   }, [user, fetchSchools, fetchBranches]);
 
-  useEffect(() => {
-    fetchLevels(selectedBranchId);
-  }, [selectedBranchId, fetchLevels]);
-
   // ── Inject X-Branch-Id header on all axios requests ───────────────────────
   // This lets the backend use it as a fallback when branchId is not in JWT
   useEffect(() => {
     const id = axios.interceptors.request.use((config) => {
       const bid = selectedBranchId || activeBranchId;
       if (bid) config.headers['X-Branch-Id'] = bid;
-      const lid = selectedLevelId || activeLevelId;
-      if (lid) config.headers['X-Level-Id'] = lid;
       return config;
     });
     return () => axios.interceptors.request.eject(id);
-  }, [selectedBranchId, selectedLevelId, activeBranchId, activeLevelId]);
+  }, [selectedBranchId, activeBranchId]);
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const selectedBranch = branches.find((b) => b.id === selectedBranchId) || null;
-  const selectedLevel  = levels.find((l)   => l.id === selectedLevelId)  || null;
 
   // Can this user switch branches? Only SuperAdmin and SchoolAdmin
   const canSwitchBranch = isSuper || isSchoolAdmin;
@@ -108,11 +90,6 @@ export function BranchProvider({ children }) {
     } else {
       localStorage.removeItem('selectedBranchId');
     }
-    setSelectedLevelId(null);
-  };
-
-  const switchLevel = (levelId) => {
-    setSelectedLevelId(levelId);
   };
 
   return (
@@ -120,18 +97,13 @@ export function BranchProvider({ children }) {
       // data
       schools,
       branches,
-      levels,
       selectedBranch,
-      selectedLevel,
       selectedBranchId,
-      selectedLevelId,
       loading,
       canSwitchBranch,
       // actions
       switchBranch,
-      switchLevel,
       refetchBranches: fetchBranches,
-      refetchLevels:   () => fetchLevels(selectedBranchId),
     }}>
       {children}
     </BranchContext.Provider>

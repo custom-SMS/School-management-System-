@@ -3,10 +3,9 @@ import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 
-const SCOPE_TYPES = ['BranchAdmin', 'LevelAdmin', 'Cashier'];
+const SCOPE_TYPES = ['BranchAdmin', 'Cashier'];
 const SCOPE_COLORS = {
   BranchAdmin: 'bg-blue-50 text-blue-700',
-  LevelAdmin: 'bg-indigo-50 text-indigo-700',
   Cashier: 'bg-emerald-50 text-emerald-700',
 };
 
@@ -21,7 +20,7 @@ export default function BranchManagement() {
   const [activeBranch, setActiveBranch] = useState(null);
 
   // Modal state
-  const [modal, setModal] = useState(null); // 'school'|'branch'|'level'|'scope'
+  const [modal, setModal] = useState(null); // 'school'|'branch'|'scope'
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
 
@@ -64,7 +63,7 @@ export default function BranchManagement() {
   };
 
   const deleteSchool = async (id) => {
-    if (!window.confirm('Delete this school? This will also delete all its branches and levels.')) return;
+    if (!window.confirm('Delete this school? This will also delete all its branches.')) return;
     try {
       await axios.delete(`/branches/schools/${id}`);
       toast.success('School deleted.');
@@ -74,7 +73,7 @@ export default function BranchManagement() {
     } catch (e) { toast.error(e.response?.data?.message || 'Failed to delete school.'); }
   };
   const deleteBranch = async (id) => {
-    if (!window.confirm('Delete this branch? This will also delete all its levels.')) return;
+    if (!window.confirm('Delete this branch?')) return;
     try {
       await axios.delete(`/branches/branches/${id}`);
       toast.success('Branch deleted.');
@@ -89,17 +88,6 @@ export default function BranchManagement() {
       if (form.id) await axios.put(`/branches/branches/${form.id}`, form);
       else await axios.post('/branches/branches', form);
       toast.success('Branch saved.');
-      closeModal(); load();
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed.'); }
-    finally { setSaving(false); }
-  };
-
-  const saveLevel = async () => {
-    setSaving(true);
-    try {
-      if (form.id) await axios.put(`/branches/levels/${form.id}`, form);
-      else await axios.post('/branches/levels', form);
-      toast.success('Level saved.');
       closeModal(); load();
     } catch (e) { toast.error(e.response?.data?.message || 'Failed.'); }
     finally { setSaving(false); }
@@ -126,17 +114,13 @@ export default function BranchManagement() {
 
 
   const branchesOfSchool = (sid) => branches.filter((b) => b.schoolId === sid);
-  const levelsOfBranch = (bid) => {
-    const br = branches.find((b) => b.id === bid);
-    return br?.levels || [];
-  };
 
   return (
     <SuperAdminLayout pageTitle="Branch Management">
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Branch Management</h1>
         <p className="text-sm text-slate-500 mt-1">
-          Manage schools, branches, educational levels, and admin scope assignments.
+          Manage schools, branches, and admin scope assignments.
         </p>
       </div>
 
@@ -203,47 +187,12 @@ export default function BranchManagement() {
                   </button>
                 </div>
                 <div className="mt-3 text-xs font-semibold text-slate-500">
-                  {levelsOfBranch(b.id).length} level(s)
-                  {b._count && ` · ${b._count.students} students · ${b._count.teachers} teachers`}
+                  {b._count && `${b._count.students} students · ${b._count.teachers} teachers`}
                 </div>
               </div>
             ))}
             {branchesOfSchool(activeSchool.id).length === 0 && (
               <p className="text-sm text-slate-400 col-span-3 py-6 text-center">No branches yet.</p>
-            )}
-          </div>
-        </section>
-      )}
-
-
-      {/* ── Levels of selected branch ──────────────────────────────── */}
-      {activeBranch && (
-        <section className="mb-6">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-bold text-slate-900">
-              Educational Levels — <span className="text-blue-700">{activeBranch.name}</span>
-            </h2>
-            <button onClick={() => openModal('level', { branchId: activeBranch.id })}
-              className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white hover:bg-blue-500">
-              + Add Level
-            </button>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {levelsOfBranch(activeBranch.id).map((l) => (
-              <div key={l.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="font-bold text-slate-900">{l.name}</div>
-                    {l.gradeRange && <div className="text-xs text-slate-400 mt-0.5">{l.gradeRange}</div>}
-                    <div className="text-xs text-slate-400">Order: {l.order}</div>
-                  </div>
-                  <button onClick={() => openModal('level', l)}
-                    className="text-xs font-semibold text-blue-600 hover:underline">Edit</button>
-                </div>
-              </div>
-            ))}
-            {levelsOfBranch(activeBranch.id).length === 0 && (
-              <p className="text-sm text-slate-400 col-span-4 py-6 text-center">No levels yet.</p>
             )}
           </div>
         </section>
@@ -265,13 +214,12 @@ export default function BranchManagement() {
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Scope Type</th>
                 <th className="px-4 py-3">Branch</th>
-                <th className="px-4 py-3">Level</th>
                 <th className="px-4 py-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {scopes.length === 0 ? (
-                <tr><td colSpan="5" className="px-4 py-8 text-center text-slate-400">No scope assignments yet.</td></tr>
+                <tr><td colSpan="4" className="px-4 py-8 text-center text-slate-400">No scope assignments yet.</td></tr>
               ) : scopes.map((sc) => (
                 <tr key={sc.id} className="hover:bg-slate-50">
                   <td className="px-4 py-3 font-semibold text-slate-900">
@@ -284,7 +232,6 @@ export default function BranchManagement() {
                     </span>
                   </td>
                   <td className="px-4 py-3 text-slate-600">{sc.branch?.name || '—'}</td>
-                  <td className="px-4 py-3 text-slate-600">{sc.level?.name || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => removeScope(sc.id)}
                       className="text-xs font-semibold text-rose-600 hover:underline">Remove</button>
@@ -354,42 +301,6 @@ export default function BranchManagement() {
               </>
             )}
 
-            {/* Level modal */}
-            {modal === 'level' && (
-              <>
-                <h3 className="text-lg font-black text-slate-900 mb-4">{form.id ? 'Edit Level' : 'Add Level'}</h3>
-                {!form.id && (
-                  <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">Branch</label>
-                    <select value={form.branchId || ''} onChange={(e) => set('branchId', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
-                      <option value="">— Select branch —</option>
-                      {branches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                    </select>
-                  </div>
-                )}
-                {[['name', 'Level Name (e.g. Elementary)'], ['gradeRange', 'Grade Range (e.g. Grade 1–6)']].map(([k, lbl]) => (
-                  <div key={k} className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">{lbl}</label>
-                    <input value={form[k] || ''} onChange={(e) => set(k, e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-slate-300 focus:bg-white" />
-                  </div>
-                ))}
-                <div className="mb-3">
-                  <label className="mb-1 block text-xs font-semibold text-slate-600">Order</label>
-                  <input type="number" min="0" value={form.order ?? 0} onChange={(e) => set('order', Number(e.target.value))}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none" />
-                </div>
-                <div className="mt-4 flex gap-2">
-                  <button onClick={saveLevel} disabled={saving}
-                    className="flex-1 rounded-xl bg-blue-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Save'}
-                  </button>
-                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
-                </div>
-              </>
-            )}
-
             {/* Scope modal */}
             {modal === 'scope' && (
               <>
@@ -414,7 +325,7 @@ export default function BranchManagement() {
                 </div>
                 <div className="mb-3">
                   <label className="mb-1 block text-xs font-semibold text-slate-600">Branch</label>
-                  <select value={form.branchId || ''} onChange={(e) => { set('branchId', e.target.value); set('levelId', null); }}
+                  <select value={form.branchId || ''} onChange={(e) => set('branchId', e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
                     <option value="">— Select branch —</option>
                     {branches.map((b) => (
@@ -422,18 +333,6 @@ export default function BranchManagement() {
                     ))}
                   </select>
                 </div>
-                {form.scopeType === 'LevelAdmin' && form.branchId && (
-                  <div className="mb-3">
-                    <label className="mb-1 block text-xs font-semibold text-slate-600">Level</label>
-                    <select value={form.levelId || ''} onChange={(e) => set('levelId', e.target.value)}
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
-                      <option value="">— Select level —</option>
-                      {levelsOfBranch(form.branchId).map((l) => (
-                        <option key={l.id} value={l.id}>{l.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                )}
                 <div className="mt-4 flex gap-2">
                   <button onClick={saveScope} disabled={saving || !form.userId || !form.scopeType || !form.branchId}
                     className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">

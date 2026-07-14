@@ -22,7 +22,7 @@ const clampMark = (value, max = 100) => {
 
 // ─── component ────────────────────────────────────────────────────────────────
 export default function GradesContent({ canEdit = false }) {
-  const { selectedBranchId } = useBranch();
+  const { selectedBranchId, branches, switchBranch, canSwitchBranch } = useBranch();
 
   // ── grading weights ──────────────────────────────────────────────────────
   const [weights, setWeights] = useState({
@@ -54,6 +54,9 @@ export default function GradesContent({ canEdit = false }) {
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingClassGrades, setLoadingClassGrades] = useState(false);
   const [classSearch, setClassSearch] = useState('');
+  const [editingRowId, setEditingRowId] = useState(null);
+  const [editRowMarks, setEditRowMarks] = useState({});
+  const [savingRow, setSavingRow] = useState(false);
 
   const selectedClass = useMemo(
     () => classes.find((c) => c._id === selectedClassId) || null,
@@ -110,6 +113,59 @@ export default function GradesContent({ canEdit = false }) {
       (r.student.studentId || '').toLowerCase().includes(q),
     );
   }, [classRows, classSearch]);
+
+  const startEditRow = (row) => {
+    setEditingRowId(row.student._id);
+    setEditRowMarks({
+      quiz: row.marks?.quiz ?? null,
+      assignment: row.marks?.assignment ?? null,
+      midterm: row.marks?.midterm ?? null,
+      final: row.marks?.final ?? null,
+    });
+  };
+
+  const handleEditRowChange = (field, value) => {
+    setEditRowMarks((prev) => ({ ...prev, [field]: clampMark(value, getMaxForField(field)) }));
+  };
+
+  const handleSaveRow = async (row) => {
+    setSavingRow(true);
+    try {
+      await axios.post('/classroom/grades', {
+        classId: selectedClass._id,
+        subject: selectedClass.subject,
+        gradesData: [{
+          student: row.student._id,
+          marks: {
+            quiz: editRowMarks.quiz ?? null,
+            assignment: editRowMarks.assignment ?? null,
+            midterm: editRowMarks.midterm ?? null,
+            final: editRowMarks.final ?? null,
+          },
+        }],
+      });
+      toast.success('Grade saved. Change recorded in audit log.');
+      setEditingRowId(null);
+      const r = await axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}`);
+      const gradeMap = new Map(
+        (r.data || []).map((g) => [g.student?._id || g.student, g]),
+      );
+      const roster = (selectedClass.students || []).map((student) => {
+        const grade = gradeMap.get(student._id);
+        return { student, marks: grade?.marks || {}, gradeId: grade?._id || null };
+      });
+      setClassRows(roster);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save grade.');
+    } finally {
+      setSavingRow(false);
+    }
+  };
+
+  const handleCancelRow = () => {
+    setEditingRowId(null);
+    setEditRowMarks({});
+  };
 
   // ── student detail view ──────────────────────────────────────────────────
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -324,6 +380,21 @@ export default function GradesContent({ canEdit = false }) {
 
       {/* Controls */}
       <div className="mb-5 flex flex-wrap items-end gap-3">
+        {canSwitchBranch && (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Branch</label>
+            <select
+              value={selectedBranchId || ''}
+              onChange={(e) => switchBranch(e.target.value || null)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
+            >
+              <option value="">All Branches</option>
+              {branches.map((b) => (
+                <option key={b.id} value={b.id}>{b.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Class</label>
           <select
@@ -382,10 +453,14 @@ export default function GradesContent({ canEdit = false }) {
                       <span className="ml-1 font-normal text-slate-300">(/{c.weight})</span>
                     </th>
                   ))}
+                  {canEdit && <th className="px-4 py-4 font-semibold">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {filteredClassRows.map((row) => {
+                  const isEditing = editingRowId === row.student._id;
+                  const displayMarks = isEditing ? editRowMarks : (row.marks || {});
+
                   return (
                     <tr key={row.student._id} className="transition hover:bg-slate-50">
                       <td className="px-5 py-3.5">
@@ -398,11 +473,51 @@ export default function GradesContent({ canEdit = false }) {
                       </td>
                       {components.map((c) => (
                         <td key={c.field} className="px-4 py-3.5">
-                          <span className={row.marks[c.field] != null ? 'font-semibold text-slate-800' : 'text-slate-300'}>
-                            {row.marks[c.field] != null ? `${row.marks[c.field]} / ${c.weight}` : '—'}
-                          </span>
+                          {isEditing ? (
+                            <input
+                              type="number"
+                              min="0"
+                              max={c.weight}
+                              value={displayMarks[c.field] ?? ''}
+                              onChange={(e) => handleEditRowChange(c.field, e.target.value === '' ? null : e.target.value)}
+                              className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
+                              placeholder="—"
+                            />
+                          ) : (
+                            <span className={row.marks[c.field] != null ? 'font-semibold text-slate-800' : 'text-slate-300'}>
+                              {row.marks[c.field] != null ? `${row.marks[c.field]} / ${c.weight}` : '—'}
+                            </span>
+                          )}
                         </td>
                       ))}
+                      {canEdit && (
+                        <td className="px-4 py-3.5">
+                          {isEditing ? (
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleCancelRow}
+                                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleSaveRow(row)}
+                                disabled={savingRow}
+                                className="rounded-lg bg-slate-900 px-2 py-1 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                              >
+                                {savingRow ? 'Saving…' : 'Save'}
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => startEditRow(row)}
+                              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500"
+                            >
+                              Edit
+                            </button>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

@@ -1,20 +1,23 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
+import { useBranch } from '../../context/BranchContext';
 
 const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
 
 export default function SystemAnalytics() {
+  const { selectedBranchId, branches, switchBranch, canSwitchBranch } = useBranch();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   useEffect(() => {
+    setLoading(true);
     axios.get('/stats/superadmin')
       .then((r) => setStats(r.data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedBranchId]);
 
   if (loading) {
     return (
@@ -51,6 +54,23 @@ export default function SystemAnalytics() {
           School-wide academic performance, enrollment, and operational health.
         </p>
       </div>
+
+      {/* Branch selector */}
+      {canSwitchBranch && (
+        <div className="mb-6">
+          <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Branch</label>
+          <select
+            value={selectedBranchId || ''}
+            onChange={(e) => switchBranch(e.target.value || null)}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
+          >
+            <option value="">All Branches</option>
+            {branches.map((b) => (
+              <option key={b.id} value={b.id}>{b.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
 
       {/* Top KPIs */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">

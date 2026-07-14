@@ -119,7 +119,10 @@ const navItems = [
 export default function SuperAdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useContext(AuthContext);
   const { branding, logoUrl } = useBranding();
-  const { branches, levels, selectedBranch, selectedLevel, selectedBranchId, canSwitchBranch, switchBranch, switchLevel } = useBranch();
+  const { branches, selectedBranch, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
+  const levels = [];
+  const selectedLevel = null;
+  const switchLevel = () => {};
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
