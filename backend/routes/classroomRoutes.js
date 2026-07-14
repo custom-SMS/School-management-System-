@@ -186,7 +186,7 @@ router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdm
  */
 router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getAttendanceRegister);
 
-router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAttendanceSessions);
+router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceSessions);
 
 /**
 

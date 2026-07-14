@@ -688,9 +688,12 @@ const getParentPortalStats = async (req, res) => {
 
 const getSuperAdminStats = async (req, res) => {
   try {
-    // Accept optional branchId query parameter for filtering
+    // Use branchFilter from middleware (respects X-Branch-Id header for SuperAdmin)
+    // Fall back to query parameter for backward compatibility
     const { branchId } = req.query;
-    const branchFilter = branchId ? { branchId } : {};
+    const branchFilter = req.branchFilter?.branchId 
+      ? { branchId: req.branchFilter.branchId } 
+      : (branchId ? { branchId } : {});
 
     const totalStudents = await prisma.student.count({
       where: { user: { isActive: true }, ...branchFilter }

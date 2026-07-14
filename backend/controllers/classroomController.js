@@ -493,6 +493,9 @@ const getAttendanceRegister = async (req, res) => {
 const getAttendanceSessions = async (req, res) => {
   try {
     const sessions = await prisma.attendance.findMany({
+      where: {
+        class: { ...(req.branchFilter || {}) }
+      },
       include: {
         class: { select: { id: true, name: true, subject: true } },
         recordedBy: { select: { id: true, name: true } },

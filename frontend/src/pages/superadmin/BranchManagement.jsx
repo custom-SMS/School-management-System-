@@ -310,10 +310,14 @@ export default function BranchManagement() {
                   <select value={form.userId || ''} onChange={(e) => set('userId', e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
                     <option value="">— Select user —</option>
-                    {users.filter((u) => ['Admin', 'Cashier'].includes(u.role)).map((u) => (
+                    {users.filter((u) => ['Admin', 'Cashier'].includes(u.role) && !scopes.some((s) => s.userId === (u._id || u.id))).map((u) => (
                       <option key={u._id || u.id} value={u._id || u.id}>{u.name} ({u.role})</option>
                     ))}
                   </select>
+                  {users.filter((u) => ['Admin', 'Cashier'].includes(u.role)).length > 0 && 
+                   users.filter((u) => ['Admin', 'Cashier'].includes(u.role) && !scopes.some((s) => s.userId === (u._id || u.id))).length === 0 && (
+                    <p className="mt-1 text-xs text-amber-600">All Admin/Cashier users already have scope assignments.</p>
+                  )}
                 </div>
                 <div className="mb-3">
                   <label className="mb-1 block text-xs font-semibold text-slate-600">Scope Type</label>

@@ -48,7 +48,7 @@ router.get('/admin', checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranch
  *       200:
  *         description: Dashboard stats for SuperAdmin
  */
-router.get('/superadmin', checkRole(['SuperAdmin']), getSuperAdminStats);
+router.get('/superadmin', checkRole(['SuperAdmin']), injectBranchFilter, getSuperAdminStats);
 
 // Get current student portal profile, grades, and fee log
 /**

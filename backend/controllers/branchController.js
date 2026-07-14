@@ -285,25 +285,20 @@ const assignUserScope = async (req, res) => {
       return res.status(400).json({ message: `Invalid scopeType. Must be one of: ${validScopes.join(', ')}` });
     }
 
-    const existingScope = await prisma.userScope.findFirst({
-      where: { 
-        userId, 
-        branchId: branchId || null, 
-        levelId: levelId || null 
-      }
+    // Check if user already has any scope assignment
+    const existingUserScope = await prisma.userScope.findFirst({
+      where: { userId }
     });
 
-    let scope;
-    if (existingScope) {
-      scope = await prisma.userScope.update({
-        where: { id: existingScope.id },
-        data: { scopeType, schoolId, branchId, levelId },
-      });
-    } else {
-      scope = await prisma.userScope.create({
-        data: { userId, scopeType, schoolId, branchId, levelId },
+    if (existingUserScope) {
+      return res.status(400).json({ 
+        message: 'User already has a scope assignment. A user can only be assigned to one role.' 
       });
     }
+
+    const scope = await prisma.userScope.create({
+      data: { userId, scopeType, schoolId, branchId, levelId },
+    });
 
     // Ensure the user's role is set to Admin if assigning an admin scope
     if (['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(scopeType)) {
