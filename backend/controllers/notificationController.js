@@ -1,5 +1,6 @@
 const prisma = require('../prisma');
 const { sendParentMessageEmail } = require('../utils/emailService');
+const { sendSms } = require('../utils/smsService');
 
 // Helper to dispatch notification
 const sendNotification = async (userId, title, message, type = 'System') => {
@@ -514,6 +515,71 @@ const markAllAsRead = async (req, res) => {
   }
 };
 
+// Send SMS to parents
+const sendSmsToParents = async (req, res) => {
+  try {
+    const studentIds = parseStudentIds(req.body.studentIds || req.body.studentId);
+    const rawMessage = String(req.body.message || '').trim();
+
+    if (!studentIds.length) {
+      return res.status(400).json({ message: 'Select at least one student.' });
+    }
+
+    if (!rawMessage) {
+      return res.status(400).json({ message: 'SMS message is required.' });
+    }
+
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      include: {
+        guardians: {
+          include: {
+            user: { select: { id: true, name: true } }
+          }
+        }
+      }
+    });
+
+    if (!students.length) {
+      return res.status(404).json({ message: 'No matching students found.' });
+    }
+
+    // Extract unique phone numbers
+    const phoneNumbers = new Set();
+    students.forEach((student) => {
+      (student.guardians || []).forEach((guardian) => {
+        if (guardian.phone) {
+          phoneNumbers.add(guardian.phone);
+        }
+      });
+    });
+
+    if (phoneNumbers.size === 0) {
+      return res.status(404).json({ message: 'No parent phone numbers found for the selected students.' });
+    }
+
+    const phonesArray = Array.from(phoneNumbers);
+    
+    // Send SMS to all phone numbers
+    const smsResults = await Promise.allSettled(
+      phonesArray.map((phone) => sendSms(phone, rawMessage))
+    );
+
+    const sentCount = smsResults.filter((result) => result.status === 'fulfilled' && result.value === true).length;
+    const failedCount = phonesArray.length - sentCount;
+
+    res.status(200).json({
+      message: `SMS sent successfully to ${sentCount} parents. Failed: ${failedCount}`,
+      sent: sentCount,
+      failed: failedCount,
+      total: phonesArray.length
+    });
+  } catch (error) {
+    console.error('Error in sendSmsToParents:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   sendNotification,
   sendParentNotifications,
@@ -526,5 +592,6 @@ module.exports = {
   getAllNotifications,
   getNotifications,
   markAsRead,
-  markAllAsRead
+  markAllAsRead,
+  sendSmsToParents
 };

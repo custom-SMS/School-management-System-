@@ -62,11 +62,14 @@ const getAccountStatus = (student, financial) => {
 };
 
 const getPrimaryGuardian = (student) => {
+  const guardians = Array.isArray(student.guardians) && student.guardians.length > 0 ? student.guardians : null;
+  if (guardians) return guardians[0];
+
   const contacts = Array.isArray(student.guardianContacts) ? student.guardianContacts : [];
   const primary = contacts.find((c) => c.primary) || contacts[0];
   if (primary) return primary;
-  const guardian = Array.isArray(student.guardians) ? student.guardians[0] : null;
-  return guardian || null;
+  
+  return null;
 };
 
 const FINANCIAL_STYLES = {

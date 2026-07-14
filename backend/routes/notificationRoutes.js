@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getNotifications, markAsRead, markAllAsRead, sendParentNotifications, submitStudentRecordRequest, broadcastNotification, getAllNotifications, sendStudentNotifications, sendBothNotifications, getTeachersForStudent, sendParentToTeachers } = require('../controllers/notificationController');
+const { getNotifications, markAsRead, markAllAsRead, sendParentNotifications, submitStudentRecordRequest, broadcastNotification, getAllNotifications, sendStudentNotifications, sendBothNotifications, getTeachersForStudent, sendParentToTeachers, sendSmsToParents } = require('../controllers/notificationController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
 
 /**
@@ -86,6 +86,27 @@ router.post('/broadcast', verifyToken, checkRole(['SuperAdmin']), broadcastNotif
  *         description: Notification sent
  */
 router.post('/parents', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), sendParentNotifications);
+
+/**
+ * @swagger
+ * /notifications/sms/parents:
+ *   post:
+ *     summary: Send SMS notification to parents
+ *     tags: [Notifications]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       200:
+ *         description: SMS sent
+ */
+router.post('/sms/parents', verifyToken, checkRole(['Admin', 'SuperAdmin']), sendSmsToParents);
 
 /**
  * @swagger

@@ -49,6 +49,7 @@ import ReportCards from "./pages/ReportCards";
 import AcademicReports from "./pages/admin/AcademicReports";
 import ReportView from "./pages/admin/ReportView";
 import Registrar from "./pages/Registrar";
+import SmsCommunication from "./pages/admin/SmsCommunication";
 
 // Finance (Cashier)
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
@@ -440,6 +441,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                     <Registrar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/sms-communication"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <SmsCommunication />
                   </ProtectedRoute>
                 }
               />

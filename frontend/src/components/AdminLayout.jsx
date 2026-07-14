@@ -104,6 +104,7 @@ const navItems = [
   { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
   { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
   { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },
+  { to: '/admin/sms-communication', label: 'SMS Communication', icon: <BellIcon /> },
   { to: '/admin/academic-reports', label: 'General Reports', icon: <ActivityIcon />, permission: 'generate_reports' },
   { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon />, permission: 'student_registration' },
   { to: '/roles', label: 'Role Management', icon: <RoleIcon />, superAdminOnly: true },
