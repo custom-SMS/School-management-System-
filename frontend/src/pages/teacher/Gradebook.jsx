@@ -1,12 +1,9 @@
 import { useEffect, useMemo, useState, useContext } from 'react';
-
 import axios from '../../api/axios';
-
 import { toast } from 'react-toastify';
-
 import { AuthContext } from '../../context/AuthContext';
-
 import TeacherLayout from '../../components/TeacherLayout';
+import { useBranch } from '../../context/BranchContext';
 
 
 
@@ -17,8 +14,8 @@ const emptyErrors = { quiz: false, assignment: false, midterm: false, final: fal
 
 
 export default function Gradebook() {
-
   const { user } = useContext(AuthContext);
+  const { activeSemester } = useBranch();
 
   const [classes, setClasses] = useState([]);
 
@@ -85,7 +82,7 @@ export default function Gradebook() {
 
   useEffect(() => {
 
-    axios.get('/classroom/grading-structure').then((r) => { if (r.data) setWeights(r.data); }).catch(() => {});
+    axios.get('/classroom/grading-structure').then((r) => { if (r.data) setWeights(r.data); }).catch(() => { });
 
   }, []);
 
@@ -116,12 +113,10 @@ export default function Gradebook() {
 
 
   useEffect(() => {
-
     if (!selectedClass) { setRows([]); return; }
-
     let active = true;
-
-    axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}`)
+    const semParam = activeSemester?.id ? `?semesterId=${activeSemester.id}` : '';
+    axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}${semParam}`)
 
       .then((r) => {
 
@@ -252,15 +247,11 @@ export default function Gradebook() {
 
 
       await axios.post('/classroom/grades', {
-
         classId: selectedClass._id,
-
         subject: selectedClass.subject,
-
         gradesData,
-
-        publish: false, // Save as draft
-
+        semesterId: activeSemester?.id || undefined,
+        publish: false,
       });
 
       toast.success('Grades saved as draft.');
@@ -314,15 +305,11 @@ export default function Gradebook() {
 
 
       await axios.post('/classroom/grades', {
-
         classId: selectedClass._id,
-
         subject: selectedClass.subject,
-
         gradesData,
-
-        publish: true, // Publish to homeroom
-
+        semesterId: activeSemester?.id || undefined,
+        publish: true,
       });
 
       toast.success('Grades published to homeroom teachers.');
@@ -362,11 +349,14 @@ export default function Gradebook() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
 
         <div>
-
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Gradebook</h1>
-
           <p className="text-sm text-slate-500">Grade management and academic assessment entry.</p>
-
+          {activeSemester && (
+            <div className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-bold text-violet-700">
+              <div className="h-1.5 w-1.5 rounded-full bg-violet-500"></div>
+              {activeSemester.name}{activeSemester.academicYear?.year ? ` · ${activeSemester.academicYear.year}` : ''}
+            </div>
+          )}
         </div>
 
         <div className="flex gap-2">
@@ -488,32 +478,31 @@ export default function Gradebook() {
                         {components.map((c) => {
                           const isOverLimit = !!markErrors[`${row.student._id}_${c.field}`];
                           return (
-  
-                          <td key={c.field} className="px-3 py-3 text-center">
-  
-                            <input
-  
-                              type="number" min="0"
-  
-                              value={row.marks[c.field] === 0 ? '' : (row.marks[c.field] || '')}
-  
-                              onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
-  
-                              className={`w-16 rounded-lg border p-1.5 text-center outline-none transition-colors ${
-                                  isOverLimit
-                                    ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:bg-red-50'
-                                    : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:bg-white'
-                                }`}
-  
-                            />
-  
-                            <div className={`text-[10px] ${isOverLimit ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
+
+                            <td key={c.field} className="px-3 py-3 text-center">
+
+                              <input
+
+                                type="number" min="0"
+
+                                value={row.marks[c.field] === 0 ? '' : (row.marks[c.field] || '')}
+
+                                onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+
+                                className={`w-16 rounded-lg border p-1.5 text-center outline-none transition-colors ${isOverLimit
+                                  ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:bg-red-50'
+                                  : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:bg-white'
+                                  }`}
+
+                              />
+
+                              <div className={`text-[10px] ${isOverLimit ? 'text-red-400 font-semibold' : 'text-slate-400'}`}>
                                 / {c.weight}{isOverLimit && ' ⚠️'}
                               </div>
-  
-                          </td>
-  
-                        );
+
+                            </td>
+
+                          );
                         })}
 
                         <td className="px-3 py-3 text-center font-bold text-slate-900">{total.toFixed(2)}/100</td>

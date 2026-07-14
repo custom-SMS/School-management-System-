@@ -5,6 +5,7 @@ import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
 import { useBranding } from '../context/SettingsContext';
 import { printReportCard } from '../utils/printReportCard';
+import { useBranch } from '../context/BranchContext';
 
 const getStudentOptionId = (s) => s?._id || s?.id || '';
 const getStudentDisplayName = (s) => s?.user?.name || s?.name || 'Student';
@@ -59,8 +60,10 @@ function WorkflowPipeline({ counts }) {
 
 export default function ReportCards() {
   const { branding, logoUrl, grading } = useBranding();
+  const { activeSemester } = useBranch();
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
+  const [selectedSemesterId, setSelectedSemesterId] = useState('');
   const [students, setStudents] = useState([]);
   const [selectedStudent, setSelectedStudent] = useState('');
   const [preview, setPreview] = useState(null);
@@ -78,6 +81,26 @@ export default function ReportCards() {
     () => years.find((y) => y.id === selectedYear) || years.find((y) => y.isActive) || null,
     [years, selectedYear]
   );
+
+  // Semesters available for the chosen year
+  const yearSemesters = useMemo(
+    () => activeYear?.semesters || [],
+    [activeYear]
+  );
+
+  // Auto-select active semester when year or activeSemester changes
+  useEffect(() => {
+    if (!yearSemesters.length) return;
+    // Prefer the globally active semester if it belongs to this year
+    const match = yearSemesters.find((s) => s.id === activeSemester?.id);
+    if (match) {
+      setSelectedSemesterId(match.id);
+    } else {
+      // Fall back to Semester 1
+      const sem1 = yearSemesters.find((s) => s.order === 1) || yearSemesters[0];
+      if (sem1) setSelectedSemesterId(sem1.id);
+    }
+  }, [yearSemesters, activeSemester]);
 
   const sortedStudents = useMemo(() => (
     [...students].sort((a, b) => getStudentDisplayName(a).localeCompare(getStudentDisplayName(b)))
@@ -102,15 +125,16 @@ export default function ReportCards() {
     }).catch(() => { });
   }, []);
 
-  // Load class-level cards when class or year changes
+  // Load class-level cards when class, year, or semester changes
   useEffect(() => {
     if (!selectedClassId || !selectedYear) return;
     setLoadingClassCards(true);
-    axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}`)
+    const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
+    axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`)
       .then((r) => setClassCards(r.data || []))
       .catch(() => setClassCards([]))
       .finally(() => setLoadingClassCards(false));
-  }, [selectedClassId, selectedYear]);
+  }, [selectedClassId, selectedYear, selectedSemesterId]);
 
   const workflowCounts = useMemo(() => {
     const counts = { Draft: 0, HomeroomReview: 0, AdminReview: 0, Published: 0 };
@@ -124,18 +148,23 @@ export default function ReportCards() {
   // ── Compile ────────────────────────────────────────────────────────────────
   const handleCompile = async () => {
     if (!selectedYear) return;
+    const semLabel = yearSemesters.find((s) => s.id === selectedSemesterId)?.name || 'current semester';
     const { isConfirmed } = await showConfirmDialog({
       title: 'Compile report cards?',
-      text: 'This will recalculate averages, ranks and attendance for all students. Existing remarks will be preserved.',
+      text: `This will compile ${semLabel} report cards. Averages, ranks and attendance will be recalculated.`,
       confirmButtonText: 'Compile',
     });
     if (!isConfirmed) return;
     setBusy('compile');
     try {
-      const res = await axios.post('/report-cards/compile', { academicYearId: selectedYear });
+      const res = await axios.post('/report-cards/compile', {
+        academicYearId: selectedYear,
+        semesterId: selectedSemesterId || undefined,
+      });
       toast.success(res.data?.message || 'Report cards compiled.');
       if (selectedClassId) {
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}`);
+        const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
+        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -156,11 +185,15 @@ export default function ReportCards() {
     if (!isConfirmed) return;
     setBusy('publish');
     try {
-      const res = await axios.post('/report-cards/publish', { academicYearId: selectedYear });
+      const res = await axios.post('/report-cards/publish', {
+        academicYearId: selectedYear,
+        semesterId: selectedSemesterId || undefined,
+      });
       toast.success(res.data?.message || 'Report cards published.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
       if (selectedClassId) {
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}`);
+        const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
+        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -181,11 +214,15 @@ export default function ReportCards() {
     if (!isConfirmed) return;
     setBusy('unpublish');
     try {
-      await axios.post('/report-cards/unpublish', { academicYearId: selectedYear });
+      await axios.post('/report-cards/unpublish', {
+        academicYearId: selectedYear,
+        semesterId: selectedSemesterId || undefined,
+      });
       toast.success('Report cards unpublished.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
       if (selectedClassId) {
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}`);
+        const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
+        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -216,7 +253,8 @@ export default function ReportCards() {
     setPreviewError('');
     if (!studentId || !selectedYear) return;
     try {
-      const res = await axios.get(`/report-cards/${studentId}/${selectedYear}`);
+      const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
+      const res = await axios.get(`/report-cards/${studentId}/${selectedYear}${params}`);
       setPreview(res.data);
       setComments(res.data?.reportCard?.teacherComments || '');
     } catch (err) {
@@ -224,7 +262,15 @@ export default function ReportCards() {
     }
   };
 
-  const handleStudentChange = (id) => { setSelectedStudent(id); loadPreview(id); };
+  const handleStudentChange = (id) => { setSelectedStudent(id); };
+
+  useEffect(() => {
+    if (selectedStudent) {
+      loadPreview(selectedStudent);
+    } else {
+      setPreview(null);
+    }
+  }, [selectedStudent, selectedYear, selectedSemesterId]);
 
   const handleSaveComments = async () => {
     if (!preview?.reportCard?.id) return;
@@ -273,6 +319,23 @@ export default function ReportCards() {
             <div className={`${inputClass} flex items-center font-semibold text-slate-800`}>
               {activeYear ? `${activeYear.year}${activeYear.isActive ? ' (Active)' : ''}` : 'No academic year available'}
             </div>
+          </div>
+          <div className="flex-1">
+            <span className="mb-2 block text-sm font-bold text-slate-700">Semester</span>
+            <select
+              className={`${inputClass} font-semibold text-slate-800 cursor-pointer`}
+              value={selectedSemesterId}
+              onChange={(e) => setSelectedSemesterId(e.target.value)}
+              disabled={!yearSemesters.length}
+            >
+              {yearSemesters.length === 0 ? (
+                <option value="">No semesters available</option>
+              ) : (
+                yearSemesters.map(s => (
+                  <option key={s.id} value={s.id}>{s.name} {s.isActive ? '(Active)' : ''}</option>
+                ))
+              )}
+            </select>
           </div>
           <button onClick={handleCompile} disabled={!selectedYear || busy === 'compile'}
             className="rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50">

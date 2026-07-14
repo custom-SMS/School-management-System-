@@ -4,10 +4,14 @@ import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import AdminLayout from '../components/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
+import { useBranch } from '../context/BranchContext';
 import { toast } from 'react-toastify';
 
 export default function Timetables() {
   const { user } = useContext(AuthContext);
+  const { activeSemester } = useBranch();
+  const [selectedSemesterId, setSelectedSemesterId] = useState('');
+  const [yearSemesters, setYearSemesters] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
@@ -78,6 +82,26 @@ export default function Timetables() {
     }
   }, [user]);
 
+  // Fetch semesters when selectedYear changes
+  useEffect(() => {
+    if (selectedYear) {
+      axios.get(`/semesters?academicYearId=${selectedYear}`)
+        .then((res) => {
+          const list = res.data || [];
+          setYearSemesters(list);
+          const activeMatch = list.find(s => s.isActive);
+          if (activeMatch) {
+            setSelectedSemesterId(activeMatch.id);
+          } else if (list.length > 0) {
+            setSelectedSemesterId(list[0].id);
+          } else {
+            setSelectedSemesterId('');
+          }
+        })
+        .catch(err => console.error(err));
+    }
+  }, [selectedYear]);
+
   // Load sections when formClass changes
   useEffect(() => {
     if (formClass) {
@@ -109,8 +133,10 @@ export default function Timetables() {
         }
       } else if (selectedClass && selectedYear) {
         // Admin view
-        const sectionQuery = selectedSection ? `?sectionId=${selectedSection}` : '';
-        const res = await axios.get(`/timetables/class/${selectedClass}/${selectedYear}${sectionQuery}`);
+        const params = new URLSearchParams();
+        if (selectedSection) params.append('sectionId', selectedSection);
+        if (selectedSemesterId) params.append('semesterId', selectedSemesterId);
+        const res = await axios.get(`/timetables/class/${selectedClass}/${selectedYear}?${params.toString()}`);
         setTimetableSlots(res.data || []);
       }
     } catch (err) {
@@ -123,7 +149,7 @@ export default function Timetables() {
 
   useEffect(() => {
     fetchTimetables();
-  }, [selectedClass, selectedYear, selectedSection, selectedChildId]);
+  }, [selectedClass, selectedYear, selectedSection, selectedChildId, selectedSemesterId]);
 
   const handleCreateSlot = async (e) => {
     e.preventDefault();
@@ -135,6 +161,7 @@ export default function Timetables() {
     try {
       await axios.post('/timetables', {
         academicYearId: selectedYear,
+        semesterId: selectedSemesterId || null,
         classId: formClass,
         sectionId: formSection || null,
         subjectId: formSubject,
@@ -174,7 +201,14 @@ export default function Timetables() {
   const content = (
     <>
       <div className="mb-6">
-        <h2 className="text-2xl font-black tracking-tight text-slate-900">School Timetable</h2>
+        <h2 className="text-2xl font-black tracking-tight text-slate-900 flex items-center gap-2">
+          School Timetable
+          {activeSemester && (
+            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
+              {activeSemester.name}
+            </span>
+          )}
+        </h2>
         <p className="text-sm font-medium text-slate-500">Track weekly classes, subjects, rooms, and schedules.</p>
       </div>
 
@@ -189,6 +223,18 @@ export default function Timetables() {
                   {academicYears.map(y => <option key={y.id} value={y.id}>{y.year} {y.isActive ? '(Active)' : ''}</option>)}
                 </select>
               </div>
+              {yearSemesters.length > 0 && (
+                <div className="flex flex-col gap-1.5 w-48">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Semester</label>
+                  <select value={selectedSemesterId} onChange={e => setSelectedSemesterId(e.target.value)} className={inputClass}>
+                    {yearSemesters.map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.isActive ? '(Active)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex flex-col gap-1.5 w-64">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Select Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className={inputClass}>

@@ -169,8 +169,32 @@ model AcademicYear {
   fees        Fee[]
   timetables  Timetable[]
   reportCards ReportCard[]
+  semesters   Semester[]
 
   @@unique([year, branchId])
+}
+
+// ─── Semester ─────────────────────────────────────────────────────────────────
+// Each AcademicYear has exactly two semesters. Only one semester is globally
+// active at a time (isActive=true). SuperAdmin controls which is active.
+
+model Semester {
+  id             String       @id @default(uuid())
+  academicYearId String
+  academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  name           String       // "Semester 1" | "Semester 2"
+  order          Int          // 1 or 2
+  isActive       Boolean      @default(false)
+  startDate      DateTime?
+  endDate        DateTime?
+  createdAt      DateTime     @default(now())
+
+  grades      Grade[]
+  reportCards ReportCard[]
+  timetables  Timetable[]
+
+  @@unique([academicYearId, name])
+  @@unique([academicYearId, order])
 }
 
 // ─── Student ──────────────────────────────────────────────────────────────────
@@ -377,6 +401,8 @@ model Timetable {
   id             String       @id @default(uuid())
   academicYearId String
   academicYear   AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId     String?
+  semester       Semester?    @relation(fields: [semesterId], references: [id], onDelete: SetNull)
   classId        String
   class          Class        @relation(fields: [classId], references: [id], onDelete: Cascade)
   sectionId      String?
@@ -468,6 +494,8 @@ model Grade {
   teacher        User              @relation(fields: [teacherId], references: [id])
   academicYearId String?
   academicYear   AcademicYear?     @relation(fields: [academicYearId], references: [id])
+  semesterId     String?
+  semester       Semester?         @relation(fields: [semesterId], references: [id])
   quiz           Float?
   assignment     Float?
   test           Float?
@@ -515,6 +543,10 @@ model ReportCard {
   student              Student      @relation(fields: [studentId], references: [id], onDelete: Cascade)
   academicYearId       String
   academicYear         AcademicYear @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  semesterId           String?
+  semester             Semester?    @relation(fields: [semesterId], references: [id])
+  // For Semester 2 report cards: snapshot of Semester 1 average for combined view
+  semester1Snapshot    Float?
   grade                String
   attendancePercentage Float
   attendancePresent    Int          @default(0)
@@ -522,6 +554,7 @@ model ReportCard {
   attendanceLate       Int          @default(0)
   attendanceTotal      Int          @default(0)
   averageScore         Float
+  combinedAverage      Float?       // Semester 2 only: (sem1 + sem2) / 2
   rank                 Int?
   status               String       @default("Pending")
   teacherComments      String?
@@ -535,7 +568,8 @@ model ReportCard {
   promotionDate        DateTime?
   createdAt            DateTime     @default(now())
 
-  @@unique([studentId, academicYearId])
+  // Two report cards per year: one per semester
+  @@unique([studentId, academicYearId, semesterId])
 }
 
 // ─── Misc ─────────────────────────────────────────────────────────────────────

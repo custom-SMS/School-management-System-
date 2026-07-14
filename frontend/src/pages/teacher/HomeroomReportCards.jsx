@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 import { toast } from 'react-toastify';
+import { useBranch } from '../../context/BranchContext';
 
 const CONDUCT_OPTIONS = ['Excellent', 'Good', 'Satisfactory', 'Needs Improvement'];
 const PROMOTION_OPTIONS = ['Promoted', 'Conditional Promotion', 'Not Promoted', 'Pending'];
@@ -21,6 +22,7 @@ export default function HomeroomReportCards() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const classId = params.get('classId');
+  const { activeSemester } = useBranch();
 
   const [reportCards, setReportCards] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +49,8 @@ export default function HomeroomReportCards() {
       setClasses(classSummaries);
 
       if (!classId || !ay) { setReportCards([]); return; }
-      const res = await axios.get(`/report-cards/class/${classId}/${ay.id}`);
+      const semParam = activeSemester?.id ? `?semesterId=${activeSemester.id}` : '';
+      const res = await axios.get(`/report-cards/class/${classId}/${ay.id}${semParam}`);
       const cards = res.data || [];
       setReportCards(cards);
       // Seed edits from existing data

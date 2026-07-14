@@ -47,6 +47,8 @@ const getAdminStats = async (req, res) => {
       .map((entry) => ({
         className: normalizeClassLabel(entry.grade),
         studentCount: entry._count._all,
+        // Use a unique key combining className + a hash to avoid duplicate key issues
+        classId: `${normalizeClassLabel(entry.grade)}-${Math.random().toString(36).slice(2, 6)}`,
       }))
       .sort((left, right) => compareClassLabels(left.className, right.className));
 
@@ -233,8 +235,18 @@ const getStudentPortalStats = async (req, res) => {
       return res.status(404).json({ message: 'Student Profile not found' });
     }
 
+    const activeSemester = await (async () => {
+      if (req.query.semesterId) {
+        return prisma.semester.findUnique({ where: { id: req.query.semesterId } });
+      }
+      return prisma.semester.findFirst({ where: { isActive: true } });
+    })();
+
     const grades = await prisma.grade.findMany({
-      where: { studentId: student.id },
+      where: {
+        studentId: student.id,
+        ...(activeSemester ? { semesterId: activeSemester.id } : {})
+      },
       include: {
         class: { select: { id: true, name: true, subject: true, stream: true } },
         subjectRef: { select: { id: true, name: true } }
@@ -349,6 +361,10 @@ const getTeacherPortalStats = async (req, res) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true }
+    });
+
     const assignedClassDocs = await prisma.class.findMany({
       where: { teacherId: teacher.id },
       include: {
@@ -442,7 +458,11 @@ const getTeacherPortalStats = async (req, res) => {
 
       // Single query for grades with aggregation
       const gradesAgg = await prisma.grade.aggregate({
-        where: { classId: klass.id, teacherId: req.user._id },
+        where: {
+          classId: klass.id,
+          teacherId: req.user._id,
+          ...(activeSemester ? { semesterId: activeSemester.id } : {})
+        },
         _avg: { percentage: true },
         _count: true
       });
@@ -478,7 +498,10 @@ const getTeacherPortalStats = async (req, res) => {
     ).size;
 
     const grades = await prisma.grade.findMany({
-      where: { teacherId: req.user._id },
+      where: {
+        teacherId: req.user._id,
+        ...(activeSemester ? { semesterId: activeSemester.id } : {})
+      },
       include: {
         student: {
           include: {
@@ -562,6 +585,10 @@ const getParentPortalStats = async (req, res) => {
       return res.status(404).json({ message: 'Parent profile not found' });
     }
 
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true }
+    });
+
     const children = [];
 
     for (const child of parent.children) {
@@ -572,7 +599,10 @@ const getParentPortalStats = async (req, res) => {
       if (!childStudent) continue;
 
       const grades = await prisma.grade.findMany({
-        where: { studentId: childStudent.id },
+        where: {
+          studentId: childStudent.id,
+          ...(activeSemester ? { semesterId: activeSemester.id } : {})
+        },
         include: {
           class: { select: { id: true, name: true, subject: true, stream: true } }
         }
@@ -747,8 +777,15 @@ const getSuperAdminStats = async (req, res) => {
       { division: 'High School', revenue: highRev }
     ];
 
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true }
+    });
+
     const grades = await prisma.grade.findMany({
-      where: { student: branchFilter },
+      where: {
+        student: branchFilter,
+        ...(activeSemester ? { semesterId: activeSemester.id } : {})
+      },
       include: { student: { select: { grade: true } } }
     });
     let pScore = 0, pCount = 0, mScore = 0, mCount = 0, hScore = 0, hCount = 0;

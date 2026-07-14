@@ -7,6 +7,7 @@ const createTimetableSlot = async (req, res) => {
     const {
       id,
       academicYearId,
+      semesterId: bodySemesterId,
       classId,
       sectionId,
       subjectId,
@@ -15,6 +16,15 @@ const createTimetableSlot = async (req, res) => {
       endTime,
       room
     } = req.body;
+
+    // Resolve semester — explicit body param beats global active semester
+    const activeSemester = await (async () => {
+      if (bodySemesterId) {
+        return prisma.semester.findUnique({ where: { id: bodySemesterId } });
+      }
+      return prisma.semester.findFirst({ where: { isActive: true } });
+    })();
+    const resolvedSemesterId = activeSemester?.id || null;
 
     if (req.user.role === 'Admin') {
       const targetClass = await prisma.class.findUnique({
@@ -90,6 +100,7 @@ const createTimetableSlot = async (req, res) => {
         where: { id },
         data: {
           academicYearId,
+          semesterId: resolvedSemesterId,
           classId,
           sectionId: sectionId || null,
           subjectId,
@@ -110,6 +121,7 @@ const createTimetableSlot = async (req, res) => {
       slot = await prisma.timetable.create({
         data: {
           academicYearId,
+          semesterId: resolvedSemesterId,
           classId,
           sectionId: sectionId || null,
           subjectId,
@@ -140,7 +152,7 @@ const createTimetableSlot = async (req, res) => {
 const getTimetablesByClass = async (req, res) => {
   try {
     const { classId, academicYearId } = req.params;
-    const { sectionId } = req.query;
+    const { sectionId, semesterId } = req.query;
 
     if (req.user.role === 'Admin') {
       const targetClass = await prisma.class.findUnique({
@@ -152,12 +164,17 @@ const getTimetablesByClass = async (req, res) => {
       }
     }
 
-    const whereClause = {
-      classId,
-      academicYearId
-    };
+    // Build where clause — filter by semester if provided
+    const whereClause = { classId, academicYearId };
     if (sectionId) {
       whereClause.sectionId = sectionId;
+    }
+    if (semesterId) {
+      whereClause.semesterId = semesterId;
+    } else {
+      // Default: show only active semester's timetable
+      const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } });
+      if (activeSemester) whereClause.semesterId = activeSemester.id;
     }
 
     const timetable = await prisma.timetable.findMany({
@@ -165,7 +182,8 @@ const getTimetablesByClass = async (req, res) => {
       include: {
         class: true,
         section: true,
-        subject: true
+        subject: true,
+        semester: { select: { id: true, name: true, order: true } },
       },
       orderBy: [
         { dayOfWeek: 'asc' },
@@ -213,10 +231,15 @@ const getTeacherTimetable = async (req, res) => {
 
     const uniqueClassIds = [...new Set(classIds)];
 
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true }
+    });
+
     const timetable = await prisma.timetable.findMany({
       where: {
         academicYearId: activeYear.id,
-        classId: { in: uniqueClassIds }
+        classId: { in: uniqueClassIds },
+        ...(activeSemester ? { semesterId: activeSemester.id } : {})
       },
       include: {
         class: true,
@@ -284,13 +307,18 @@ const getStudentTimetable = async (req, res) => {
     });
     const classIds = classes.map(c => c.id);
 
+    const activeSemester = await prisma.semester.findFirst({
+      where: { isActive: true }
+    });
+
     const timetable = await prisma.timetable.findMany({
       where: {
         academicYearId: activeYear.id,
         OR: [
           { classId: { in: classIds } },
           { sectionId: enrollment.sectionId }
-        ]
+        ],
+        ...(activeSemester ? { semesterId: activeSemester.id } : {})
       },
       include: {
         class: true,

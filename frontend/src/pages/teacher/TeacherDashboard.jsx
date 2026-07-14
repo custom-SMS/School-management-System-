@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
+import { useBranch } from '../../context/BranchContext';
 
 function StatCard({ label, value, sub, icon, alert, dark }) {
   return (
@@ -20,6 +21,7 @@ function StatCard({ label, value, sub, icon, alert, dark }) {
 }
 
 export default function TeacherDashboard() {
+  const { activeSemester } = useBranch();
   const [stats, setStats] = useState(null);
   const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
   const [loading, setLoading] = useState(true);
@@ -57,7 +59,13 @@ export default function TeacherDashboard() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Welcome back, {firstName ? `Mr. ${firstName}` : 'Teacher'}</h1>
           <p className="text-sm text-slate-500">Your teaching summary for today.</p>
         </div>
-        <div className="text-right">
+        <div className="text-right flex items-center gap-3">
+          {activeSemester && (
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-violet-50 border border-violet-200 px-3 py-1 text-xs font-bold text-violet-700">
+              <div className="h-1.5 w-1.5 rounded-full bg-violet-500"></div>
+              {activeSemester.name}{activeSemester.academicYear?.year ? ` · ${activeSemester.academicYear.year}` : ''}
+            </div>
+          )}
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{stats?.subject || 'Faculty'}</div>
         </div>
       </div>
@@ -80,7 +88,7 @@ export default function TeacherDashboard() {
         <StatCard label="Assigned Students" value={stats?.assignedStudentsCount ?? 0} icon={<path d="M16 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.7 0-6 1.3-6 4v2h8v-2c0-1 .4-1.9 1-2.6A8 8 0 0 0 8 13z" />} />
         <StatCard label="Avg Attendance" value={`${avgAttendance}%`} sub="Across your classes" icon={<path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" />} />
         <StatCard label="Grades Recorded" value={stats?.gradesRecordedCount ?? 0} alert icon={<path d="M6 2h9l5 5v15H6V2zm8 1.5V8h4.5z" />} />
-        <StatCard label="Assigned Classes" value={stats?.assignedClassesCount ?? 0} sub="This semester" dark icon={<path d="M3 10 12 4l9 6v2H3v-2z" />} />
+        <StatCard label="Assigned Classes" value={stats?.assignedClassesCount ?? 0} sub={activeSemester ? activeSemester.name : "This semester"} dark icon={<path d="M3 10 12 4l9 6v2H3v-2z" />} />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1fr_1.4fr]">

@@ -209,7 +209,7 @@ const createAssignment = async (req, res) => {
           });
         }
       }
-      
+
       assignments.push({
         ...assignment,
         _id: assignment.id,
@@ -289,9 +289,25 @@ const getAllAssignments = async (req, res) => {
         },
         class: {
           include: {
+            // Legacy direct M2M (kept for backward compat)
             students: {
               include: {
                 user: { select: { id: true, name: true, email: true } }
+              }
+            },
+            // Current model: students enrolled via sections
+            sections: {
+              include: {
+                enrollments: {
+                  where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                  include: {
+                    student: {
+                      include: {
+                        user: { select: { id: true, name: true, email: true } }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -299,24 +315,43 @@ const getAllAssignments = async (req, res) => {
       }
     });
 
-    const responseAssignments = assignments.map(assignment => ({
-      ...assignment,
-      _id: assignment.id,
-      teacher: assignment.teacher ? {
-        ...assignment.teacher,
-        _id: assignment.teacher.id,
-        user: assignment.teacher.user ? { ...assignment.teacher.user, _id: assignment.teacher.user.id } : null
-      } : null,
-      class: assignment.class ? {
-        ...assignment.class,
-        _id: assignment.class.id,
-        students: (assignment.class.students || []).map(student => ({
-          ...student,
-          _id: student.id,
-          user: student.user ? { ...student.user, _id: student.user.id } : null
-        }))
-      } : null
-    }));
+    const responseAssignments = assignments.map(assignment => {
+      const cls = assignment.class;
+      let students = [];
+
+      if (cls) {
+        // Prefer students from section enrollments; fall back to direct M2M
+        const enrolledStudents = (cls.sections || [])
+          .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
+
+        const source = enrolledStudents.length > 0 ? enrolledStudents : (cls.students || []);
+
+        // De-duplicate by id
+        const seen = new Set();
+        students = source
+          .filter(s => s && !seen.has(s.id) && seen.add(s.id))
+          .map(student => ({
+            ...student,
+            _id: student.id,
+            user: student.user ? { ...student.user, _id: student.user.id } : null
+          }));
+      }
+
+      return {
+        ...assignment,
+        _id: assignment.id,
+        teacher: assignment.teacher ? {
+          ...assignment.teacher,
+          _id: assignment.teacher.id,
+          user: assignment.teacher.user ? { ...assignment.teacher.user, _id: assignment.teacher.user.id } : null
+        } : null,
+        class: cls ? {
+          ...cls,
+          _id: cls.id,
+          students
+        } : null
+      };
+    });
 
     res.json(responseAssignments);
   } catch (error) {
@@ -350,22 +385,22 @@ const removeHomeRoomAssignment = async (req, res) => {
 
       const cleared = previousTeacherId
         ? await tx.section.updateMany({
-            where: {
-              classId,
-              homeroomTeacherId: previousTeacherId
-            },
-            data: { homeroomTeacherId: null }
-          })
+          where: {
+            classId,
+            homeroomTeacherId: previousTeacherId
+          },
+          data: { homeroomTeacherId: null }
+        })
         : { count: 0 };
 
-        return [removedAssignments, cleared];
+      return [removedAssignments, cleared];
     });
 
-      const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
-      const updatedClass = await prisma.class.update({
-        where: { id: classId },
-        data: { teacherId: resolvedTeacherId }
-      });
+    const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
+    const updatedClass = await prisma.class.update({
+      where: { id: classId },
+      data: { teacherId: resolvedTeacherId }
+    });
 
     return res.status(200).json({
       message: `Homeroom teacher removed from ${klass.name}.`,
