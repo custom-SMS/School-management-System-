@@ -272,6 +272,7 @@ model Subject {
   teacherAssignments TeacherAssignment[]
   grades             Grade[]
   timetables         Timetable[]
+  classSubjects      ClassSubject[]
 }
 
 // ─── Teacher ──────────────────────────────────────────────────────────────────
@@ -292,6 +293,7 @@ model Teacher {
   classes          Class[]
   assignments      TeacherAssignment[]
   homeroomSections Section[]
+  classSubjects    ClassSubject[]
 }
 
 // ─── Section ──────────────────────────────────────────────────────────────────
@@ -316,7 +318,7 @@ model Class {
   name      String
   teacherId String?
   teacher   Teacher?          @relation(fields: [teacherId], references: [id])
-  subject   String
+  subject   String?           // @deprecated: Use classSubjects relation instead
   schedule  String?
   branchId  String?
   branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
@@ -325,12 +327,29 @@ model Class {
   stream    String?
   createdAt DateTime          @default(now())
 
-  students    Student[]           @relation("ClassStudents")
-  attendances Attendance[]
-  grades      Grade[]
-  assignments TeacherAssignment[]
-  sections    Section[]
-  timetables  Timetable[]
+  students      Student[]           @relation("ClassStudents")
+  attendances   Attendance[]
+  grades       Grade[]
+  assignments   TeacherAssignment[]
+  sections      Section[]
+  timetables    Timetable[]
+  classSubjects ClassSubject[]
+}
+
+// ─── ClassSubject ─────────────────────────────────────────────────────────────
+// Junction table to allow multiple subjects per class
+
+model ClassSubject {
+  id        String   @id @default(uuid())
+  classId   String
+  class     Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  subjectId String
+  subject   Subject  @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  teacherId String?  // Optional: assign a specific teacher for this subject in this class
+  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+
+  @@unique([classId, subjectId])
 }
 
 // ─── Attendance ───────────────────────────────────────────────────────────────

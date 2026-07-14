@@ -38,7 +38,12 @@ const {
 
   getSectionStudents,
 
-  assignStudentsToSection
+  assignStudentsToSection,
+
+  addSubjectToClass,
+  removeSubjectFromClass,
+  getClassSubjects,
+  updateClassSubjectTeacher
 
 } = require('../controllers/classroomController');
 
@@ -695,6 +700,12 @@ router.post('/grading-structure', verifyToken, checkRole(['SuperAdmin']), requir
 
 router.get('/grading-structure', verifyToken, require('../controllers/classroomController').getGradingStructure);
 
+
+// Class Subject Management
+router.post('/class-subjects', verifyToken, checkRole(['Admin', 'SuperAdmin']), addSubjectToClass);
+router.get('/class-subjects/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getClassSubjects);
+router.delete('/class-subjects/:classId/:subjectId', verifyToken, checkRole(['Admin', 'SuperAdmin']), removeSubjectFromClass);
+router.put('/class-subjects/:classId/:subjectId/teacher', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateClassSubjectTeacher);
 
 
 module.exports = router;

@@ -443,7 +443,12 @@ export default function GradesContent({ canEdit = false }) {
 
       {/* Student table */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {loadingClassGrades ? (
+        {!selectedClass ? (
+          <div className="flex items-center justify-center py-20 text-slate-400">
+            <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
+            Loading…
+          </div>
+        ) : loadingClassGrades ? (
           <div className="flex items-center justify-center py-20 text-slate-400">
             <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
             Loading…

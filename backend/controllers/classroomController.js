@@ -1,5 +1,6 @@
 const prisma = require('../prisma');
 const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
+const { createClassSchema, updateClassSchema, saveGradesSchema, recordAttendanceSchema } = require('../utils/validation');
 
 const cleanGradeName = (name) => {
   return String(name || '')
@@ -152,7 +153,7 @@ const getClassroomOptions = async (req, res) => {
   try {
     let where = { ...(req.branchFilter || {}) };
 
-    if (req.user.role !== 'Admin') {
+    if (req.user.role !== 'Admin' && req.user.role !== 'SuperAdmin') {
       const teacher = await getTeacherProfile(req.user._id);
       if (!teacher) {
         return res.status(404).json({ message: 'Teacher profile not found' });
@@ -203,7 +204,7 @@ const getClassroomOptions = async (req, res) => {
 };
 
 const ensureTeacherAuthorization = async (req, classId, studentIds = []) => {
-  if (req.user.role === 'Admin') return { ok: true };
+  if (req.user.role === 'Admin' || req.user.role === 'SuperAdmin') return { ok: true };
 
   const teacher = await getTeacherProfile(req.user._id);
   if (!teacher) {
@@ -253,7 +254,7 @@ const getAttendanceResponse = (attendance) => ({
 // @access  Private (Teacher/Admin)
 const recordAttendance = async (req, res) => {
   try {
-    const { classId, date, records, teacherId } = req.body;
+    const { classId, date, records, teacherId } = recordAttendanceSchema.parse(req.body);
     const studentIds = (records || []).map((record) => record.student).filter(Boolean);
 
     const authorization = await ensureTeacherAuthorization(req, classId, studentIds);
@@ -546,10 +547,7 @@ const unlockAttendance = async (req, res) => {
 // @access  Private (Teacher/Admin)
 const saveGrades = async (req, res) => {
   try {
-    const { classId, subject, teacherId, gradesData } = req.body;
-    if (!classId || !subject || !Array.isArray(gradesData)) {
-      return res.status(400).json({ message: 'classId, subject, and gradesData are required' });
-    }
+    const { classId, subject, teacherId, gradesData } = saveGradesSchema.parse(req.body);
 
     const studentIds = (gradesData || []).map((data) => data.student).filter(Boolean);
 
@@ -858,7 +856,7 @@ const getNextSectionLetter = (sectionNames = []) => {
 
 const createClass = async (req, res) => {
   try {
-    const { name, teacherId, schedule, stream } = req.body;
+    const { name, teacherId, schedule, stream, subjectIds } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Class name is required.' });
     }
@@ -903,7 +901,19 @@ const createClass = async (req, res) => {
         subject: 'General',
         schedule,
         stream,
-        branchId
+        branchId,
+        ...(subjectIds && subjectIds.length > 0 ? {
+          classSubjects: {
+            create: subjectIds.map(subjectId => ({ subjectId }))
+          }
+        } : {})
+      },
+      include: {
+        classSubjects: {
+          include: {
+            subject: true
+          }
+        }
       }
     });
 
@@ -940,6 +950,11 @@ const getClasses = async (req, res) => {
                 user: { select: { id: true, name: true, email: true } }
               }
             }
+          }
+        },
+        classSubjects: {
+          include: {
+            subject: true
           }
         }
       },
@@ -991,7 +1006,7 @@ const getClasses = async (req, res) => {
 const updateClass = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, stream, teacherId } = req.body;
+    const { name, stream, teacherId } = updateClassSchema.parse(req.body);
 
     const existingClass = await prisma.class.findUnique({ where: { id } });
     if (!existingClass) {
@@ -1714,6 +1729,173 @@ const assignStudentsToSection = async (req, res) => {
   }
 };
 
+// ─── Class Subject Management ─────────────────────────────────────────────────
+
+const addSubjectToClass = async (req, res) => {
+  try {
+    const { classId, subjectId, teacherId } = req.body;
+
+    if (!classId || !subjectId) {
+      return res.status(400).json({ message: 'Class ID and Subject ID are required.' });
+    }
+
+    const classExists = await prisma.class.findUnique({ where: { id: classId } });
+    if (!classExists) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
+    const subjectExists = await prisma.subject.findUnique({ where: { id: subjectId } });
+    if (!subjectExists) {
+      return res.status(404).json({ message: 'Subject not found.' });
+    }
+
+    const existing = await prisma.classSubject.findUnique({
+      where: {
+        classId_subjectId: {
+          classId,
+          subjectId
+        }
+      }
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'Subject already added to this class.' });
+    }
+
+    const classSubject = await prisma.classSubject.create({
+      data: {
+        classId,
+        subjectId,
+        teacherId: teacherId || null
+      },
+      include: {
+        subject: true,
+        teacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Add Subject to Class', classId, `Added subject ${subjectExists.name} to class ${classExists.name}`);
+
+    res.status(201).json(classSubject);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const removeSubjectFromClass = async (req, res) => {
+  try {
+    const { classId, subjectId } = req.params;
+
+    const classSubject = await prisma.classSubject.findUnique({
+      where: {
+        classId_subjectId: {
+          classId,
+          subjectId
+        }
+      }
+    });
+
+    if (!classSubject) {
+      return res.status(404).json({ message: 'Subject not found in this class.' });
+    }
+
+    await prisma.classSubject.delete({
+      where: {
+        classId_subjectId: {
+          classId,
+          subjectId
+        }
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Remove Subject from Class', classId, `Removed subject from class`);
+
+    res.status(200).json({ message: 'Subject removed from class successfully.' });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const getClassSubjects = async (req, res) => {
+  try {
+    const { classId } = req.params;
+
+    const classSubjects = await prisma.classSubject.findMany({
+      where: { classId },
+      include: {
+        subject: true,
+        teacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    res.status(200).json(classSubjects);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+const updateClassSubjectTeacher = async (req, res) => {
+  try {
+    const { classId, subjectId } = req.params;
+    const { teacherId } = req.body;
+
+    const classSubject = await prisma.classSubject.findUnique({
+      where: {
+        classId_subjectId: {
+          classId,
+          subjectId
+        }
+      }
+    });
+
+    if (!classSubject) {
+      return res.status(404).json({ message: 'Subject not found in this class.' });
+    }
+
+    if (teacherId) {
+      const teacherExists = await prisma.teacher.findUnique({ where: { id: teacherId } });
+      if (!teacherExists) {
+        return res.status(404).json({ message: 'Teacher not found.' });
+      }
+    }
+
+    const updated = await prisma.classSubject.update({
+      where: {
+        classId_subjectId: {
+          classId,
+          subjectId
+        }
+      },
+      data: { teacherId },
+      include: {
+        subject: true,
+        teacher: {
+          include: {
+            user: { select: { id: true, name: true, email: true } }
+          }
+        }
+      }
+    });
+
+    const { logActivity } = require('../middleware/auditLogger');
+    await logActivity(req.user._id, 'Update Class Subject Teacher', classId, `Updated teacher for subject`);
+
+    res.status(200).json(updated);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   recordAttendance,
   getAttendanceRegister,
@@ -1736,6 +1918,10 @@ module.exports = {
   getSectionStudents,
   assignStudentsToSection,
   setGradingStructure,
-  getGradingStructure
+  getGradingStructure,
+  addSubjectToClass,
+  removeSubjectFromClass,
+  getClassSubjects,
+  updateClassSubjectTeacher
 };
 

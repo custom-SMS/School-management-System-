@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const { validateBody, loginSchema, registerAdminSchema } = require('../utils/validation');
 
 const isProduction = process.env.NODE_ENV === 'production';
 
@@ -25,7 +26,7 @@ const cookieOptions = {
 
 const login = async (req, res) => {
   try {
-    const { identifier, email, studentId, password } = req.body;
+    const { identifier, email, studentId, password } = loginSchema.parse(req.body);
     const loginValue = identifier || email || studentId;
 
     let user = null;
@@ -181,7 +182,7 @@ const logout = (req, res) => {
 
 const registerInitialAdmin = async (req, res) => {
   try {
-    const { name, email, password, role = 'Admin' } = req.body;
+    const { name, email, password, role = 'Admin' } = registerAdminSchema.parse(req.body);
 
     const existingUser = await prisma.user.findFirst({
       where: { email }

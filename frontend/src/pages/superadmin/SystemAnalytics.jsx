@@ -13,7 +13,8 @@ export default function SystemAnalytics() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/stats/superadmin')
+    const params = selectedBranchId ? { branchId: selectedBranchId } : {};
+    axios.get('/stats/superadmin', { params })
       .then((r) => setStats(r.data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));

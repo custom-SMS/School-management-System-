@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 const { isRegistrationOpen } = require('../utils/academicYear');
 const { sendGuardianCredentialsEmail } = require('../utils/emailService');
+const { createStudentSchema, updateStudentSchema } = require('../utils/validation');
 
 const resolveGradeSubjectName = (grade) => {
   if (!grade) return 'Subject';
@@ -410,6 +411,7 @@ const upsertGuardianProfile = async ({ contact, student, studentName }) => {
 // @access  Public (so students can self-register)
 const registerStudent = async (req, res) => {
   try {
+    const validatedData = createStudentSchema.parse(req.body);
     const {
       name,
       email,
@@ -429,7 +431,7 @@ const registerStudent = async (req, res) => {
       occupation,
       notes,
       stream,
-    } = req.body;
+    } = validatedData;
 
     // Enforce active academic year
     const activeYear = await prisma.academicYear.findFirst({
@@ -1246,6 +1248,7 @@ const getRegistrationClasses = async (req, res) => {
 const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
+    const validatedData = updateStudentSchema.parse(req.body);
     const {
       name,
       email,
@@ -1254,7 +1257,7 @@ const updateStudent = async (req, res) => {
       classId,
       personalDetails,
       familyBackground
-    } = req.body;
+    } = validatedData;
     const guardianContacts = buildGuardianContacts(req.body);
 
     const existingStudent = await prisma.student.findUnique({

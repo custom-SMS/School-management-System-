@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
 
 const { sendTeacherCredentialsEmail } = require('../utils/emailService');
+const { registerTeacherSchema, updateTeacherSchema } = require('../utils/validation');
 
 const generateTeacherId = async (tx = prisma) => {
   // Derive the next ID from the highest existing teacherId rather than count(),
@@ -23,7 +24,7 @@ const generatePassword = () => crypto.randomBytes(4).toString('hex');
 
 const registerTeacher = async (req, res) => {
   try {
-    const { name, email, password, subject } = req.body;
+    const { name, email, password, subject } = registerTeacherSchema.parse(req.body);
 
     if (!name || !subject) {
       return res.status(400).json({ message: 'Name and subject are required' });
@@ -154,7 +155,7 @@ const getTeachers = async (req, res) => {
 const updateTeacher = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, email, subject } = req.body;
+    const { name, email, subject } = updateTeacherSchema.parse(req.body);
 
     const existingTeacher = await prisma.teacher.findUnique({
       where: { id },
