@@ -264,15 +264,19 @@ model Enrollment {
 
 model Subject {
   id            String   @id @default(uuid())
-  name          String   @unique
+  name          String
   department    String?
   gradesOffered String[] @default([])
+  branchId      String?
+  branch        Branch?  @relation(fields: [branchId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
 
   teacherAssignments TeacherAssignment[]
   grades             Grade[]
   timetables         Timetable[]
   classSubjects      ClassSubject[]
+
+  @@unique([name, branchId])
 }
 
 // ─── Teacher ──────────────────────────────────────────────────────────────────

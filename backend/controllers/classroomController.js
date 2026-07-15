@@ -931,12 +931,8 @@ const createClass = async (req, res) => {
 
 const getClasses = async (req, res) => {
   try {
-    // If a specific branchId filter is set (branch admin), also include classes
-    // that have no branchId assigned (global/shared classes), so branch admins
-    // can see sections they created on unassigned classes.
-    const branchFilterClause = req.branchFilter?.branchId
-      ? { OR: [{ branchId: req.branchFilter.branchId }, { branchId: null }] }
-      : { ...(req.branchFilter || {}) };
+    // Strict branch isolation - only show classes belonging to the user's branch
+    const branchFilterClause = req.branchFilter || {};
 
     const classes = await prisma.class.findMany({
       where: branchFilterClause,

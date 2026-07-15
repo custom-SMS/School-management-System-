@@ -172,6 +172,15 @@ if (!result) return;
   const mandatoryCount = subjects.filter((s) => !s.isElective).length;
   const electiveCount = subjects.filter((s) => s.isElective).length;
 
+  // Group subjects by grade
+  const subjectsByGrade = subjects.reduce((acc, subject) => {
+    (subject.gradesOffered || []).forEach((grade) => {
+      if (!acc[grade]) acc[grade] = [];
+      acc[grade].push(subject);
+    });
+    return acc;
+  }, {});
+
   const openModal = (mode) => {
     setModalMode(mode);
     setShowModal(true);
@@ -408,63 +417,47 @@ if (!result) return;
         ))}
       </div>
 
-      {subjects.length > 0 && (
-        <div className="mb-8">
-          <div className="mb-4 flex items-center gap-3">
-            <div className="h-6 w-1 rounded-full bg-black"></div>
-            <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
-            <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
-              {subjects.length} Subjects
-            </span>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {subjects.map((s) => (
-              <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <div className="font-bold text-gray-900">{s.name}</div>
-                    <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+      {Object.keys(subjectsByGrade).length > 0 && (
+        Object.entries(subjectsByGrade).sort((a, b) => {
+          const aNum = Number(a[0].match(/\d+/)?.[0] || 0);
+          const bNum = Number(b[0].match(/\d+/)?.[0] || 0);
+          return aNum - bNum;
+        }).map(([grade, gradeSubjects]) => (
+          <div key={grade} className="mb-8">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="h-6 w-1 rounded-full bg-black"></div>
+              <h3 className="text-xl font-bold text-gray-900">{grade}</h3>
+              <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
+                {gradeSubjects.length} Subjects
+              </span>
+            </div>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {gradeSubjects.map((s) => (
+                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 flex items-start justify-between">
+                    <div>
+                      <div className="font-bold text-gray-900">{s.name}</div>
+                      <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+                    </div>
                   </div>
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase ${
-                      s.isElective ? 'bg-orange-50 text-orange-700' : 'bg-green-50 text-green-700'
-                    }`}
-                  >
-                    {s.isElective ? 'Elective' : 'Mandatory'}
-                  </span>
-                </div>
 
-                <div className="mb-3 flex flex-wrap gap-2">
-                  {(s.gradesOffered || []).length > 0 ? (
-                    s.gradesOffered.map((grade) => (
-                      <span
-                        key={grade}
-                        className="rounded-full bg-blue-50 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700"
-                      >
-                        {grade}
-                      </span>
-                    ))
-                  ) : (
-                    <span className="text-xs text-gray-400">No grades assigned</span>
-                  )}
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                    </button>
+                  </div>
                 </div>
-
-                <div className="flex justify-end gap-3">
-                  <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
+        ))
       )}
 
       {Object.entries(groupedByGrade).length > 0 && (
@@ -485,15 +478,8 @@ if (!result) return;
                       <div className="font-bold text-gray-900">{cls.name}</div>
                       <div className="text-xs text-gray-500">{cls.subject}</div>
                     </div>
-                    <span className="rounded-full bg-green-50 px-2.5 py-0.5 text-[10px] font-bold uppercase text-green-700">
-                      Mandatory
-                    </span>
                   </div>
-                  <div className="mb-4 grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Credits</div>
-                      <div className="mt-1 text-lg font-bold text-gray-900">4.0 Hrs</div>
-                    </div>
+                  <div className="mb-4">
                     <div>
                       <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Dept</div>
                       <div className="mt-1 text-lg font-bold text-gray-900">{cls.subject}</div>

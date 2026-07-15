@@ -155,7 +155,7 @@ router.get('/options', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
 
  */
 
-router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), recordAttendance);
+router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, recordAttendance);
 
 
 
@@ -184,7 +184,7 @@ router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdm
  *         description: List of attendance sessions
 
  */
-router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getAttendanceRegister);
+router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceRegister);
 
 router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceSessions);
 
@@ -244,7 +244,7 @@ router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injec
 
  */
 
-router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), saveGrades);
+router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, saveGrades);
 
 /**
  * @swagger
@@ -445,11 +445,11 @@ router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']
 
  */
 
-router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteClass);
+router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteClass);
 
 router.put('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateClass);
 
-router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), forceDeleteClass);
+router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, forceDeleteClass);
 
 
 
@@ -501,7 +501,7 @@ router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin
 
  */
 
-router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), createSection);
+router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createSection);
 
 
 
@@ -546,17 +546,17 @@ router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), create
 
 // NOTE: /sections/detail/* routes MUST be declared BEFORE /sections/:classId
 // to prevent Express from matching 'detail' as the :classId parameter.
-router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionById);
+router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionById);
 
-router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateSection);
+router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateSection);
 
-router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteSection);
+router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteSection);
 
 router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionStudents);
 
 router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, assignStudentsToSection);
 
-router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getSectionsByClass);
+router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionsByClass);
 
 
 
@@ -702,10 +702,10 @@ router.get('/grading-structure', verifyToken, require('../controllers/classroomC
 
 
 // Class Subject Management
-router.post('/class-subjects', verifyToken, checkRole(['Admin', 'SuperAdmin']), addSubjectToClass);
-router.get('/class-subjects/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), getClassSubjects);
-router.delete('/class-subjects/:classId/:subjectId', verifyToken, checkRole(['Admin', 'SuperAdmin']), removeSubjectFromClass);
-router.put('/class-subjects/:classId/:subjectId/teacher', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateClassSubjectTeacher);
+router.post('/class-subjects', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, addSubjectToClass);
+router.get('/class-subjects/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getClassSubjects);
+router.delete('/class-subjects/:classId/:subjectId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, removeSubjectFromClass);
+router.put('/class-subjects/:classId/:subjectId/teacher', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateClassSubjectTeacher);
 
 
 module.exports = router;

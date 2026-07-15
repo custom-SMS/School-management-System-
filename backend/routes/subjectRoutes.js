@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { createSubject, getSubjects, deleteSubject } = require('../controllers/subjectController');
-const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
  * @swagger
@@ -23,7 +23,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: List of subjects
  */
-router.get('/', verifyToken, getSubjects);
+router.get('/', verifyToken, injectBranchFilter, getSubjects);
 
 /**
  * @swagger
@@ -70,6 +70,6 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), createSubject)
  *       200:
  *         description: Subject deleted
  */
-router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteSubject);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteSubject);
 
 module.exports = router;

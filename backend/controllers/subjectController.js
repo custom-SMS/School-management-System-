@@ -13,18 +13,44 @@ const createSubject = async (req, res) => {
       ? [...new Set(gradesOffered.map((grade) => String(grade).trim()).filter(Boolean))]
       : [];
 
-    const existing = await prisma.subject.findUnique({
-      where: { name }
+    // Get branchId from filter or use default
+    const branchId = req.branchFilter?.branchId || process.env.DEFAULT_BRANCH_ID || null;
+
+    // Check for duplicate subject name within the same branch
+    const existing = await prisma.subject.findFirst({
+      where: { 
+        name,
+        branchId 
+      }
     });
     if (existing) {
-      return res.status(400).json({ message: 'Subject already exists.' });
+      return res.status(400).json({ message: 'Subject already exists in this branch.' });
+    }
+
+    // Check if subject already exists for any of the selected grades within the same branch
+    if (normalizedGrades.length > 0) {
+      const allSubjects = await prisma.subject.findMany({
+        where: { branchId }
+      });
+      for (const grade of normalizedGrades) {
+        const duplicateForGrade = allSubjects.find(s => 
+          s.name.toLowerCase() === name.toLowerCase() && 
+          (s.gradesOffered || []).includes(grade)
+        );
+        if (duplicateForGrade) {
+          return res.status(400).json({ 
+            message: `Subject "${name}" is already assigned to ${grade} in this branch. Please select a different subject or grade.` 
+          });
+        }
+      }
     }
 
     const subject = await prisma.subject.create({
       data: {
         name,
         department,
-        gradesOffered: normalizedGrades
+        gradesOffered: normalizedGrades,
+        branchId
       }
     });
 
@@ -39,7 +65,9 @@ const createSubject = async (req, res) => {
 // Get all subjects
 const getSubjects = async (req, res) => {
   try {
+    const whereClause = req.branchFilter || {};
     const subjects = await prisma.subject.findMany({
+      where: whereClause,
       orderBy: { name: 'asc' }
     });
     res.status(200).json(subjects);
@@ -53,8 +81,9 @@ const deleteSubject = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const subject = await prisma.subject.findUnique({
-      where: { id }
+    const whereClause = { id, ...(req.branchFilter || {}) };
+    const subject = await prisma.subject.findFirst({
+      where: whereClause
     });
     if (!subject) {
       return res.status(404).json({ message: 'Subject not found.' });
