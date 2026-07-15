@@ -53,7 +53,7 @@ router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFil
  *       201:
  *         description: Teacher registered
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), registerTeacher);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, registerTeacher);
 
 /**
  * @swagger
@@ -80,7 +80,7 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), registerTeache
  *       200:
  *         description: Teacher updated
  */
-router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateTeacher);
+router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateTeacher);
 
 /**
  * @swagger
@@ -101,6 +101,6 @@ router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), updateTeache
  *       200:
  *         description: Teacher deleted
  */
-router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteTeacher);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteTeacher);
 
 module.exports = router;

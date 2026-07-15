@@ -287,6 +287,7 @@ const getAllAssignments = async (req, res) => {
             user: { select: { id: true, name: true, email: true } }
           }
         },
+        subject: { select: { id: true, name: true } },
         class: {
           include: {
             // Legacy direct M2M (kept for backward compat)
@@ -314,6 +315,17 @@ const getAllAssignments = async (req, res) => {
         }
       }
     });
+
+    // Also fetch the section directly linked to each assignment
+    const assignmentSectionIds = [...new Set(assignments.map(a => a.sectionId).filter(Boolean))];
+    const sectionMap = new Map();
+    if (assignmentSectionIds.length > 0) {
+      const sections = await prisma.section.findMany({
+        where: { id: { in: assignmentSectionIds } },
+        select: { id: true, name: true }
+      });
+      sections.forEach(s => sectionMap.set(s.id, s));
+    }
 
     const responseAssignments = assignments.map(assignment => {
       const cls = assignment.class;
@@ -345,6 +357,8 @@ const getAllAssignments = async (req, res) => {
           _id: assignment.teacher.id,
           user: assignment.teacher.user ? { ...assignment.teacher.user, _id: assignment.teacher.user.id } : null
         } : null,
+        subject: assignment.subject ? { ...assignment.subject, _id: assignment.subject.id } : null,
+        section: assignment.sectionId ? (sectionMap.get(assignment.sectionId) || null) : null,
         class: cls ? {
           ...cls,
           _id: cls.id,

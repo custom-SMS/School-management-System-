@@ -59,7 +59,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       201:
  *         description: Payment recorded
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), recordPayment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, recordPayment);
 
 /**
  * @swagger
@@ -257,7 +257,7 @@ router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashi
  */
 router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getCashierPayments);
 
-router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), markFeePaidInCash);
+router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, markFeePaidInCash);
 
 // Student/Parent fee portal
 
@@ -358,7 +358,7 @@ router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmi
  *       200:
  *         description: Payment verified
  */
-router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), verifyPayment);
+router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), injectBranchFilter, verifyPayment);
 
 /**
  * @swagger

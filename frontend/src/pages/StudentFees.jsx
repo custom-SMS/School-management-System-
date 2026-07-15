@@ -69,7 +69,7 @@ export default function StudentFees() {
     setSubmitting(true);
     try {
       await axios.post('/fees/bank-pay', {
-        feeId: payingFee.id,
+        feeId: payingFee._id,
         amount: payingFee.amount,
         transactionReference: txnRef.trim(),
         bankName: bankName.trim(),
@@ -173,7 +173,7 @@ export default function StudentFees() {
                 {loading ? (
                   <tr><td colSpan="5" className="px-4 py-8 text-center text-slate-500">Loading…</td></tr>
                 ) : fees.map((f) => (
-                  <tr key={f.id} className="hover:bg-slate-50">
+                  <tr key={f._id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 font-medium text-slate-800">{f.description}</td>
                     <td className="px-4 py-3 text-slate-600">{f.month}</td>
                     <td className="px-4 py-3 font-semibold text-slate-900">ETB {f.amount}</td>

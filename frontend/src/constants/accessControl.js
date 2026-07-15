@@ -5,17 +5,33 @@
 
 export const ROLES = ['SuperAdmin', 'Admin', 'Cashier', 'Teacher', 'Student', 'Parent'];
 
+// Display labels for roles — Admin is shown as "Branch Admin" in the UI
+export const ROLE_LABELS = {
+  SuperAdmin: 'Super Admin',
+  Admin: 'Branch Admin',
+  Cashier: 'Cashier',
+  Teacher: 'Teacher',
+  Student: 'Student',
+  Parent: 'Parent',
+};
+
+// Helper: get the user-facing label for a role (and optionally scopeType for future granularity)
+export const getRoleLabel = (role, scopeType) => {
+  if (role === 'Admin' && scopeType) return ROLE_LABELS[scopeType] || ROLE_LABELS[role] || role;
+  return ROLE_LABELS[role] || role;
+};
+
 // Roles whose permission set is managed through this console. SuperAdmin is excluded
 // because it bypasses all permission checks server-side.
 export const EDITABLE_ROLES = ['Admin', 'Cashier', 'Teacher', 'Student', 'Parent'];
 
 export const ROLE_META = {
-  SuperAdmin: { description: 'Full unrestricted system access', accent: 'bg-violet-600' },
-  Admin: { description: 'School administration and academic operations', accent: 'bg-blue-600' },
-  Cashier: { description: 'Finance, fees and payment management', accent: 'bg-emerald-600' },
-  Teacher: { description: 'Classroom, grade and attendance management', accent: 'bg-indigo-600' },
-  Student: { description: 'Student portal access', accent: 'bg-amber-500' },
-  Parent: { description: 'Parent portal access', accent: 'bg-rose-500' },
+  SuperAdmin: { label: 'Super Admin', description: 'Full unrestricted system access', accent: 'bg-violet-600' },
+  Admin: { label: 'Branch Admin', description: 'Branch-level administration and academic operations', accent: 'bg-blue-600' },
+  Cashier: { label: 'Cashier', description: 'Finance, fees and payment management', accent: 'bg-emerald-600' },
+  Teacher: { label: 'Teacher', description: 'Classroom, grade and attendance management', accent: 'bg-indigo-600' },
+  Student: { label: 'Student', description: 'Student portal access', accent: 'bg-amber-500' },
+  Parent: { label: 'Parent', description: 'Parent portal access', accent: 'bg-rose-500' },
 };
 
 // The catalog of assignable permissions. The `key` is the exact string stored in the

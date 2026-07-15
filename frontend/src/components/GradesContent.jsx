@@ -69,7 +69,7 @@ export default function GradesContent({ canEdit = false }) {
   useEffect(() => {
     setLoadingClasses(true);
     const isAdminOrSuper = user?.role === 'SuperAdmin' || ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(user?.scopeType);
-    const endpoint = isAdminOrSuper ? '/classroom/options' : '/assignments';
+    const endpoint = isAdminOrSuper ? '/classroom/options' : '/assignments/me';
 
     axios.get(endpoint)
       .then((r) => {
@@ -443,10 +443,18 @@ export default function GradesContent({ canEdit = false }) {
 
       {/* Student table */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-        {!selectedClass ? (
+        {loadingClasses ? (
           <div className="flex items-center justify-center py-20 text-slate-400">
             <div className="mr-3 h-5 w-5 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
             Loading…
+          </div>
+        ) : !selectedClass ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
+            <svg className="mb-4 h-12 w-12 text-slate-200" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            <p className="text-sm font-semibold text-slate-500">No classes assigned</p>
+            <p className="mt-1 text-xs text-slate-400">You have no classes assigned yet. Contact your administrator.</p>
           </div>
         ) : loadingClassGrades ? (
           <div className="flex items-center justify-center py-20 text-slate-400">

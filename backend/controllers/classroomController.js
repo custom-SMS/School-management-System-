@@ -954,11 +954,6 @@ const getClasses = async (req, res) => {
               }
             }
           }
-        },
-        classSubjects: {
-          include: {
-            subject: true
-          }
         }
       },
       orderBy: { name: 'asc' }

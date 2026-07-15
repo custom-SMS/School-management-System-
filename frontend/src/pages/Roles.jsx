@@ -81,7 +81,7 @@ export default function Roles() {
                       {role.slice(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-lg font-bold text-slate-900">{role}</h3>
+                      <h3 className="text-lg font-bold text-slate-900">{meta.label || role}</h3>
                       <p className="text-sm text-slate-500">{meta.description}</p>
                     </div>
                   </div>

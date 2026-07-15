@@ -82,7 +82,7 @@ router.get('/:id/performance', verifyToken, checkRole(['Teacher', 'Admin', 'Supe
  *       201:
  *         description: Student registered
  */
-router.post('/', verifyTokenOptional, registerStudent);
+router.post('/', verifyTokenOptional, injectBranchFilter, registerStudent);
 
 // Manage grade fee rules
 /**
@@ -189,8 +189,8 @@ router.get('/classes', verifyToken, checkPermission('student_registration'), get
  *         description: Student deleted
  */
 router.get('/:id', verifyToken, checkPermission('student_registration'), getStudents);
-router.put('/:id', verifyToken, checkPermission('student_registration'), updateStudent);
-router.delete('/:id', verifyToken, checkPermission('student_registration'), deleteStudent);
+router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, updateStudent);
+router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, deleteStudent);
 
 // Promotion & Status routes
 /**
@@ -212,7 +212,7 @@ router.delete('/:id', verifyToken, checkPermission('student_registration'), dele
  *       200:
  *         description: Students promoted
  */
-router.post('/promote', verifyToken, checkPermission('student_registration'), promoteStudent);
+router.post('/promote', verifyToken, checkPermission('student_registration'), injectBranchFilter, promoteStudent);
 
 /**
  * @swagger
@@ -233,7 +233,7 @@ router.post('/promote', verifyToken, checkPermission('student_registration'), pr
  *       200:
  *         description: Students set to repeat
  */
-router.post('/repeat', verifyToken, checkPermission('student_registration'), repeatStudent);
+router.post('/repeat', verifyToken, checkPermission('student_registration'), injectBranchFilter, repeatStudent);
 
 /**
  * @swagger
@@ -260,6 +260,6 @@ router.post('/repeat', verifyToken, checkPermission('student_registration'), rep
  *       200:
  *         description: Status updated
  */
-router.patch('/:id/status', verifyToken, checkPermission('student_registration'), setStudentStatus);
+router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter, setStudentStatus);
 
 module.exports = router;

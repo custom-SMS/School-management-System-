@@ -15,7 +15,7 @@ export default function ParentPayment() {
   const [submitting, setSubmitting] = useState(false);
 
   const fees = selectedChild?.fees || [];
-  const unpaidFees = fees.filter((f) => !f.paid);
+  const unpaidFees = fees.filter((f) => !f.paid && f.latestPayment?.status !== 'Pending');
   const name = selectedChild?.profile?.user?.name || 'Child';
   const selectedChildId = selectedChild?.profile?._id || selectedChild?.profile?.id;
 

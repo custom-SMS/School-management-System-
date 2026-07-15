@@ -19,7 +19,7 @@ export default function StudentPayment() {
     axios.get('/stats/student/me').then((r) => setProfile(r.data)).catch(() => {});
   }, []);
 
-  const unpaidFees = fees.filter((f) => !f.paid);
+  const unpaidFees = fees.filter((f) => !f.paid && f.status !== 'Pending Verification');
 
   const handleSubmit = async (payload) => {
     setSubmitting(true);

@@ -23,7 +23,7 @@ export default function ParentDashboard() {
   const passStatus = avgGrade >= gradingSettings.passMark ? 'Pass' : 'Fail';
   const present = attendance.filter((a) => a.status === 'Present').length;
   const attendanceRate = attendance.length ? Math.round((present / attendance.length) * 100) : 0;
-  const balance = fees.filter((f) => !f.paid).reduce((s, f) => s + Number(f.amount || 0), 0);
+  const balance = fees.filter((f) => !f.paid && f.latestPayment?.status !== 'Pending').reduce((s, f) => s + Number(f.amount || 0), 0);
   const name = selectedChild?.profile?.user?.name || 'your child';
 
   return (

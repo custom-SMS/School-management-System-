@@ -3,6 +3,7 @@ import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
 import { useBranch } from '../../context/BranchContext';
+import { getRoleLabel } from '../../constants/accessControl';
 
 const ROLES = ['Teacher', 'Admin', 'Cashier'];
 
@@ -78,7 +79,7 @@ function EmployeeModal({ employee, branches, onClose, onSave }) {
               <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Role *</label>
               <select name="role" value={formData.role} onChange={handleChange} disabled={isEditing}
                 className="w-full border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white disabled:bg-slate-100">
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+                {ROLES.map(r => <option key={r} value={r}>{getRoleLabel(r)}</option>)}
               </select>
             </div>
 
@@ -246,7 +247,7 @@ export default function EmployeeManagement() {
         <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
           className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
           <option value="">All Roles</option>
-          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          {ROLES.map(r => <option key={r} value={r}>{getRoleLabel(r)}</option>)}
         </select>
       </div>
 
@@ -281,7 +282,7 @@ export default function EmployeeManagement() {
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="font-bold text-slate-700">{emp.role}</div>
+                    <div className="font-bold text-slate-700">{getRoleLabel(emp.role)}</div>
                     <div className="text-xs text-slate-500">{emp.department || 'N/A'}</div>
                   </td>
                   <td className="px-6 py-4">

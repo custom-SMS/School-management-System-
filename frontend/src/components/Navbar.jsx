@@ -2,6 +2,7 @@ import { useContext, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
+import { getRoleLabel } from '../constants/accessControl';
 
 export default function Navbar({ actionsDisabled = false, onAction = () => { } } = {}) {
   const { user, logout } = useContext(AuthContext);
@@ -324,7 +325,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
                 disabled={actionsDisabled || user.role !== 'Student'}
                 className={`flex h-10 items-center rounded-full border border-white/10 bg-white/10 px-4 text-sm font-medium text-white/80 transition ${user.role === 'Student' ? 'hover:bg-white/10 hover:text-white' : 'cursor-default'} disabled:cursor-not-allowed disabled:opacity-60`}
               >
-                {user.name} <span className="text-white/50">•</span> {user.role}
+                {user.name} <span className="text-white/50">•</span> {getRoleLabel(user.role, user.scopeType)}
               </button>
 
               {user.role === 'Student' && profileOpen && (
@@ -382,7 +383,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
           className={`${mobileMenuOpen ? 'mt-3 block' : 'hidden'} space-y-3 rounded-3xl border border-white/10 bg-slate-950/95 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.35)] sm:hidden`}
         >
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
-            Signed in as <span className="font-semibold text-white">{user.name}</span> • {user.role}
+            Signed in as <span className="font-semibold text-white">{user.name}</span> • {getRoleLabel(user.role, user.scopeType)}
           </div>
 
           {navItems.map((item) => renderNavLink(item, mobileLinkClass, closeMobileMenu))}

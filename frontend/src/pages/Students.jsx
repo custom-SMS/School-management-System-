@@ -104,6 +104,9 @@ export default function Students() {
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
   const [selectedClass, setSelectedClass] = useState('All');
+  const [selectedSection, setSelectedSection] = useState('All');
+  const [streamFilter, setStreamFilter] = useState('All');
+
   const [statusFilter, setStatusFilter] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -149,6 +152,8 @@ export default function Students() {
     return [];
   }
 
+ 
+
   return students.map((student) => {
     const financial = getFinancialStatus(student);
     const derivedAccount = getAccountStatus(student, financial);
@@ -164,11 +169,37 @@ export default function Students() {
   });
 }, [students]);
 
+  // Sections available for the currently-selected grade (derived from student data)
+  const availableSections = useMemo(() => {
+    const source = selectedClass === 'All'
+      ? enrichedStudents
+      : enrichedStudents.filter((s) => matchesClass(s.grade, selectedClass));
+    const seen = new Map();
+    source.forEach((s) => {
+      if (s.section && s.sectionId && !seen.has(s.sectionId)) {
+        seen.set(s.sectionId, { id: s.sectionId, name: s.section });
+      }
+    });
+    return [...seen.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' }));
+  }, [selectedClass, enrichedStudents]);
+
+  // Streams available for the currently-selected grade (derived from student data)
+  const availableStreams = useMemo(() => {
+    const source = selectedClass === 'All'
+      ? enrichedStudents
+      : enrichedStudents.filter((s) => matchesClass(s.grade, selectedClass));
+    const seen = new Set();
+    source.forEach((s) => { if (s.stream) seen.add(s.stream); });
+    return [...seen].sort((a, b) => String(a).localeCompare(String(b), undefined, { sensitivity: 'base' }));
+  }, [selectedClass, enrichedStudents]);
+
   const filteredStudents = useMemo(() => {
     const term = normalizeLabel(searchTerm);
     return enrichedStudents.filter((student) => {
       const matchesCls = selectedClass === 'All' || matchesClass(student.grade, selectedClass);
       if (!matchesCls) return false;
+      if (selectedSection !== 'All' && student.sectionId !== selectedSection) return false;
+      if (streamFilter !== 'All' && (student.stream || '') !== streamFilter) return false;
       if (statusFilter !== 'All' && student._account !== statusFilter) return false;
       if (!term) return true;
       const guardian = getPrimaryGuardian(student);
@@ -176,10 +207,12 @@ export default function Students() {
         .map(normalizeLabel).join(' | ');
       return haystacks.includes(term);
     });
-  }, [searchTerm, selectedClass, statusFilter, enrichedStudents]);
+  }, [searchTerm, selectedClass, selectedSection, streamFilter, statusFilter, enrichedStudents]);
 
   // Reset to first page whenever the result set changes shape.
-  useEffect(() => { setPage(1); }, [searchTerm, selectedClass, statusFilter]);
+  // Reset section and stream when grade changes
+  useEffect(() => { setSelectedSection('All'); setStreamFilter('All'); }, [selectedClass]);
+  useEffect(() => { setPage(1); }, [searchTerm, selectedClass, selectedSection, streamFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredStudents.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -375,6 +408,28 @@ export default function Students() {
         >
           <option value="All">All Grades</option>
           {availableClasses.map((c) => <option key={c._id} value={c.name}>{c.name}</option>)}
+        </select>
+
+        <select
+          value={selectedSection}
+          onChange={(e) => setSelectedSection(e.target.value)}
+          disabled={availableSections.length === 0}
+          className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="All">All Sections</option>
+          {availableSections.map((s) => (
+            <option key={s.id} value={s.id}>{s.name}</option>
+          ))}
+        </select>
+        <select 
+          value={streamFilter}
+          onChange={(e) => setStreamFilter(e.target.value)}
+          className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-gray-300"
+        >
+          <option value="All">All Streams</option>
+          {availableStreams.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
         </select>
 
         <select

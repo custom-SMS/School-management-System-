@@ -70,7 +70,7 @@ export default function GradeSpreadsheet() {
       setMessage('');
 
       try {
-        const endpoint = user?.role === 'Admin' ? '/assignments' : '/assignments/me';
+        const endpoint = (user?.role === 'Admin' || user?.role === 'SuperAdmin') ? '/assignments' : '/assignments/me';
         const res = await axios.get(endpoint);
         const availableClasses = Array.from(
           new Map(

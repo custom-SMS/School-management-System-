@@ -9,6 +9,17 @@ const avatarColor = (name) => AVATAR_COLORS[(name?.charCodeAt(0) || 0) % AVATAR_
 const DEPT_TAGS = { Mathematics: 'bg-gray-100 text-gray-700', Science: 'bg-gray-100 text-gray-700', Languages: 'bg-gray-100 text-gray-700', IT: 'bg-gray-100 text-gray-700' };
 const deptStyle = (dept) => DEPT_TAGS[dept] || 'bg-gray-100 text-gray-600';
 
+// Build a human-readable label for an assignment's class+section+subject
+const assignmentLabel = (a) => {
+  const className = a.class?.name || '';
+  const sectionName = a.section?.name || '';
+  const subjectName = a.subject?.name || '';
+  if (!className && !sectionName) return null;
+  // Build: "Grade 12 – Sec A · Math"  or  "Grade 12 · Science"
+  const classSection = sectionName ? `${className} – Sec ${sectionName}` : className;
+  return subjectName ? `${classSection} · ${subjectName}` : classSection;
+};
+
 const initialForm = { name: '', email: '', password: '', subject: '' };
 const initialToast = { type: '', text: '' };
 
@@ -23,6 +34,8 @@ export default function Teachers() {
   const [updatingStatusTeacherId, setUpdatingStatusTeacherId] = useState('');
   const [searchQ, setSearchQ] = useState('');
   const [deptFilter, setDeptFilter] = useState('All Departments');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [classFilter, setClassFilter] = useState('All');
 
   const [assignments, setAssignments] = useState([]);
 
@@ -148,15 +161,42 @@ export default function Teachers() {
     return ['All Departments', ...depts];
   }, [teachers]);
 
+  // All unique class+section labels derived from teacher assignments
+  const availableClasses = useMemo(() => {
+    const seen = new Map();
+    assignments.forEach((a) => {
+      const label = assignmentLabel(a);
+      if (label) seen.set(label, label);
+    });
+    return [...seen.keys()].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+  }, [assignments]);
+
   const filteredTeachers = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
     return teachers.filter((t) => {
       const matchDept = deptFilter === 'All Departments' || t.subject === deptFilter;
       if (!matchDept) return false;
+
+      if (statusFilter !== 'All') {
+        const isActive = t.user?.isActive ?? true;
+        if (statusFilter === 'Active' && !isActive) return false;
+        if (statusFilter === 'Inactive' && isActive) return false;
+      }
+
+      if (classFilter !== 'All') {
+        const teacherAssignments = assignmentByTeacher.get(t._id) || [];
+        const labels = teacherAssignments.map((a) => assignmentLabel(a)).filter(Boolean);
+        if (!labels.includes(classFilter)) return false;
+      }
+
       if (!q) return true;
-      return (t.user?.name || '').toLowerCase().includes(q) || (t.user?.email || '').toLowerCase().includes(q) || (t.subject || '').toLowerCase().includes(q);
+      return (
+        (t.user?.name || '').toLowerCase().includes(q) ||
+        (t.user?.email || '').toLowerCase().includes(q) ||
+        (t.subject || '').toLowerCase().includes(q)
+      );
     });
-  }, [teachers, searchQ, deptFilter]);
+  }, [teachers, searchQ, deptFilter, statusFilter, classFilter, assignmentByTeacher]);
 
   return (
     <AdminLayout pageTitle="System Management" headerAction={
@@ -219,12 +259,33 @@ export default function Teachers() {
             <svg className="absolute left-3 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><circle cx="11" cy="11" r="8" strokeWidth="2"/><line x1="21" y1="21" x2="16.65" y2="16.65" strokeWidth="2"/></svg>
             <input type="text" value={searchQ} onChange={(e) => setSearchQ(e.target.value)} placeholder="Search staff name..." className="rounded-lg border border-gray-200 bg-white py-2.5 pl-10 pr-4 text-sm outline-none focus:border-gray-300 w-52"/>
           </div>
-          <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none">
+
+          {/* Department filter */}
+          <select value={deptFilter} onChange={(e) => setDeptFilter(e.target.value)} className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-gray-300">
             {departments.map((d) => <option key={d}>{d}</option>)}
           </select>
-          <button className="rounded-lg border border-gray-200 bg-white p-2.5 text-gray-600 hover:bg-gray-50">
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          </button>
+
+          {/* Assigned Class filter */}
+          <select
+            value={classFilter}
+            onChange={(e) => setClassFilter(e.target.value)}
+            disabled={availableClasses.length === 0}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <option value="All">All Classes</option>
+            {availableClasses.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+
+          {/* Status filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 outline-none focus:border-gray-300"
+          >
+            <option value="All">All Statuses</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
         </div>
       </div>
 
@@ -249,9 +310,6 @@ export default function Teachers() {
                 const name = teacher.user?.name || '—';
                 const initials = name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
                 const teacherAssignments = assignmentByTeacher.get(teacher._id) || [];
-                const assignedClasses = teacherAssignments
-                  .filter((a) => a.class)
-                  .map((a) => a.class?.name || 'Unknown');
                 return (
                   <tr key={teacher._id} className="transition hover:bg-gray-50">
                     <td className="px-6 py-4">
@@ -267,7 +325,24 @@ export default function Teachers() {
                       <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${deptStyle(teacher.subject)}`}>{teacher.subject || '—'}</span>
                     </td>
                     <td className="px-6 py-4 text-gray-600">
-                      {assignedClasses.length > 0 ? assignedClasses.join(', ') : '—'}
+                      {(() => {
+                        const labels = teacherAssignments
+                          .map((a) => assignmentLabel(a))
+                          .filter(Boolean);
+                        if (labels.length === 0) return <span className="text-gray-400">—</span>;
+                        return (
+                          <div className="flex flex-wrap gap-1">
+                            {labels.map((label, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-200"
+                              >
+                                {label}
+                              </span>
+                            ))}
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td className="px-6 py-4">
                       <div className="text-gray-700">{teacher.user?.email || '—'}</div>

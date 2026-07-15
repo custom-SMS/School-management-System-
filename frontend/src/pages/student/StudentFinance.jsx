@@ -40,7 +40,8 @@ export default function StudentFinance() {
   }, [fees]);
 
   const paidCount = fees.filter((f) => f.paid).length;
-  const pendingCount = fees.filter((f) => !f.paid).length;
+  const verifyingCount = fees.filter((f) => !f.paid && f.status === 'Pending Verification').length;
+  const pendingCount = fees.filter((f) => !f.paid && f.status !== 'Pending Verification').length;
 
   const handlePayNow = () => {
     const firstPayable = fees.find((f) => !f.paid && f.status !== 'Pending Verification');
@@ -126,6 +127,7 @@ export default function StudentFinance() {
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Financial Summary</div>
           <div className="mt-4 space-y-3 text-sm">
             <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Fully Paid</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
+            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Verifying</span><span className="rounded-md bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700">{String(verifyingCount).padStart(2, '0')}</span></div>
             <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Pending Payment</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
             <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Total Billed</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
           </div>

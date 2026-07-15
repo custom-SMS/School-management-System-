@@ -3,6 +3,7 @@ import { AuthContext } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
+import { getRoleLabel } from '../constants/accessControl';
 
 const normalizeClassLabel = (value) => String(value ?? '').trim() || 'Unassigned';
 
@@ -60,11 +61,12 @@ export default function Dashboard() {
   if (!isAdmin) {
     const greetingName = user?.name || 'User';
     const role = user?.role || 'Member';
+    const roleLabel = getRoleLabel(role, user?.scopeType);
     const childSummary = parentData?.children?.[0] || null;
     const childAvgGrade = childSummary?.grades?.length
       ? Math.round(childSummary.grades.reduce((sum, g) => sum + Number(g.percentage || 0), 0) / childSummary.grades.length)
       : 0;
-    const childBalance = childSummary?.fees?.filter((fee) => !fee.paid).reduce((sum, fee) => sum + Number(fee.amount || 0), 0) || 0;
+    const childBalance = childSummary?.fees?.filter((fee) => !fee.paid && fee.latestPayment?.status !== 'Pending').reduce((sum, fee) => sum + Number(fee.amount || 0), 0) || 0;
 
     return (
       <div className="min-h-screen bg-gray-50 py-12">
@@ -72,7 +74,7 @@ export default function Dashboard() {
           <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
             <h1 className="text-3xl font-black text-gray-900">Welcome back, {greetingName}</h1>
             <p className="mt-2 text-sm text-gray-500">
-              You are signed in as <strong>{role}</strong>. Your dashboard data is loaded from the backend.
+              You are signed in as <strong>{roleLabel}</strong>. Your dashboard data is loaded from the backend.
             </p>
 
             {role === 'Teacher' && teacherData && (

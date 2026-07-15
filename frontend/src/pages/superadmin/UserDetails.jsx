@@ -5,6 +5,7 @@ import SuperAdminLayout from '../../components/SuperAdminLayout';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
+import { getRoleLabel } from '../../constants/accessControl';
 
 const ROLE_COLORS = {
   SuperAdmin: 'bg-indigo-100 text-indigo-800',
@@ -133,7 +134,7 @@ export default function UserDetails() {
               ROLE_COLORS[user.role] || 'bg-slate-100 text-slate-700'
             }`}
           >
-            {user.role}
+            {getRoleLabel(user.role)}
           </span>
         </div>
 
@@ -407,7 +408,7 @@ export default function UserDetails() {
             description="This role currently has no linked student, parent, or teacher profile."
           >
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              <DetailItem label="Role" value={user.role} />
+              <DetailItem label="Role" value={getRoleLabel(user.role)} />
               <DetailItem label="Email" value={user.email} />
               <DetailItem label="System ID" value={user.systemId} />
             </div>

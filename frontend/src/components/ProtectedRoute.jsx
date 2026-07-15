@@ -16,6 +16,7 @@
 import { Navigate, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+import { getRoleLabel } from '../constants/accessControl';
 
 export default function ProtectedRoute({
   children,
@@ -45,7 +46,8 @@ export default function ProtectedRoute({
   // SuperAdmin bypasses everything
   const isSuper = role === 'SuperAdmin';
 
-  const ADMIN_SCOPES = ['BranchAdmin', 'LevelAdmin'];
+  // All admin scope types — used for requireAnyAdmin check
+  const ADMIN_SCOPES = ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'];
 
   // Evaluate access
   const roleAllowed = allowedRoles.length === 0 || allowedRoles.includes(role);
@@ -67,8 +69,8 @@ export default function ProtectedRoute({
           <h2 className="text-xl font-bold text-slate-900">Access Denied</h2>
           <p className="text-sm text-slate-500 mt-2 leading-relaxed">
             {scopeType
-              ? `Your scope (${scopeType}) does not have permission to view this page.`
-              : `Your role (${role}) does not have permission to view this page.`}
+              ? `Your scope (${getRoleLabel('Admin', scopeType)}) does not have permission to view this page.`
+              : `Your role (${getRoleLabel(role)}) does not have permission to view this page.`}
           </p>
           {scopeType && (
             <p className="text-xs text-slate-400 mt-1">

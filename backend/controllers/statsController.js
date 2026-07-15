@@ -706,13 +706,13 @@ const getSuperAdminStats = async (req, res) => {
         role: 'Cashier',
         isActive: true,
         ...(branchId ? {
-          OR: [
-            { scopeType: 'BranchAdmin', scopeBranchId: branchId },
-            { scopeType: 'LevelAdmin', scopeBranchId: branchId }
-          ]
+          userScope: {
+            some: { branchId }
+          }
         } : {})
       }
     });
+
 
     const activeYearDoc = await prisma.academicYear.findFirst({
       where: { isActive: true }

@@ -203,7 +203,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
                 {branding.institutionNameEn}
               </div>
               <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Admin Console
+                Branch Admin Console
               </div>
             </div>
           </div>

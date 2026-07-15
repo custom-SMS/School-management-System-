@@ -48,6 +48,14 @@ const recordPayment = async (req, res) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
+    // Branch-scoped users (BranchAdmin, BranchCashier) can only record payments
+    // for students in their own branch.
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
+    }
+
     if (req.user.role === 'Parent') {
       const parent = await prisma.parent.findFirst({
         where: { userId: req.user._id },
@@ -91,6 +99,7 @@ const recordPayment = async (req, res) => {
     res.status(400).json({ message: error.message });
   }
 };
+
 
 // @desc    Get defaulters (students who haven't paid for a specific month)
 // @route   GET /api/fees/defaulters/:month
@@ -701,12 +710,22 @@ const markFeePaidInCash = async (req, res) => {
   try {
     const { feeId } = req.params;
 
-    const fee = await prisma.fee.findUnique({ where: { id: feeId } });
+    const fee = await prisma.fee.findUnique({
+      where: { id: feeId },
+      include: { student: { select: { branchId: true } } }
+    });
     if (!fee) {
       return res.status(404).json({ message: 'Invoice not found.' });
     }
     if (fee.paid) {
       return res.status(400).json({ message: 'This invoice has already been paid.' });
+    }
+
+    // Branch-scoped users can only mark fees paid for students in their own branch.
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (fee.student?.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. This invoice does not belong to your branch.' });
+      }
     }
 
     const transactionReference = `CASH-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -861,10 +880,17 @@ const verifyPayment = async (req, res) => {
 
     const payment = await prisma.payment.findUnique({
       where: { id: paymentId },
-      include: { fee: true }
+      include: { fee: { include: { student: { select: { branchId: true } } } } }
     });
     if (!payment) {
       return res.status(404).json({ message: 'Payment not found.' });
+    }
+
+    // Branch-scoped users can only verify payments for students in their own branch.
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (payment.fee?.student?.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. This payment does not belong to your branch.' });
+      }
     }
 
     const updatedPayment = await prisma.$transaction(async (tx) => {

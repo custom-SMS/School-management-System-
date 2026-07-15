@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import SuperAdminLayout from '../components/SuperAdminLayout';
 import {
   ROLES,
+  ROLE_META,
   EDITABLE_ROLES,
   PERMISSION_CATALOG,
   PERMISSION_CATEGORIES,
@@ -161,7 +162,7 @@ export default function Permissions() {
                     <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-slate-500">Permission</th>
                     {ROLES.map((role) => (
                       <th key={role} className="px-4 py-4 text-center text-xs font-bold uppercase tracking-wider text-slate-500">
-                        {role}
+                        {(ROLE_META[role]?.label) || role}
                       </th>
                     ))}
                   </tr>

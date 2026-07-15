@@ -18,22 +18,28 @@ export default function ParentFinance() {
     fees.forEach((f) => {
       const amt = Number(f.amount || 0);
       billed += amt;
-      if (f.paid) paid += amt; else due += amt;
+      if (f.paid) paid += amt; else if (f.latestPayment?.status !== 'Pending') due += amt;
     });
     return { billed, paid, due, pct: billed ? Math.round((paid / billed) * 100) : 0 };
   }, [fees]);
 
   const paidCount = fees.filter((f) => f.paid).length;
-  const pendingCount = fees.filter((f) => !f.paid).length;
+  const verifyingCount = fees.filter((f) => !f.paid && f.latestPayment?.status === 'Pending').length;
+  const pendingCount = fees.filter((f) => !f.paid && f.latestPayment?.status !== 'Pending').length;
 
   const handlePayNow = () => {
     if (!selectedChild) return;
-    const firstUnpaid = fees.find((f) => !f.paid);
+    const firstUnpaid = fees.find((f) => !f.paid && f.latestPayment?.status !== 'Pending');
+    if (!firstUnpaid) {
+      toast.info('All your fees are either paid or currently verifying.');
+      return;
+    }
     navigate('/parent/finance/pay', { state: { feeId: firstUnpaid?._id } });
   };
 
   const statusPill = (f) => {
     if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
+    if (f.latestPayment?.status === 'Pending') return <span className="rounded-md bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">VERIFYING</span>;
     const overdue = f.dueDate && new Date(f.dueDate) < new Date();
     return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
   };
@@ -100,6 +106,7 @@ export default function ParentFinance() {
               <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Financial Summary</div>
               <div className="mt-4 space-y-3 text-sm">
                 <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Fully Paid</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
+                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Verifying</span><span className="rounded-md bg-sky-50 px-2.5 py-0.5 font-bold text-sky-700">{String(verifyingCount).padStart(2, '0')}</span></div>
                 <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Pending Payment</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
                 <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Total Billed</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
               </div>

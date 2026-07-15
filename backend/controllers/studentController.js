@@ -528,7 +528,9 @@ const registerStudent = async (req, res) => {
           studentId: studentId,
           grade,
           stream,
-          branchId: req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
+          branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
+            ? req.branchFilter.branchId
+            : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
           personalDetails: resolvedPersonalDetails,
           familyBackground: resolvedFamilyBackground,
           guardianContacts: []
@@ -543,7 +545,9 @@ const registerStudent = async (req, res) => {
             studentId: fallbackStudentId,
             grade,
             stream,
-            branchId: req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
+            branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
+              ? req.branchFilter.branchId
+              : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
             personalDetails: resolvedPersonalDetails,
             familyBackground: resolvedFamilyBackground,
             guardianContacts: []
@@ -1272,6 +1276,12 @@ const updateStudent = async (req, res) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (existingStudent.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
+    }
+
     // When a class is picked, it dictates the grade level; otherwise honour any
     // grade explicitly provided in the body.
     let selectedClass = null;
@@ -1412,6 +1422,12 @@ const deleteStudent = async (req, res) => {
 
     if (!student) {
       return res.status(404).json({ message: 'Student not found' });
+    }
+
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
     }
 
     const studentId = student.id;
@@ -1555,6 +1571,12 @@ const promoteStudent = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
 
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
+    }
+
     const nextYear = await prisma.academicYear.findUnique({
       where: { id: nextAcademicYearId }
     });
@@ -1606,6 +1628,12 @@ const repeatStudent = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
 
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
+    }
+
     const year = await prisma.academicYear.findUnique({
       where: { id: targetAcademicYearId }
     });
@@ -1651,6 +1679,12 @@ const setStudentStatus = async (req, res) => {
       where: { id }
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (student.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
+      }
+    }
 
     if (enrollmentId) {
       await prisma.enrollment.update({

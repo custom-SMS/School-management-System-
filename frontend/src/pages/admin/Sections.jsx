@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
+import { AuthContext } from '../../context/AuthContext';
 
 export default function Sections() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useContext(AuthContext);
+  const isBranchAdmin = user?.scopeType === 'BranchAdmin';
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -26,6 +29,7 @@ export default function Sections() {
   const [editingSectionId, setEditingSectionId] = useState('');
   const [editingSectionName, setEditingSectionName] = useState('');
   const [editingHomeroomTeacherId, setEditingHomeroomTeacherId] = useState('');
+  const [originalHomeroomTeacherId, setOriginalHomeroomTeacherId] = useState('');
   const [editingLoading, setEditingLoading] = useState(false);
   const [deletingSectionId, setDeletingSectionId] = useState('');
 
@@ -136,7 +140,9 @@ export default function Sections() {
       const res = await axios.get(`/classroom/sections/detail/${sectionId}`);
       const section = res.data || {};
       setEditingSectionName(section.name || '');
-      setEditingHomeroomTeacherId(section.homeroomTeacher?.id || '');
+      const existingTeacherId = section.homeroomTeacher?.id || '';
+      setEditingHomeroomTeacherId(existingTeacherId);
+      setOriginalHomeroomTeacherId(existingTeacherId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load section details.');
       setShowEditModal(false);
@@ -154,6 +160,31 @@ export default function Sections() {
       return;
     }
 
+    // Caution for BranchAdmin: warn before overriding an existing homeroom teacher
+    const isOverridingHomeroom =
+      isBranchAdmin &&
+      originalHomeroomTeacherId &&
+      editingHomeroomTeacherId &&
+      editingHomeroomTeacherId !== originalHomeroomTeacherId;
+
+    if (isOverridingHomeroom) {
+      const previousTeacher = teachers.find(
+        (t) => (t._id || t.id) === originalHomeroomTeacherId
+      );
+      const newTeacher = teachers.find(
+        (t) => (t._id || t.id) === editingHomeroomTeacherId
+      );
+      const confirmed = window.confirm(
+        `⚠️ Caution — Homeroom Teacher Override\n\n` +
+        `You are about to replace the current homeroom teacher` +
+        `${previousTeacher ? ` (${previousTeacher.user?.name || previousTeacher.teacherId})` : ''} ` +
+        `with ${newTeacher ? (newTeacher.user?.name || newTeacher.teacherId) : 'a new teacher'}.\n\n` +
+        `As a Branch Admin, this action will remove the existing homeroom assignment. ` +
+        `Are you sure you want to proceed?`
+      );
+      if (!confirmed) return;
+    }
+
     setSaving(true);
 
     try {
@@ -167,6 +198,7 @@ export default function Sections() {
       setEditingSectionId('');
       setEditingSectionName('');
       setEditingHomeroomTeacherId('');
+      setOriginalHomeroomTeacherId('');
       await fetchSections(selectedClassId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update section.');
@@ -290,6 +322,25 @@ export default function Sections() {
                     </option>
                   ))}
                 </select>
+
+                {/* Caution banner — shown to BranchAdmin when overriding an existing homeroom teacher */}
+                {isBranchAdmin &&
+                  originalHomeroomTeacherId &&
+                  editingHomeroomTeacherId &&
+                  editingHomeroomTeacherId !== originalHomeroomTeacherId && (
+                    <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+                      <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                      </svg>
+                      <div>
+                        <p className="text-xs font-bold text-amber-800">Caution — Homeroom Override</p>
+                        <p className="mt-0.5 text-xs text-amber-700">
+                          You are replacing the current homeroom teacher. This will remove the existing assignment.
+                          You will be asked to confirm before saving.
+                        </p>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               <div className="mt-2 flex justify-end gap-3">

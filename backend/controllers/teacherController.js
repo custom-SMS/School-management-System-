@@ -66,7 +66,9 @@ const registerTeacher = async (req, res) => {
               userId: user.id,
               teacherId,
               subject,
-              branchId: req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null,
+              branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
+                ? req.branchFilter.branchId
+                : (req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
             },
             include: { user: true }
           });
@@ -175,6 +177,12 @@ const updateTeacher = async (req, res) => {
       return res.status(404).json({ message: 'Teacher not found' });
     }
 
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (existingTeacher.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Teacher does not belong to your branch.' });
+      }
+    }
+
     if (email) {
       const duplicateUser = await prisma.user.findFirst({
         where: {
@@ -252,6 +260,12 @@ const deleteTeacher = async (req, res) => {
 
     if (!teacher) {
       return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+      if (teacher.branchId !== req.branchFilter.branchId) {
+        return res.status(403).json({ message: 'Access denied. Teacher does not belong to your branch.' });
+      }
     }
 
     await prisma.$transaction(async (tx) => {

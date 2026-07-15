@@ -5,6 +5,7 @@ import SuperAdminLayout from '../../components/SuperAdminLayout';
 import AdminLayout from '../../components/AdminLayout';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
+import { getRoleLabel, ROLE_META } from '../../constants/accessControl';
 
 const ROLES = ['SuperAdmin', 'Admin', 'Teacher', 'Cashier', 'Student', 'Parent'];
 const PROMOTABLE_ROLES = ['Admin', 'SuperAdmin'];
@@ -17,6 +18,9 @@ const ROLE_COLORS = {
   Student:    'bg-slate-100 text-slate-700',
   Parent:     'bg-violet-100 text-violet-800',
 };
+
+// Display label helper for this file
+const displayRole = (role) => getRoleLabel(role);
 
 // ── Modal ──────────────────────────────────────────────────────────────────
 function ResetPasswordModal({ user, onClose, onSave }) {
@@ -155,7 +159,7 @@ export default function UserManagement() {
             <button key={role} onClick={() => setFilterRole(f => f === role ? '' : role)}
               className={`rounded-xl border p-3 text-left transition hover:shadow-sm ${filterRole === role ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
               <div className="text-2xl font-black text-slate-900">{count}</div>
-              <div className={`text-xs font-bold mt-1 ${filterRole === role ? 'text-indigo-700' : 'text-slate-500'}`}>{role}</div>
+              <div className={`text-xs font-bold mt-1 ${filterRole === role ? 'text-indigo-700' : 'text-slate-500'}`}>{displayRole(role)}</div>
             </button>
           );
         })}
@@ -234,7 +238,7 @@ export default function UserManagement() {
                       <span
                         className={`text-xs font-bold rounded-full px-3 py-1.5 ${ROLE_COLORS[u.role]}`}
                       >
-                        {u.role}
+                        {displayRole(u.role)}
                       </span>
                     )}
                   </td>
