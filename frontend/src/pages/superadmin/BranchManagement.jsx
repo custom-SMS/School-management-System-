@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
+import Swal from 'sweetalert2';
 
 const SCOPE_TYPES = ['BranchAdmin', 'Cashier'];
 const SCOPE_COLORS = {
@@ -72,14 +73,34 @@ export default function BranchManagement() {
       load();
     } catch (e) { toast.error(e.response?.data?.message || 'Failed to delete school.'); }
   };
-  const deleteBranch = async (id) => {
-    if (!window.confirm('Delete this branch?')) return;
+  const deleteBranch = async (id, branchName) => {
+    const result = await Swal.fire({
+      title: 'Delete Branch?',
+      html: `
+        <p>You are about to delete <strong>${branchName}</strong>.</p>
+        <p style="margin-top:8px; color:#ef4444; font-size:0.875rem;">
+          ⚠️ This is only allowed if the branch has <strong>no students, teachers, classes, or grades</strong>.
+        </p>
+      `,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Delete',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
+
     try {
       await axios.delete(`/branches/branches/${id}`);
-      toast.success('Branch deleted.');
+      toast.success('Branch deleted successfully.');
       setActiveBranch(null);
       load();
-    } catch (e) { toast.error(e.response?.data?.message || 'Failed to delete branch.'); }
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to delete branch.');
+    }
   };
 
   const saveBranch = async () => {
@@ -181,7 +202,7 @@ export default function BranchManagement() {
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); openModal('branch', b); }}
                     className="text-xs font-semibold text-blue-600 hover:underline">Edit</button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id); }}
+                  <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id, b.name); }}
                     className="text-xs font-semibold text-red-600 hover:underline">
                     Delete
                   </button>

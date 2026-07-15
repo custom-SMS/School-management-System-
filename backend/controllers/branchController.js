@@ -83,9 +83,39 @@ const deleteBranch = async (req, res) => {
     const { id } = req.params;
     const branch = await prisma.branch.findUnique({
       where: { id },
-      include: { levels: true },
+      include: {
+        levels: true,
+        _count: {
+          select: {
+            students: true,
+            teachers: true,
+            classes:  true,
+          },
+        },
+      },
     });
     if (!branch) return res.status(404).json({ message: 'Branch not found.' });
+
+    // ── Guard: branch must be completely empty ────────────────────────────────
+    const { students, teachers, classes } = branch._count;
+
+    // Also check if any grades exist for classes in this branch
+    const gradeCount = await prisma.grade.count({
+      where: { class: { branchId: id } },
+    });
+
+    if (students > 0 || teachers > 0 || classes > 0 || gradeCount > 0) {
+      const parts = [];
+      if (students > 0) parts.push(`${students} student(s)`);
+      if (teachers > 0) parts.push(`${teachers} teacher(s)`);
+      if (classes  > 0) parts.push(`${classes} class(es)`);
+      if (gradeCount > 0) parts.push(`${gradeCount} grade record(s)`);
+
+      return res.status(400).json({
+        message: `Cannot delete branch. It still contains: ${parts.join(', ')}. Please remove all students, teachers, classes, and grades before deleting this branch.`,
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const levelIds = branch.levels.map((l) => l.id);
 
