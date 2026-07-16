@@ -59,14 +59,15 @@ model Branch {
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
 
-  levels          EducationalLevel[]
-  userScopes      UserScope[]
-  classes         Class[]
-  students        Student[]
-  teachers        Teacher[]
-  academicYears   AcademicYear[]
-  feeStructures   FeeStructure[]
+  levels            EducationalLevel[]
+  userScopes        UserScope[]
+  classes           Class[]
+  students          Student[]
+  teachers          Teacher[]
+  academicYears     AcademicYear[]
+  feeStructures     FeeStructure[]
   gradingStructures GradingStructure[]
+  subjects          Subject[]
 
   @@unique([schoolId, code])
 }
