@@ -7,6 +7,8 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 require('dotenv').config();
 
+const { globalCacheMiddleware } = require('./middleware/globalCacheMiddleware');
+
 const app = express();
 const PORT = process.env.PORT || 5000;
 
@@ -23,12 +25,14 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
+
 // Swagger API Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.get('/api-docs.json', (req, res) => {
   res.setHeader('Content-Type', 'application/json');
   res.send(swaggerSpec);
 });
+
 
 // Connect to PostgreSQL database via Prisma
 prisma.$connect()
@@ -60,6 +64,9 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/email', require('./routes/email'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+
+// Global Redis cache for GET JSON responses (branch + role based) -- Moved after routes to ensure req.user is set
+app.use(globalCacheMiddleware);
 
 // Serve uploaded documents statically.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

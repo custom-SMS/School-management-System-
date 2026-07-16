@@ -1,4 +1,16 @@
 const prisma = require('../prisma');
+const {
+  getCachedJson,
+  setCachedJson,
+  delKey,
+  shouldBypassCache,
+} = require('../utils/cache');
+const {
+  classesKey,
+  sectionsByClassKey,
+  classroomOptionsKey,
+} = require('../utils/classroomCacheKeys');
+
 const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
 const { createClassSchema, updateClassSchema, saveGradesSchema, recordAttendanceSchema } = require('../utils/validation');
 
@@ -151,6 +163,17 @@ const resolveTeacherClass = async (teacherId, classId, studentIds = []) => {
 // @access  Private (Teacher/Admin)
 const getClassroomOptions = async (req, res) => {
   try {
+    if (!shouldBypassCache(req)) {
+      const teacherId = req.user?._id || null;
+      const cacheKey = classroomOptionsKey(req.branchFilter || {}, req.user?.role, teacherId);
+      const cached = await getCachedJson(cacheKey);
+      if (cached) return res.status(200).json(cached);
+
+      // If a cached response exists, it will already have returned above.
+      // We still continue to compute and then store.
+      // (Avoid writing cache for empty/broken payloads.)
+    }
+
     let where = { ...(req.branchFilter || {}) };
 
     if (req.user.role !== 'Admin' && req.user.role !== 'SuperAdmin') {
@@ -197,7 +220,16 @@ const getClassroomOptions = async (req, res) => {
       }))
     }));
 
-    res.status(200).json({ classes: responseClasses });
+    const payload = { classes: responseClasses };
+
+    if (!shouldBypassCache(req)) {
+      const teacherId = req.user?._id || null;
+      const cacheKey = classroomOptionsKey(req.branchFilter || {}, req.user?.role, teacherId);
+      // Keep cache short since data changes frequently
+      await setCachedJson(cacheKey, payload, 60);
+    }
+
+    res.status(200).json(payload);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -931,6 +963,12 @@ const createClass = async (req, res) => {
 
 const getClasses = async (req, res) => {
   try {
+    if (!shouldBypassCache(req)) {
+      const cacheKey = classesKey(req.branchFilter || {});
+      const cached = await getCachedJson(cacheKey);
+      if (cached) return res.status(200).json(cached);
+    }
+
     // Strict branch isolation - only show classes belonging to the user's branch
     const branchFilterClause = req.branchFilter || {};
 
@@ -990,6 +1028,11 @@ const getClasses = async (req, res) => {
         }))
       };
     }));
+
+    if (!shouldBypassCache(req)) {
+      const cacheKey = classesKey(req.branchFilter || {});
+      await setCachedJson(cacheKey, responseClasses, 60);
+    }
 
     res.status(200).json(responseClasses);
   } catch (error) {
@@ -1280,6 +1323,12 @@ const createSection = async (req, res) => {
 
 const getSectionsByClass = async (req, res) => {
   try {
+    if (!shouldBypassCache(req)) {
+      const cacheKey = sectionsByClassKey(req.params?.classId, req.branchFilter || {});
+      const cached = await getCachedJson(cacheKey);
+      if (cached) return res.status(200).json(cached);
+    }
+
     const { classId } = req.params;
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
     const resolvedTeacher = resolvedTeacherId
@@ -1315,6 +1364,11 @@ const getSectionsByClass = async (req, res) => {
         user: section.homeroomTeacher.user ? { ...section.homeroomTeacher.user, _id: section.homeroomTeacher.user.id } : null
       } : null
     }));
+
+    if (!shouldBypassCache(req)) {
+      const cacheKey = sectionsByClassKey(req.params?.classId, req.branchFilter || {});
+      await setCachedJson(cacheKey, responseSections, 60);
+    }
 
     res.status(200).json(responseSections);
   } catch (error) {
