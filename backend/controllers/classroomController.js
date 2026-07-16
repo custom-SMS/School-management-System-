@@ -46,6 +46,7 @@ const mapGradeToResponse = (grade) => ({
     midterm: grade.midterm,
     final: grade.final
   },
+  submissionStatus: grade.submissionStatus,
   maxTotal: grade.maxTotal,
   total: grade.total,
   percentage: grade.percentage,
@@ -177,25 +178,53 @@ const getClassroomOptions = async (req, res) => {
           include: {
             user: { select: { id: true, name: true, email: true } }
           }
+        },
+        sections: {
+          include: {
+            enrollments: {
+              where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+              include: {
+                student: {
+                  include: {
+                    user: { select: { id: true, name: true, email: true } }
+                  }
+                }
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
     });
 
-    const responseClasses = classes.map(c => ({
-      ...c,
-      _id: c.id,
-      teacher: c.teacher ? {
-        ...c.teacher,
-        _id: c.teacher.id,
-        user: c.teacher.user ? { ...c.teacher.user, _id: c.teacher.user.id } : null
-      } : null,
-      students: (c.students || []).map(student => ({
-        ...student,
-        _id: student.id,
-        user: student.user ? { ...student.user, _id: student.user.id } : null
-      }))
-    }));
+    const responseClasses = classes.map(c => {
+      // Prefer students from section enrollments; fall back to direct M2M
+      const enrolledStudents = (c.sections || [])
+        .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
+
+      const source = enrolledStudents.length > 0 ? enrolledStudents : (c.students || []);
+
+      // De-duplicate by id
+      const seen = new Set();
+      const uniqueStudents = source
+        .filter(s => s && !seen.has(s.id) && seen.add(s.id))
+        .map(student => ({
+          ...student,
+          _id: student.id,
+          user: student.user ? { ...student.user, _id: student.user.id } : null
+        }));
+
+      return {
+        ...c,
+        _id: c.id,
+        teacher: c.teacher ? {
+          ...c.teacher,
+          _id: c.teacher.id,
+          user: c.teacher.user ? { ...c.teacher.user, _id: c.teacher.user.id } : null
+        } : null,
+        students: uniqueStudents
+      };
+    });
 
     res.status(200).json({ classes: responseClasses });
   } catch (error) {
@@ -281,7 +310,7 @@ const recordAttendance = async (req, res) => {
     const targetClass = await resolveTeacherClass(teacherProfile?.id || teacherId, classId, studentIds);
 
     const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, branchId: targetClass?.branchId || undefined }
     });
 
     const existingAttendance = await prisma.attendance.findFirst({
@@ -550,7 +579,7 @@ const unlockAttendance = async (req, res) => {
 // @access  Private (Teacher/Admin)
 const saveGrades = async (req, res) => {
   try {
-    const { classId, subject, teacherId, gradesData } = saveGradesSchema.parse(req.body);
+    const { classId, subject, teacherId, gradesData, submitToHomeroom } = saveGradesSchema.parse(req.body);
 
     const studentIds = (gradesData || []).map((data) => data.student).filter(Boolean);
 
@@ -559,29 +588,76 @@ const saveGrades = async (req, res) => {
       return res.status(authorization.status).json({ message: authorization.message });
     }
 
-    // Fetch active grading structure weights (e.g. Quiz 10%, Assignment 20%, Midterm 30%, Final 40%)
+    const klass = await prisma.class.findUnique({
+      where: { id: classId },
+      select: { teacherId: true, branchId: true }
+    });
+
+    // Fetch active grading structure weights (e.g. Quiz 10%, Assignment 20%, Midterm 30%, Final 40%) for the class's branch
     const weights = await prisma.gradingStructure.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, branchId: klass?.branchId || undefined }
     }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
 
     const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, branchId: klass?.branchId || undefined }
     });
 
-    // Resolve the active semester — prefer explicit body param, fall back to global active
+    // Resolve the active semester — prefer explicit body param, fall back to branch-specific active
     const activeSemester = await (async () => {
       if (req.body.semesterId) {
         return prisma.semester.findUnique({ where: { id: req.body.semesterId } });
       }
-      return prisma.semester.findFirst({ where: { isActive: true } });
+      return prisma.semester.findFirst({
+        where: {
+          isActive: true,
+          academicYear: { branchId: klass?.branchId || undefined }
+        }
+      });
     })();
 
+    // If submitting to homeroom, resolve the homeroom teachers for each student
+    let studentSectionTeacherMap = new Map();
+    let classHomeroomTeacherId = null;
+    if (submitToHomeroom) {
+      classHomeroomTeacherId = await resolveClassHomeroomTeacherId(prisma, classId);
+
+      const enrollments = await prisma.enrollment.findMany({
+        where: {
+          studentId: { in: studentIds },
+          academicYearId: activeYear?.id || undefined,
+          status: 'Enrolled',
+          section: { classId }
+        },
+        select: {
+          studentId: true,
+          section: {
+            select: { homeroomTeacherId: true }
+          }
+        }
+      });
+
+      studentSectionTeacherMap = new Map(
+        enrollments.map(e => [e.studentId, e.section?.homeroomTeacherId])
+      );
+
+      // Verify that every student has a resolved homeroom teacher (either section-level or class-level fallback)
+      for (const studentId of studentIds) {
+        const resolvedTeacherId = studentSectionTeacherMap.get(studentId) || classHomeroomTeacherId;
+        if (!resolvedTeacherId) {
+          return res.status(400).json({ message: 'No homeroom teacher assigned to one or more students\' sections or class. Cannot submit grades.' });
+        }
+      }
+    }
+
     const results = [];
+    // The frontend converts raw scores to percentages before sending.
+    // e.g. if quiz weight=10 and teacher enters 7, the frontend sends 70 (= 7/10 * 100).
+    // So we validate each component against 100 (not the weight).
     const componentLimits = {
-      quiz: Number(weights.quizWeight || 0),
-      assignment: Number(weights.assignmentWeight || 0),
-      midterm: Number(weights.midtermWeight || 0),
-      final: Number(weights.finalWeight || 0)
+      quiz: 100,
+      assignment: 100,
+      midterm: 100,
+      final: 100,
     };
     const componentLabels = {
       quiz: 'Quiz',
@@ -605,11 +681,11 @@ const saveGrades = async (req, res) => {
       });
 
       if (invalidComponent) {
-        const [field, maxAllowed] = invalidComponent;
+        const [field] = invalidComponent;
         return res.status(400).json({
-          message: `${componentLabels[field]} score cannot be greater than ${maxAllowed}.`,
+          message: `${componentLabels[field]} score cannot be greater than 100%.`,
           field,
-          maxAllowed,
+          maxAllowed: 100,
           studentId: data.student
         });
       }
@@ -632,21 +708,23 @@ const saveGrades = async (req, res) => {
       });
 
       let savedGrade;
+      const gradeData = {
+        quiz,
+        assignment,
+        test,
+        midterm,
+        final,
+        total,
+        percentage,
+        teacherId: req.user._id,
+        academicYearId: activeYear?.id || null,
+        semesterId: activeSemester?.id || null,
+      };
+
       if (existingGrade) {
         savedGrade = await prisma.grade.update({
           where: { id: existingGrade.id },
-          data: {
-            quiz,
-            assignment,
-            test,
-            midterm,
-            final,
-            total,
-            percentage,
-            teacherId: req.user._id,
-            academicYearId: activeYear?.id || null,
-            semesterId: activeSemester?.id || null,
-          }
+          data: gradeData
         });
       } else {
         savedGrade = await prisma.grade.create({
@@ -654,25 +732,172 @@ const saveGrades = async (req, res) => {
             studentId: data.student,
             classId,
             subject,
-            quiz,
-            assignment,
-            test,
-            midterm,
-            final,
-            total,
-            percentage,
-            teacherId: req.user._id,
-            academicYearId: activeYear?.id || null,
-            semesterId: activeSemester?.id || null,
+            ...gradeData,
           }
         });
       }
+
+      // Apply submission status via raw SQL to avoid stale generated client issues
+      if (submitToHomeroom) {
+        const now = new Date().toISOString();
+        const studentHomeroomTeacherId = studentSectionTeacherMap.get(data.student) || classHomeroomTeacherId;
+        await prisma.$executeRawUnsafe(
+          `UPDATE "Grade" SET "submissionStatus" = 'SubmittedToHomeroom', "submittedAt" = $1::timestamp, "submittedToId" = $2 WHERE id = $3`,
+          now, studentHomeroomTeacherId, savedGrade.id
+        );
+        savedGrade.submissionStatus = 'SubmittedToHomeroom';
+        savedGrade.submittedAt = new Date(now);
+        savedGrade.submittedToId = studentHomeroomTeacherId;
+      }
+
       results.push(mapGradeToResponse(savedGrade));
     }
 
-    res.status(200).json({ message: 'Grades saved successfully', results });
+    res.status(200).json({ message: submitToHomeroom ? 'Grades submitted to homeroom teacher successfully' : 'Grades saved successfully', results });
   } catch (error) {
     res.status(400).json({ message: error.message });
+  }
+};
+
+// @desc    Get submitted grades for homeroom teacher review
+// @route   GET /api/classroom/grades/submitted/:classId
+// @access  Private (Homeroom Teacher)
+const getSubmittedGradesForHomeroom = async (req, res) => {
+  try {
+    const { classId } = req.params;
+    const { semesterId } = req.query;
+
+    const teacherProfile = await getTeacherProfile(req.user._id);
+    if (!teacherProfile) {
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Verify user is the homeroom teacher for this class (either class-level or section-level)
+    const klass = await prisma.class.findUnique({
+      where: { id: classId },
+      select: { teacherId: true }
+    });
+
+    const isClassHomeroom = klass && klass.teacherId === teacherProfile.id;
+
+    const sections = await prisma.section.findMany({
+      where: {
+        classId,
+        homeroomTeacherId: teacherProfile.id
+      },
+      select: { id: true }
+    });
+
+    if (!isClassHomeroom && sections.length === 0) {
+      return res.status(403).json({ message: 'You are not the homeroom teacher for this class or any of its sections' });
+    }
+
+    // Use raw SQL to query new columns that may not be in the generated Prisma client yet
+    let semesterClause = '';
+    const queryParams = [classId, 'SubmittedToHomeroom', teacherProfile.id];
+    if (semesterId) {
+      semesterClause = `AND g."semesterId" = $${queryParams.length + 1}`;
+      queryParams.push(semesterId);
+    }
+
+    const grades = await prisma.$queryRawUnsafe(`
+      SELECT
+        g.id,
+        g.subject,
+        g.quiz,
+        g.assignment,
+        g.midterm,
+        g.final,
+        g.total,
+        g.percentage,
+        g."submissionStatus",
+        g."submittedAt",
+        g."submittedToId",
+        g."classId",
+        g."studentId",
+        s.id as student_id,
+        s."studentId" as student_number,
+        u.name as student_name,
+        u.email as student_email
+      FROM "Grade" g
+      JOIN "Student" s ON s.id = g."studentId"
+      JOIN "User" u ON u.id = s."userId"
+      WHERE g."classId" = $1
+        AND g."submissionStatus" = $2
+        AND g."submittedToId" = $3
+        ${semesterClause}
+      ORDER BY g.subject ASC, u.name ASC
+    `, ...queryParams);
+
+    // Shape the response to match what HomeroomGradeReview.jsx expects
+    const shaped = grades.map(g => ({
+      id: g.id,
+      subject: g.subject,
+      quiz: g.quiz,
+      assignment: g.assignment,
+      midterm: g.midterm,
+      final: g.final,
+      total: g.total,
+      percentage: g.percentage,
+      submissionStatus: g.submissionStatus,
+      submittedAt: g.submittedAt,
+      student: {
+        id: g.student_id,
+        studentId: g.student_number,
+        user: {
+          name: g.student_name,
+          email: g.student_email,
+        }
+      }
+    }));
+
+    res.status(200).json(shaped);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Approve grades submitted to homeroom teacher
+// @route   POST /api/classroom/grades/approve
+// @access  Private (Homeroom Teacher)
+const approveGrades = async (req, res) => {
+  try {
+    const { gradeIds } = req.body;
+
+    if (!Array.isArray(gradeIds) || gradeIds.length === 0) {
+      return res.status(400).json({ message: 'gradeIds array is required' });
+    }
+
+    const teacherProfile = await getTeacherProfile(req.user._id);
+    if (!teacherProfile) {
+      return res.status(404).json({ message: 'Teacher profile not found' });
+    }
+
+    // Verify all grades are submitted to this homeroom teacher using raw SQL
+    const placeholders = gradeIds.map((_, i) => `$${i + 1}`).join(', ');
+    const checkParams = [...gradeIds, teacherProfile.id, 'SubmittedToHomeroom'];
+    const checkIdx = gradeIds.length;
+    const verifiedGrades = await prisma.$queryRawUnsafe(
+      `SELECT id FROM "Grade" WHERE id IN (${placeholders}) AND "submittedToId" = $${checkIdx + 1} AND "submissionStatus" = $${checkIdx + 2}`,
+      ...checkParams
+    );
+
+    if (verifiedGrades.length !== gradeIds.length) {
+      return res.status(400).json({ message: 'Some grades are not submitted to you or already processed' });
+    }
+
+    // Approve via raw SQL
+    const now = new Date().toISOString();
+    await prisma.$executeRawUnsafe(
+      `UPDATE "Grade" SET "submissionStatus" = 'ApprovedByHomeroom', "approvedAt" = $1::timestamp, "approvedById" = $2 WHERE id IN (${placeholders})`,
+      now, teacherProfile.id, ...gradeIds
+    );
+
+    await logActivity(req.user._id, 'Approve Grades', gradeIds.join(','), `Approved ${gradeIds.length} grades`);
+
+    res.status(200).json({ message: `Successfully approved ${gradeIds.length} grades` });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -724,12 +949,16 @@ const getGrades = async (req, res) => {
     const { classId, subject } = req.params;
     const { semesterId } = req.query;
 
+    const targetClass = await prisma.class.findUnique({
+      where: { id: classId },
+      select: { branchId: true }
+    });
+    if (!targetClass) {
+      return res.status(404).json({ message: 'Class not found.' });
+    }
+
     if (req.user.role === 'Admin') {
-      const targetClass = await prisma.class.findUnique({
-        where: { id: classId },
-        select: { branchId: true }
-      });
-      if (targetClass && req.branchFilter?.branchId && targetClass.branchId !== req.branchFilter.branchId) {
+      if (req.branchFilter?.branchId && targetClass.branchId !== req.branchFilter.branchId) {
         return res.status(403).json({ message: 'Access denied. Class is not in your branch.' });
       }
     } else if (req.user.role !== 'Admin' && req.user.role !== 'SuperAdmin') {
@@ -746,9 +975,13 @@ const getGrades = async (req, res) => {
     if (semesterId) {
       where.semesterId = semesterId;
     } else {
-      // Only filter by active semester if one actually exists — avoids
-      // returning empty results when no semester has been configured yet
-      const activeSemester = await prisma.semester.findFirst({ where: { isActive: true } });
+      // Only filter by active semester if one actually exists — branch-specific
+      const activeSemester = await prisma.semester.findFirst({
+        where: {
+          isActive: true,
+          academicYear: { branchId: targetClass.branchId || undefined }
+        }
+      });
       if (activeSemester?.id) where.semesterId = activeSemester.id;
     }
 
@@ -764,8 +997,21 @@ const getGrades = async (req, res) => {
       }
     });
 
+    // Fetch submissionStatus for these grades via raw SQL (new columns not in generated client)
+    const gradeIds = grades.map(g => g.id);
+    let submissionStatusMap = {};
+    if (gradeIds.length > 0) {
+      const placeholders = gradeIds.map((_, i) => `$${i + 1}`).join(', ');
+      const rawRows = await prisma.$queryRawUnsafe(
+        `SELECT id, "submissionStatus" FROM "Grade" WHERE id IN (${placeholders})`,
+        ...gradeIds
+      );
+      rawRows.forEach(r => { submissionStatusMap[r.id] = r.submissionStatus; });
+    }
+
     const responseGrades = grades.map(g => {
       const mapped = mapGradeToResponse(g);
+      mapped.submissionStatus = submissionStatusMap[g.id] || 'Draft';
       if (g.student) {
         mapped.student = {
           ...g.student,
@@ -1530,7 +1776,7 @@ const getSectionStudents = async (req, res) => {
       where: { id: sectionId },
       include: {
         class: {
-          select: { id: true, name: true, stream: true }
+          select: { id: true, name: true, stream: true, branchId: true }
         },
         homeroomTeacher: {
           include: {
@@ -1556,7 +1802,7 @@ const getSectionStudents = async (req, res) => {
     }
 
     const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, branchId: section.class?.branchId || undefined }
     });
 
     const classClean = cleanGradeName(section.class?.name);
@@ -1636,7 +1882,7 @@ const assignStudentsToSection = async (req, res) => {
     const section = await prisma.section.findUnique({
       where: { id: sectionId },
       include: {
-        class: { select: { id: true, name: true } }
+        class: { select: { id: true, name: true, branchId: true } }
       }
     });
 
@@ -1645,7 +1891,7 @@ const assignStudentsToSection = async (req, res) => {
     }
 
     const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, branchId: section.class?.branchId || undefined }
     });
 
     if (!activeYear) {
@@ -1900,22 +2146,24 @@ module.exports = {
   getStudentGrades,
   getClassroomOptions,
   createClass,
-  updateClass,
   getClasses,
   deleteClass,
+  updateClass,
+  deleteSection,
   forceDeleteClass,
   createSection,
   getSectionsByClass,
   getSectionById,
   updateSection,
-  deleteSection,
   getSectionStudents,
   assignStudentsToSection,
-  setGradingStructure,
-  getGradingStructure,
   addSubjectToClass,
   removeSubjectFromClass,
   getClassSubjects,
-  updateClassSubjectTeacher
+  updateClassSubjectTeacher,
+  getSubmittedGradesForHomeroom,
+  approveGrades,
+  setGradingStructure,
+  getGradingStructure,
 };
 

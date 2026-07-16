@@ -85,7 +85,12 @@ const compileReportCards = async (req, res) => {
 
     const [grades, attendanceRecords] = await Promise.all([
       prisma.grade.findMany({
-        where: { academicYearId, semesterId, studentId: { in: studentIds } },
+        where: { 
+          academicYearId, 
+          semesterId, 
+          studentId: { in: studentIds },
+          submissionStatus: 'ApprovedByHomeroom' // Only use approved grades for report cards
+        },
         select: { studentId: true, classId: true, percentage: true },
       }),
       prisma.attendanceRecord.findMany({
@@ -348,7 +353,7 @@ const unpublishReportCards = async (req, res) => {
 
     await prisma.reportCard.updateMany({
       where,
-      data: { published: false, workflowStatus: 'AdminReview' },
+      data: { published: false, workflowStatus: 'BranchAdminReview' },
     });
 
     await logActivity(req.user._id, 'Unpublish Report Cards', academicYearId, `Unpublished all report cards for year ${academicYearId}`);
@@ -371,7 +376,7 @@ const togglePublishOne = async (req, res) => {
       where: { id },
       data: {
         published: Boolean(published),
-        workflowStatus: published ? 'Published' : 'AdminReview',
+        workflowStatus: published ? 'Published' : 'BranchAdminReview',
       },
     });
 
@@ -458,7 +463,7 @@ const submitToAdmin = async (req, res) => {
 
     await prisma.reportCard.updateMany({
       where: { id: { in: reportCardIds } },
-      data: { workflowStatus: 'AdminReview' },
+      data: { workflowStatus: 'BranchAdminReview' },
     });
 
     await logActivity(getActorId(req), 'Submit Report Cards to Admin', reportCardIds.join(','),

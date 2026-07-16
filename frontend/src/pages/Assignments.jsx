@@ -34,14 +34,40 @@ export default function Assignments() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await axios.post('/assignments', { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType });
+      const payload = { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType };
+      await axios.post('/assignments', payload);
       toast.success('Teacher assigned successfully.');
       setTeacherId('');
       setSubjectId('');
       setSectionId('');
       setAssignmentType('SubjectTeacher');
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to save teacher assignment');
+      // Handle homeroom override confirmation (409 Conflict)
+      if (error.response?.status === 409 && error.response?.data?.requiresConfirmation) {
+        const { previousTeacher, newTeacher } = error.response.data;
+        const confirmed = window.confirm(
+          `⚠️ Caution — Homeroom Teacher Override\n\n` +
+          `You are about to replace the current homeroom teacher (${previousTeacher}) ` +
+          `with ${newTeacher}.\n\n` +
+          `This action will remove the existing homeroom assignment. ` +
+          `Are you sure you want to proceed?`
+        );
+        if (confirmed) {
+          try {
+            const payload = { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType, confirmOverride: true };
+            await axios.post('/assignments', payload);
+            toast.success('Homeroom teacher replaced successfully.');
+            setTeacherId('');
+            setSubjectId('');
+            setSectionId('');
+            setAssignmentType('SubjectTeacher');
+          } catch (retryError) {
+            toast.error(retryError.response?.data?.message || 'Failed to save teacher assignment');
+          }
+        }
+      } else {
+        toast.error(error.response?.data?.message || 'Failed to save teacher assignment');
+      }
     } finally {
       setSubmitting(false);
     }

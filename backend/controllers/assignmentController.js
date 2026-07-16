@@ -64,7 +64,7 @@ const getAssignmentOptions = async (req, res) => {
 
 const createAssignment = async (req, res) => {
   try {
-    const { teacherId, subjectId, sectionId, classId, classIds = [], specificClassNames = [], notes, assignmentType = 'SubjectTeacher' } = req.body;
+    const { teacherId, subjectId, sectionId, classId, classIds = [], specificClassNames = [], notes, assignmentType = 'SubjectTeacher', confirmOverride = false } = req.body;
     const normalizedClassIds = [...new Set([
       ...(Array.isArray(classIds) ? classIds : []),
       classId,
@@ -160,16 +160,82 @@ const createAssignment = async (req, res) => {
         return res.status(400).json({ message: 'Home Room Teacher can only be assigned to one class at a time.' });
       }
 
+      // Always run the homeroom guard so the same conflict message is shown across all branches/flows.
+      // If sectionId is provided, pass excludeSectionId to allow overrides of the same section.
+      const classIdForCheck = resolvedSection?.classId || resolvedClasses[0].id;
+
       const homeroomCheck = await ensureHomeroomAssignmentAllowed(prisma, {
         teacherId,
-        classId: resolvedClasses[0].id
+        classId: classIdForCheck,
+        excludeSectionId: resolvedSection ? resolvedSection.id : null
       });
 
       if (!homeroomCheck.ok) {
         return res.status(400).json({ message: homeroomCheck.message });
       }
-    }
 
+      // Check if we'd be overriding an existing homeroom teacher on the target section/class
+      if (!confirmOverride) {
+        let previousTeacherName = null;
+        let previousTeacherId = null;
+
+        if (resolvedSection) {
+          // Check if the section already has a different homeroom teacher
+          const sectionWithTeacher = await prisma.section.findUnique({
+            where: { id: resolvedSection.id },
+            include: {
+              homeroomTeacher: {
+                include: { user: { select: { name: true } } }
+              },
+              class: { select: { name: true } }
+            }
+          });
+
+          if (sectionWithTeacher?.homeroomTeacherId &&
+              sectionWithTeacher.homeroomTeacherId !== teacherId) {
+            previousTeacherName = sectionWithTeacher.homeroomTeacher?.user?.name ||
+                                  sectionWithTeacher.homeroomTeacher?.teacherId || 'Unknown';
+            previousTeacherId = sectionWithTeacher.homeroomTeacherId;
+          }
+        }
+
+        // Also check the class-level homeroom teacher
+        if (!previousTeacherId) {
+          const classWithTeacher = await prisma.class.findUnique({
+            where: { id: classIdForCheck },
+            include: {
+              teacher: {
+                include: { user: { select: { name: true } } }
+              }
+            }
+          });
+
+          if (classWithTeacher?.teacherId &&
+              classWithTeacher.teacherId !== teacherId) {
+            previousTeacherName = classWithTeacher.teacher?.user?.name ||
+                                  classWithTeacher.teacher?.teacherId || 'Unknown';
+            previousTeacherId = classWithTeacher.teacherId;
+          }
+        }
+
+        if (previousTeacherId) {
+          // Look up the new teacher's name for the confirmation message
+          const newTeacher = await prisma.teacher.findUnique({
+            where: { id: teacherId },
+            include: { user: { select: { name: true } } }
+          });
+          const newTeacherName = newTeacher?.user?.name || newTeacher?.teacherId || 'Unknown';
+
+          return res.status(409).json({
+            message: `This section already has a homeroom teacher (${previousTeacherName}). ` +
+                     `Assigning ${newTeacherName} will replace them. Do you want to proceed?`,
+            requiresConfirmation: true,
+            previousTeacher: previousTeacherName,
+            newTeacher: newTeacherName
+          });
+        }
+      }
+    }
     const assignments = [];
     for (const selectedClass of resolvedClasses) {
       const selectedClassId = selectedClass.id;
@@ -244,27 +310,63 @@ const getMyAssignments = async (req, res) => {
                 user: { select: { id: true, name: true, email: true } },
                 guardians: { select: { id: true, fullName: true, phone: true, email: true, relationship: true } }
               }
+            },
+            sections: {
+              include: {
+                enrollments: {
+                  where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                  include: {
+                    student: {
+                      include: {
+                        user: { select: { id: true, name: true, email: true } },
+                        guardians: { select: { id: true, fullName: true, phone: true, email: true, relationship: true } }
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
-        }
+        },
+        subject: true
       }
     });
 
-    const responseAssignments = assignments.map(assignment => ({
-      ...assignment,
-      _id: assignment.id,
-      teacher: assignment.teacherId,
-      class: assignment.class ? {
-        ...assignment.class,
-        _id: assignment.class.id,
-        students: (assignment.class.students || []).map(student => ({
-          ...student,
-          _id: student.id,
-          user: student.user ? { ...student.user, _id: student.user.id } : null,
-          guardians: student.guardians || []
-        }))
-      } : null
-    }));
+    const responseAssignments = assignments.map(assignment => {
+      const cls = assignment.class;
+      let students = [];
+
+      if (cls) {
+        // Prefer students from section enrollments; fall back to direct M2M
+        const enrolledStudents = (cls.sections || [])
+          .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
+
+        const source = enrolledStudents.length > 0 ? enrolledStudents : (cls.students || []);
+
+        // De-duplicate by id
+        const seen = new Set();
+        students = source
+          .filter(s => s && !seen.has(s.id) && seen.add(s.id))
+          .map(student => ({
+            ...student,
+            _id: student.id,
+            user: student.user ? { ...student.user, _id: student.user.id } : null,
+            guardians: student.guardians || []
+          }));
+      }
+
+      return {
+        ...assignment,
+        _id: assignment.id,
+        teacher: assignment.teacherId,
+        class: cls ? {
+          ...cls,
+          _id: cls.id,
+          subject: assignment.subject?.name || cls.subject || 'General',
+          students
+        } : null
+      };
+    });
 
     res.json(responseAssignments);
   } catch (error) {

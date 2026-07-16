@@ -372,6 +372,20 @@ const getTeacherPortalStats = async (req, res) => {
           include: {
             user: { select: { id: true, name: true, email: true } }
           }
+        },
+        sections: {
+          include: {
+            enrollments: {
+              where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+              include: {
+                student: {
+                  include: {
+                    user: { select: { id: true, name: true, email: true } }
+                  }
+                }
+              }
+            }
+          }
         }
       },
       orderBy: { createdAt: 'desc' }
@@ -385,6 +399,20 @@ const getTeacherPortalStats = async (req, res) => {
             students: {
               include: {
                 user: { select: { id: true, name: true, email: true } }
+              }
+            },
+            sections: {
+              include: {
+                enrollments: {
+                  where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                  include: {
+                    student: {
+                      include: {
+                        user: { select: { id: true, name: true, email: true } }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -410,6 +438,20 @@ const getTeacherPortalStats = async (req, res) => {
           students: {
             include: {
               user: { select: { id: true, name: true, email: true } }
+            }
+          },
+          sections: {
+            include: {
+              enrollments: {
+                where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                include: {
+                  student: {
+                    include: {
+                      user: { select: { id: true, name: true, email: true } }
+                    }
+                  }
+                }
+              }
             }
           }
         },
@@ -478,12 +520,19 @@ const getTeacherPortalStats = async (req, res) => {
         select: { date: true }
       });
 
+      // Prefer students from section enrollments; fall back to direct M2M
+      const enrolledStudents = (klass.sections || [])
+        .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
+      const sourceStudents = enrolledStudents.length > 0 ? enrolledStudents : (klass.students || []);
+      const seenStudents = new Set();
+      const uniqueStudents = sourceStudents.filter(s => s && !seenStudents.has(s.id) && seenStudents.add(s.id));
+
       return {
         classId: klass.id,
         className: normalizeClassLabel(klass.name),
         subject: normalizeClassLabel(klass.subject),
         stream: klass.stream || '',
-        studentCount: klass.students?.length || 0,
+        studentCount: uniqueStudents.length,
         attendanceSessions: await prisma.attendance.count({ where: { classId: klass.id } }),
         attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
         gradesCount: gradesAgg._count,
@@ -494,7 +543,12 @@ const getTeacherPortalStats = async (req, res) => {
     }));
 
     const assignedStudentsCount = new Set(
-      classes.flatMap((klass) => (klass.students || []).map((student) => student?.id).filter(Boolean)),
+      classes.flatMap((klass) => {
+        const enrolledStudents = (klass.sections || [])
+          .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
+        const sourceStudents = enrolledStudents.length > 0 ? enrolledStudents : (klass.students || []);
+        return sourceStudents.map((student) => student?.id).filter(Boolean);
+      })
     ).size;
 
     const grades = await prisma.grade.findMany({

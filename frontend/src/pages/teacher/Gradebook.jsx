@@ -123,8 +123,9 @@ export default function Gradebook() {
         const map = new Map((r.data || []).map((g) => [g.student?._id || g.student, g]));
 
         const roster = (selectedClass.students || []).map((s) => {
-
-          const savedMarks = map.get(s._id)?.marks || {};
+          const gradeEntry = map.get(s._id);
+          const savedMarks = gradeEntry?.marks || {};
+          const status = gradeEntry?.submissionStatus || 'Draft';
 
           const displayMarks = {};
 
@@ -138,7 +139,7 @@ export default function Gradebook() {
 
           });
 
-          return { student: s, marks: { ...emptyMarks, ...displayMarks } };
+          return { student: s, marks: { ...emptyMarks, ...displayMarks }, status };
 
         });
 
@@ -309,10 +310,10 @@ export default function Gradebook() {
         subject: selectedClass.subject,
         gradesData,
         semesterId: activeSemester?.id || undefined,
-        publish: true,
+        submitToHomeroom: true,
       });
 
-      toast.success('Grades published to homeroom teachers.');
+      toast.success('Grades submitted to homeroom teacher for review.');
 
     } catch (e) {
 
@@ -471,12 +472,24 @@ export default function Gradebook() {
 
                           <div className="font-semibold text-slate-900">{row.student.user?.name || row.student.studentId}</div>
 
-                          <div className="text-xs text-slate-400">{row.student.studentId}</div>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            <span className="text-xs text-slate-400">{row.student.studentId}</span>
+                            {row.status && row.status !== 'Draft' && (
+                              <span className={`inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-bold ring-1 ring-inset ${
+                                row.status === 'SubmittedToHomeroom'
+                                  ? 'bg-amber-50 text-amber-800 ring-amber-600/20'
+                                  : 'bg-emerald-50 text-emerald-700 ring-emerald-600/20'
+                              }`}>
+                                {row.status === 'SubmittedToHomeroom' ? 'Submitted' : 'Approved'}
+                              </span>
+                            )}
+                          </div>
 
                         </td>
 
                         {components.map((c) => {
                           const isOverLimit = !!markErrors[`${row.student._id}_${c.field}`];
+                          const isLocked = row.status === 'SubmittedToHomeroom' || row.status === 'ApprovedByHomeroom';
                           return (
 
                             <td key={c.field} className="px-3 py-3 text-center">
@@ -488,9 +501,12 @@ export default function Gradebook() {
                                 value={row.marks[c.field] === 0 ? '' : (row.marks[c.field] || '')}
 
                                 onChange={(e) => handleChange(row.student._id, c.field, e.target.value)}
+                                disabled={isLocked}
 
                                 className={`w-16 rounded-lg border p-1.5 text-center outline-none transition-colors ${isOverLimit
                                   ? 'border-red-400 bg-red-50 text-red-700 focus:border-red-500 focus:bg-red-50'
+                                  : isLocked
+                                  ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
                                   : 'border-slate-200 bg-slate-50 focus:border-slate-400 focus:bg-white'
                                   }`}
 
@@ -563,7 +579,7 @@ export default function Gradebook() {
 
             <strong>Save Draft:</strong> Saves grades for later editing (not visible to students/parents).<br />
 
-            <strong>Publish to Homeroom:</strong> Sends grades to homeroom teachers for review and makes them visible.
+            <strong>Submit to Homeroom:</strong> Sends grades to homeroom teacher for review and approval.
 
           </div>
 

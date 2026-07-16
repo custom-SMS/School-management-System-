@@ -152,6 +152,7 @@ const saveGradesSchema = z.object({
   subject: subjectSchema,
   teacherId: z.string().uuid().optional(),
   semesterId: z.string().uuid().optional(),
+  submitToHomeroom: z.boolean().optional(),
   gradesData: z.array(z.object({
     student: z.string().uuid('Invalid student ID'),
     marks: z.object({
