@@ -455,7 +455,7 @@ const registerStudent = async (req, res) => {
 
     const resolvedBranchId = (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
       ? req.branchFilter.branchId
-      : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null);
+      : (req.user?.branchId || req.body.branchId || req.headers['x-branch-id'] || process.env.DEFAULT_BRANCH_ID || null);
 
     // Enforce +2519XXXXXXXX phone validation server-side (guardian phone)
     // The UI sends guardian phone as personalDetails.phone (parentPhone).

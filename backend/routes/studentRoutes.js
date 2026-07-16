@@ -131,7 +131,7 @@ router.get('/grade-fee', getGradeFees);
  *       200:
  *         description: List of classes
  */
-router.get('/classes', verifyToken, checkPermission('student_registration'), getRegistrationClasses);
+router.get('/classes', verifyToken, checkPermission('student_registration'), injectBranchFilter, getRegistrationClasses);
 
 /**
  * @swagger

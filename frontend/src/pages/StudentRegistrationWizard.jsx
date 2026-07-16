@@ -89,7 +89,9 @@ export default function StudentRegistrationWizard() {
     })
       .then((r) => {
         const all = r.data || [];
-        setClasses(all.filter(c => c.feeConfigured !== false));
+        // Server already scopes by branch, but also keep the UI safe by filtering
+        // out any class that has a different branchId.
+        setClasses(all.filter((c) => c.feeConfigured !== false && (!c.branchId || c.branchId === localStorage.getItem('branchId'))));
       })
       .catch(() => setClasses([]));
 
@@ -189,12 +191,13 @@ export default function StudentRegistrationWizard() {
         name: fullName,
         email: form.email || undefined,
         classId: form.classId || undefined,
-        personalDetails: {
-          dateOfBirth: form.dateOfBirth,
-          gender: form.gender,
-          phone: form.parentPhone,
-          address: form.address,
-        },
+          personalDetails: {
+            dateOfBirth: form.dateOfBirth,
+            gender: form.gender,
+            phone: form.parentPhone ? `+2519${form.parentPhone.replace(/\D/g, '').slice(0, 8)}` : undefined,
+            address: form.address,
+          },
+
         familyBackground: {
           fatherName: form.fatherName,
           guardianName: parentName,
@@ -209,10 +212,11 @@ export default function StudentRegistrationWizard() {
         parent: {
           fullName: parentName,
           email: form.parentEmail,
-          phone: form.parentPhone,
+          phone: form.parentPhone ? `+2519${form.parentPhone.replace(/\D/g, '').slice(0, 8)}` : undefined,
           relationship: form.parentRelationship,
           address: form.address,
         },
+
       };
 
       const res = isEditMode
