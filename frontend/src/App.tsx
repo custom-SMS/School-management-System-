@@ -75,6 +75,7 @@ import AttendanceChecklist from "./pages/AttendanceChecklist";
 import TeacherNotifications from "./pages/teacher/TeacherNotifications";
 import Homeroom from "./pages/teacher/Homeroom";
 import HomeroomReportCards from "./pages/teacher/HomeroomReportCards";
+import HomeroomGradeReview from "./pages/teacher/HomeroomGradeReview";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -581,6 +582,14 @@ function App() {
                 }
               />
               <Route
+                path="/teacher/homeroom/grade-review"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <HomeroomGradeReview />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/teacher/notifications"
                 element={
                   <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
@@ -592,7 +601,7 @@ function App() {
                 path="/teacher/grades"
                 element={
                   <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
-                    <TeacherGrades />
+                    <TeacherGradebook />
                   </ProtectedRoute>
                 }
               />

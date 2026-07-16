@@ -529,6 +529,11 @@ model Grade {
   total          Float             @default(0)
   percentage     Float             @default(0)
   comments       String?
+  submissionStatus String           @default("Draft") // Draft, SubmittedToHomeroom, ApprovedByHomeroom
+  submittedAt    DateTime?
+  submittedToId  String?           // ID of homeroom teacher submitted to
+  approvedAt     DateTime?
+  approvedById   String?           // ID of homeroom teacher who approved
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
 }
@@ -584,7 +589,7 @@ model ReportCard {
   teacherComments      String?
   homeroomRemarks      String?
   conductGrade         String?
-  workflowStatus       String       @default("Draft")
+  workflowStatus       String       @default("Draft") // Draft, HomeroomReview, BranchAdminReview, Published
   published            Boolean      @default(false)
   promotionStatus      String       @default("Pending")
   promotedById         String?

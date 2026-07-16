@@ -12,6 +12,7 @@ const statusBadge = (wf) => {
   const map = {
     Draft: 'bg-slate-100 text-slate-500',
     HomeroomReview: 'bg-amber-50 text-amber-700',
+    BranchAdminReview: 'bg-blue-50 text-blue-700',
     AdminReview: 'bg-blue-50 text-blue-700',
     Published: 'bg-emerald-50 text-emerald-700',
   };
@@ -124,7 +125,7 @@ export default function HomeroomReportCards() {
   // Stats
   const stats = useMemo(() => ({
     total: reportCards.length,
-    reviewed: reportCards.filter((rc) => rc.workflowStatus === 'AdminReview' || rc.workflowStatus === 'Published').length,
+    reviewed: reportCards.filter((rc) => rc.workflowStatus === 'BranchAdminReview' || rc.workflowStatus === 'AdminReview' || rc.workflowStatus === 'Published').length,
     draft: reportCards.filter((rc) => rc.workflowStatus === 'Draft').length,
   }), [reportCards]);
 

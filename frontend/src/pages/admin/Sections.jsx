@@ -160,9 +160,8 @@ export default function Sections() {
       return;
     }
 
-    // Caution for BranchAdmin: warn before overriding an existing homeroom teacher
+    // Caution: warn before overriding an existing homeroom teacher
     const isOverridingHomeroom =
-      isBranchAdmin &&
       originalHomeroomTeacherId &&
       editingHomeroomTeacherId &&
       editingHomeroomTeacherId !== originalHomeroomTeacherId;
@@ -179,7 +178,7 @@ export default function Sections() {
         `You are about to replace the current homeroom teacher` +
         `${previousTeacher ? ` (${previousTeacher.user?.name || previousTeacher.teacherId})` : ''} ` +
         `with ${newTeacher ? (newTeacher.user?.name || newTeacher.teacherId) : 'a new teacher'}.\n\n` +
-        `As a Branch Admin, this action will remove the existing homeroom assignment. ` +
+        `This action will remove the existing homeroom assignment. ` +
         `Are you sure you want to proceed?`
       );
       if (!confirmed) return;
@@ -323,9 +322,8 @@ export default function Sections() {
                   ))}
                 </select>
 
-                {/* Caution banner — shown to BranchAdmin when overriding an existing homeroom teacher */}
-                {isBranchAdmin &&
-                  originalHomeroomTeacherId &&
+                {/* Caution banner — shown when overriding an existing homeroom teacher */}
+                {originalHomeroomTeacherId &&
                   editingHomeroomTeacherId &&
                   editingHomeroomTeacherId !== originalHomeroomTeacherId && (
                     <div className="mt-3 flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">

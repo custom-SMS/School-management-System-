@@ -55,9 +55,10 @@ export default function Homeroom() {
                 </div>
               </div>
 
-              <div className="mt-4 space-y-3">
-                <Link to={`/teacher/attendance?classId=${hm.classId}`} className="inline-block rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white">Open Attendance</Link>
-                <Link to={`/teacher/homeroom/report-cards?classId=${hm.classId}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700">View Report Cards</Link>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link to={`/teacher/attendance?classId=${hm.classId}`} className="inline-block rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800">Open Attendance</Link>
+                <Link to={`/teacher/homeroom/grade-review?classId=${hm.classId}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Review Grades</Link>
+                <Link to={`/teacher/homeroom/report-cards?classId=${hm.classId}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">View Report Cards</Link>
               </div>
             </div>
           ))}

@@ -15,7 +15,8 @@ const getGradeClassLabel = (g) => g?.class ? `${g.class.name}${g.class.stream ? 
 const WORKFLOW_LABELS = {
   Draft: { label: 'Draft', cls: 'bg-slate-100 text-slate-500' },
   HomeroomReview: { label: 'Homeroom Review', cls: 'bg-amber-50 text-amber-700' },
-  AdminReview: { label: 'Ready for Admin', cls: 'bg-blue-50 text-blue-700' },
+  BranchAdminReview: { label: 'Branch Admin Review', cls: 'bg-blue-50 text-blue-700' },
+  AdminReview: { label: 'Branch Admin Review', cls: 'bg-blue-50 text-blue-700' },
   Published: { label: 'Published', cls: 'bg-emerald-50 text-emerald-700' },
 };
 
@@ -31,7 +32,7 @@ function WorkflowPipeline({ counts }) {
   const steps = [
     { key: 'Draft', label: 'Draft' },
     { key: 'HomeroomReview', label: 'Homeroom Review' },
-    { key: 'AdminReview', label: 'Ready for Admin' },
+    { key: 'BranchAdminReview', label: 'Branch Admin Review' },
     { key: 'Published', label: 'Published' },
   ];
   const total = Object.values(counts).reduce((s, v) => s + v, 0) || 1;
@@ -137,9 +138,10 @@ export default function ReportCards() {
   }, [selectedClassId, selectedYear, selectedSemesterId]);
 
   const workflowCounts = useMemo(() => {
-    const counts = { Draft: 0, HomeroomReview: 0, AdminReview: 0, Published: 0 };
+    const counts = { Draft: 0, HomeroomReview: 0, BranchAdminReview: 0, Published: 0 };
     classCards.forEach((rc) => {
-      const key = rc.workflowStatus || 'Draft';
+      let key = rc.workflowStatus || 'Draft';
+      if (key === 'AdminReview') key = 'BranchAdminReview';
       if (counts[key] !== undefined) counts[key]++;
     });
     return counts;
@@ -239,7 +241,7 @@ export default function ReportCards() {
       await axios.patch(`/report-cards/${rc.id}/publish`, { published: nextPublished });
       toast.success(nextPublished ? 'Report card published.' : 'Report card unpublished.');
       setClassCards((prev) => prev.map((c) =>
-        c.id === rc.id ? { ...c, published: nextPublished, workflowStatus: nextPublished ? 'Published' : 'AdminReview' } : c
+        c.id === rc.id ? { ...c, published: nextPublished, workflowStatus: nextPublished ? 'Published' : 'BranchAdminReview' } : c
       ));
       if (preview?.reportCard?.id === rc.id) loadPreview(selectedStudent);
     } catch (err) {

@@ -1,4 +1,10 @@
-const formatClassLabel = (className) => `Class ${String(className || '').trim()}`.trim();
+const formatClassLabel = (className) => {
+  const clean = String(className || '').trim();
+  if (/^(class|grade)\b/i.test(clean)) {
+    return clean;
+  }
+  return `Class ${clean}`;
+};
 
 const formatSectionLabel = (section) => {
   const className = String(section?.class?.name || section?.className || '').trim();
@@ -68,10 +74,13 @@ const resolveClassHomeroomTeacherId = async (prisma, classId, { fallbackToClass 
   return sectionHomeroom?.homeroomTeacherId || assignmentHomeroom?.teacherId || (fallbackToClass ? classRecord?.teacherId : null) || null;
 };
 
-const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null) => {
+const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, excludeClassId = null) => {
   const [teacherClasses, teacherSections, teacherAssignments] = await Promise.all([
     prisma.class.findMany({
-      where: { teacherId },
+      where: {
+        teacherId,
+        ...(excludeClassId ? { id: { not: excludeClassId } } : {})
+      },
       select: { id: true, name: true }
     }),
     prisma.section.findMany({
@@ -84,7 +93,11 @@ const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null) 
       }
     }),
     prisma.teacherAssignment.findMany({
-      where: { teacherId, assignmentType: 'HomeRoomTeacher' },
+      where: {
+        teacherId,
+        assignmentType: 'HomeRoomTeacher',
+        ...(excludeClassId ? { classId: { not: excludeClassId } } : {})
+      },
       select: { classId: true }
     })
   ]);
@@ -128,12 +141,12 @@ const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null) 
   });
 };
 
-const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = null, excludeSectionId = null }) => {
+const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = null, excludeSectionId = null, excludeClassId = null }) => {
   if (!teacherId) {
     return { ok: false, message: 'teacherId is required.' };
   }
 
-  const conflicts = await buildConflictEntries(prisma, teacherId, excludeSectionId);
+  const conflicts = await buildConflictEntries(prisma, teacherId, excludeSectionId, excludeClassId);
 
   if (!classId) {
     if (conflicts.length > 0) {
@@ -146,7 +159,17 @@ const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = nu
     return { ok: true };
   }
 
-  const conflictingEntries = conflicts.filter((entry) => entry.classId !== classId);
+  const conflictingEntries = conflicts.filter((entry) => {
+    // If it's a different class, it's always a conflict
+    if (entry.classId !== classId) return true;
+
+    // If it's the same class:
+    // If we are assigning to a section (excludeSectionId is provided) and the teacher is already assigned class-wide, it's a conflict
+    if (excludeSectionId && entry.type === 'class') return true;
+
+    return false;
+  });
+
   if (conflictingEntries.length > 0) {
     return {
       ok: false,

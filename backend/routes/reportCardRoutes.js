@@ -12,14 +12,14 @@ const {
   setPromotionStatus,
   getReportCardsByClass,
 } = require('../controllers/reportCardController');
-const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
+const { verifyToken, checkRole, checkScope, injectBranchFilter } = require('../middleware/authMiddleware');
 
-// Compile (Admin/SuperAdmin)
-router.post('/compile', verifyToken, checkRole(['SuperAdmin', 'Admin']), injectBranchFilter, compileReportCards);
+// Compile (Admin/SuperAdmin/BranchAdmin)
+router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, compileReportCards);
 
-// Publish all / unpublish all (Admin/SuperAdmin)
-router.post('/publish', verifyToken, checkRole(['SuperAdmin', 'Admin']), injectBranchFilter, publishReportCards);
-router.post('/unpublish', verifyToken, checkRole(['SuperAdmin', 'Admin']), injectBranchFilter, unpublishReportCards);
+// Publish all / unpublish all (Admin/SuperAdmin/BranchAdmin)
+router.post('/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, publishReportCards);
+router.post('/unpublish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, unpublishReportCards);
 
 // Homeroom teacher: bulk submit to Admin
 router.post('/submit-to-admin', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), submitToAdmin);
@@ -31,8 +31,8 @@ router.get('/class/:classId/:academicYearId', verifyToken, checkRole(['SuperAdmi
 // Get one report card (Teacher/Admin/SuperAdmin only)
 router.get('/:studentId/:academicYearId', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), injectBranchFilter, getReportCard);
 
-// Toggle publish for a single report card (Admin/SuperAdmin)
-router.patch('/:id/publish', verifyToken, checkRole(['SuperAdmin', 'Admin']), togglePublishOne);
+// Toggle publish for a single report card (Admin/SuperAdmin/BranchAdmin)
+router.patch('/:id/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), togglePublishOne);
 
 // Teacher comments
 router.patch('/:id/comments', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), updateReportComments);

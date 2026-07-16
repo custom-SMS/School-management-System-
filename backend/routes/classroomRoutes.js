@@ -43,7 +43,9 @@ const {
   addSubjectToClass,
   removeSubjectFromClass,
   getClassSubjects,
-  updateClassSubjectTeacher
+  updateClassSubjectTeacher,
+  getSubmittedGradesForHomeroom,
+  approveGrades
 
 } = require('../controllers/classroomController');
 
@@ -318,6 +320,10 @@ router.get('/grades/student/:studentId', verifyToken, checkRole(['Teacher', 'Adm
  */
 
 router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getGrades);
+
+// Homeroom teacher grade submission workflow
+router.get('/grades/submitted/:classId', verifyToken, checkRole(['Teacher']), injectBranchFilter, getSubmittedGradesForHomeroom);
+router.post('/grades/approve', verifyToken, checkRole(['Teacher']), approveGrades);
 
 
 
