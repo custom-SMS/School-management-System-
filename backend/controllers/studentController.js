@@ -453,6 +453,20 @@ const registerStudent = async (req, res) => {
       if (existingUser) return res.status(400).json({ message: 'Email already exists' });
     }
 
+    const resolvedBranchId = (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
+      ? req.branchFilter.branchId
+      : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null);
+
+    // Enforce +2519XXXXXXXX phone validation server-side (guardian phone)
+    // The UI sends guardian phone as personalDetails.phone (parentPhone).
+    const resolvedGuardianPhone = personalDetails.phone || phone || undefined;
+    if (resolvedGuardianPhone) {
+      const isValid = /^\+2519\d{8}$/.test(String(resolvedGuardianPhone));
+      if (!isValid) {
+        return res.status(400).json({ message: 'Invalid phone number. Expected +2519XXXXXXXX' });
+      }
+    }
+
     // The class chosen from the dropdown is the source of truth. Resolve it now
     // and derive the grade from it; fall back to any grade sent in the body only
     // when no class was selected.
@@ -461,6 +475,11 @@ const registerStudent = async (req, res) => {
       selectedClass = await prisma.class.findUnique({ where: { id: classId } });
       if (!selectedClass) {
         return res.status(400).json({ message: 'Selected class was not found.' });
+      }
+
+      // Branch isolation: class must belong to the same branch as the registration context.
+      if (resolvedBranchId && selectedClass.branchId !== resolvedBranchId) {
+        return res.status(403).json({ message: 'Access denied. Selected class does not belong to your branch.' });
       }
     }
 
@@ -528,9 +547,7 @@ const registerStudent = async (req, res) => {
           studentId: studentId,
           grade,
           stream,
-          branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
-            ? req.branchFilter.branchId
-            : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
+          branchId: resolvedBranchId,
           personalDetails: resolvedPersonalDetails,
           familyBackground: resolvedFamilyBackground,
           guardianContacts: []
@@ -545,9 +562,7 @@ const registerStudent = async (req, res) => {
             studentId: fallbackStudentId,
             grade,
             stream,
-            branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
-              ? req.branchFilter.branchId
-              : (req.body.branchId || req.headers['x-branch-id'] || req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
+            branchId: resolvedBranchId,
             personalDetails: resolvedPersonalDetails,
             familyBackground: resolvedFamilyBackground,
             guardianContacts: []
@@ -1203,6 +1218,9 @@ const getRegistrationClasses = async (req, res) => {
   try {
     const [classes, fees] = await Promise.all([
       prisma.class.findMany({
+        where: {
+          ...(req.branchFilter || {}),
+        },
         orderBy: { name: 'asc' },
         include: { teacher: { include: { user: { select: { name: true } } } } },
       }),

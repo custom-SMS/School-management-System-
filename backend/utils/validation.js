@@ -23,8 +23,8 @@ const nameSchema = z
 const phoneSchema = z
   .string()
   .optional()
-  .refine((val) => !val || /^\+?[\d\s-]{10,}$/.test(val), {
-    message: 'Invalid phone number format',
+  .refine((val) => !val || /^\+2519\d{8}$/.test(val), {
+    message: 'Invalid phone number format. Expected +2519XXXXXXXX',
   });
 
 const roleSchema = z.enum(['SuperAdmin', 'Admin', 'Cashier', 'Teacher', 'Student', 'Parent']);

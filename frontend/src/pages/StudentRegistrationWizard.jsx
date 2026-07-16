@@ -15,7 +15,9 @@ const blank = {
   firstName: '', fatherName: '', grandfatherName: '',
   email: '', dateOfBirth: '', gender: '', address: '', nationalId: '',
   parentFirst: '', parentFather: '', parentGrandfather: '',
-  parentRelationship: '', parentEmail: '', parentPhone: '', parentOccupation: '',
+  parentRelationship: '', parentEmail: '',
+  // UI stores only the digits after +2519 (8 digits)
+  parentPhone: '', parentOccupation: '',
   emergencyName: '', emergencyPhone: '',
   classId: '', transport: false,
   consent: false,
@@ -73,14 +75,29 @@ export default function StudentRegistrationWizard() {
 
   useEffect(() => {
     axios.get('/students/grade-fee').then((r) => setGradeFees(r.data || [])).catch(() => {});
-    axios.get('/students/classes').then((r) => {
-      const all = r.data || [];
-      setClasses(all.filter(c => c.feeConfigured !== false));
-    }).catch(() => setClasses([]));
+
+    // Branch scoping fix: backend uses X-Branch-Id / X-Level-Id to populate req.branchFilter/req.levelFilter
+    // for BranchAdmin/Teacher. Ensure these headers are sent so the class dropdown is filtered.
+    const branchId = localStorage.getItem('branchId');
+    const levelId = localStorage.getItem('levelId');
+
+    axios.get('/students/classes', {
+      headers: {
+        ...(branchId ? { 'x-branch-id': branchId } : {}),
+        ...(levelId ? { 'x-level-id': levelId } : {}),
+      },
+    })
+      .then((r) => {
+        const all = r.data || [];
+        setClasses(all.filter(c => c.feeConfigured !== false));
+      })
+      .catch(() => setClasses([]));
+
     axios.get('/academic-years')
       .then((r) => setActiveYear((r.data || []).find((y) => y.isActive) || null))
       .catch(() => setActiveYear(null));
   }, []);
+
 
   useEffect(() => {
     if (!isEditMode) return;
@@ -106,7 +123,10 @@ export default function StudentRegistrationWizard() {
           parentGrandfather: guardianName.grandfatherName,
           parentRelationship: primaryGuardian.relationship || '',
           parentEmail: primaryGuardian.email || '',
-          parentPhone: primaryGuardian.phone || student.personalDetails?.phone || '',
+          parentPhone: String(primaryGuardian.phone || student.personalDetails?.phone || '')
+            .replace(/^\+2519/, '')
+            .replace(/\D/g, '')
+            .slice(0, 8),
           parentOccupation: student.familyBackground?.occupation || '',
           emergencyName: noteValue(notes, 'Emergency').replace(/\s*\([^)]*\)\s*$/, ''),
           emergencyPhone: noteValue(notes, 'Emergency').match(/\(([^)]*)\)/)?.[1] || '',
@@ -147,7 +167,14 @@ export default function StudentRegistrationWizard() {
     return true;
   };
 
+  const formatParentPhone = (digits) => {
+    const d = String(digits || '').replace(/\D/g, '');
+    if (d.length === 0) return '';
+    return d.length === 8 ? `+2519${d}` : `+2519${d}`;
+  };
+
   const handleSubmit = async () => {
+
     if (registrationClosed) {
       return toast.error(
         activeYear
@@ -390,7 +417,23 @@ export default function StudentRegistrationWizard() {
                           </select>
                         </Field>
                         <Field label="Email Address"><input type="email" className={inputCls} value={form.parentEmail} onChange={(e) => set('parentEmail', e.target.value)} placeholder="example@email.com" /></Field>
-                        <Field label="Primary Contact Number"><input className={inputCls} value={form.parentPhone} onChange={(e) => set('parentPhone', e.target.value)} placeholder="+251 911 223 344" /></Field>
+                        <Field label="Primary Contact Number">
+                          <div className="flex items-center gap-3">
+                            <div className="shrink-0 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 text-sm font-bold text-slate-600">
+                              +251 9
+                            </div>
+                            <input
+                              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-900/5"
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={8}
+                              value={form.parentPhone}
+                              onChange={(e) => set('parentPhone', e.target.value.replace(/\D/g, '').slice(0, 8))}
+                              placeholder="XXXXXXXX"
+                            />
+                          </div>
+                        </Field>
                         <Field label="Occupation"><input className={inputCls} value={form.parentOccupation} onChange={(e) => set('parentOccupation', e.target.value)} placeholder="e.g. Civil Engineer" /></Field>
                       </div>
                       <div className="mt-6 border-t border-slate-200 pt-5">
