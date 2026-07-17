@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState, useContext, useCallback } from 'react';
+import { useEffect, useMemo, useState, useContext } from 'react';
 import { showConfirmDialog } from '../utils/sweetAlert';
 import { Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
 import { AuthContext } from '../context/AuthContext';
+import { useStudentsQuery } from '../queries/studentQueries';
+
 
 const PAGE_SIZE = 10;
 
@@ -111,36 +113,45 @@ export default function Students() {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+
+  const studentsQuery = useStudentsQuery({
+    role: user?.role,
+    branchId: user?.branchId,
+  });
+
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [menuOpenId, setMenuOpenId] = useState(null);
   const [updatingStatusId, setUpdatingStatusId] = useState('');
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const studentsRes = await axios.get('/students');
-      const payload = studentsRes.data;
-      const allStudents = Array.isArray(payload) ? payload : (payload?.students || []);
-      setStudents(allStudents);
-      const derivedClasses = Array.from(
-        new Map(
-          allStudents
-            .map((s) => String(s.grade || '').trim())
-            .filter(Boolean)
-            .map((grade) => [grade, { _id: grade, name: grade }])
-        ).values()
-      );
-      setClasses(derivedClasses);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to load student records');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  // Replace manual axios fetching with TanStack Query.
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (studentsQuery.isLoading) {
+      setLoading(true);
+      return;
+    }
+
+    if (studentsQuery.isError) {
+      setLoading(false);
+      toast.error(studentsQuery.error?.response?.data?.message || 'Failed to load student records');
+      return;
+    }
+
+    const payload = studentsQuery.data;
+    const allStudents = Array.isArray(payload) ? payload : (payload?.students || []);
+    setStudents(allStudents);
+
+    const derivedClasses = Array.from(
+      new Map(
+        allStudents
+          .map((s) => String(s.grade || '').trim())
+          .filter(Boolean)
+          .map((grade) => [grade, { _id: grade, name: grade }])
+      ).values()
+    );
+    setClasses(derivedClasses);
+    setLoading(false);
+  }, [studentsQuery.isLoading, studentsQuery.isError, studentsQuery.data, studentsQuery.error]);
+
 
   const availableClasses = useMemo(() =>
     [...classes].sort((a, b) => String(a.name).localeCompare(String(b.name), undefined, { numeric: true, sensitivity: 'base' }))
@@ -259,6 +270,7 @@ export default function Students() {
   };
 
   const handleStatusToggle = async (student) => {
+
     setMenuOpenId(null);
     const studentName = student.user?.name || student.studentId || 'this student';
     const nextIsActive = !(student.isActive ?? true);

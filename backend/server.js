@@ -42,7 +42,13 @@ prisma.$connect()
     process.exit(1); // Exit if DB connection fails to make sure server doesn't run in bad state
   });
 
+// Global Redis cache for GET JSON responses (branch + role based)
+// Must run after auth/branch middleware for the route to populate req.user + req.branchFilter.
+// Route handlers will also attach a cache resource version (req.cacheResourceVersion).
+app.use(globalCacheMiddleware);
+
 // Routes
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/branches', require('./routes/branchRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
@@ -65,8 +71,6 @@ app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/email', require('./routes/email'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
 
-// Global Redis cache for GET JSON responses (branch + role based) -- Moved after routes to ensure req.user is set
-app.use(globalCacheMiddleware);
 
 // Serve uploaded documents statically.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));

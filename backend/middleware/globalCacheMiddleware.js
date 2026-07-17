@@ -22,8 +22,17 @@ function buildGlobalCacheKey(req) {
   const userId = req.user?._id || '__none__';
   const branchFilter = req.branchFilter || {};
 
-  return `globalcache:${req.method}:${req.originalUrl}:role:${role}:user:${userId}:branch:${safeKeyPart(branchFilter)}`;
+  // Namespace versioning is controlled by cache version keys so we can invalidate deterministically
+  // without wildcard/pattern deletion.
+  //
+  // resourceVersion is expected to be set by our route handlers (or default to 0).
+  const resourceVersion = Number(req.cacheResourceVersion ?? 0);
+
+  // Key is resource-based, not URL-based, to enable invalidation by resource.
+  // Keep the current cache-key format parts (role/user/branch) and add version.
+  return `globalcache:${resourceVersion}:${req.method}:${req.path}:role:${role}:user:${userId}:branch:${safeKeyPart(branchFilter)}`;
 }
+
 
 function isBypassed(req) {
   return Boolean(req.query?.noCache) || Boolean(req.headers?.['x-no-cache']);
@@ -31,45 +40,24 @@ function isBypassed(req) {
 
 function shouldCache(req, res) {
   // Only cache GET by default.
-  if (req.method !== 'GET') {
-    console.log(`[Redis Cache] shouldCache: Not GET method for ${req.originalUrl}`);
-    return false;
-  }
-  if (isBypassed(req)) {
-    console.log(`[Redis Cache] shouldCache: Bypassed for ${req.originalUrl}`);
-    return false;
-  }
+  if (req.method !== 'GET') return false;
+  if (isBypassed(req)) return false;
 
   // Avoid caching auth, docs, uploads, etc.
   const path = req.path || '';
-  if (path.startsWith('/api/auth')) {
-    console.log(`[Redis Cache] shouldCache: Auth path excluded for ${req.originalUrl}`);
-    return false;
-  }
-  if (path.startsWith('/api/uploads')) {
-    console.log(`[Redis Cache] shouldCache: Uploads path excluded for ${req.originalUrl}`);
-    return false;
-  }
-  if (path.startsWith('/api-docs')) {
-    console.log(`[Redis Cache] shouldCache: Docs path excluded for ${req.originalUrl}`);
-    return false;
-  }
+  if (path.startsWith('/api/auth')) return false;
+  if (path.startsWith('/api/uploads')) return false;
+  if (path.startsWith('/api-docs')) return false;
 
-  // IMPORTANT:
-  // This middleware runs before route middlewares like verifyToken/injectBranchFilter.
-  // If we cache before req.user/branchFilter exists, keys degrade to __guest__/__none__
-  // and can cause wrong payloads to be served, breaking the UI.
-  if (!req.user) {
-    console.log(`[Redis Cache] shouldCache: No req.user for ${req.originalUrl}`);
-    return false;
-  }
-  if (!req.branchFilter) {
-    console.log(`[Redis Cache] shouldCache: No req.branchFilter for ${req.originalUrl}`);
-    return false;
-  }
+  // Now that middleware is placed after auth/branch middleware, we can rely on the presence
+  // of req.user/req.branchFilter for protected GET requests.
+  // For routes that don't set them, don't cache.
+  if (!req.user) return false;
+  if (!req.branchFilter) return false;
 
   return true;
 }
+
 
 
 function isProbablyJsonResponse(obj) {
@@ -77,16 +65,24 @@ function isProbablyJsonResponse(obj) {
   return obj !== undefined;
 }
 
+const { getResourceVersion } = require('../utils/cacheVersions');
+
 const globalCacheMiddleware = async (req, res, next) => {
   try {
     if (!shouldCache(req, res)) {
-      // console.log(`[Redis Cache] Not caching: ${req.method} ${req.originalUrl}`);
       return next();
     }
 
+    // Attach resource version dynamically based on endpoint.
+    // Route handlers can override by setting req.cacheResourceVersion.
+    if (req.cacheResourceVersion === undefined) {
+      const resource = req.cacheResource || 'default';
+      req.cacheResourceVersion = await getResourceVersion(resource);
+    }
+
     const key = buildGlobalCacheKey(req);
-    console.log(`[Redis Cache] Checking key: ${key}`);
     const redis = getRedis();
+
 
     const cached = await redis.get(key);
     if (cached) {
