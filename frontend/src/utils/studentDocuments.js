@@ -1,3 +1,16 @@
+/**
+ * @deprecated These helpers (downloadStudentReportPdf, downloadTranscriptCsv) are no longer
+ * used in any student- or parent-facing page.
+ *
+ * Per the updated system policy, official report cards are printed and distributed by the
+ * school. Students and parents are NOT able to view, download, or print report cards from
+ * the portal. All digital report card export features have been removed from StudentReports.jsx
+ * and ParentReports.jsx.
+ *
+ * This file is retained to avoid breaking any import references during migration, but
+ * the exported functions are not called from the portal UI.
+ */
+
 const escapePdfText = (value) => String(value ?? '')
   .replace(/\\/g, '\\\\')
   .replace(/\(/g, '\\(')

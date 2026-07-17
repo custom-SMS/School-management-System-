@@ -9,6 +9,7 @@ export function printReportCard({
   logoUrl = null,
   passMark = 50,
   gpaEnabled = false,
+  classSize = null,
 }) {
   const school = branding.institutionNameEn || 'School';
   const schoolAm = branding.institutionNameAm || '';
@@ -21,7 +22,7 @@ export function printReportCard({
   const avg = Number(rc.averageScore || 0).toFixed(1);
   const gpa = (Number(rc.averageScore || 0) / 100 * 4).toFixed(2);
   const attPct = Number(rc.attendancePercentage || 0).toFixed(1);
-  const rank = rc.rank ? `#${rc.rank}` : '—';
+  const rank = rc.rank ? (classSize ? `${rc.rank}/${classSize}` : `#${rc.rank}`) : '—';
   const result = rc.status || '—';
   const promotion = rc.promotionStatus || '—';
   const conduct = rc.conductGrade || '—';

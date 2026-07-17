@@ -461,6 +461,47 @@ const submitToAdmin = async (req, res) => {
       return res.status(400).json({ message: 'reportCardIds array is required.' });
     }
 
+    // For Teacher role, verify the requesting teacher is the homeroom teacher
+    // for the class(es) that own the submitted report cards
+    if (req.user.role === 'Teacher') {
+      const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
+      if (!teacherProfile) {
+        return res.status(404).json({ message: 'Teacher profile not found.' });
+      }
+
+      // Fetch the report cards to determine which students/classes they belong to
+      const cards = await prisma.reportCard.findMany({
+        where: { id: { in: reportCardIds } },
+        select: { studentId: true, academicYearId: true, semesterId: true },
+      });
+
+      if (cards.length === 0) {
+        return res.status(404).json({ message: 'No matching report cards found.' });
+      }
+
+      // For each card, verify the teacher is the homeroom teacher for that student's class/section
+      for (const card of cards) {
+        const enrollment = await prisma.enrollment.findFirst({
+          where: { studentId: card.studentId, academicYearId: card.academicYearId },
+          include: { section: true },
+        });
+
+        const klass = enrollment?.section?.classId
+          ? await prisma.class.findUnique({ where: { id: enrollment.section.classId } })
+          : null;
+
+        const isClassHomeroom = klass && klass.teacherId === teacherProfile.id;
+        const isSectionHomeroom =
+          enrollment?.section && enrollment.section.homeroomTeacherId === teacherProfile.id;
+
+        if (!isClassHomeroom && !isSectionHomeroom) {
+          return res.status(403).json({
+            message: 'Access denied. You are not the homeroom teacher for all selected students.',
+          });
+        }
+      }
+    }
+
     await prisma.reportCard.updateMany({
       where: { id: { in: reportCardIds } },
       data: { workflowStatus: 'BranchAdminReview' },
@@ -557,6 +598,110 @@ const getReportCardsByClass = async (req, res) => {
   }
 };
 
+const upsertHomeroomReview = async (req, res) => {
+  try {
+    const { studentId, academicYearId, semesterId, homeroomRemarks, conductGrade, promotionStatus } = req.body;
+
+    if (!studentId || !academicYearId) {
+      return res.status(400).json({ message: 'studentId and academicYearId are required.' });
+    }
+
+    if (promotionStatus && !['Promoted', 'Not Promoted', 'Conditional Promotion', 'Pending'].includes(promotionStatus)) {
+      return res.status(400).json({ message: 'Invalid promotionStatus.' });
+    }
+
+    if (req.user.role === 'Teacher') {
+      const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
+      if (!teacherProfile) return res.status(404).json({ message: 'Teacher profile not found.' });
+
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { studentId, academicYearId },
+        include: { section: true },
+      });
+
+      if (!enrollment) {
+        return res.status(404).json({ message: 'Student enrollment not found for this academic year.' });
+      }
+
+      // Resolve the classId — prefer section's classId, fall back to a grade record
+      let studentClassId = enrollment.section?.classId || null;
+      if (!studentClassId) {
+        const gradeRecord = await prisma.grade.findFirst({
+          where: { studentId, academicYearId },
+          select: { classId: true },
+        });
+        studentClassId = gradeRecord?.classId || null;
+      }
+
+      if (!studentClassId) {
+        return res.status(403).json({ message: 'Cannot verify homeroom access: student class not found.' });
+      }
+
+      // Check 1: class-level homeroom teacher (class.teacherId)
+      const klass = await prisma.class.findUnique({ where: { id: studentClassId } });
+      const isClassHomeroom = klass && klass.teacherId === teacherProfile.id;
+
+      if (!isClassHomeroom) {
+        // Check 2: section-level homeroom teacher for any section of this class
+        const homeroomSection = await prisma.section.findFirst({
+          where: { classId: studentClassId, homeroomTeacherId: teacherProfile.id },
+        });
+
+        // Check 3: explicit HomeRoomTeacher assignment record
+        const homeroomAssignment = !homeroomSection
+          ? await prisma.teacherAssignment.findFirst({
+              where: { teacherId: teacherProfile.id, classId: studentClassId, assignmentType: 'HomeRoomTeacher' },
+            })
+          : null;
+
+        if (!homeroomSection && !homeroomAssignment) {
+          return res.status(403).json({ message: 'Access denied. You are not the homeroom teacher for this student.' });
+        }
+      }
+    }
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { studentId, academicYearId }
+    });
+    const gradeLevel = enrollment?.grade || 'Unassigned';
+
+    const updateData = {
+      grade: gradeLevel,
+    };
+    if (homeroomRemarks !== undefined) updateData.homeroomRemarks = homeroomRemarks;
+    if (conductGrade !== undefined) updateData.conductGrade = conductGrade;
+    if (promotionStatus !== undefined) {
+      updateData.promotionStatus = promotionStatus;
+      updateData.promotedById = getActorId(req);
+      updateData.promotionDate = new Date();
+    }
+
+    const rc = await prisma.reportCard.upsert({
+      where: {
+        studentId_academicYearId_semesterId: {
+          studentId,
+          academicYearId,
+          semesterId: semesterId || null
+        }
+      },
+      update: updateData,
+      create: {
+        studentId,
+        academicYearId,
+        semesterId: semesterId || null,
+        averageScore: 0,
+        attendancePercentage: 100,
+        ...updateData
+      }
+    });
+
+    await logActivity(getActorId(req), 'Upsert Homeroom Review', rc.id, `Upserted homeroom review for student ${studentId}`);
+    res.status(200).json(rc);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   compileReportCards,
   getReportCard,
@@ -568,4 +713,5 @@ module.exports = {
   submitToAdmin,
   setPromotionStatus,
   getReportCardsByClass,
+  upsertHomeroomReview,
 };

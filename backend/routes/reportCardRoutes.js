@@ -11,6 +11,7 @@ const {
   submitToAdmin,
   setPromotionStatus,
   getReportCardsByClass,
+  upsertHomeroomReview,
 } = require('../controllers/reportCardController');
 const { verifyToken, checkRole, checkScope, injectBranchFilter } = require('../middleware/authMiddleware');
 
@@ -38,6 +39,7 @@ router.patch('/:id/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAd
 router.patch('/:id/comments', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), updateReportComments);
 
 // Homeroom teacher review (remarks + conduct + promotion per card)
+router.patch('/homeroom-review/upsert', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), upsertHomeroomReview);
 router.patch('/:id/homeroom-review', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), updateHomeroomReview);
 
 // Promotion status

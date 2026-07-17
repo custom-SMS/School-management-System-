@@ -925,6 +925,7 @@ const approveGrades = async (req, res) => {
       now, teacherProfile.id, ...gradeIds
     );
 
+    const { logActivity } = require('../middleware/auditLogger');
     await logActivity(req.user._id, 'Approve Grades', gradeIds.join(','), `Approved ${gradeIds.length} grades`);
 
     res.status(200).json({ message: `Successfully approved ${gradeIds.length} grades` });
