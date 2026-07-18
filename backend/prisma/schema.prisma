@@ -225,6 +225,10 @@ model Student {
   attendanceRecords AttendanceRecord[]
   enrollments       Enrollment[]
   reportCards       ReportCard[]
+
+  @@index([userId])
+  @@index([branchId])
+  @@index([grade])
 }
 
 // ─── Parent ───────────────────────────────────────────────────────────────────
@@ -300,6 +304,9 @@ model Teacher {
   assignments      TeacherAssignment[]
   homeroomSections Section[]
   classSubjects    ClassSubject[]
+
+  @@index([userId])
+  @@index([branchId])
 }
 
 // ─── Section ──────────────────────────────────────────────────────────────────
@@ -384,6 +391,9 @@ model AttendanceRecord {
   studentId    String
   student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
   status       String
+
+  @@index([studentId])
+  @@index([attendanceId])
 }
 
 // ─── TeacherAssignment ────────────────────────────────────────────────────────
@@ -403,6 +413,10 @@ model TeacherAssignment {
   createdAt      DateTime       @default(now())
 
   students Student[] @relation("TeacherAssignmentStudents")
+
+  @@index([teacherId])
+  @@index([classId])
+  @@index([teacherId, assignmentType])
 }
 
 // ─── GradingStructure ─────────────────────────────────────────────────────────
@@ -491,6 +505,10 @@ model Fee {
   createdAt      DateTime      @default(now())
 
   payments Payment[]
+
+  @@index([studentId])
+  @@index([academicYearId])
+  @@index([studentId, academicYearId])
 }
 
 // ─── FeeStructure ─────────────────────────────────────────────────────────────
@@ -541,6 +559,13 @@ model Grade {
   approvedById   String?           // ID of homeroom teacher who approved
   createdAt      DateTime          @default(now())
   updatedAt      DateTime          @updatedAt
+
+  @@index([studentId])
+  @@index([classId])
+  @@index([teacherId])
+  @@index([semesterId])
+  @@index([studentId, semesterId])
+  @@index([classId, semesterId])
 }
 
 // ─── Notification ─────────────────────────────────────────────────────────────

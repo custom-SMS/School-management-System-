@@ -70,7 +70,7 @@ router.get('/superadmin', checkRole(['SuperAdmin']), injectBranchFilter, getSupe
  *       200:
  *         description: Dashboard stats for Student
  */
-router.get('/student/me', checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentPortalStats);
+router.get('/student/me', checkRole(['Student', 'Parent', 'SuperAdmin']), injectBranchFilter, getStudentPortalStats);
 
 // Get teacher portal summary for assigned classes and recent activity
 /**
@@ -86,7 +86,7 @@ router.get('/student/me', checkRole(['Student', 'Parent', 'SuperAdmin']), getStu
  *       200:
  *         description: Dashboard stats for Teacher
  */
-router.get('/teacher/me', checkRole(['Teacher', 'Admin', 'SuperAdmin']), getTeacherPortalStats);
+router.get('/teacher/me', checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getTeacherPortalStats);
 
 // Parent portal summary for linked children
 /**
@@ -102,6 +102,6 @@ router.get('/teacher/me', checkRole(['Teacher', 'Admin', 'SuperAdmin']), getTeac
  *       200:
  *         description: Dashboard stats for Parent
  */
-router.get('/parent/me', checkRole(['Parent', 'SuperAdmin']), getParentPortalStats);
+router.get('/parent/me', checkRole(['Parent', 'SuperAdmin']), injectBranchFilter, getParentPortalStats);
 
 module.exports = router;

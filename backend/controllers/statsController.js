@@ -226,7 +226,10 @@ const getStudentPortalStats = async (req, res) => {
   try {
     const student = await prisma.student.findUnique({
       where: { userId: req.user._id },
-      include: {
+      select: {
+        id: true,
+        studentId: true,
+        grade: true,
         user: { select: { id: true, name: true, email: true } }
       }
     });
@@ -237,55 +240,101 @@ const getStudentPortalStats = async (req, res) => {
 
     const activeSemester = await (async () => {
       if (req.query.semesterId) {
-        return prisma.semester.findUnique({ where: { id: req.query.semesterId } });
+        return prisma.semester.findUnique({ where: { id: req.query.semesterId }, select: { id: true } });
       }
-      return prisma.semester.findFirst({ where: { isActive: true } });
+      return prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } });
     })();
 
-    const grades = await prisma.grade.findMany({
+    // Use aggregation for attendance stats (much faster than fetching all records)
+    const attendanceAgg = await prisma.attendanceRecord.groupBy({
+      by: ['status'],
       where: {
-        studentId: student.id,
-        ...(activeSemester ? { semesterId: activeSemester.id } : {})
+        studentId: student.id
       },
-      include: {
-        class: { select: { id: true, name: true, subject: true, stream: true } },
-        subjectRef: { select: { id: true, name: true } }
-      },
-      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
+      _count: true
     });
 
-    const fees = await prisma.fee.findMany({
-      where: { studentId: student.id },
-      orderBy: { createdAt: 'desc' }
-    });
+    const attendanceStats = {
+      presentCount: attendanceAgg.find(a => a.status === 'Present')?._count || 0,
+      lateCount: attendanceAgg.find(a => a.status === 'Late')?._count || 0,
+      absentCount: attendanceAgg.find(a => a.status === 'Absent')?._count || 0,
+    };
+    const attendanceRecordedCount = Object.values(attendanceStats).reduce((a, b) => a + b, 0);
+    const attendanceRate = attendanceRecordedCount > 0
+      ? Number(((attendanceStats.presentCount / attendanceRecordedCount) * 100).toFixed(2))
+      : 0;
 
-    const allAttendanceRecords = await prisma.attendance.findMany({
-      where: {
-        records: {
-          some: { studentId: student.id }
-        }
-      },
-      include: { records: true },
-      orderBy: { date: 'desc' }
-    });
+    // Parallelize remaining queries
+    const [grades, fees, recentAttendanceRecords] = await Promise.all([
+      prisma.grade.findMany({
+        where: {
+          studentId: student.id,
+          ...(activeSemester ? { semesterId: activeSemester.id } : {})
+        },
+        select: {
+          id: true,
+          studentId: true,
+          classId: true,
+          teacherId: true,
+          subject: true,
+          subjectId: true,
+          quiz: true,
+          assignment: true,
+          test: true,
+          midterm: true,
+          final: true,
+          total: true,
+          percentage: true,
+          updatedAt: true,
+          createdAt: true,
+          class: { select: { id: true, name: true, subject: true, stream: true } },
+          subjectRef: { select: { id: true, name: true } }
+        },
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
+      }),
+      prisma.fee.findMany({
+        where: { studentId: student.id },
+        select: {
+          id: true,
+          studentId: true,
+          amount: true,
+          description: true,
+          month: true,
+          dueDate: true,
+          paid: true,
+          paymentDate: true,
+          createdAt: true
+        },
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.attendance.findMany({
+        where: {
+          records: {
+            some: { studentId: student.id }
+          }
+        },
+        select: {
+          id: true,
+          date: true,
+          records: {
+            select: {
+              studentId: true,
+              status: true
+            }
+          }
+        },
+        orderBy: { date: 'desc' },
+        take: 30
+      })
+    ]);
 
-    const studentAttendance = allAttendanceRecords.map((record) => {
+    const recentAttendance = recentAttendanceRecords.map((record) => {
       const myRecord = record.records.find((r) => r.studentId === student.id);
       return {
         date: record.date,
         status: myRecord ? myRecord.status : 'Unknown',
       };
     });
-
-    const attendancePresentCount = studentAttendance.filter((entry) => entry.status === 'Present').length;
-    const attendanceLateCount = studentAttendance.filter((entry) => entry.status === 'Late').length;
-    const attendanceAbsentCount = studentAttendance.filter((entry) => entry.status === 'Absent').length;
-    const attendanceRecordedCount = studentAttendance.filter((entry) => entry.status !== 'Unknown').length;
-    const attendanceRate = attendanceRecordedCount > 0
-      ? Number(((attendancePresentCount / attendanceRecordedCount) * 100).toFixed(2))
-      : 0;
-
-    const recentAttendance = studentAttendance.slice(0, 30);
 
     const pendingFees = fees.reduce((sum, fee) => {
       return fee.paid ? sum : sum + Number(fee.amount || 0);
@@ -332,11 +381,11 @@ const getStudentPortalStats = async (req, res) => {
       attendanceCount: recentAttendance.length,
       attendanceRate,
       attendanceBreakdown: {
-        presentCount: attendancePresentCount,
-        lateCount: attendanceLateCount,
-        absentCount: attendanceAbsentCount,
+        presentCount: attendanceStats.presentCount,
+        lateCount: attendanceStats.lateCount,
+        absentCount: attendanceStats.absentCount,
         recordedCount: attendanceRecordedCount,
-        totalSessions: studentAttendance.length,
+        totalSessions: attendanceRecordedCount,
       },
     });
 
@@ -352,7 +401,10 @@ const getTeacherPortalStats = async (req, res) => {
   try {
     const teacher = await prisma.teacher.findUnique({
       where: { userId: req.user._id },
-      include: {
+      select: {
+        id: true,
+        teacherId: true,
+        subject: true,
         user: { select: { id: true, name: true, email: true, role: true } }
       }
     });
@@ -362,95 +414,89 @@ const getTeacherPortalStats = async (req, res) => {
     }
 
     const activeSemester = await prisma.semester.findFirst({
-      where: { isActive: true }
+      where: { isActive: true },
+      select: { id: true }
     });
 
-    const assignedClassDocs = await prisma.class.findMany({
-      where: { teacherId: teacher.id },
-      include: {
-        students: {
-          include: {
-            user: { select: { id: true, name: true, email: true } }
+    // Parallelize initial queries for better performance
+    const [assignedClassDocs, assignmentDocs, homeroomAssignments, homeroomSections] = await Promise.all([
+      prisma.class.findMany({
+        where: { teacherId: teacher.id },
+        select: {
+          id: true,
+          name: true,
+          subject: true,
+          stream: true,
+          sections: {
+            select: {
+              id: true,
+              enrollments: {
+                select: {
+                  studentId: true
+                },
+                where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } }
+              }
+            }
           }
         },
-        sections: {
-          include: {
-            enrollments: {
-              where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
-              include: {
-                student: {
-                  include: {
-                    user: { select: { id: true, name: true, email: true } }
+        orderBy: { createdAt: 'desc' }
+      }),
+      prisma.teacherAssignment.findMany({
+        where: { teacherId: teacher.id },
+        select: {
+          id: true,
+          classId: true,
+          assignmentType: true,
+          class: {
+            select: {
+              id: true,
+              name: true,
+              subject: true,
+              stream: true,
+              sections: {
+                select: {
+                  id: true,
+                  enrollments: {
+                    select: {
+                      studentId: true
+                    },
+                    where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } }
                   }
                 }
               }
             }
           }
         }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
-
-    const assignmentDocs = await prisma.teacherAssignment.findMany({
-      where: { teacherId: teacher.id },
-      include: {
-        class: {
-          include: {
-            students: {
-              include: {
-                user: { select: { id: true, name: true, email: true } }
-              }
-            },
-            sections: {
-              include: {
-                enrollments: {
-                  where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
-                  include: {
-                    student: {
-                      include: {
-                        user: { select: { id: true, name: true, email: true } }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    });
-
-    const homeroomAssignments = await prisma.teacherAssignment.findMany({
-      where: { teacherId: teacher.id, assignmentType: 'HomeRoomTeacher' },
-      select: { classId: true }
-    });
-
-    const homeroomSections = await prisma.section.findMany({
-      where: { homeroomTeacherId: teacher.id },
-      select: { classId: true }
-    });
+      }),
+      prisma.teacherAssignment.findMany({
+        where: { teacherId: teacher.id, assignmentType: 'HomeRoomTeacher' },
+        select: { classId: true }
+      }),
+      prisma.section.findMany({
+        where: { homeroomTeacherId: teacher.id },
+        select: { classId: true }
+      })
+    ]);
 
     const homeroomSectionClassIds = [...new Set(homeroomSections.map((section) => section.classId).filter(Boolean))];
+    
+    // Only fetch homeroom classes if there are any
     const homeroomSectionClasses = homeroomSectionClassIds.length
       ? await prisma.class.findMany({
         where: { id: { in: homeroomSectionClassIds } },
-        include: {
-          students: {
-            include: {
-              user: { select: { id: true, name: true, email: true } }
-            }
-          },
+        select: {
+          id: true,
+          name: true,
+          subject: true,
+          stream: true,
           sections: {
-            include: {
+            select: {
+              id: true,
               enrollments: {
-                where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
-                include: {
-                  student: {
-                    include: {
-                      user: { select: { id: true, name: true, email: true } }
-                    }
-                  }
-                }
+                select: {
+                  studentId: true
+                },
+                where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } }
               }
             }
           }
@@ -485,55 +531,57 @@ const getTeacherPortalStats = async (req, res) => {
       compareClassLabels(left.name, right.name),
     );
 
+    // Optimize class summaries by reducing queries per class
     const classSummaries = await Promise.all(classes.map(async (klass) => {
-      // Single query for attendance with aggregation
-      const attendanceAgg = await prisma.attendanceRecord.groupBy({
-        by: ['status'],
-        where: {
-          attendance: { classId: klass.id }
-        },
-        _count: true
+      // Get student count from enrollments (lighter than fetching full student objects)
+      const studentIds = new Set();
+      (klass.sections || []).forEach(section => {
+        (section.enrollments || []).forEach(enrollment => {
+          studentIds.add(enrollment.studentId);
+        });
       });
+      const studentCount = studentIds.size;
+
+      // Combine attendance queries into single aggregation
+      const [attendanceAgg, gradesAgg, latestAttendance, attendanceCount] = await Promise.all([
+        prisma.attendanceRecord.groupBy({
+          by: ['status'],
+          where: {
+            attendance: { classId: klass.id }
+          },
+          _count: true
+        }),
+        prisma.grade.aggregate({
+          where: {
+            classId: klass.id,
+            teacherId: req.user._id,
+            ...(activeSemester ? { semesterId: activeSemester.id } : {})
+          },
+          _avg: { percentage: true },
+          _count: true
+        }),
+        prisma.attendance.findFirst({
+          where: { classId: klass.id },
+          orderBy: { date: 'desc' },
+          select: { date: true }
+        }),
+        prisma.attendance.count({ where: { classId: klass.id } })
+      ]);
 
       const attendanceTotal = attendanceAgg.reduce((sum, item) => sum + item._count, 0);
       const attendancePresent = attendanceAgg.find(item => item.status === 'Present')?._count || 0;
 
-      // Single query for grades with aggregation
-      const gradesAgg = await prisma.grade.aggregate({
-        where: {
-          classId: klass.id,
-          teacherId: req.user._id,
-          ...(activeSemester ? { semesterId: activeSemester.id } : {})
-        },
-        _avg: { percentage: true },
-        _count: true
-      });
-
       const averageGrade = gradesAgg._count > 0
         ? Math.round(gradesAgg._avg.percentage || 0)
         : 0;
-
-      // Get latest attendance date separately
-      const latestAttendance = await prisma.attendance.findFirst({
-        where: { classId: klass.id },
-        orderBy: { date: 'desc' },
-        select: { date: true }
-      });
-
-      // Prefer students from section enrollments; fall back to direct M2M
-      const enrolledStudents = (klass.sections || [])
-        .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
-      const sourceStudents = enrolledStudents.length > 0 ? enrolledStudents : (klass.students || []);
-      const seenStudents = new Set();
-      const uniqueStudents = sourceStudents.filter(s => s && !seenStudents.has(s.id) && seenStudents.add(s.id));
 
       return {
         classId: klass.id,
         className: normalizeClassLabel(klass.name),
         subject: normalizeClassLabel(klass.subject),
         stream: klass.stream || '',
-        studentCount: uniqueStudents.length,
-        attendanceSessions: await prisma.attendance.count({ where: { classId: klass.id } }),
+        studentCount,
+        attendanceSessions: attendanceCount,
         attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
         gradesCount: gradesAgg._count,
         averageGrade,
@@ -542,43 +590,58 @@ const getTeacherPortalStats = async (req, res) => {
       };
     }));
 
+    // Calculate unique student count from enrollment data
     const assignedStudentsCount = new Set(
       classes.flatMap((klass) => {
-        const enrolledStudents = (klass.sections || [])
-          .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
-        const sourceStudents = enrolledStudents.length > 0 ? enrolledStudents : (klass.students || []);
-        return sourceStudents.map((student) => student?.id).filter(Boolean);
+        return (klass.sections || [])
+          .flatMap(section => (section.enrollments || []).map(e => e.studentId))
+          .filter(Boolean);
       })
     ).size;
 
-    const grades = await prisma.grade.findMany({
-      where: {
-        teacherId: req.user._id,
-        ...(activeSemester ? { semesterId: activeSemester.id } : {})
-      },
-      include: {
-        student: {
-          include: {
-            user: { select: { id: true, name: true, email: true } }
+    // Parallelize recent data fetches
+    const [grades, attendanceDocs] = await Promise.all([
+      prisma.grade.findMany({
+        where: {
+          teacherId: req.user._id,
+          ...(activeSemester ? { semesterId: activeSemester.id } : {})
+        },
+        select: {
+          id: true,
+          studentId: true,
+          classId: true,
+          subject: true,
+          percentage: true,
+          total: true,
+          createdAt: true,
+          student: {
+            select: {
+              studentId: true,
+              user: { select: { name: true } }
+            }
+          },
+          class: { select: { name: true } }
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 5
+      }),
+      prisma.attendance.findMany({
+        where: {
+          classId: { in: classes.map((klass) => klass.id) }
+        },
+        select: {
+          id: true,
+          classId: true,
+          date: true,
+          class: { select: { name: true } },
+          records: {
+            select: { status: true }
           }
         },
-        class: { select: { id: true, name: true, subject: true, stream: true } }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 8
-    });
-
-    const attendanceDocs = await prisma.attendance.findMany({
-      where: {
-        classId: { in: classes.map((klass) => klass.id) }
-      },
-      include: {
-        class: { select: { id: true, name: true, subject: true } },
-        records: true
-      },
-      orderBy: { date: 'desc' },
-      take: 8
-    });
+        orderBy: { date: 'desc' },
+        take: 5
+      })
+    ]);
 
     const recentGrades = grades.map((grade) => ({
       gradeId: grade.id,
@@ -630,8 +693,17 @@ const getParentPortalStats = async (req, res) => {
   try {
     const parent = await prisma.parent.findUnique({
       where: { userId: req.user._id },
-      include: {
-        children: true
+      select: {
+        id: true,
+        parentId: true,
+        fullName: true,
+        email: true,
+        phone: true,
+        relationship: true,
+        address: true,
+        children: {
+          select: { id: true }
+        }
       }
     });
 
@@ -640,93 +712,151 @@ const getParentPortalStats = async (req, res) => {
     }
 
     const activeSemester = await prisma.semester.findFirst({
-      where: { isActive: true }
+      where: { isActive: true },
+      select: { id: true }
     });
 
-    const children = [];
-
-    for (const child of parent.children) {
-      const childStudent = await prisma.student.findUnique({
-        where: { id: child.id },
-        include: { user: { select: { id: true, name: true, email: true } } }
-      });
-      if (!childStudent) continue;
-
-      const grades = await prisma.grade.findMany({
-        where: {
-          studentId: childStudent.id,
-          ...(activeSemester ? { semesterId: activeSemester.id } : {})
-        },
-        include: {
-          class: { select: { id: true, name: true, subject: true, stream: true } }
-        }
-      });
-
-      const fees = await prisma.fee.findMany({
-        where: { studentId: childStudent.id },
-        include: {
-          payments: {
-            orderBy: { paymentDate: 'desc' }
+    // Parallelize all child queries for better performance
+    const childrenData = await Promise.all(
+      parent.children.map(async (child) => {
+        const childStudent = await prisma.student.findUnique({
+          where: { id: child.id },
+          select: {
+            id: true,
+            studentId: true,
+            grade: true,
+            user: { select: { id: true, name: true, email: true } }
           }
-        },
-        orderBy: { createdAt: 'desc' }
-      });
+        });
+        if (!childStudent) return null;
 
-      const attendanceRecords = await prisma.attendance.findMany({
-        where: {
-          records: {
-            some: { studentId: childStudent.id }
-          }
-        },
-        include: { records: true },
-        orderBy: { date: 'desc' },
-        take: 30
-      });
+        // Use aggregation for fees (faster than fetching all)
+        const feeAgg = await prisma.fee.aggregate({
+          where: { studentId: childStudent.id },
+          _sum: { amount: true },
+          _count: true
+        });
 
-      const attendance = attendanceRecords.map((record) => {
-        const myRecord = record.records.find((r) => r.studentId === childStudent.id);
-        return { date: record.date, status: myRecord ? myRecord.status : 'Unknown' };
-      });
+        const [grades, fees, attendanceRecords] = await Promise.all([
+          prisma.grade.findMany({
+            where: {
+              studentId: childStudent.id,
+              ...(activeSemester ? { semesterId: activeSemester.id } : {})
+            },
+            select: {
+              id: true,
+              studentId: true,
+              classId: true,
+              teacherId: true,
+              subject: true,
+              quiz: true,
+              assignment: true,
+              test: true,
+              midterm: true,
+              final: true,
+              total: true,
+              percentage: true,
+              class: { select: { id: true, name: true, subject: true, stream: true } }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 20
+          }),
+          prisma.fee.findMany({
+            where: { studentId: childStudent.id },
+            select: {
+              id: true,
+              studentId: true,
+              amount: true,
+              description: true,
+              month: true,
+              dueDate: true,
+              paid: true,
+              paymentDate: true,
+              payments: {
+                select: {
+                  id: true,
+                  status: true,
+                  transactionReference: true,
+                  bankName: true,
+                  paymentDate: true
+                },
+                orderBy: { paymentDate: 'desc' },
+                take: 1
+              }
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 10
+          }),
+          prisma.attendance.findMany({
+            where: {
+              records: {
+                some: { studentId: childStudent.id }
+              }
+            },
+            select: {
+              id: true,
+              date: true,
+              records: {
+                select: {
+                  studentId: true,
+                  status: true
+                }
+              }
+            },
+            orderBy: { date: 'desc' },
+            take: 30
+          })
+        ]);
 
-      const mappedGrades = grades.map(g => ({
-        ...g,
-        _id: g.id,
-        student: g.studentId,
-        class: g.classId,
-        teacher: g.teacherId,
-        marks: {
-          test: g.test,
-          midterm: g.midterm,
-          final: g.final
-        },
-        classRef: g.class || null
-      }));
+        const attendance = attendanceRecords.map((record) => {
+          const myRecord = record.records.find((r) => r.studentId === childStudent.id);
+          return { date: record.date, status: myRecord ? myRecord.status : 'Unknown' };
+        });
 
-      const mappedFees = fees.map(f => ({
-        ...f,
-        _id: f.id,
-        student: f.studentId,
-        latestPayment: f.payments?.[0]
-          ? {
-            id: f.payments[0].id,
-            status: f.payments[0].status,
-            transactionReference: f.payments[0].transactionReference,
-            bankName: f.payments[0].bankName
-          }
-          : null
-      }));
+        const mappedGrades = grades.map(g => ({
+          ...g,
+          _id: g.id,
+          student: g.studentId,
+          class: g.classId,
+          teacher: g.teacherId,
+          marks: {
+            test: g.test,
+            midterm: g.midterm,
+            final: g.final
+          },
+          classRef: g.class || null
+        }));
 
-      children.push({
-        profile: {
-          ...childStudent,
-          _id: childStudent.id,
-          user: childStudent.user ? { ...childStudent.user, _id: childStudent.user.id } : null
-        },
-        grades: mappedGrades,
-        fees: mappedFees,
-        attendance,
-      });
-    }
+        const mappedFees = fees.map(f => ({
+          ...f,
+          _id: f.id,
+          student: f.studentId,
+          latestPayment: f.payments?.[0]
+            ? {
+              id: f.payments[0].id,
+              status: f.payments[0].status,
+              transactionReference: f.payments[0].transactionReference,
+              bankName: f.payments[0].bankName
+            }
+            : null
+        }));
+
+        return {
+          profile: {
+            ...childStudent,
+            _id: childStudent.id,
+            user: childStudent.user ? { ...childStudent.user, _id: childStudent.user.id } : null
+          },
+          grades: mappedGrades,
+          fees: mappedFees,
+          attendance,
+          totalFees: feeAgg._sum.amount || 0,
+          pendingFees: fees.reduce((sum, fee) => fee.paid ? sum : sum + Number(fee.amount || 0), 0)
+        };
+      })
+    );
+
+    const children = childrenData.filter(Boolean);
 
     res.json({
       parent: {
@@ -737,7 +867,7 @@ const getParentPortalStats = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
-  }
+ }
 };
 
 const getSuperAdminStats = async (req, res) => {
