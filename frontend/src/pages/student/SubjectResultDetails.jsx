@@ -510,7 +510,7 @@ export default function SubjectResultDetails() {
 
     }
 
-  }, [subjectKey, studentClasses, weights, user?.studentId, user?._id, refreshing]);
+  }, [subjectKey, studentClasses, gradingConfig, user?.studentId, user?._id, refreshing]);
 
 
 

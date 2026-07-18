@@ -51,6 +51,8 @@ export function BranchProvider({ children }) {
   // ── Fetch branches ────────────────────────────────────────────────────────
   const fetchBranches = useCallback(async () => {
     if (!user) return;
+    // Only fetch branches for users with appropriate roles/scopes
+    if (!isSuper && !isSchoolAdmin && !activeBranchId) return;
     setLoading(true);
     try {
       const res = await axios.get('/branches/branches');
@@ -64,7 +66,7 @@ export function BranchProvider({ children }) {
       }
     } catch { /* silent */ }
     finally { setLoading(false); }
-  }, [user, isSuper, isSchoolAdmin, selectedBranchId]);
+  }, [user, isSuper, isSchoolAdmin, selectedBranchId, activeBranchId]);
 
   // ── Fetch levels for selected branch ──────────────────────────────────────
   const fetchLevels = useCallback(async (branchId) => {
