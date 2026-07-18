@@ -138,6 +138,7 @@ model User {
   unlockRequestsRequested AttendanceUnlockRequest[] @relation("UnlockRequester")
   unlockRequestsApproved  AttendanceUnlockRequest[] @relation("UnlockApprover")
   promotedReportCards     ReportCard[]              @relation("PromotedBy")
+  reportCardHistories     ReportCardHistory[]
 }
 
 // ─── RolePermission ───────────────────────────────────────────────────────────
@@ -369,6 +370,7 @@ model Attendance {
   academicYearId String?
   academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   locked         Boolean       @default(false)
+  unlocked       Boolean       @default(false)
   createdAt      DateTime      @default(now())
 
   records        AttendanceRecord[]
@@ -415,6 +417,8 @@ model GradingStructure {
   assignmentWeight Float    @default(20)
   midtermWeight    Float    @default(30)
   finalWeight      Float    @default(40)
+  components       Json?    // Dynamic: [{name: string, weight: number}]
+  passMark         Float    @default(50)
   isActive         Boolean  @default(true)
   createdAt        DateTime @default(now())
 }
@@ -525,6 +529,7 @@ model Grade {
   test           Float?
   midterm        Float?
   final          Float?
+  componentScores Json?            // Dynamic scores: {"Quiz": 85, "Midterm": 70, ...}
   maxTotal       Float             @default(100)
   total          Float             @default(0)
   percentage     Float             @default(0)
@@ -561,6 +566,7 @@ model AuditLog {
   affectedRecord String?
   details        String?
   branchId       String?  // which branch this action occurred in
+  metadata       Json?    // diff details: { oldGrade, newGrade, reason, etc. }
   timestamp      DateTime @default(now())
 }
 
@@ -597,8 +603,27 @@ model ReportCard {
   promotionDate        DateTime?
   createdAt            DateTime     @default(now())
 
+  history              ReportCardHistory[]
+
   // Two report cards per year: one per semester
   @@unique([studentId, academicYearId, semesterId])
+}
+
+model ReportCardHistory {
+  id              String     @id @default(uuid())
+  reportCardId    String
+  reportCard      ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
+  version         Int
+  averageScore    Float
+  rank            Int?
+  status          String
+  conductGrade    String?
+  homeroomRemarks String?
+  teacherComments String?
+  modifiedById    String
+  modifiedBy      User       @relation(fields: [modifiedById], references: [id])
+  reason          String
+  createdAt       DateTime   @default(now())
 }
 
 // ─── Misc ─────────────────────────────────────────────────────────────────────

@@ -152,16 +152,12 @@ const saveGradesSchema = z.object({
   subject: subjectSchema,
   teacherId: z.string().uuid().optional(),
   semesterId: z.string().uuid().optional(),
+  academicYearId: z.string().uuid().optional(),
   submitToHomeroom: z.boolean().optional(),
   gradesData: z.array(z.object({
     student: z.string().uuid('Invalid student ID'),
-    marks: z.object({
-      quiz: z.number().min(0).max(100).optional(),
-      assignment: z.number().min(0).max(100).optional(),
-      test: z.number().min(0).max(100).optional(),
-      midterm: z.number().min(0).max(100).optional(),
-      final: z.number().min(0).max(100).optional(),
-    }).optional(),
+    // Accept any component name -> score mapping (dynamic grading components)
+    marks: z.record(z.string(), z.number().min(0).max(100).nullable()).optional(),
   })).min(1, 'At least one grade is required'),
 });
 

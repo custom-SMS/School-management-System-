@@ -8,6 +8,10 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Stub to prevent uncaught ReferenceError from browser content scripts
+      window.ActionableCoachmark = window.ActionableCoachmark || class ActionableCoachmark {};
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

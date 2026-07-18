@@ -5,13 +5,29 @@ import { toast } from 'react-toastify';
 
 export default function Settings() {
   // --- Existing Logic/States ---
-  const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
-  const [savingWeights, setSavingWeights] = useState(false);
   const [savingAll, setSavingAll] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [unlockingId, setUnlockingId] = useState('');
   const [gpaEnabled, setGpaEnabled] = useState(false);
+
+  // --- Dynamic Grading Structure ---
+  const [gradingComponents, setGradingComponents] = useState([
+    { name: 'Quiz', weight: 10 },
+    { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 },
+    { name: 'Final', weight: 40 },
+  ]);
   const [passMark, setPassMark] = useState(50);
+  const [savingWeights, setSavingWeights] = useState(false);
+  // Inline add/edit state
+  const [newCompName, setNewCompName] = useState('');
+  const [newCompWeight, setNewCompWeight] = useState('');
+  const [editingCompIdx, setEditingCompIdx] = useState(null);
+  const [editingCompName, setEditingCompName] = useState('');
+  const [editingCompWeight, setEditingCompWeight] = useState('');
+
+  const totalWeight = gradingComponents.reduce((s, c) => s + Number(c.weight || 0), 0);
+  const weightValid = Math.abs(totalWeight - 100) < 0.001;
 
   // --- Image 2 Mock States (for premium interactive UI) ---
   const [activeTab, setActiveTab] = useState('Platform Branding'); // Default active tab in screenshot or we can show all / scroll
@@ -41,13 +57,9 @@ export default function Settings() {
   const fetchWeights = async () => {
     try {
       const res = await axios.get('/classroom/grading-structure');
-      if (res.data) {
-        setWeights({
-          quizWeight: res.data.quizWeight,
-          assignmentWeight: res.data.assignmentWeight,
-          midtermWeight: res.data.midtermWeight,
-          finalWeight: res.data.finalWeight,
-        });
+      if (res.data?.components && Array.isArray(res.data.components)) {
+        setGradingComponents(res.data.components);
+        setPassMark(res.data.passMark ?? 50);
       }
     } catch (err) {
       console.error(err);
@@ -105,30 +117,72 @@ export default function Settings() {
     fetchSettings();
   }, []);
 
-  const total = Number(weights.quizWeight) + Number(weights.assignmentWeight) + Number(weights.midtermWeight) + Number(weights.finalWeight);
+  // ── Grading component CRUD ───────────────────────────────────────────────
+  const handleAddComponent = () => {
+    const name = newCompName.trim();
+    const weight = Number(newCompWeight);
+    if (!name) { toast.error('Component name is required.'); return; }
+    if (isNaN(weight) || weight < 0 || weight > 100) { toast.error('Weight must be 0–100.'); return; }
+    if (gradingComponents.some(c => c.name.toLowerCase() === name.toLowerCase())) {
+      toast.error('A component with that name already exists.'); return;
+    }
+    setGradingComponents(prev => [...prev, { name, weight }]);
+    setNewCompName(''); setNewCompWeight('');
+  };
 
-  const handleWeightChange = (field, value) => {
-    setWeights((w) => ({ ...w, [field]: value === '' ? '' : Number(value) }));
+  const handleDeleteComponent = (idx) => {
+    setGradingComponents(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  const handleStartEdit = (idx) => {
+    setEditingCompIdx(idx);
+    setEditingCompName(gradingComponents[idx].name);
+    setEditingCompWeight(String(gradingComponents[idx].weight));
+  };
+
+  const handleSaveEdit = (idx) => {
+    const name = editingCompName.trim();
+    const weight = Number(editingCompWeight);
+    if (!name) { toast.error('Name is required.'); return; }
+    if (isNaN(weight) || weight < 0 || weight > 100) { toast.error('Weight must be 0–100.'); return; }
+    setGradingComponents(prev => prev.map((c, i) => i === idx ? { name, weight } : c));
+    setEditingCompIdx(null);
+  };
+
+  const handleMoveUp = (idx) => {
+    if (idx === 0) return;
+    setGradingComponents(prev => {
+      const arr = [...prev];
+      [arr[idx - 1], arr[idx]] = [arr[idx], arr[idx - 1]];
+      return arr;
+    });
+  };
+
+  const handleMoveDown = (idx) => {
+    setGradingComponents(prev => {
+      if (idx === prev.length - 1) return prev;
+      const arr = [...prev];
+      [arr[idx], arr[idx + 1]] = [arr[idx + 1], arr[idx]];
+      return arr;
+    });
   };
 
   const handleSaveWeights = async (e) => {
     if (e) e.preventDefault();
-    if (total !== 100) {
-      toast.error(`Weights must sum to 100%. Current total: ${total}%.`);
+    if (!weightValid) {
+      toast.error(`Weights must sum to 100%. Current total: ${totalWeight.toFixed(1)}%.`);
       return;
     }
     setSavingWeights(true);
     try {
       await axios.post('/classroom/grading-structure', {
-        quizWeight: Number(weights.quizWeight),
-        assignmentWeight: Number(weights.assignmentWeight),
-        midtermWeight: Number(weights.midtermWeight),
-        finalWeight: Number(weights.finalWeight),
+        components: gradingComponents.map(c => ({ name: c.name, weight: Number(c.weight) })),
+        passMark: Number(passMark),
       });
-      toast.success('Grading structure updated successfully.');
+      toast.success('Grading structure saved.');
       fetchWeights();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update grading structure.');
+      toast.error(err.response?.data?.message || 'Failed to save grading structure.');
     } finally {
       setSavingWeights(false);
     }
@@ -510,79 +564,200 @@ export default function Settings() {
               </div>
             )}
 
-            {/* TAB: Grading & Attendance (Preserved functionalities) */}
+            {/* TAB: Grading & Attendance */}
             {activeTab === 'Grading & Attendance' && (
               <div className="space-y-6">
-                
-                {/* Grading Structure */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-                    <span className="text-xl">📊</span>
-                    <h3 className="text-lg font-bold text-slate-900">Grading Structure</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-6">Each component is scored out of 100 and combined using these weights. They must sum to 100%.</p>
 
-                  {/* GPA Toggle and Pass Mark */}
-                  <div className="mb-6 grid md:grid-cols-2 gap-6">
-                    <div className="bg-slate-50 rounded-2xl p-5 flex items-center justify-between border border-slate-150">
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-bold text-slate-900">Enable GPA Calculation</h4>
-                        <p className="text-xs text-slate-500">Show GPA as a secondary metric alongside average percentage.</p>
+                {/* ── Grading Structure card ── */}
+                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl">📊</span>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900">Grading Structure</h3>
+                        <p className="text-xs text-slate-500 mt-0.5">Define the assessment components and their weights. Total must equal 100%.</p>
                       </div>
-                      <button 
-                        onClick={() => setGpaEnabled(!gpaEnabled)} 
+                    </div>
+                    {/* Live total badge */}
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold border ${
+                      weightValid
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : 'bg-rose-50 text-rose-700 border-rose-200'
+                    }`}>
+                      <span className={`w-2 h-2 rounded-full ${weightValid ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                      Total: {totalWeight.toFixed(totalWeight % 1 === 0 ? 0 : 1)}%
+                      {weightValid ? ' ✓' : ' — must equal 100%'}
+                    </span>
+                  </div>
+
+                  {/* GPA toggle + Pass Mark */}
+                  <div className="mb-6 grid md:grid-cols-2 gap-4">
+                    <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-200/60">
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900">Enable GPA Calculation</h4>
+                        <p className="text-xs text-slate-500 mt-0.5">Show GPA alongside percentage on report cards.</p>
+                      </div>
+                      <button
+                        onClick={() => setGpaEnabled(!gpaEnabled)}
                         className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${gpaEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
                       >
                         <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${gpaEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
                       </button>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Pass Mark (%)</label>
-                      <input 
-                        type="number" 
-                        min="0" 
-                        max="100" 
-                        value={passMark} 
+                      <input
+                        type="number" min="0" max="100"
+                        value={passMark}
                         onChange={(e) => setPassMark(Number(e.target.value))}
-                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-400 focus:bg-white text-sm"
                       />
-                      <p className="text-xs text-slate-400">Minimum percentage required to pass. Used for Pass/Fail status on report cards.</p>
+                      <p className="text-xs text-slate-400">Minimum % to pass a subject — used on report cards.</p>
                     </div>
                   </div>
-                  
-                  <form onSubmit={handleSaveWeights} className="grid sm:grid-cols-2 gap-5">
-                    {[
-                      { key: 'quizWeight', label: 'Quiz Weight (%)' },
-                      { key: 'assignmentWeight', label: 'Assignment Weight (%)' },
-                      { key: 'midtermWeight', label: 'Midterm Weight (%)' },
-                      { key: 'finalWeight', label: 'Final Weight (%)' },
-                    ].map((f) => (
-                      <div key={f.key} className="space-y-2">
-                        <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">{f.label}</label>
-                        <input 
-                          type="number" 
-                          min="0" 
-                          max="100" 
-                          required 
-                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-slate-400 focus:bg-white" 
-                          value={weights[f.key]} 
-                          onChange={(e) => handleWeightChange(f.key, e.target.value)} 
-                        />
-                      </div>
-                    ))}
-                    <div className="sm:col-span-2 flex items-center justify-between p-4 rounded-xl mt-2 bg-slate-50 border border-slate-150">
-                      <div className={`text-sm font-semibold ${total === 100 ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        Total: {total}% {total === 100 ? '✓' : '(must equal 100%)'}
-                      </div>
-                      <button 
-                        type="submit" 
-                        disabled={savingWeights || total !== 100} 
-                        className="bg-slate-900 text-white hover:bg-slate-800 px-5 py-2.5 rounded-xl font-bold text-xs transition disabled:opacity-50"
-                      >
-                        {savingWeights ? 'Saving…' : 'Save Weights Only'}
-                      </button>
+
+                  {/* Components table */}
+                  <div className="overflow-x-auto rounded-xl border border-slate-200 mb-4">
+                    <table className="min-w-full border-collapse text-left text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
+                          <th className="px-4 py-3">Order</th>
+                          <th className="px-4 py-3 w-full">Component Name</th>
+                          <th className="px-4 py-3 text-right whitespace-nowrap">Weight (%)</th>
+                          <th className="px-4 py-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 bg-white">
+                        {gradingComponents.map((comp, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/60 transition-colors group">
+                            {editingCompIdx === idx ? (
+                              <>
+                                <td className="px-4 py-3 text-slate-400 text-xs font-medium">{idx + 1}</td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    autoFocus
+                                    value={editingCompName}
+                                    onChange={e => setEditingCompName(e.target.value)}
+                                    className="w-full rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm text-slate-900 outline-none focus:border-indigo-500"
+                                    placeholder="Component name"
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(idx); if (e.key === 'Escape') setEditingCompIdx(null); }}
+                                  />
+                                </td>
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="number" min="0" max="100"
+                                    value={editingCompWeight}
+                                    onChange={e => setEditingCompWeight(e.target.value)}
+                                    className="w-20 ml-auto block rounded-lg border border-indigo-300 bg-indigo-50 px-3 py-1.5 text-sm text-right text-slate-900 outline-none focus:border-indigo-500"
+                                    onKeyDown={e => { if (e.key === 'Enter') handleSaveEdit(idx); if (e.key === 'Escape') setEditingCompIdx(null); }}
+                                  />
+                                </td>
+                                <td className="px-4 py-3 text-right whitespace-nowrap">
+                                  <button onClick={() => handleSaveEdit(idx)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-emerald-700 transition mr-1.5">Save</button>
+                                  <button onClick={() => setEditingCompIdx(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                <td className="px-4 py-3">
+                                  <div className="flex gap-0.5">
+                                    <button onClick={() => handleMoveUp(idx)} disabled={idx === 0} title="Move up" className="rounded p-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-0 disabled:pointer-events-none transition">▲</button>
+                                    <button onClick={() => handleMoveDown(idx)} disabled={idx === gradingComponents.length - 1} title="Move down" className="rounded p-1 text-slate-300 hover:text-slate-600 hover:bg-slate-100 disabled:opacity-0 disabled:pointer-events-none transition">▼</button>
+                                  </div>
+                                </td>
+                                <td className="px-4 py-3 font-semibold text-slate-800">{comp.name}</td>
+                                <td className="px-4 py-3 text-right">
+                                  <span className="inline-block rounded-full bg-slate-100 px-3 py-0.5 text-xs font-bold text-slate-700 border border-slate-200">
+                                    {comp.weight}%
+                                  </span>
+                                </td>
+                                <td className="px-4 py-3 text-right whitespace-nowrap">
+                                  <button
+                                    onClick={() => handleStartEdit(idx)}
+                                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50 transition mr-1.5"
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteComponent(idx)}
+                                    className="rounded-lg border border-rose-100 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-50 transition"
+                                  >
+                                    Delete
+                                  </button>
+                                </td>
+                              </>
+                            )}
+                          </tr>
+                        ))}
+                        {gradingComponents.length === 0 && (
+                          <tr>
+                            <td colSpan="4" className="px-4 py-8 text-center text-slate-400 text-sm">
+                              No components defined. Add one below.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Add new component row */}
+                  <div className="flex gap-3 items-end mb-6">
+                    <div className="flex-1 space-y-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">New Component Name</label>
+                      <input
+                        type="text"
+                        value={newCompName}
+                        onChange={e => setNewCompName(e.target.value)}
+                        placeholder="e.g. Practical, Project, Oral Exam…"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                        onKeyDown={e => e.key === 'Enter' && handleAddComponent()}
+                      />
                     </div>
-                  </form>
+                    <div className="w-28 space-y-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Weight (%)</label>
+                      <input
+                        type="number" min="0" max="100"
+                        value={newCompWeight}
+                        onChange={e => setNewCompWeight(e.target.value)}
+                        placeholder="0"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white"
+                        onKeyDown={e => e.key === 'Enter' && handleAddComponent()}
+                      />
+                    </div>
+                    <button
+                      onClick={handleAddComponent}
+                      className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white hover:bg-slate-800 transition whitespace-nowrap"
+                    >
+                      + Add Component
+                    </button>
+                  </div>
+
+                  {/* Save bar */}
+                  <div className={`flex items-center justify-between rounded-xl px-5 py-4 border ${
+                    weightValid ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-100'
+                  }`}>
+                    <div>
+                      <p className={`text-sm font-bold ${weightValid ? 'text-emerald-800' : 'text-rose-800'}`}>
+                        {weightValid
+                          ? '✓ Ready to save — weights sum to exactly 100%'
+                          : `Total is ${totalWeight.toFixed(1)}% — adjust weights until they equal 100%`}
+                      </p>
+                      {!weightValid && (
+                        <p className="text-xs text-rose-600 mt-0.5">
+                          {totalWeight < 100
+                            ? `You need to add ${(100 - totalWeight).toFixed(1)}% more.`
+                            : `You need to remove ${(totalWeight - 100).toFixed(1)}%.`}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSaveWeights}
+                      disabled={savingWeights || !weightValid}
+                      className="rounded-xl bg-slate-900 text-white px-6 py-2.5 text-xs font-bold hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {savingWeights ? 'Saving…' : 'Save Grading Structure'}
+                    </button>
+                  </div>
                 </div>
 
                 {/* Attendance Locks */}
@@ -592,7 +767,7 @@ export default function Settings() {
                     <h3 className="text-lg font-bold text-slate-900">Attendance Locks</h3>
                   </div>
                   <p className="text-xs text-slate-500 mb-4">Sessions older than 7 days are locked. Unlock to allow teachers to amend them.</p>
-                  
+
                   <div className="overflow-x-auto rounded-xl border border-slate-200">
                     <table className="min-w-full border-collapse text-left text-sm">
                       <thead>
@@ -643,6 +818,8 @@ export default function Settings() {
 
               </div>
             )}
+
+
 
       
 

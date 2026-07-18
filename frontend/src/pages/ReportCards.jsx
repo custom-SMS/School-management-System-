@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
-import { showConfirmDialog } from '../utils/sweetAlert';
+import { useEffect, useMemo, useState, useContext } from 'react';
+import { showConfirmDialog, showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
 import { useBranding } from '../context/SettingsContext';
 import { printReportCard } from '../utils/printReportCard';
 import { useBranch } from '../context/BranchContext';
+import { AuthContext } from '../context/AuthContext';
 
 const getStudentOptionId = (s) => s?._id || s?.id || '';
 const getStudentDisplayName = (s) => s?.user?.name || s?.name || 'Student';
@@ -62,6 +63,8 @@ function WorkflowPipeline({ counts }) {
 export default function ReportCards() {
   const { branding, logoUrl, grading } = useBranding();
   const { activeSemester } = useBranch();
+  const { user } = useContext(AuthContext);
+  const isSuperAdmin = user?.role === 'SuperAdmin';
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedSemesterId, setSelectedSemesterId] = useState('');
@@ -74,16 +77,38 @@ export default function ReportCards() {
   const [comments, setComments] = useState('');
   const [busy, setBusy] = useState('');
 
-  // Class-level report card list for pipeline view
-  const [classCards, setClassCards] = useState([]);
-  const [loadingClassCards, setLoadingClassCards] = useState(false);
-  const [classes, setClasses] = useState([]);
-  const [selectedClassId, setSelectedClassId] = useState('');
+  // Historical editing state
+  const [historicalEditEnabled, setHistoricalEditEnabled] = useState(false);
+  const [historicalReason, setHistoricalReason] = useState('');
 
   const activeYear = useMemo(
     () => years.find((y) => y.id === selectedYear) || years.find((y) => y.isActive) || null,
     [years, selectedYear]
   );
+
+  // Derive whether the selected year is archived
+  const isArchivedYear = useMemo(() => activeYear && !activeYear.isActive, [activeYear]);
+
+  // Historical editing is only valid for SuperAdmin when viewing an archived year
+  const canEditHistorical = isSuperAdmin && isArchivedYear;
+
+  // In historical mode, all mutating calls must include the reason header
+  const getHistoricalHeaders = () =>
+    historicalEditEnabled && historicalReason
+      ? { 'x-modification-reason': historicalReason }
+      : {};
+
+  // When year switches, disable historical editing
+  useEffect(() => {
+    setHistoricalEditEnabled(false);
+    setHistoricalReason('');
+  }, [selectedYear]);
+
+  // Class-level report card list for pipeline view
+  const [classCards, setClassCards] = useState([]);
+  const [loadingClassCards, setLoadingClassCards] = useState(false);
+  const [classes, setClasses] = useState([]);
+  const [selectedClassId, setSelectedClassId] = useState('');
 
   // Semesters available for the chosen year
   const yearSemesters = useMemo(
@@ -152,6 +177,10 @@ export default function ReportCards() {
   // ── Compile ────────────────────────────────────────────────────────────────
   const handleCompile = async () => {
     if (!selectedYear) return;
+    if (isArchivedYear && !historicalEditEnabled) {
+      toast.error('Enable Historical Editing first to compile archived report cards.');
+      return;
+    }
     const semLabel = yearSemesters.find((s) => s.id === selectedSemesterId)?.name || 'current semester';
     const { isConfirmed } = await showConfirmDialog({
       title: 'Compile report cards?',
@@ -164,7 +193,7 @@ export default function ReportCards() {
       const res = await axios.post('/report-cards/compile', {
         academicYearId: selectedYear,
         semesterId: selectedSemesterId || undefined,
-      });
+      }, { headers: getHistoricalHeaders() });
       toast.success(res.data?.message || 'Report cards compiled.');
       if (selectedClassId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
@@ -278,9 +307,13 @@ export default function ReportCards() {
 
   const handleSaveComments = async () => {
     if (!preview?.reportCard?.id) return;
+    if (isArchivedYear && !historicalEditEnabled) {
+      toast.error('Enable Historical Editing to modify archived records.');
+      return;
+    }
     setBusy('comments');
     try {
-      await axios.patch(`/report-cards/${preview.reportCard.id}/comments`, { comments });
+      await axios.patch(`/report-cards/${preview.reportCard.id}/comments`, { comments }, { headers: getHistoricalHeaders() });
       toast.success('Comments saved.');
       loadPreview(selectedStudent);
     } catch (err) {
@@ -337,6 +370,35 @@ export default function ReportCards() {
     }
   };
 
+  // ── Historical Editing Mode ───────────────────────────────────────────────
+  const handleEnableHistoricalEdit = async () => {
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Enable Historical Editing?',
+      html: `<p class="text-left text-sm text-slate-600 mb-3">You are about to edit <strong>archived academic records</strong> for <strong>${activeYear?.year}</strong>.</p><p class="text-left text-sm text-slate-600">This action will be fully audited. Every change will be permanently logged with your account and reason.</p>`,
+      confirmButtonText: 'Continue',
+    });
+    if (!isConfirmed) return;
+
+    const { value: reason, isConfirmed: reasonConfirmed } = await showPromptDialog({
+      title: 'Reason for modification',
+      inputLabel: 'Provide a brief explanation (required)',
+      inputPlaceholder: 'e.g. Correcting data entry error — student grade was entered incorrectly on 2024-03-15',
+      inputValidator: (v) => !v || v.trim().length < 10 ? 'Please provide a clear reason (minimum 10 characters)' : null,
+      confirmButtonText: 'Enable Historical Editing',
+    });
+    if (!reasonConfirmed || !reason) return;
+
+    setHistoricalReason(reason.trim());
+    setHistoricalEditEnabled(true);
+    toast.success('Historical editing enabled. All changes will be audited.', { icon: '⚠️' });
+  };
+
+  const handleDisableHistoricalEdit = () => {
+    setHistoricalEditEnabled(false);
+    setHistoricalReason('');
+    toast.info('Historical editing disabled. Viewing in read-only mode.');
+  };
+
   const inputClass = 'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-4 focus:ring-gray-500/10';
   const card = preview?.reportCard;
   const grades = preview?.grades || [];
@@ -350,23 +412,88 @@ export default function ReportCards() {
         </p>
       </div>
 
+      {/* Historical Read-Only Banner */}
+      {isArchivedYear && (
+        <div className={`mb-5 rounded-2xl border px-5 py-4 ${
+          historicalEditEnabled
+            ? 'border-amber-300 bg-amber-50'
+            : 'border-slate-300 bg-slate-100'
+        }`}>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800">
+              {historicalEditEnabled
+                ? <svg className="h-4 w-4 text-amber-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+                : <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+              }
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className={`font-bold text-sm ${ historicalEditEnabled ? 'text-amber-800' : 'text-slate-700' }`}>
+                {historicalEditEnabled
+                  ? `⚠️  Historical Editing Enabled — ${activeYear?.year}`
+                  : `🔒  Viewing: ${activeYear?.year} — Read Only`
+                }
+              </p>
+              <p className={`text-xs mt-0.5 ${ historicalEditEnabled ? 'text-amber-700' : 'text-slate-500' }`}>
+                {historicalEditEnabled
+                  ? `Reason: "${historicalReason}" — Every change is being permanently logged.`
+                  : 'This is an archived academic year. All records are read-only.'}
+              </p>
+            </div>
+            {canEditHistorical && (
+              historicalEditEnabled ? (
+                <button
+                  onClick={handleDisableHistoricalEdit}
+                  className="shrink-0 rounded-xl border border-amber-400 bg-white px-4 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+                >
+                  Exit Historical Editing
+                </button>
+              ) : (
+                <button
+                  onClick={handleEnableHistoricalEdit}
+                  className="shrink-0 rounded-xl border border-slate-400 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Enable Historical Editing
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Academic year + top actions */}
       <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex flex-wrap items-end gap-4">
-          {/* Academic Year — read-only pill */}
+          {/* Academic Year — read-only pill for normal users, dropdown for SuperAdmin */}
           <div className="min-w-[180px] flex-1">
             <span className="mb-2 block text-xs font-bold uppercase tracking-wider text-slate-400">Academic Year</span>
-            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M7 2v2H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 8H5V6h14v4z" />
-              </svg>
-              <span className="font-bold text-slate-800">
-                {activeYear ? activeYear.year : 'No year'}
-              </span>
-              {activeYear?.isActive && (
-                <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Active</span>
-              )}
-            </div>
+            {isSuperAdmin ? (
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(e.target.value)}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-400 focus:bg-white cursor-pointer"
+              >
+                {years.map((y) => (
+                  <option key={y.id} value={y.id}>
+                    {y.year} {y.isActive ? '(Active)' : ''}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M7 2v2H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 8H5V6h14v4z" />
+                </svg>
+                <span className="font-bold text-slate-800">
+                  {activeYear ? activeYear.year : 'No year'}
+                </span>
+                {activeYear?.isActive && (
+                  <span className="ml-auto rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold text-emerald-700">Active</span>
+                )}
+                {isArchivedYear && (
+                  <span className="ml-auto rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-500">Archived</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Semester — pill tab toggle */}

@@ -7,9 +7,8 @@ import { useBranch } from '../../context/BranchContext';
 
 
 
-const emptyMarks = { quiz: 0, assignment: 0, midterm: 0, final: 0 };
+// emptyMarks & emptyErrors are built dynamically from components
 
-const emptyErrors = { quiz: false, assignment: false, midterm: false, final: false };
 
 
 
@@ -30,21 +29,22 @@ export default function Gradebook() {
 
   const [error, setError] = useState(false);
 
-  const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
+  const [gradingConfig, setGradingConfig] = useState({ components: [
+    { name: 'Quiz', weight: 10 }, { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 }, { name: 'Final', weight: 40 },
+  ] });
 
 
 
-  const components = useMemo(() => [
+  const components = useMemo(() =>
+    gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
+    [gradingConfig]
+  );
 
-    { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-
-    { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-
-    { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-
-    { field: 'final', label: 'Final', weight: weights.finalWeight },
-
-  ], [weights]);
+  const emptyMarks = useMemo(
+    () => Object.fromEntries(components.map(c => [c.field, 0])),
+    [components],
+  );
 
 
 
@@ -82,7 +82,7 @@ export default function Gradebook() {
 
   useEffect(() => {
 
-    axios.get('/classroom/grading-structure').then((r) => { if (r.data) setWeights(r.data); }).catch(() => { });
+    axios.get('/classroom/grading-structure').then((r) => { if (r.data?.components) setGradingConfig({ components: r.data.components }); }).catch(() => { });
 
   }, []);
 
@@ -406,7 +406,9 @@ export default function Gradebook() {
 
           <div className="mt-1 rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-600">
 
-            Q{weights.quizWeight} · A{weights.assignmentWeight} · M{weights.midtermWeight} · F{weights.finalWeight}
+            {components.map((c, i) => (
+              <span key={c.field}>{i > 0 ? ' · ' : ''}{c.label} {c.weight}%</span>
+            ))}
 
           </div>
 

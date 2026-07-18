@@ -95,14 +95,7 @@ export default function Login() {
 
             {/* Muted square decorations representing flags/partners */}
             <div className="flex gap-3">
-              <div className="w-10 h-8 bg-white/10 rounded-lg flex items-center justify-center">
-                {/* Ethiopia Flag Colors - Subtle Representation */}
-                <div className="flex flex-col w-6 h-4 rounded overflow-hidden">
-                  <div className="bg-[#009A44] h-1/3 w-full" />
-                  <div className="bg-[#FED100] h-1/3 w-full" />
-                  <div className="bg-[#EF3340] h-1/3 w-full" />
-                </div>
-              </div>
+             
               <div className="w-10 h-8 bg-white/10 rounded-lg flex items-center justify-center">
                 <svg className="w-4 h-4 text-white/50" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
@@ -15,6 +15,15 @@ export default function ReportCard() {
   const [activeYear, setActiveYear] = useState(null);
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
+  const [gradingConfig, setGradingConfig] = useState({ components: [
+    { name: 'Quiz', weight: 10 }, { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 }, { name: 'Final', weight: 40 },
+  ] });
+
+  const gradingComponents = useMemo(() =>
+    gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
+    [gradingConfig]
+  );
 
   useEffect(() => {
     const prevTitle = document.title;
@@ -24,10 +33,15 @@ export default function ReportCard() {
       if (user?.role !== 'Student') { setLoading(false); return; }
 
       try {
-        const [statsRes, yearsRes] = await Promise.all([
+        const [statsRes, yearsRes, gradingRes] = await Promise.all([
           axios.get('/stats/student/me'),
           axios.get('/academic-years'),
+          axios.get('/classroom/grading-structure').catch(() => ({ data: null })),
         ]);
+
+        if (gradingRes.data?.components) {
+          setGradingConfig({ components: gradingRes.data.components });
+        }
 
         setStudentStats(statsRes.data);
 
@@ -61,10 +75,7 @@ export default function ReportCard() {
     return {
       _id: g._id || g.id,
       subject: g.subject || '—',
-      quiz: marks.quiz ?? null,
-      assignment: marks.assignment ?? null,
-      midterm: marks.midterm ?? null,
-      final: marks.final ?? null,
+      marks,
       total: Number(g.total ?? 0),
       percentage: pct,
       pass: pct >= passMark,
@@ -247,7 +258,11 @@ export default function ReportCard() {
               <table className="w-full border-collapse text-center text-sm">
                 <thead>
                   <tr className="bg-slate-900 text-white">
-                    {['Subject', 'Quiz', 'Assign.', 'Midterm', 'Final', 'Total', '%', 'Status'].map((h) => (
+                    <th className="border border-slate-800 px-4 py-3 font-semibold">Subject</th>
+                    {gradingComponents.map((c) => (
+                      <th key={c.field} className="border border-slate-800 px-4 py-3 font-semibold">{c.label}</th>
+                    ))}
+                    {['Total', '%', 'Status'].map((h) => (
                       <th key={h} className="border border-slate-800 px-4 py-3 font-semibold">{h}</th>
                     ))}
                   </tr>
@@ -256,10 +271,9 @@ export default function ReportCard() {
                   {gradeRows.length > 0 ? gradeRows.map((g) => (
                     <tr key={g._id} className="hover:bg-slate-50 transition">
                       <td className="border border-slate-100 px-4 py-3 text-left font-semibold text-slate-900">{g.subject}</td>
-                      <td className="border border-slate-100 px-4 py-3">{g.quiz ?? '—'}</td>
-                      <td className="border border-slate-100 px-4 py-3">{g.assignment ?? '—'}</td>
-                      <td className="border border-slate-100 px-4 py-3">{g.midterm ?? '—'}</td>
-                      <td className="border border-slate-100 px-4 py-3">{g.final ?? '—'}</td>
+                      {gradingComponents.map((c) => (
+                        <td key={c.field} className="border border-slate-100 px-4 py-3">{g.marks?.[c.field] ?? '—'}</td>
+                      ))}
                       <td className="border border-slate-100 px-4 py-3 font-bold text-slate-900">{g.total}</td>
                       <td className="border border-slate-100 px-4 py-3 font-bold text-slate-900">{g.percentage}%</td>
                       <td className={`border border-slate-100 px-4 py-3 font-bold ${g.pass ? 'text-emerald-600' : 'text-rose-600'}`}>
@@ -268,7 +282,7 @@ export default function ReportCard() {
                     </tr>
                   )) : (
                     <tr>
-                      <td colSpan="8" className="px-4 py-8 text-slate-400">No grades available yet.</td>
+                      <td colSpan={gradingComponents.length + 4} className="px-4 py-8 text-slate-400">No grades available yet.</td>
                     </tr>
                   )}
                 </tbody>

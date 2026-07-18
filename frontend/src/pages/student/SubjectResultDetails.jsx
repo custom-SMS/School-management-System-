@@ -30,7 +30,15 @@ export default function SubjectResultDetails() {
 
   const [refreshing, setRefreshing] = useState(false);
 
-  const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
+  const [gradingConfig, setGradingConfig] = useState({ components: [
+    { name: 'Quiz', weight: 10 }, { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 }, { name: 'Final', weight: 40 },
+  ] });
+
+  const dynamicComponents = useMemo(() =>
+    gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
+    [gradingConfig]
+  );
 
   const [studentClasses, setStudentClasses] = useState([]);
 
@@ -40,7 +48,7 @@ export default function SubjectResultDetails() {
 
   useEffect(() => {
 
-    axios.get('/classroom/grading-structure').then((r) => { if (r.data) setWeights(r.data); }).catch(() => {});
+    axios.get('/classroom/grading-structure').then((r) => { if (r.data?.components) setGradingConfig({ components: r.data.components }); }).catch(() => {});
 
   }, []);
 
@@ -144,17 +152,7 @@ export default function SubjectResultDetails() {
 
             // Transform classroom grades data to match expected format
 
-            const components = [
-
-              { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-
-              { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-
-              { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-
-              { field: 'final', label: 'Final', weight: weights.finalWeight },
-
-            ];
+            const components = dynamicComponents;
 
             
 
@@ -276,17 +274,7 @@ export default function SubjectResultDetails() {
 
                 const primary = subjectGrades[0];
 
-                const components = [
-
-                  { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-
-                  { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-
-                  { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-
-                  { field: 'final', label: 'Final', weight: weights.finalWeight },
-
-                ];
+                const components = dynamicComponents;
 
                 
 
@@ -418,17 +406,7 @@ export default function SubjectResultDetails() {
 
             const primary = subjectGrades[0];
 
-            const components = [
-
-              { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-
-              { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-
-              { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-
-              { field: 'final', label: 'Final', weight: weights.finalWeight },
-
-            ];
+             const components = dynamicComponents;
 
             
 

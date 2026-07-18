@@ -1,6 +1,7 @@
 const prisma = require('../prisma');
 const { logActivity } = require('../middleware/auditLogger');
 const { sendNotification } = require('./notificationController');
+const { checkHistoricalAccess } = require('../utils/historicalCorrection');
 
 const normalizeLabel = (value) => String(value ?? '').trim() || 'Unassigned';
 
@@ -400,6 +401,12 @@ const updateReportComments = async (req, res) => {
     });
     if (!existing) return res.status(404).json({ message: 'Report card not found.' });
 
+    // Enforce historical access check
+    const histCheck = await checkHistoricalAccess(req, existing.academicYearId);
+    if (!histCheck.ok) {
+      return res.status(histCheck.status).json({ message: histCheck.message });
+    }
+
     if (req.user.role === 'Teacher') {
       const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
       if (!teacherProfile) return res.status(404).json({ message: 'Teacher profile not found.' });
@@ -414,6 +421,11 @@ const updateReportComments = async (req, res) => {
         if (await canTeacherAccessClass(teacherProfile.id, classId)) { authorized = true; break; }
       }
       if (!authorized) return res.status(403).json({ message: 'You are not authorized to comment on this report card.' });
+    }
+
+    // Save snapshot if historical edit
+    if (histCheck.reason) {
+      await saveReportCardHistorySnapshot(id, getActorId(req), histCheck.reason);
     }
 
     const reportCard = await prisma.reportCard.update({ where: { id }, data: { teacherComments: comments } });
@@ -433,6 +445,12 @@ const updateHomeroomReview = async (req, res) => {
     const rc = await prisma.reportCard.findUnique({ where: { id } });
     if (!rc) return res.status(404).json({ message: 'Report card not found.' });
 
+    // Enforce historical access check
+    const histCheck = await checkHistoricalAccess(req, rc.academicYearId);
+    if (!histCheck.ok) {
+      return res.status(histCheck.status).json({ message: histCheck.message });
+    }
+
     const updateData = {};
     if (homeroomRemarks !== undefined) updateData.homeroomRemarks = homeroomRemarks;
     if (conductGrade !== undefined) updateData.conductGrade = conductGrade;
@@ -443,6 +461,11 @@ const updateHomeroomReview = async (req, res) => {
       updateData.promotionStatus = promotionStatus;
       updateData.promotedById = getActorId(req);
       updateData.promotionDate = new Date();
+    }
+
+    // Save snapshot if historical edit
+    if (histCheck.reason) {
+      await saveReportCardHistorySnapshot(id, getActorId(req), histCheck.reason);
     }
 
     const updated = await prisma.reportCard.update({ where: { id }, data: updateData });
@@ -531,6 +554,12 @@ const setPromotionStatus = async (req, res) => {
     });
     if (!reportCard) return res.status(404).json({ message: 'Report card not found.' });
 
+    // Enforce historical access check
+    const histCheck = await checkHistoricalAccess(req, reportCard.academicYearId);
+    if (!histCheck.ok) {
+      return res.status(histCheck.status).json({ message: histCheck.message });
+    }
+
     let isAuthorized = ['SuperAdmin', 'Admin'].includes(req.user.role);
     if (!isAuthorized && req.user.role === 'Teacher') {
       const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
@@ -543,6 +572,11 @@ const setPromotionStatus = async (req, res) => {
       }
     }
     if (!isAuthorized) return res.status(403).json({ message: 'Only the assigned Homeroom Teacher or Administrator can set the promotion status.' });
+
+    // Save snapshot if historical edit
+    if (histCheck.reason) {
+      await saveReportCardHistorySnapshot(id, getActorId(req), histCheck.reason);
+    }
 
     const updated = await prisma.reportCard.update({
       where: { id },
@@ -604,6 +638,12 @@ const upsertHomeroomReview = async (req, res) => {
 
     if (!studentId || !academicYearId) {
       return res.status(400).json({ message: 'studentId and academicYearId are required.' });
+    }
+
+    // Enforce historical access check
+    const histCheck = await checkHistoricalAccess(req, academicYearId);
+    if (!histCheck.ok) {
+      return res.status(histCheck.status).json({ message: histCheck.message });
     }
 
     if (promotionStatus && !['Promoted', 'Not Promoted', 'Conditional Promotion', 'Pending'].includes(promotionStatus)) {
@@ -676,6 +716,14 @@ const upsertHomeroomReview = async (req, res) => {
       updateData.promotionDate = new Date();
     }
 
+    // Save snapshot if historical edit on existing card
+    const existingCard = await prisma.reportCard.findUnique({
+      where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId: semesterId || null } }
+    });
+    if (existingCard && histCheck.reason) {
+      await saveReportCardHistorySnapshot(existingCard.id, getActorId(req), histCheck.reason);
+    }
+
     const rc = await prisma.reportCard.upsert({
       where: {
         studentId_academicYearId_semesterId: {
@@ -702,6 +750,193 @@ const upsertHomeroomReview = async (req, res) => {
   }
 };
 
+const saveReportCardHistorySnapshot = async (reportCardId, modifiedById, reason) => {
+  if (!modifiedById || !reason) return;
+  const existingCard = await prisma.reportCard.findUnique({
+    where: { id: reportCardId }
+  });
+  if (!existingCard) return;
+
+  const latestHistory = await prisma.reportCardHistory.findFirst({
+    where: { reportCardId },
+    orderBy: { version: 'desc' }
+  });
+  const nextVersion = latestHistory ? (latestHistory.version + 1) : 1;
+
+  await prisma.reportCardHistory.create({
+    data: {
+      reportCardId: existingCard.id,
+      version: nextVersion,
+      averageScore: existingCard.averageScore,
+      rank: existingCard.rank,
+      status: existingCard.status,
+      conductGrade: existingCard.conductGrade,
+      homeroomRemarks: existingCard.homeroomRemarks,
+      teacherComments: existingCard.teacherComments,
+      modifiedById,
+      reason,
+    }
+  });
+};
+
+const compileClassReportCards = async (academicYearId, semesterId, classId, modifiedById = null, reason = null) => {
+  if (!academicYearId || !semesterId || !classId) {
+    console.warn('Skipping compileClassReportCards: missing required arguments', { academicYearId, semesterId, classId });
+    return;
+  }
+  const klass = await prisma.class.findUnique({ where: { id: classId } });
+  if (!klass) return;
+
+  const semester = await prisma.semester.findUnique({ where: { id: semesterId } });
+  if (!semester) return;
+  const isSemester2 = semester.order === 2;
+
+  const enrollments = await prisma.enrollment.findMany({
+    where: {
+      academicYearId,
+      section: { classId },
+      status: 'Enrolled'
+    }
+  });
+  if (!enrollments.length) return;
+
+  const studentIds = enrollments.map(e => e.studentId);
+
+  const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' } });
+  const gradingSettings = parseSettingValue(gradingSetting?.value, {});
+  const passMark = Number(gradingSettings.passMark || 50);
+
+  const [grades, attendanceRecords] = await Promise.all([
+    prisma.grade.findMany({
+      where: {
+        academicYearId,
+        semesterId,
+        studentId: { in: studentIds },
+        submissionStatus: 'ApprovedByHomeroom'
+      },
+      select: { studentId: true, classId: true, percentage: true }
+    }),
+    prisma.attendanceRecord.findMany({
+      where: { studentId: { in: studentIds }, attendance: { academicYearId } },
+      include: { attendance: { select: { classId: true } } }
+    })
+  ]);
+
+  const gradeSummary = new Map();
+  grades.forEach((g) => {
+    const b = gradeSummary.get(g.studentId) || { total: 0, count: 0, classIds: new Set() };
+    b.total += Number(g.percentage || 0);
+    b.count += 1;
+    if (g.classId) b.classIds.add(g.classId);
+    gradeSummary.set(g.studentId, b);
+  });
+
+  const attSummary = new Map();
+  attendanceRecords.forEach((r) => {
+    const b = attSummary.get(r.studentId) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
+    b.total += 1;
+    if (r.status === 'Present') b.present += 1;
+    else if (r.status === 'Absent') b.absent += 1;
+    else if (r.status === 'Late') b.late += 1;
+    if (r.attendance?.classId) b.classIds.add(r.attendance.classId);
+    attSummary.set(r.studentId, b);
+  });
+
+  let sem1Cards = new Map();
+  if (isSemester2) {
+    const sem1 = await prisma.semester.findFirst({
+      where: { academicYearId, order: 1 },
+      select: { id: true }
+    });
+    if (sem1) {
+      const sem1Reports = await prisma.reportCard.findMany({
+        where: { academicYearId, semesterId: sem1.id, studentId: { in: studentIds } },
+        select: { studentId: true, averageScore: true }
+      });
+      sem1Reports.forEach(r => sem1Cards.set(r.studentId, r.averageScore));
+    }
+  }
+
+  const compiledData = enrollments.map((enrollment) => {
+    const sid = enrollment.studentId;
+    const gs = gradeSummary.get(sid) || { total: 0, count: 0, classIds: new Set() };
+    const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
+    const avgScore = gs.count > 0 ? gs.total / gs.count : 0;
+    const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
+    const classIds = new Set([...gs.classIds, ...as.classIds]);
+
+    const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
+    const combinedAverage = isSemester2 && sem1Snapshot !== null
+      ? Number(((sem1Snapshot + avgScore) / 2).toFixed(2))
+      : null;
+
+    return {
+      studentId: sid,
+      gradeLevel: normalizeLabel(enrollment.grade),
+      averageScore: Number(avgScore.toFixed(2)),
+      attendancePercentage: Number(attPct.toFixed(2)),
+      attendancePresent: as.present,
+      attendanceAbsent: as.absent,
+      attendanceLate: as.late,
+      attendanceTotal: as.total,
+      status: avgScore >= passMark ? 'Pass' : 'Fail',
+      classKey: Array.from(classIds).sort().join(',') || null,
+      sem1Snapshot,
+      combinedAverage
+    };
+  });
+
+  compiledData.sort((a, b) => b.averageScore - a.averageScore);
+  compiledData.forEach((s, i) => { s.rank = i + 1; });
+
+  for (const d of compiledData) {
+    const existing = await prisma.reportCard.findUnique({
+      where: { studentId_academicYearId_semesterId: { studentId: d.studentId, academicYearId, semesterId } }
+    });
+
+    if (existing && modifiedById && reason) {
+      if (existing.averageScore !== d.averageScore || existing.rank !== d.rank || existing.status !== d.status) {
+        await saveReportCardHistorySnapshot(existing.id, modifiedById, reason);
+      }
+    }
+
+    await prisma.reportCard.upsert({
+      where: { studentId_academicYearId_semesterId: { studentId: d.studentId, academicYearId, semesterId } },
+      update: {
+        grade: d.gradeLevel,
+        attendancePercentage: d.attendancePercentage,
+        attendancePresent: d.attendancePresent,
+        attendanceAbsent: d.attendanceAbsent,
+        attendanceLate: d.attendanceLate,
+        attendanceTotal: d.attendanceTotal,
+        averageScore: d.averageScore,
+        rank: d.rank,
+        status: d.status,
+        ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+        ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage })
+      },
+      create: {
+        studentId: d.studentId,
+        academicYearId,
+        semesterId,
+        grade: d.gradeLevel,
+        attendancePercentage: d.attendancePercentage,
+        attendancePresent: d.attendancePresent,
+        attendanceAbsent: d.attendanceAbsent,
+        attendanceLate: d.attendanceLate,
+        attendanceTotal: d.attendanceTotal,
+        averageScore: d.averageScore,
+        rank: d.rank,
+        status: d.status,
+        published: false,
+        workflowStatus: 'Draft',
+        ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+        ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage })
+      }
+    });
+  }
+};
+
 module.exports = {
   compileReportCards,
   getReportCard,
@@ -714,4 +949,5 @@ module.exports = {
   setPromotionStatus,
   getReportCardsByClass,
   upsertHomeroomReview,
+  compileClassReportCards,
 };

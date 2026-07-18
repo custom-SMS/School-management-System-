@@ -7,6 +7,17 @@ const api = axios.create({
 
 import { toast } from 'react-toastify';
 
+api.interceptors.request.use(
+  (config) => {
+    const yearViewId = localStorage.getItem('superAdminYearViewId');
+    if (yearViewId) {
+      config.headers['x-super-admin-year-view-id'] = yearViewId;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {

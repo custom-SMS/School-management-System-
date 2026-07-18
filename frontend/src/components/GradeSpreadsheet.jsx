@@ -3,7 +3,7 @@ import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext';
 import Navbar from './Navbar';
 
-const emptyMarks = { quiz: null, assignment: null, midterm: null, final: null };
+// emptyMarks is now built dynamically from components
 
 // Each component is scored out of 100; weights (which sum to 100%) determine the final total.
 const clampMark = (value) => {
@@ -26,7 +26,10 @@ export default function GradeSpreadsheet() {
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingGrades, setLoadingGrades] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [weights, setWeights] = useState({ quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 });
+  const [gradingConfig, setGradingConfig] = useState({ components: [
+    { name: 'Quiz', weight: 10 }, { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 }, { name: 'Final', weight: 40 },
+  ] });
 
   const selectedClass = useMemo(
     () => classes.find((klass) => klass._id === selectedClassId) || null,
@@ -34,13 +37,13 @@ export default function GradeSpreadsheet() {
   );
 
   const components = useMemo(
-    () => [
-      { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-      { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-      { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-      { field: 'final', label: 'Final', weight: weights.finalWeight },
-    ],
-    [weights],
+    () => gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
+    [gradingConfig],
+  );
+
+  const emptyMarks = useMemo(
+    () => Object.fromEntries(components.map(c => [c.field, null])),
+    [components],
   );
 
   const calculateTotal = (marks) =>
@@ -59,7 +62,7 @@ export default function GradeSpreadsheet() {
     axios
       .get('/classroom/grading-structure')
       .then((res) => {
-        if (res.data) setWeights(res.data);
+        if (res.data?.components) setGradingConfig({ components: res.data.components });
       })
       .catch(() => { });
   }, []);
@@ -182,12 +185,9 @@ export default function GradeSpreadsheet() {
       subject: selectedClass.subject,
       gradesData: rows.map((row) => ({
         student: row.student._id,
-        marks: {
-          quiz: row.marks.quiz != null ? row.marks.quiz : null,
-          assignment: row.marks.assignment != null ? row.marks.assignment : null,
-          midterm: row.marks.midterm != null ? row.marks.midterm : null,
-          final: row.marks.final != null ? row.marks.final : null,
-        },
+        marks: Object.fromEntries(
+          components.map(c => [c.field, row.marks[c.field] != null ? row.marks[c.field] : null])
+        ),
       })),
     };
 
@@ -215,7 +215,7 @@ export default function GradeSpreadsheet() {
             <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Gradebook: {selectedClassName}</h2>
             <p className="mt-2 text-sm text-slate-500">
               Enter each component out of 100. Final totals are computed using the active weights
-              (Quiz {weights.quizWeight}% • Assignment {weights.assignmentWeight}% • Midterm {weights.midtermWeight}% • Final {weights.finalWeight}%).
+              ({components.map(c => `${c.label} ${c.weight}%`).join(' • ')}).
             </p>
           </div>
 

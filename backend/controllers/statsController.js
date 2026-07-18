@@ -906,8 +906,19 @@ const getSuperAdminStats = async (req, res) => {
       }))
       .sort((left, right) => compareClassLabels(left.className, right.className));
 
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
     const unlockRequestsCount = await prisma.attendance.count({
-      where: { locked: true } // Simplified: count of locked sessions that might need unlocking
+      where: {
+        OR: [
+          { locked: true },
+          {
+            date: { lt: sevenDaysAgo },
+            unlocked: false
+          }
+        ]
+      }
     });
 
     res.status(200).json({

@@ -13,6 +13,24 @@ const {
 
 const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
 const { createClassSchema, updateClassSchema, saveGradesSchema, recordAttendanceSchema } = require('../utils/validation');
+const { checkHistoricalAccess } = require('../utils/historicalCorrection');
+const { compileClassReportCards } = require('./reportCardController');
+
+const getSelectedYear = async (req, branchId = null) => {
+  const superAdminYearHeader = req.headers['x-super-admin-year-view-id'];
+  if (req.user?.role === 'SuperAdmin' && superAdminYearHeader) {
+    const year = await prisma.academicYear.findUnique({
+      where: { id: superAdminYearHeader }
+    });
+    if (year) return year;
+  }
+  return prisma.academicYear.findFirst({
+    where: {
+      isActive: true,
+      ...(branchId ? { branchId } : {})
+    }
+  });
+};
 
 const cleanGradeName = (name) => {
   return String(name || '')
@@ -51,7 +69,8 @@ const mapGradeToResponse = (grade) => ({
   class: grade.classId,
   subject: grade.subject,
   teacher: grade.teacherId,
-  marks: {
+  // Use dynamic componentScores if present; fall back to legacy fixed fields for old records
+  marks: grade.componentScores || {
     quiz: grade.quiz,
     assignment: grade.assignment,
     test: grade.test,
@@ -189,6 +208,9 @@ const getClassroomOptions = async (req, res) => {
       };
     }
 
+    const targetYear = await getSelectedYear(req);
+    const targetYearId = targetYear?.id;
+
     const classes = await prisma.class.findMany({
       where,
       include: {
@@ -205,7 +227,10 @@ const getClassroomOptions = async (req, res) => {
         sections: {
           include: {
             enrollments: {
-              where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+              where: {
+                status: { in: ['Enrolled', 'Promoted', 'Repeated'] },
+                ...(targetYearId ? { academicYearId: targetYearId } : {})
+              },
               include: {
                 student: {
                   include: {
@@ -331,13 +356,6 @@ const recordAttendance = async (req, res) => {
       return res.status(400).json({ message: 'Cannot record attendance for a future date.' });
     }
 
-    // Lock check (7 days limit)
-    const diffTime = Math.abs(today - attendanceDate);
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    if (diffDays > 7 && req.user.role !== 'SuperAdmin') {
-      return res.status(403).json({ message: 'Attendance records older than 7 days are locked. Only SuperAdmin can modify them.' });
-    }
-
     const teacherProfile = authorization.teacher || await getTeacherProfile(req.user._id);
     const targetClass = await resolveTeacherClass(teacherProfile?.id || teacherId, classId, studentIds);
 
@@ -358,12 +376,18 @@ const recordAttendance = async (req, res) => {
       }
     });
 
+    // Lock check (7 days limit or explicitly locked, overridden by explicit unlock)
+    const diffTime = Math.abs(today - attendanceDate);
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const isLocked = (diffDays > 7 || (existingAttendance && existingAttendance.locked)) && (!existingAttendance || !existingAttendance.unlocked);
+
+    if (isLocked && req.user.role !== 'SuperAdmin') {
+      return res.status(403).json({ message: 'This attendance session is locked and cannot be modified. Only SuperAdmin can unlock it.' });
+    }
+
     let attendance;
 
     if (existingAttendance) {
-      if (existingAttendance.locked && req.user.role !== 'SuperAdmin') {
-        return res.status(403).json({ message: 'This attendance session is locked and cannot be modified.' });
-      }
 
       attendance = await prisma.attendance.update({
         where: { id: existingAttendance.id },
@@ -566,20 +590,18 @@ const getAttendanceSessions = async (req, res) => {
       take: 200
     });
 
-    const now = new Date();
-    const response = sessions.map((session) => {
-      const diffDays = Math.ceil(Math.abs(now - new Date(session.date)) / (1000 * 60 * 60 * 24));
-      // A session is effectively locked once it is older than 7 days, unless explicitly unlocked.
-      const effectivelyLocked = diffDays > 7 && session.locked !== false ? true : session.locked;
+    const response = sessions.map((s) => {
+      const diffDays = Math.ceil(Math.abs(new Date() - new Date(s.date)) / (1000 * 60 * 60 * 24));
+      const locked = (s.locked || diffDays > 7) && !s.unlocked;
       return {
-        _id: session.id,
-        className: session.class?.name || 'Unknown class',
-        subject: session.class?.subject || '',
-        date: session.date,
-        recordedBy: session.recordedBy?.name || '—',
-        recordCount: session._count?.records || 0,
+        _id: s.id,
+        className: s.class?.name || 'Unknown class',
+        subject: s.class?.subject || '',
+        date: s.date,
+        recordedBy: s.recordedBy?.name || '—',
+        recordCount: s._count?.records || 0,
         ageDays: diffDays,
-        locked: effectivelyLocked
+        locked: locked
       };
     });
 
@@ -592,9 +614,16 @@ const getAttendanceSessions = async (req, res) => {
 const unlockAttendance = async (req, res) => {
   try {
     const { id } = req.params;
+
+    // Verify the session exists before attempting update
+    const existing = await prisma.attendance.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ message: 'Attendance session not found. It may have been deleted.' });
+    }
+
     const attendance = await prisma.attendance.update({
       where: { id },
-      data: { locked: false }
+      data: { locked: false, unlocked: true }
     });
 
     const { logActivity } = require('../middleware/auditLogger');
@@ -602,6 +631,10 @@ const unlockAttendance = async (req, res) => {
 
     res.status(200).json({ message: 'Attendance session unlocked successfully.', attendance });
   } catch (error) {
+    // Prisma "record not found" code
+    if (error.code === 'P2025') {
+      return res.status(404).json({ message: 'Attendance session not found.' });
+    }
     res.status(500).json({ message: error.message });
   }
 };
@@ -611,7 +644,7 @@ const unlockAttendance = async (req, res) => {
 // @access  Private (Teacher/Admin)
 const saveGrades = async (req, res) => {
   try {
-    const { classId, subject, teacherId, gradesData, submitToHomeroom } = saveGradesSchema.parse(req.body);
+    const { classId, subject, teacherId, gradesData, submitToHomeroom, academicYearId } = saveGradesSchema.parse(req.body);
 
     const studentIds = (gradesData || []).map((data) => data.student).filter(Boolean);
 
@@ -625,38 +658,68 @@ const saveGrades = async (req, res) => {
       select: { teacherId: true, branchId: true }
     });
 
-    // Fetch active grading structure weights (e.g. Quiz 10%, Assignment 20%, Midterm 30%, Final 40%) for the class's branch
-    const weights = await prisma.gradingStructure.findFirst({
-      where: { isActive: true, branchId: klass?.branchId || undefined }
-    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
-
     const activeYear = await prisma.academicYear.findFirst({
       where: { isActive: true, branchId: klass?.branchId || undefined }
+    }) || await prisma.academicYear.findFirst({
+      where: { isActive: true }
     });
+
+    const targetYearId = academicYearId || activeYear?.id;
+
+    if (!targetYearId) {
+      return res.status(400).json({ message: 'Academic year context could not be resolved.' });
+    }
+
+    // Enforce historical access check
+    const histCheck = await checkHistoricalAccess(req, targetYearId);
+    if (!histCheck.ok) {
+      return res.status(histCheck.status).json({ message: histCheck.message });
+    }
+
+    // Fetch active grading structure weights for the class's branch
+    const weights = await prisma.gradingStructure.findFirst({
+      where: { isActive: true, branchId: klass?.branchId || undefined }
+    }) || await prisma.gradingStructure.findFirst({ where: { isActive: true } })
+      || { components: [{name:'Quiz',weight:10},{name:'Assignment',weight:20},{name:'Midterm',weight:30},{name:'Final',weight:40}], passMark: 50 };
+
+    // Resolve dynamic grading components (prefer new JSON field, fall back to legacy fixed fields)
+    const gradingComponents = Array.isArray(weights.components) && weights.components.length > 0
+      ? weights.components
+      : [
+          { name: 'Quiz', weight: weights.quizWeight ?? 10 },
+          { name: 'Assignment', weight: weights.assignmentWeight ?? 20 },
+          { name: 'Midterm', weight: weights.midtermWeight ?? 30 },
+          { name: 'Final', weight: weights.finalWeight ?? 40 },
+        ];
 
     // Resolve the active semester — prefer explicit body param, fall back to branch-specific active
     const activeSemester = await (async () => {
       if (req.body.semesterId) {
         return prisma.semester.findUnique({ where: { id: req.body.semesterId } });
       }
-      return prisma.semester.findFirst({
+      const active = await prisma.semester.findFirst({
         where: {
           isActive: true,
-          academicYear: { branchId: klass?.branchId || undefined }
+          academicYearId: targetYearId
         }
+      });
+      if (active) return active;
+      return prisma.semester.findFirst({
+        where: { academicYearId: targetYearId },
+        orderBy: { order: 'asc' }
       });
     })();
 
     // If submitting to homeroom, resolve the homeroom teachers for each student
     let studentSectionTeacherMap = new Map();
     let classHomeroomTeacherId = null;
-    if (submitToHomeroom) {
+    if (submitToHomeroom && !histCheck.reason) {
       classHomeroomTeacherId = await resolveClassHomeroomTeacherId(prisma, classId);
 
       const enrollments = await prisma.enrollment.findMany({
         where: {
           studentId: { in: studentIds },
-          academicYearId: activeYear?.id || undefined,
+          academicYearId: targetYearId || undefined,
           status: 'Enrolled',
           section: { classId }
         },
@@ -672,7 +735,7 @@ const saveGrades = async (req, res) => {
         enrollments.map(e => [e.studentId, e.section?.homeroomTeacherId])
       );
 
-      // Verify that every student has a resolved homeroom teacher (either section-level or class-level fallback)
+      // Verify that every student has a resolved homeroom teacher
       for (const studentId of studentIds) {
         const resolvedTeacherId = studentSectionTeacherMap.get(studentId) || classHomeroomTeacherId;
         if (!resolvedTeacherId) {
@@ -682,53 +745,36 @@ const saveGrades = async (req, res) => {
     }
 
     const results = [];
-    // The frontend converts raw scores to percentages before sending.
-    // e.g. if quiz weight=10 and teacher enters 7, the frontend sends 70 (= 7/10 * 100).
-    // So we validate each component against 100 (not the weight).
-    const componentLimits = {
-      quiz: 100,
-      assignment: 100,
-      midterm: 100,
-      final: 100,
-    };
-    const componentLabels = {
-      quiz: 'Quiz',
-      assignment: 'Assignment',
-      midterm: 'Midterm',
-      final: 'Final'
-    };
 
     for (let data of gradesData) {
       const marks = data.marks || {};
-      // Each component is scored out of 100 and combined using the configurable weights.
-      const quiz = Number(marks.quiz || 0);
-      const assignment = Number(marks.assignment || 0);
-      const midterm = Number(marks.midterm || 0);
-      const final = Number(marks.final || 0);
-      const test = Number(marks.test || 0); // legacy column, retained but unweighted
 
-      const invalidComponent = Object.entries(componentLimits).find(([field, maxAllowed]) => {
-        const value = Number(marks[field] || 0);
-        return Number.isNaN(value) || value < 0 || value > maxAllowed;
-      });
-
-      if (invalidComponent) {
-        const [field] = invalidComponent;
-        return res.status(400).json({
-          message: `${componentLabels[field]} score cannot be greater than 100%.`,
-          field,
-          maxAllowed: 100,
-          studentId: data.student
-        });
+      // Validate and score each dynamic component
+      const componentScores = {};
+      let total = 0;
+      for (const comp of gradingComponents) {
+        const raw = marks[comp.name];
+        const score = raw === null || raw === undefined ? 0 : Number(raw);
+        if (Number.isNaN(score) || score < 0 || score > 100) {
+          return res.status(400).json({
+            message: `${comp.name} score must be between 0 and 100.`,
+            field: comp.name,
+            maxAllowed: 100,
+            studentId: data.student
+          });
+        }
+        componentScores[comp.name] = score;
+        total += score * (comp.weight / 100);
       }
 
-      // FR-27: Calculate final score automatically based on weights (which sum to 100%)
-      const total = (quiz * (weights.quizWeight / 100)) +
-        (assignment * (weights.assignmentWeight / 100)) +
-        (midterm * (weights.midtermWeight / 100)) +
-        (final * (weights.finalWeight / 100));
+      // Legacy fixed fields for backward compatibility (used by old client code)
+      const quiz = Number(marks.quiz || componentScores['Quiz'] || 0);
+      const assignment = Number(marks.assignment || componentScores['Assignment'] || 0);
+      const midterm = Number(marks.midterm || componentScores['Midterm'] || 0);
+      const final = Number(marks.final || componentScores['Final'] || componentScores['Final Exam'] || 0);
+      const test = Number(marks.test || 0);
 
-      const percentage = Number(total.toFixed(2)); // Weights sum to 100%, so total is already a percentage
+      const percentage = Number(total.toFixed(2));
 
       const existingGrade = await prisma.grade.findFirst({
         where: {
@@ -746,14 +792,57 @@ const saveGrades = async (req, res) => {
         test,
         midterm,
         final,
+        componentScores,   // dynamic scores stored as JSON
         total,
         percentage,
         teacherId: req.user._id,
-        academicYearId: activeYear?.id || null,
+        academicYearId: targetYearId || null,
         semesterId: activeSemester?.id || null,
+        // Historical corrections are automatically approved to avoid workflow locks in archives
+        ...(histCheck.reason ? { submissionStatus: 'ApprovedByHomeroom' } : {})
       };
 
       if (existingGrade) {
+        // Detailed audit logging if values changed on a historical edit
+        if (histCheck.reason && (
+          existingGrade.quiz !== quiz ||
+          existingGrade.assignment !== assignment ||
+          existingGrade.midterm !== midterm ||
+          existingGrade.final !== final
+        )) {
+          const studentObj = await prisma.student.findUnique({
+            where: { id: data.student },
+            include: { user: { select: { name: true } } }
+          });
+
+          await prisma.auditLog.create({
+            data: {
+              userId: req.user._id,
+              action: 'Historical Grade Correction',
+              affectedRecord: existingGrade.id,
+              details: `Grade corrected for ${studentObj?.user?.name || 'Student'} (${studentObj?.studentId}) in ${subject}. Old total percentage: ${existingGrade.percentage}%, New: ${percentage}%`,
+              branchId: klass?.branchId || null,
+              metadata: {
+                academicYearId: targetYearId,
+                studentId: studentObj?.studentId,
+                studentName: studentObj?.user?.name,
+                subject,
+                oldQuiz: existingGrade.quiz,
+                newQuiz: quiz,
+                oldAssignment: existingGrade.assignment,
+                newAssignment: assignment,
+                oldMidterm: existingGrade.midterm,
+                newMidterm: midterm,
+                oldFinal: existingGrade.final,
+                newFinal: final,
+                oldPercentage: existingGrade.percentage,
+                newPercentage: percentage,
+                reason: histCheck.reason
+              }
+            }
+          });
+        }
+
         savedGrade = await prisma.grade.update({
           where: { id: existingGrade.id },
           data: gradeData
@@ -769,8 +858,8 @@ const saveGrades = async (req, res) => {
         });
       }
 
-      // Apply submission status via raw SQL to avoid stale generated client issues
-      if (submitToHomeroom) {
+      // Apply submission status via raw SQL if active year submitting to homeroom
+      if (submitToHomeroom && !histCheck.reason) {
         const now = new Date().toISOString();
         const studentHomeroomTeacherId = studentSectionTeacherMap.get(data.student) || classHomeroomTeacherId;
         await prisma.$executeRawUnsafe(
@@ -783,6 +872,11 @@ const saveGrades = async (req, res) => {
       }
 
       results.push(mapGradeToResponse(savedGrade));
+    }
+
+    // Trigger automatic cascade recalculation of ranks, averages, etc.
+    if (activeSemester?.id) {
+      await compileClassReportCards(targetYearId, activeSemester.id, classId, req.user._id, histCheck.reason);
     }
 
     res.status(200).json({ message: submitToHomeroom ? 'Grades submitted to homeroom teacher successfully' : 'Grades saved successfully', results });
@@ -936,30 +1030,57 @@ const approveGrades = async (req, res) => {
 
 const setGradingStructure = async (req, res) => {
   try {
-    const { quizWeight, assignmentWeight, midtermWeight, finalWeight } = req.body;
-    const totalWeight = Number(quizWeight) + Number(assignmentWeight) + Number(midtermWeight) + Number(finalWeight);
-    if (totalWeight !== 100) {
-      return res.status(400).json({ message: 'Weights must sum to 100%.' });
+    const { components, passMark } = req.body;
+
+    // Validate dynamic components
+    if (!Array.isArray(components) || components.length === 0) {
+      return res.status(400).json({ message: 'At least one grading component is required.' });
+    }
+    for (const comp of components) {
+      if (!comp.name || typeof comp.name !== 'string' || !comp.name.trim()) {
+        return res.status(400).json({ message: 'Each component must have a valid name.' });
+      }
+      if (typeof comp.weight !== 'number' || comp.weight < 0 || comp.weight > 100) {
+        return res.status(400).json({ message: `Component "${comp.name}" has an invalid weight. Must be 0–100.` });
+      }
+    }
+    const totalWeight = components.reduce((sum, c) => sum + Number(c.weight), 0);
+    if (Math.abs(totalWeight - 100) > 0.001) {
+      return res.status(400).json({ message: `Component weights must sum to exactly 100%. Current total: ${totalWeight}%` });
     }
 
-    await prisma.gradingStructure.updateMany({
-      data: { isActive: false }
+    // Deactivate old structure
+    await prisma.gradingStructure.updateMany({ data: { isActive: false } });
+
+    // Map first 4 components to legacy fixed fields for backward compatibility
+    const legacyMap = {};
+    const legacyFields = ['quizWeight', 'assignmentWeight', 'midtermWeight', 'finalWeight'];
+    components.slice(0, 4).forEach((comp, i) => {
+      legacyMap[legacyFields[i]] = comp.weight;
     });
 
     const structure = await prisma.gradingStructure.create({
       data: {
-        quizWeight: Number(quizWeight),
-        assignmentWeight: Number(assignmentWeight),
-        midtermWeight: Number(midtermWeight),
-        finalWeight: Number(finalWeight),
-        isActive: true
+        components,
+        passMark: Number(passMark ?? 50),
+        isActive: true,
+        quizWeight: legacyMap.quizWeight ?? 10,
+        assignmentWeight: legacyMap.assignmentWeight ?? 20,
+        midtermWeight: legacyMap.midtermWeight ?? 30,
+        finalWeight: legacyMap.finalWeight ?? 40,
       }
     });
 
     const { logActivity } = require('../middleware/auditLogger');
-    await logActivity(req.user._id, 'Configure Grading Structure', structure.id, `Set weights: Quiz ${quizWeight}%, Assignment ${assignmentWeight}%, Midterm ${midtermWeight}%, Final ${finalWeight}%`);
+    const summary = components.map(c => `${c.name}: ${c.weight}%`).join(', ');
+    await logActivity(req.user._id, 'Configure Grading Structure', structure.id, `Set dynamic components: [${summary}] — Pass mark: ${passMark ?? 50}%`);
 
-    res.status(200).json(structure);
+    res.status(200).json({
+      id: structure.id,
+      components: structure.components,
+      passMark: structure.passMark,
+      isActive: structure.isActive,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -967,11 +1088,36 @@ const setGradingStructure = async (req, res) => {
 
 const getGradingStructure = async (req, res) => {
   try {
-    const structure = await prisma.gradingStructure.findFirst({
-      where: { isActive: true }
-    }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+    const structure = await prisma.gradingStructure.findFirst({ where: { isActive: true } });
 
-    res.status(200).json(structure);
+    if (structure?.components && Array.isArray(structure.components) && structure.components.length > 0) {
+      // Return dynamic format
+      return res.status(200).json({
+        components: structure.components,
+        passMark: structure.passMark ?? 50,
+        // Legacy fields kept for old client code
+        quizWeight: structure.quizWeight,
+        assignmentWeight: structure.assignmentWeight,
+        midtermWeight: structure.midtermWeight,
+        finalWeight: structure.finalWeight,
+      });
+    }
+
+    // Fall back: convert legacy fixed fields to component format
+    const fallback = structure || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
+    return res.status(200).json({
+      components: [
+        { name: 'Quiz', weight: fallback.quizWeight ?? 10 },
+        { name: 'Assignment', weight: fallback.assignmentWeight ?? 20 },
+        { name: 'Midterm', weight: fallback.midtermWeight ?? 30 },
+        { name: 'Final', weight: fallback.finalWeight ?? 40 },
+      ],
+      passMark: fallback.passMark ?? 50,
+      quizWeight: fallback.quizWeight ?? 10,
+      assignmentWeight: fallback.assignmentWeight ?? 20,
+      midtermWeight: fallback.midtermWeight ?? 30,
+      finalWeight: fallback.finalWeight ?? 40,
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1003,18 +1149,30 @@ const getGrades = async (req, res) => {
       }
     }
 
+    const targetYear = await getSelectedYear(req, targetClass.branchId);
+    const targetYearId = targetYear?.id;
+
     // Build where clause — filter by semester if provided
     const where = { classId, subject };
+    if (targetYearId) {
+      where.academicYearId = targetYearId;
+    }
+
     if (semesterId) {
       where.semesterId = semesterId;
     } else {
-      // Only filter by active semester if one actually exists — branch-specific
-      const activeSemester = await prisma.semester.findFirst({
+      let activeSemester = await prisma.semester.findFirst({
         where: {
           isActive: true,
-          academicYear: { branchId: targetClass.branchId || undefined }
+          academicYearId: targetYearId || undefined
         }
       });
+      if (!activeSemester && targetYearId) {
+        activeSemester = await prisma.semester.findFirst({
+          where: { academicYearId: targetYearId },
+          orderBy: { order: 'asc' }
+        });
+      }
       if (activeSemester?.id) where.semesterId = activeSemester.id;
     }
 
@@ -1090,8 +1248,12 @@ const getStudentGrades = async (req, res) => {
     if (semesterId) {
       where.semesterId = semesterId;
     }
-    if (academicYearId) {
-      where.academicYearId = academicYearId;
+    const targetYearId = academicYearId || req.headers['x-super-admin-year-view-id'];
+    if (targetYearId) {
+      where.academicYearId = targetYearId;
+    } else {
+      const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+      if (activeYear) where.academicYearId = activeYear.id;
     }
 
     const grades = await prisma.grade.findMany({

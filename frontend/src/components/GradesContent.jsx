@@ -9,6 +9,7 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import { useBranch } from '../context/BranchContext';
 import { AuthContext } from '../context/AuthContext';
+import { showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const clampMark = (value, max = 100) => {
@@ -25,28 +26,37 @@ const clampMark = (value, max = 100) => {
 export default function GradesContent({ canEdit = false }) {
   const { selectedBranchId, branches, switchBranch, canSwitchBranch } = useBranch();
 
-  // ── grading weights ──────────────────────────────────────────────────────
-  const [weights, setWeights] = useState({
-    quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40,
+  // ── grading components (dynamic, from API) ──────────────────────────────
+  const [gradingConfig, setGradingConfig] = useState({
+    components: [
+      { name: 'Quiz', weight: 10 },
+      { name: 'Assignment', weight: 20 },
+      { name: 'Midterm', weight: 30 },
+      { name: 'Final', weight: 40 },
+    ],
+    passMark: 50,
   });
 
   useEffect(() => {
     axios.get('/classroom/grading-structure')
-      .then((r) => { if (r.data) setWeights(r.data); })
-      .catch(() => { });
+      .then((r) => {
+        if (r.data?.components) {
+          setGradingConfig({
+            components: r.data.components,
+            passMark: r.data.passMark ?? 50,
+          });
+        }
+      })
+      .catch(() => {});
   }, []);
 
-  const components = useMemo(() => [
-    { field: 'quiz', label: 'Quiz', weight: weights.quizWeight },
-    { field: 'assignment', label: 'Assignment', weight: weights.assignmentWeight },
-    { field: 'midterm', label: 'Midterm', weight: weights.midtermWeight },
-    { field: 'final', label: 'Final', weight: weights.finalWeight },
-  ], [weights]);
+  // components array: [{field: 'Quiz', label: 'Quiz', weight: 10}, ...]
+  const components = useMemo(() =>
+    gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
+    [gradingConfig]
+  );
 
-  const getMaxForField = useCallback((field) => {
-    const comp = components.find((c) => c.field === field);
-    return comp ? comp.weight : 100;
-  }, [components]);
+  const getMaxForField = useCallback(() => 100, []);
 
   // ── class list view ──────────────────────────────────────────────────────
   const [classes, setClasses] = useState([]);
@@ -65,6 +75,106 @@ export default function GradesContent({ canEdit = false }) {
   );
 
   const { user } = useContext(AuthContext);
+
+  // Historical Year configuration for Grades page
+  const [years, setYears] = useState([]);
+  const selectedYearId = localStorage.getItem('superAdminYearViewId') || '';
+  const [historicalEditEnabled, setHistoricalEditEnabled] = useState(false);
+  const [historicalReason, setHistoricalReason] = useState('');
+
+  useEffect(() => {
+    axios.get('/academic-years')
+      .then((res) => { setYears(res.data || []); })
+      .catch(() => {});
+  }, []);
+
+  const activeYearObj = useMemo(
+    () => years.find(y => y.id === selectedYearId) || years.find(y => y.isActive) || null,
+    [years, selectedYearId]
+  );
+
+  const isArchivedYear = useMemo(() => activeYearObj && !activeYearObj.isActive, [activeYearObj]);
+  const isSuperAdmin = user?.role === 'SuperAdmin';
+  const canEditHistorical = isSuperAdmin && isArchivedYear;
+  const canEditEffective = canEdit && (!isArchivedYear || historicalEditEnabled);
+
+  const handleEnableHistoricalEdit = async () => {
+    const { isConfirmed } = await showDangerConfirmDialog({
+      title: 'Enable Historical Editing?',
+      html: `<p class="text-left text-sm text-slate-600 mb-3">You are about to edit <strong>archived grade records</strong> for <strong>${activeYearObj?.year}</strong>.</p><p class="text-left text-sm text-slate-600">This action will be fully audited. Every change will be permanently logged with your account and reason.</p>`,
+      confirmButtonText: 'Continue',
+    });
+    if (!isConfirmed) return;
+
+    const { value: reason, isConfirmed: reasonConfirmed } = await showPromptDialog({
+      title: 'Reason for modification',
+      inputLabel: 'Provide a brief explanation (required)',
+      inputPlaceholder: 'e.g. Correcting data entry error — student grade was entered incorrectly on 2024-03-15',
+      inputValidator: (v) => !v || v.trim().length < 10 ? 'Please provide a clear reason (minimum 10 characters)' : null,
+      confirmButtonText: 'Enable Historical Editing',
+    });
+    if (!reasonConfirmed || !reason) return;
+
+    setHistoricalReason(reason.trim());
+    setHistoricalEditEnabled(true);
+    toast.success('Historical editing enabled. All changes will be audited.', { icon: '⚠️' });
+  };
+
+  const handleDisableHistoricalEdit = () => {
+    setHistoricalEditEnabled(false);
+    setHistoricalReason('');
+    toast.info('Historical editing disabled. Viewing in read-only mode.');
+  };
+
+  const renderHistoricalBanner = () => {
+    if (!isArchivedYear) return null;
+    return (
+      <div className={`mb-5 rounded-2xl border px-5 py-4 ${
+        historicalEditEnabled
+          ? 'border-amber-300 bg-amber-50'
+          : 'border-slate-300 bg-slate-100'
+      }`}>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800">
+            {historicalEditEnabled
+              ? <svg className="h-4 w-4 text-amber-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+              : <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`font-bold text-sm ${ historicalEditEnabled ? 'text-amber-800' : 'text-slate-700' }`}>
+              {historicalEditEnabled
+                ? `⚠️  Historical Editing Enabled — ${activeYearObj?.year}`
+                : `🔒  Viewing: ${activeYearObj?.year} — Read Only`
+              }
+            </p>
+            <p className={`text-xs mt-0.5 ${ historicalEditEnabled ? 'text-amber-700' : 'text-slate-500' }`}>
+              {historicalEditEnabled
+                ? `Reason: "${historicalReason}" — Every change is being permanently logged.`
+                : 'This is an archived academic year. All records are read-only.'}
+            </p>
+          </div>
+          {canEditHistorical && (
+            historicalEditEnabled ? (
+              <button
+                onClick={handleDisableHistoricalEdit}
+                className="shrink-0 rounded-xl border border-amber-400 bg-white px-4 py-2 text-xs font-bold text-amber-700 transition hover:bg-amber-50"
+              >
+                Exit Historical Editing
+              </button>
+            ) : (
+              <button
+                onClick={handleEnableHistoricalEdit}
+                className="shrink-0 rounded-xl border border-slate-400 bg-white px-4 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                Enable Historical Editing
+              </button>
+            )
+          )}
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     setLoadingClasses(true);
@@ -127,45 +237,40 @@ export default function GradesContent({ canEdit = false }) {
 
   const startEditRow = (row) => {
     setEditingRowId(row.student._id);
-    setEditRowMarks({
-      quiz: row.marks?.quiz ?? null,
-      assignment: row.marks?.assignment ?? null,
-      midterm: row.marks?.midterm ?? null,
-      final: row.marks?.final ?? null,
+    // Build initial edit state keyed by component name
+    const initial = {};
+    components.forEach(c => {
+      initial[c.field] = row.marks?.[c.field] ?? null;
     });
+    setEditRowMarks(initial);
   };
 
   const handleEditRowChange = (field, value) => {
-    setEditRowMarks((prev) => ({ ...prev, [field]: clampMark(value, getMaxForField(field)) }));
+    setEditRowMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
   };
 
   const handleSaveRow = async (row) => {
     setSavingRow(true);
     try {
+      // Build marks object using component names as keys
+      const marks = {};
+      components.forEach(c => { marks[c.field] = editRowMarks[c.field] ?? null; });
+
       await axios.post('/classroom/grades', {
         classId: selectedClass._id,
         subject: selectedClass.subject,
-        gradesData: [{
-          student: row.student._id,
-          marks: {
-            quiz: editRowMarks.quiz ?? null,
-            assignment: editRowMarks.assignment ?? null,
-            midterm: editRowMarks.midterm ?? null,
-            final: editRowMarks.final ?? null,
-          },
-        }],
+        gradesData: [{ student: row.student._id, marks }],
+      }, {
+        headers: historicalEditEnabled && historicalReason ? { 'x-modification-reason': historicalReason } : {}
       });
-      toast.success('Grade saved. Change recorded in audit log.');
+      toast.success('Grade saved.');
       setEditingRowId(null);
-      const r = await axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}`);
-      const gradeMap = new Map(
-        (r.data || []).map((g) => [g.student?._id || g.student, g]),
+      // Optimistic update: reflect saved marks directly in local state
+      setClassRows((prev) =>
+        prev.map((r) =>
+          r.student._id === row.student._id ? { ...r, marks } : r
+        )
       );
-      const roster = (selectedClass.students || []).map((student) => {
-        const grade = gradeMap.get(student._id);
-        return { student, marks: grade?.marks || {}, gradeId: grade?._id || null };
-      });
-      setClassRows(roster);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save grade.');
     } finally {
@@ -199,38 +304,40 @@ export default function GradesContent({ canEdit = false }) {
 
   const startEdit = (grade) => {
     setEditingId(grade._id);
-    setEditMarks({
-      quiz: grade.marks?.quiz ?? null,
-      assignment: grade.marks?.assignment ?? null,
-      midterm: grade.marks?.midterm ?? null,
-      final: grade.marks?.final ?? null,
+    // Build edit state keyed by component name
+    const initial = {};
+    components.forEach(c => {
+      initial[c.field] = grade.marks?.[c.field] ?? null;
     });
+    setEditMarks(initial);
   };
 
   const handleEditChange = (field, value) => {
-    setEditMarks((prev) => ({ ...prev, [field]: clampMark(value, getMaxForField(field)) }));
+    setEditMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
   };
 
   const handleSave = async (grade) => {
     setSaving(true);
     try {
+      // Build marks object using component names as keys
+      const marks = {};
+      components.forEach(c => { marks[c.field] = editMarks[c.field] ?? null; });
+
       await axios.post('/classroom/grades', {
         classId: grade.class,
         subject: grade.subject,
-        gradesData: [{
-          student: selectedStudent._id,
-          marks: {
-            quiz: editMarks.quiz ?? null,
-            assignment: editMarks.assignment ?? null,
-            midterm: editMarks.midterm ?? null,
-            final: editMarks.final ?? null,
-          },
-        }],
+        gradesData: [{ student: selectedStudent._id, marks }],
+      }, {
+        headers: historicalEditEnabled && historicalReason ? { 'x-modification-reason': historicalReason } : {}
       });
-      toast.success('Grade saved. Change recorded in audit log.');
+      toast.success('Grade saved.');
       setEditingId(null);
-      const r = await axios.get(`/classroom/grades/student/${selectedStudent._id}`);
-      setStudentGrades(r.data || []);
+      // Optimistic update: patch the edited grade in local state directly
+      setStudentGrades((prev) =>
+        prev.map((g) =>
+          g._id === grade._id ? { ...g, marks: { ...g.marks, ...marks } } : g
+        )
+      );
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save grade.');
     } finally {
@@ -271,8 +378,10 @@ export default function GradesContent({ canEdit = false }) {
         </div>
       </div>
 
+      {renderHistoricalBanner()}
+
       {/* Notice */}
-      {canEdit ? (
+      {canEditEffective ? (
         <div className="mb-5 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
           <svg className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 15.5a1.25 1.25 0 1 1 0-2.5 1.25 1.25 0 0 1 0 2.5zm1-5h-2V7h2v5.5z" />
@@ -315,7 +424,7 @@ export default function GradesContent({ canEdit = false }) {
                     <div className="text-xs text-slate-400">{grade.classRef?.name || '—'}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {canEdit && (
+                    {canEditEffective && (
                       isEditing ? (
                         <div className="flex gap-2">
                           <button
@@ -385,7 +494,7 @@ export default function GradesContent({ canEdit = false }) {
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Grade Management</h1>
         <p className="mt-1 text-sm text-slate-500">
           Select a class, then click a student name to view all their subject scores.
-          {canEdit && ' SuperAdmin can edit individual subject grades.'}
+          {canEditEffective && ' SuperAdmin can edit individual subject grades.'}
         </p>
       </div>
 
@@ -477,7 +586,7 @@ export default function GradesContent({ canEdit = false }) {
                       <span className="ml-1 font-normal text-slate-300">(/{c.weight})</span>
                     </th>
                   ))}
-                  {canEdit && <th className="px-4 py-4 font-semibold">Actions</th>}
+                  {canEditEffective && <th className="px-4 py-4 font-semibold">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -514,7 +623,7 @@ export default function GradesContent({ canEdit = false }) {
                           )}
                         </td>
                       ))}
-                      {canEdit && (
+                      {canEditEffective && (
                         <td className="px-4 py-3.5">
                           {isEditing ? (
                             <div className="flex gap-2">

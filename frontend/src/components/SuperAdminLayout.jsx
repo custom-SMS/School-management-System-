@@ -120,6 +120,8 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
   const { user, logout } = useContext(AuthContext);
   const { branding, logoUrl } = useBranding();
   const { branches, selectedBranch, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
+  const [academicYears, setAcademicYears] = useState([]);
+  const [yearViewId, setYearViewId] = useState(localStorage.getItem('superAdminYearViewId') || '');
   const levels = [];
   const selectedLevel = null;
   const switchLevel = () => {};
@@ -155,6 +157,35 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
       const res = await axios.get('/notifications');
       setNotifications(res.data || []);
     } catch { /* silent */ }
+  };
+
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const res = await axios.get('/academic-years');
+        const list = res.data || [];
+        setAcademicYears(list);
+        if (!localStorage.getItem('superAdminYearViewId') && list.length > 0) {
+          const active = list.find(y => y.isActive) || list[0];
+          if (active) {
+            localStorage.setItem('superAdminYearViewId', active.id);
+            setYearViewId(active.id);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load academic years', err);
+      }
+    };
+    if (user?.role === 'SuperAdmin') {
+      fetchYears();
+    }
+  }, [user]);
+
+  const handleYearViewChange = (e) => {
+    const val = e.target.value;
+    localStorage.setItem('superAdminYearViewId', val);
+    setYearViewId(val);
+    window.location.reload();
   };
 
   useEffect(() => {
@@ -242,7 +273,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex min-w-0 flex-1 flex-col overflow-y-auto bg-slate-50/50">
+      <main className="flex min-w-0 flex-1 flex-col  bg-slate-50/50">
         {/* Top Header Bar */}
         <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
@@ -281,6 +312,22 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
                     ))}
                   </select>
                 )}
+              </div>
+            )}
+            {user?.role === 'SuperAdmin' && academicYears.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="hidden xl:inline text-xs font-bold text-slate-400 uppercase tracking-wider">Year:</span>
+                <select
+                  value={yearViewId}
+                  onChange={handleYearViewChange}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-gray outline-none transition focus:border-slate-300 focus:bg-white cursor-pointer hover:border-indigo-300"
+                >
+                  {academicYears.map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.year} {y.isActive ? '(Current)' : ''}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
             <div className="relative hidden items-center md:flex">
