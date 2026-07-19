@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '../../hooks/useBranch';
 import { getRoleLabel } from '../../constants/accessControl';
 
 const ROLES = ['Teacher', 'Admin', 'Cashier'];

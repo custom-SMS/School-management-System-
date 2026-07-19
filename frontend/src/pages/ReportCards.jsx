@@ -3,10 +3,10 @@ import { showConfirmDialog, showDangerConfirmDialog, showPromptDialog } from '..
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
 import { toast } from 'react-toastify';
-import { useBranding } from '../context/SettingsContext';
+import { useSettings } from '../hooks/useSettings';
 import { printReportCard } from '../utils/printReportCard';
-import { useBranch } from '../context/BranchContext';
-import { AuthContext } from '../context/AuthContext';
+import { useBranch } from '../hooks/useBranch';
+import { useAuth } from '../hooks/useAuth';
 
 const getStudentOptionId = (s) => s?._id || s?.id || '';
 const getStudentDisplayName = (s) => s?.user?.name || s?.name || 'Student';
@@ -61,9 +61,9 @@ function WorkflowPipeline({ counts }) {
 }
 
 export default function ReportCards() {
-  const { branding, logoUrl, grading } = useBranding();
+  const { branding, logoUrl, grading } = useSettings();
   const { activeSemester } = useBranch();
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SuperAdmin';
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');

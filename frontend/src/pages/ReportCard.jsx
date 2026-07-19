@@ -1,12 +1,12 @@
 import { useState, useEffect, useContext, useMemo } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
-import { usePublicSettings } from '../context/SettingsContext';
+import { useSettings } from '../hooks/useSettings';
 
 export default function ReportCard() {
-  const { user } = useContext(AuthContext);
-  const { grading: gradingSettings = {} } = usePublicSettings() || {};
+  const { user } = useAuth();
+  const { grading: gradingSettings = {} } = useSettings() || {};
   const passMark = Number(gradingSettings.passMark || 50);
   const gpaEnabled = Boolean(gradingSettings.gpaEnabled);
 

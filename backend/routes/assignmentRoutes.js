@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment } = require('../controllers/assignmentController');
 const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
@@ -23,7 +27,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       200:
  *         description: List of assignment options
  */
-router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAssignmentOptions);
+router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAssignmentOptions);
 
 /**
  * @swagger
@@ -57,7 +61,7 @@ router.get('/options', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBr
  *       201:
  *         description: Assignment created
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createAssignment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), createAssignment);
 
 /**
  * @swagger
@@ -72,7 +76,7 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFi
  *       200:
  *         description: List of teacher assignments
  */
-router.get('/me', verifyToken, checkRole(['Teacher']), getMyAssignments);
+router.get('/me', verifyToken, checkRole(['Teacher']), setCacheResource('classrooms'), globalCacheMiddleware, getMyAssignments);
 
 /**
  * @swagger
@@ -93,7 +97,7 @@ router.get('/me', verifyToken, checkRole(['Teacher']), getMyAssignments);
  *       200:
  *         description: Homeroom teacher removed
  */
-router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin']), removeHomeRoomAssignment);
+router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), removeHomeRoomAssignment);
 
 /**
  * @swagger
@@ -108,6 +112,6 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       200:
  *         description: List of all assignments
  */
-router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAllAssignments);
+router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAllAssignments);
 
 module.exports = router;

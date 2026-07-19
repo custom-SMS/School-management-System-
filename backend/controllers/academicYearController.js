@@ -24,8 +24,8 @@ const createAcademicYear = async (req, res) => {
       return res.status(400).json({ message: windowError });
     }
 
-    const existing = await prisma.academicYear.findUnique({
-      where: { year }
+    const existing = await prisma.academicYear.findFirst({
+      where: { year, branchId: null }
     });
     if (existing) {
       return res.status(400).json({ message: 'Academic year already exists.' });

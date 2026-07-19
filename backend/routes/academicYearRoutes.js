@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 
 const {
@@ -30,7 +34,7 @@ const { verifyToken, checkPermission } = require('../middleware/authMiddleware')
  *       200:
  *         description: List of academic years
  */
-router.get('/', verifyToken, getAcademicYears);
+router.get('/', verifyToken, setCacheResource('semesters'), globalCacheMiddleware, getAcademicYears);
 
 /**
  * @swagger
@@ -61,7 +65,7 @@ router.get('/', verifyToken, getAcademicYears);
  *       500:
  *         description: Server error
  */
-router.post('/', verifyToken, checkPermission('manage_academic_year'), createAcademicYear);
+router.post('/', verifyToken, checkPermission('manage_academic_year'), invalidateResource('semesters'), createAcademicYear);
 
 /**
  * @swagger
@@ -85,7 +89,7 @@ router.post('/', verifyToken, checkPermission('manage_academic_year'), createAca
  *       404:
  *         description: Academic year not found
  */
-router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year'), setActiveAcademicYear);
+router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year'), invalidateResource('semesters'), setActiveAcademicYear);
 
 /**
  * @swagger
@@ -124,6 +128,6 @@ router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year')
  *       404:
  *         description: Academic year not found
  */
-router.patch('/:id/registration-period', verifyToken, checkPermission('manage_academic_year'), updateRegistrationPeriod);
+router.patch('/:id/registration-period', verifyToken, checkPermission('manage_academic_year'), invalidateResource('semesters'), updateRegistrationPeriod);
 
 module.exports = router;

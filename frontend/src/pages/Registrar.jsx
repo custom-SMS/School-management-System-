@@ -2,11 +2,11 @@ import { useState, useEffect, useContext } from 'react';
 import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
 export default function Registrar() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('students'); // 'students', 'academic-years', 'promotion', 'permissions', 'audit-logs'
 
   // Original Registrar States

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useContext } from 'react';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
 
 // emptyMarks is now built dynamically from components
@@ -17,8 +17,10 @@ const clampMark = (value) => {
   return nextValue;
 };
 
+import { useAppSelector } from '../store/hooks';
+
 export default function GradeSpreadsheet() {
-  const { user } = useContext(AuthContext);
+  const user = useAppSelector((state) => state.auth.user);
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [rows, setRows] = useState([]);

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axios from '../api/axios';
+import { useParentChildrenQuery } from '../queries/parentQueries';
 
 const STORAGE_KEY = 'parent.selectedChildId';
 
@@ -9,28 +9,20 @@ const STORAGE_KEY = 'parent.selectedChildId';
  * consistent as the parent navigates between Dashboard / Academics / Attendance / Finance.
  */
 export function useParentChildren() {
-  const [children, setChildren] = useState([]);
+  const { data, isLoading: loading, error: queryError } = useParentChildrenQuery();
+  const children = data?.children || [];
   const [childId, setChildIdState] = useState(() => localStorage.getItem(STORAGE_KEY) || '');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    let active = true;
-    axios
-      .get('/stats/parent/me')
-      .then((r) => {
-        if (!active) return;
-        const kids = r.data?.children || [];
-        setChildren(kids);
-        setChildIdState((cur) => {
-          const valid = kids.find((k) => (k.profile?._id || k.profile?.id) === cur);
-          return valid ? cur : (kids[0]?.profile?._id || kids[0]?.profile?.id || '');
-        });
-      })
-      .catch((e) => active && setError(e.response?.data?.message || 'Failed to load children.'))
-      .finally(() => active && setLoading(false));
-    return () => { active = false; };
-  }, []);
+    if (children.length > 0) {
+      setChildIdState((cur) => {
+        const valid = children.find((k) => (k.profile?._id || k.profile?.id) === cur);
+        return valid ? cur : (children[0]?.profile?._id || children[0]?.profile?.id || '');
+      });
+    }
+  }, [children]);
+
+  const error = queryError ? queryError.response?.data?.message || 'Failed to load children.' : '';
 
   const setChildId = (id) => {
     setChildIdState(id);

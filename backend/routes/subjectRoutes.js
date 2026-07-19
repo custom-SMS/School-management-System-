@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const { createSubject, getSubjects, deleteSubject } = require('../controllers/subjectController');
 const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
@@ -23,7 +27,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       200:
  *         description: List of subjects
  */
-router.get('/', verifyToken, injectBranchFilter, getSubjects);
+router.get('/', verifyToken, injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getSubjects);
 
 /**
  * @swagger
@@ -49,7 +53,7 @@ router.get('/', verifyToken, injectBranchFilter, getSubjects);
  *       201:
  *         description: Subject created
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), createSubject);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), createSubject);
 
 /**
  * @swagger
@@ -70,6 +74,6 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), createSubject)
  *       200:
  *         description: Subject deleted
  */
-router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteSubject);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), deleteSubject);
 
 module.exports = router;

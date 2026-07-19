@@ -8,7 +8,7 @@ import StudentLayout from '../../components/StudentLayout';
 
 import { toast } from 'react-toastify';
 
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 
 
@@ -20,7 +20,7 @@ export default function SubjectResultDetails() {
 
   const { subjectKey } = useParams();
 
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
 
   const [data, setData] = useState(null);
 

@@ -3,12 +3,12 @@ import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import AdminLayout from '../components/AdminLayout';
-import { AuthContext } from '../context/AuthContext';
-import { useBranch } from '../context/BranchContext';
+import { useAuth } from '../hooks/useAuth';
+import { useBranch } from '../hooks/useBranch';
 import { toast } from 'react-toastify';
 
 export default function Timetables() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const { activeSemester } = useBranch();
   const [selectedSemesterId, setSelectedSemesterId] = useState('');
   const [yearSemesters, setYearSemesters] = useState([]);

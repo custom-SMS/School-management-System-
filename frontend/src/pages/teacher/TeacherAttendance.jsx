@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import TeacherLayout from '../../components/TeacherLayout';
 
 const STATUSES = ['Present', 'Absent', 'Late'];
@@ -21,7 +21,7 @@ function daysDiff(dateStr) {
 }
 
 export default function TeacherAttendance() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
 
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');

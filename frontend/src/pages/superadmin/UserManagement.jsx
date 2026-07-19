@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import AdminLayout from '../../components/AdminLayout';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 import { getRoleLabel, ROLE_META } from '../../constants/accessControl';
 
@@ -66,7 +66,7 @@ function ResetPasswordModal({ user, onClose, onSave }) {
 }
 
 export default function UserManagement() {
-  const { user: currentUser } = useContext(AuthContext);
+  const { user: currentUser } = useAuth();
   const Layout = currentUser?.role === 'SuperAdmin' ? SuperAdminLayout : AdminLayout;
 
   const [users, setUsers]       = useState([]);

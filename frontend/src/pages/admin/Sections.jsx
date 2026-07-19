@@ -3,12 +3,12 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 
 export default function Sections() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const isBranchAdmin = user?.scopeType === 'BranchAdmin';
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);

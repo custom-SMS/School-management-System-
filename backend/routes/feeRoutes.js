@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const {
   recordPayment,
@@ -59,7 +63,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       201:
  *         description: Payment recorded
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, recordPayment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), recordPayment);
 
 /**
  * @swagger
@@ -80,7 +84,7 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), inj
  *       200:
  *         description: List of defaulters
  */
-router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getDefaulters);
+router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getDefaulters);
 
 /**
  * @swagger
@@ -106,7 +110,7 @@ router.get('/defaulters/:month', verifyToken, checkRole(['Admin', 'SuperAdmin', 
  *       200:
  *         description: List of paid students
  */
-router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getPaidStudentsByClass);
+router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getPaidStudentsByClass);
 
 // Fee structures management by grade level
 
@@ -136,7 +140,7 @@ router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       201:
  *         description: Fee structure created
  */
-router.post('/structures', verifyToken, checkRole(['SuperAdmin']), createFeeStructure);
+router.post('/structures', verifyToken, checkRole(['SuperAdmin']), invalidateResource('fees'), createFeeStructure);
 
 /**
  * @swagger
@@ -156,7 +160,7 @@ router.post('/structures', verifyToken, checkRole(['SuperAdmin']), createFeeStru
  *       200:
  *         description: Fee structure deleted
  */
-router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), deleteFeeStructure);
+router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), invalidateResource('fees'), deleteFeeStructure);
 
 /**
  * @swagger
@@ -171,7 +175,7 @@ router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), deleteF
  *       200:
  *         description: List of fee structures
  */
-router.get('/structures', verifyToken, getFeeStructures);
+router.get('/structures', verifyToken, setCacheResource('fees'), globalCacheMiddleware, getFeeStructures);
 
 // Generate monthly tuition invoices
 
@@ -202,7 +206,7 @@ router.get('/structures', verifyToken, getFeeStructures);
  *       201:
  *         description: Invoices generated
  */
-router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, generateMonthlyFees);
+router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), generateMonthlyFees);
 
 /**
  * @swagger
@@ -217,7 +221,7 @@ router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier
  *       200:
  *         description: Reminders sent
  */
-router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sendBulkFeeReminders);
+router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), sendBulkFeeReminders);
 
 // Cashier desk
 
@@ -234,7 +238,7 @@ router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashie
  *       200:
  *         description: List of outstanding invoices
  */
-router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getOutstandingFees);
+router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getOutstandingFees);
 
 /**
  * @swagger
@@ -255,9 +259,9 @@ router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashi
  *       200:
  *         description: Fee marked as paid
  */
-router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getCashierPayments);
+router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getCashierPayments);
 
-router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, markFeePaidInCash);
+router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), markFeePaidInCash);
 
 // Student/Parent fee portal
 
@@ -280,7 +284,7 @@ router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cash
  *       200:
  *         description: List of fees
  */
-router.get('/my', verifyToken, checkRole(['Student', 'Parent']), getMyFees);
+router.get('/my', verifyToken, checkRole(['Student', 'Parent']), setCacheResource('fees'), globalCacheMiddleware, getMyFees);
 
 // Bank payment integration
 
@@ -312,7 +316,7 @@ router.get('/my', verifyToken, checkRole(['Student', 'Parent']), getMyFees);
  *       201:
  *         description: Bank payment submitted
  */
-router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), submitBankPayment);
+router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), invalidateResource('fees'), submitBankPayment);
 
 /**
  * @swagger
@@ -327,7 +331,7 @@ router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmi
  *       200:
  *         description: List of pending payments
  */
-router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, getPendingPayments);
+router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getPendingPayments);
 
 /**
  * @swagger
@@ -358,7 +362,7 @@ router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmi
  *       200:
  *         description: Payment verified
  */
-router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), injectBranchFilter, verifyPayment);
+router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), injectBranchFilter, invalidateResource('fees'), verifyPayment);
 
 /**
  * @swagger
@@ -379,7 +383,7 @@ router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmi
  *       200:
  *         description: Receipt details
  */
-router.get('/receipts/:paymentId', verifyToken, getReceipt);
+router.get('/receipts/:paymentId', verifyToken, setCacheResource('fees'), globalCacheMiddleware, getReceipt);
 
 /**
  * @swagger
@@ -405,6 +409,6 @@ router.get('/receipts/:paymentId', verifyToken, getReceipt);
  *               type: string
  *               format: binary
  */
-router.get('/receipts/:paymentId/pdf', verifyToken, downloadReceiptPdf);
+router.get('/receipts/:paymentId/pdf', verifyToken, setCacheResource('fees'), globalCacheMiddleware, downloadReceiptPdf);
 
 module.exports = router;

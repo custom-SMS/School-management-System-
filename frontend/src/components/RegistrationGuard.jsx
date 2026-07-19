@@ -11,10 +11,10 @@
  */
 import { useEffect, useState, useContext } from 'react';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
+import { useAppSelector } from '../store/hooks';
 
 export default function RegistrationGuard({ children }) {
-  const { user } = useContext(AuthContext);
+  const user = useAppSelector((state) => state.auth.user);
   const [status, setStatus] = useState('loading'); // 'loading' | 'open' | 'closed' | 'no_year'
 
   useEffect(() => {

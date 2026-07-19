@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '../../hooks/useBranch';
 
 const letterFor = (p) => (p >= 90 ? 'A+' : p >= 85 ? 'A' : p >= 80 ? 'A-' : p >= 75 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 

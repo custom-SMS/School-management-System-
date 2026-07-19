@@ -1,9 +1,9 @@
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-import { useBranding } from '../context/SettingsContext';
-import { useBranch } from '../context/BranchContext';
 import axios from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
+import { useBranch } from '../hooks/useBranch';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
@@ -117,8 +117,8 @@ const navItems = [
 ];
 
 export default function SuperAdminLayout({ children, pageTitle, headerAction }) {
-  const { user, logout } = useContext(AuthContext);
-  const { branding, logoUrl } = useBranding();
+  const { user, logout } = useAuth();
+  const { branding, logoUrl } = useSettings();
   const { branches, selectedBranch, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
   const [academicYears, setAcademicYears] = useState([]);
   const [yearViewId, setYearViewId] = useState(localStorage.getItem('superAdminYearViewId') || '');

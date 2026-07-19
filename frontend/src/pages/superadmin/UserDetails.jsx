@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import AdminLayout from '../../components/AdminLayout';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { toast } from 'react-toastify';
 import { getRoleLabel } from '../../constants/accessControl';
 
@@ -47,7 +47,7 @@ const SectionCard = ({ title, description, children }) => (
 
 export default function UserDetails() {
   const { id } = useParams();
-  const { user: currentUser } = useContext(AuthContext);
+  const { user: currentUser } = useAuth();
   const Layout = currentUser?.role === 'SuperAdmin' ? SuperAdminLayout : AdminLayout;
   const backLink = currentUser?.role === 'SuperAdmin' ? "/super-admin/users" : "/admin/users";
 

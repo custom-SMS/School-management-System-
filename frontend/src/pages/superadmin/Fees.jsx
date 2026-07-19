@@ -2,7 +2,7 @@ import { useEffect, useState, useContext } from 'react';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { GRADES, ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const ALLOWED_GRADES = GRADES;
@@ -24,7 +24,7 @@ export default function SuperAdminFees() {
   const [genDueDate, setGenDueDate] = useState('');
   const [generating, setGenerating] = useState(false);
 
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
 
   const fetchStructures = async () => {
     try {

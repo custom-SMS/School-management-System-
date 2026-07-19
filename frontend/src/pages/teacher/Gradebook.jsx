@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState, useContext } from 'react';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import TeacherLayout from '../../components/TeacherLayout';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '../../hooks/useBranch';
 
 
 
@@ -13,7 +13,7 @@ import { useBranch } from '../../context/BranchContext';
 
 
 export default function Gradebook() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const { activeSemester } = useBranch();
 
   const [classes, setClasses] = useState([]);

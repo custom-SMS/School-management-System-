@@ -4,7 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useStudentsQuery } from '../queries/studentQueries';
 
 
@@ -100,7 +100,7 @@ const AccountBadge = ({ status }) => {
 
 export default function Students() {
   const navigate = useNavigate();
-  const { user, permissions } = useContext(AuthContext);
+  const { user, permissions } = useAuth();
   const canManage = user?.role === 'SuperAdmin' || permissions.includes('student_registration');
 
   const [students, setStudents] = useState([]);

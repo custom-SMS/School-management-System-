@@ -3,7 +3,7 @@ import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import CashierLayout from '../../components/CashierLayout';
 import { useContext } from 'react';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import { ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const etb = (n) =>
@@ -34,7 +34,7 @@ export default function Fees() {
     }
   };
 
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchStructures();

@@ -2,7 +2,7 @@ import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '../../hooks/useBranch';
 
 const StatCard = ({ title, value, colorClass, icon, loading }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex items-center justify-between hover:shadow-md transition">

@@ -1,11 +1,13 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import Navbar from './Navbar';
 import { toast } from 'react-toastify';
 
+import { useAppSelector } from '../store/hooks';
+
 export default function AttendanceChecklist() {
-  const { user } = useContext(AuthContext);
+  const user = useAppSelector((state) => state.auth.user);
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
   const [students, setStudents] = useState([]);

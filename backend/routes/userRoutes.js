@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const {
   getUsers,

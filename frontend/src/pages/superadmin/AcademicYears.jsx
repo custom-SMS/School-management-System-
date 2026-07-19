@@ -2,8 +2,8 @@ import { useState, useEffect, useContext } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
-import { AuthContext } from '../../context/AuthContext';
-import { BranchContext } from '../../context/BranchContext';
+import { useAuth } from '../../hooks/useAuth';
+import { useBranch } from '../../hooks/useBranch';
 import {
   showConfirmDialog,
   showDangerConfirmDialog,
@@ -21,8 +21,8 @@ const toInputDate = (d) => {
 };
 
 export default function AcademicYears() {
-  const { isSuper } = useContext(AuthContext);
-  const { activeSemester, switchSemester, refetchSemester } = useContext(BranchContext);
+  const { isSuper } = useAuth();
+  const { activeSemester, switchSemester, refetchSemester } = useBranch();
 
   const [years, setYears]         = useState([]);
   const [loading, setLoading]     = useState(true);

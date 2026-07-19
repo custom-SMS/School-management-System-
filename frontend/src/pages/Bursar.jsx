@@ -2,12 +2,12 @@ import { useState, useEffect, useContext } from 'react';
 import { showConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 import { ETHIOPIAN_MONTHS } from '../constants/school';
 
 export default function Bursar() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('payments'); // 'payments' or 'verifications'
 
   const [students, setStudents] = useState([]);

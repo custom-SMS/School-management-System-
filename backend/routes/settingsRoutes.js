@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const { getSettings, updateSettings, getPublicSettings } = require('../controllers/settingsController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
@@ -21,7 +25,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: Public settings data
  */
-router.get('/public', getPublicSettings);
+router.get('/public', setCacheResource('settings'), globalCacheMiddleware, getPublicSettings);
 
 // Super Admin only.
 router.use(verifyToken, checkRole(['SuperAdmin']));

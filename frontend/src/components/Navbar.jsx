@@ -1,11 +1,11 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
 import { getRoleLabel } from '../constants/accessControl';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Navbar({ actionsDisabled = false, onAction = () => { } } = {}) {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const profileMenuRef = useRef(null);
   const notifMenuRef = useRef(null);

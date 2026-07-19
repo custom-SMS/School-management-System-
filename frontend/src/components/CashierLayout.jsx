@@ -1,8 +1,8 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
-import { useBranding } from '../context/SettingsContext';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 
 
 /* Simple inline icon set so we don't add an icon dependency. */
@@ -50,8 +50,8 @@ const navItems = [
 ];
 
 export default function CashierLayout({ children, searchPlaceholder = 'Search students, receipts...' }) {
-  const { user, logout, permissions } = useContext(AuthContext);
-  const { branding, logoUrl } = useBranding();
+  const { user, logout, permissions } = useAuth();
+  const { branding, logoUrl } = useSettings();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);

@@ -54,14 +54,9 @@ function shouldCache(req, res) {
   // of req.user/req.branchFilter for protected GET requests.
   // For routes that don't set them, don't cache.
   if (!req.user) {
-  console.log("[Redis Cache] Skipping: req.user is missing");
-  return false;
-}
-
-if (!req.branchFilter) {
-  console.log("[Redis Cache] Skipping: req.branchFilter is missing");
-  return false;
-}
+    console.log("[Redis Cache] Skipping: req.user is missing");
+    return false;
+  }
 
   return true;
 }

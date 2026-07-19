@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const {
   createTimetableSlot,
@@ -40,7 +44,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       200:
  *         description: Timetable data
  */
-router.get('/class/:classId/:academicYearId', verifyToken, injectBranchFilter, getTimetablesByClass);
+router.get('/class/:classId/:academicYearId', verifyToken, injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getTimetablesByClass);
 
 /**
  * @swagger
@@ -55,7 +59,7 @@ router.get('/class/:classId/:academicYearId', verifyToken, injectBranchFilter, g
  *       200:
  *         description: Teacher timetable
  */
-router.get('/teacher/me', verifyToken, checkRole(['Teacher', 'SuperAdmin']), getTeacherTimetable);
+router.get('/teacher/me', verifyToken, checkRole(['Teacher', 'SuperAdmin']), setCacheResource('classrooms'), globalCacheMiddleware, getTeacherTimetable);
 
 /**
  * @swagger
@@ -76,7 +80,7 @@ router.get('/teacher/me', verifyToken, checkRole(['Teacher', 'SuperAdmin']), get
  *       200:
  *         description: Student timetable
  */
-router.get('/student/me', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentTimetable);
+router.get('/student/me', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), setCacheResource('classrooms'), globalCacheMiddleware, getStudentTimetable);
 
 /**
  * @swagger
@@ -110,7 +114,7 @@ router.get('/student/me', verifyToken, checkRole(['Student', 'Parent', 'SuperAdm
  *       201:
  *         description: Timetable slot created
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createTimetableSlot);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), createTimetableSlot);
 
 /**
  * @swagger
@@ -131,6 +135,6 @@ router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFi
  *       200:
  *         description: Slot deleted
  */
-router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), deleteTimetableSlot);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), deleteTimetableSlot);
 
 module.exports = router;

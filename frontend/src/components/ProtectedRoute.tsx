@@ -14,18 +14,27 @@
  *   requireAnyAdmin → passes if any of SchoolAdmin | BranchAdmin | LevelAdmin | SuperAdmin
  */
 import { Navigate, useLocation } from 'react-router-dom';
-import { useContext } from 'react';
-import { AuthContext } from '../context/AuthContext';
 import { getRoleLabel } from '../constants/accessControl';
+import { useAuth } from '../hooks/useAuth';
+
+import React from 'react';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+  allowedScopes?: string[];
+  requireAnyAdmin?: boolean;
+  requiredPermission?: string | null;
+}
 
 export default function ProtectedRoute({
   children,
-  allowedRoles = [],
-  allowedScopes = [],
+  allowedRoles = [] as string[],
+  allowedScopes = [] as string[],
   requireAnyAdmin = false,
   requiredPermission = null,
-}) {
-  const { user, permissions, loading } = useContext(AuthContext);
+}: ProtectedRouteProps) {
+  const { user, permissions, loading } = useAuth();
   const location = useLocation();
 
   if (loading) {
@@ -52,7 +61,7 @@ export default function ProtectedRoute({
   // Evaluate access
   const roleAllowed = allowedRoles.length === 0 || allowedRoles.includes(role);
   const scopeAllowed = allowedScopes.length === 0 || (scopeType && allowedScopes.includes(scopeType));
-  const anyAdmin = !requireAnyAdmin || isSuper || ADMIN_SCOPES.includes(scopeType);
+  const anyAdmin = !requireAnyAdmin || isSuper || (scopeType && ADMIN_SCOPES.includes(scopeType));
 
   const accessGranted = isSuper || (roleAllowed && scopeAllowed && anyAdmin);
 
@@ -70,7 +79,7 @@ export default function ProtectedRoute({
           <p className="text-sm text-slate-500 mt-2 leading-relaxed">
             {scopeType
               ? `Your scope (${getRoleLabel('Admin', scopeType)}) does not have permission to view this page.`
-              : `Your role (${getRoleLabel(role)}) does not have permission to view this page.`}
+              : `Your role (${getRoleLabel(role || '')}) does not have permission to view this page.`}
           </p>
           {scopeType && (
             <p className="text-xs text-slate-400 mt-1">

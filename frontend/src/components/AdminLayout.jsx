@@ -1,8 +1,6 @@
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
 import axios from '../api/axios';
-import { useBranding } from '../context/SettingsContext';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
@@ -113,9 +111,12 @@ const navItems = [
   { to: '/settings', label: 'System Settings', icon: <SettingsIcon />, superAdminOnly: true },
 ];
 
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
+
 export default function AdminLayout({ children, pageTitle, headerAction }) {
-  const { user, logout, permissions } = useContext(AuthContext);
-  const { branding, logoUrl } = useBranding();
+  const { user, logout, permissions } = useAuth();
+  const { branding, logoUrl } = useSettings();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);

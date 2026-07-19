@@ -1,11 +1,11 @@
 import { useEffect, useState, useContext } from 'react';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
 
 export default function StudentFees() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const isParent = user?.role === 'Parent';
 
   const [children, setChildren] = useState([]);

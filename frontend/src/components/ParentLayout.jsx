@@ -1,8 +1,8 @@
-import { useContext, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
-import { usePublicSettings } from '../context/SettingsContext';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 
 const icons = {
   dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
@@ -25,8 +25,8 @@ const navItems = [
 ];
 
 export default function ParentLayout({ children, kids = [], childId, onSelectChild }) {
-  const { user, logout } = useContext(AuthContext);
-  const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = usePublicSettings();
+  const { user, logout } = useAuth();
+  const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = useSettings();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
   const [mobileOpen, setMobileOpen] = useState(false);

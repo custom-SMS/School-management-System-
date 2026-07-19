@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import axios from '../../api/axios';
-import { AuthContext } from '../../context/AuthContext';
+import { useAuth } from '../../hooks/useAuth';
 import TeacherLayout from '../../components/TeacherLayout';
 
 const STATUS_STYLES = {
@@ -40,7 +40,7 @@ function formatMonthLabel(monthValue) {
 }
 
 export default function TeacherAttendanceRecords() {
-  const { user } = useContext(AuthContext);
+  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const queryClassId = searchParams.get('classId') || '';

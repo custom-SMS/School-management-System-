@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
-import { useBranch } from '../../context/BranchContext';
+import { useBranch } from '../../hooks/useBranch';
 
 function StatCard({ label, value, sub, icon, alert, dark }) {
   return (

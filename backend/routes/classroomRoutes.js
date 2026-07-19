@@ -1,5 +1,9 @@
 const express = require('express');
 
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
+
 const router = express.Router();
 
 const {
@@ -45,7 +49,10 @@ const {
   getClassSubjects,
   updateClassSubjectTeacher,
   getSubmittedGradesForHomeroom,
-  approveGrades
+  approveGrades,
+   unlockAttendance,
+   setGradingStructure,
+   getGradingStructure
 
 } = require('../controllers/classroomController');
 
@@ -95,7 +102,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
 
  */
 
-router.get('/options', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getClassroomOptions);
+router.get('/options', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getClassroomOptions);
 
 
 
@@ -157,7 +164,7 @@ router.get('/options', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
 
  */
 
-router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, recordAttendance);
+router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), recordAttendance);
 
 
 
@@ -186,9 +193,9 @@ router.post('/attendance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdm
  *         description: List of attendance sessions
 
  */
-router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceRegister);
+router.get('/attendance/register', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAttendanceRegister);
 
-router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, getAttendanceSessions);
+router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAttendanceSessions);
 
 /**
 
@@ -246,7 +253,7 @@ router.get('/attendance', verifyToken, checkRole(['Admin', 'SuperAdmin']), injec
 
  */
 
-router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, saveGrades);
+router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), saveGrades);
 
 /**
  * @swagger
@@ -269,7 +276,7 @@ router.post('/grades', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']
  */
 // NOTE: this route MUST be declared before /grades/:classId/:subject
 // otherwise Express matches "student" as the classId param.
-router.get('/grades/student/:studentId', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getStudentGrades);
+router.get('/grades/student/:studentId', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getStudentGrades);
 
 /**
 
@@ -320,10 +327,10 @@ router.get('/grades/student/:studentId', verifyToken, checkRole(['Teacher', 'Adm
  */
 
 // Homeroom teacher grade submission workflow
-router.get('/grades/submitted/:classId', verifyToken, checkRole(['Teacher']), injectBranchFilter, getSubmittedGradesForHomeroom);
+router.get('/grades/submitted/:classId', verifyToken, checkRole(['Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getSubmittedGradesForHomeroom);
 
-router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, getGrades);
-router.post('/grades/approve', verifyToken, checkRole(['Teacher']), approveGrades);
+router.get('/grades/:classId/:subject', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getGrades);
+router.post('/grades/approve', verifyToken, checkRole(['Teacher']), invalidateResource('classrooms'), approveGrades);
 
 
 
@@ -379,7 +386,7 @@ router.post('/grades/approve', verifyToken, checkRole(['Teacher']), approveGrade
 
  */
 
-router.post('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createClass);
+router.post('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), createClass);
 
 
 
@@ -409,7 +416,7 @@ router.post('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectB
 
  */
 
-router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getClasses);
+router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getClasses);
 
 
 
@@ -451,11 +458,11 @@ router.get('/classes', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']
 
  */
 
-router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteClass);
+router.delete('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), deleteClass);
 
-router.put('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateClass);
+router.put('/classes/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), updateClass);
 
-router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, forceDeleteClass);
+router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), forceDeleteClass);
 
 
 
@@ -507,7 +514,7 @@ router.delete('/classes/:id/force', verifyToken, checkRole(['Admin', 'SuperAdmin
 
  */
 
-router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, createSection);
+router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), createSection);
 
 
 
@@ -552,17 +559,17 @@ router.post('/sections', verifyToken, checkRole(['Admin', 'SuperAdmin']), inject
 
 // NOTE: /sections/detail/* routes MUST be declared BEFORE /sections/:classId
 // to prevent Express from matching 'detail' as the :classId parameter.
-router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionById);
+router.get('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getSectionById);
 
-router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateSection);
+router.put('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), updateSection);
 
-router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, deleteSection);
+router.delete('/sections/detail/:sectionId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), deleteSection);
 
-router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionStudents);
+router.get('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getSectionStudents);
 
-router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, assignStudentsToSection);
+router.put('/sections/detail/:sectionId/students', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), assignStudentsToSection);
 
-router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getSectionsByClass);
+router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getSectionsByClass);
 
 
 
@@ -610,7 +617,7 @@ router.get('/sections/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 
 
  */
 
-router.patch('/attendance/:id/unlock', verifyToken, checkRole(['SuperAdmin']), require('../controllers/classroomController').unlockAttendance);
+router.patch('/attendance/:id/unlock', verifyToken, checkRole(['SuperAdmin']), invalidateResource('classrooms'), unlockAttendance);
 
 
 
@@ -674,7 +681,7 @@ router.patch('/attendance/:id/unlock', verifyToken, checkRole(['SuperAdmin']), r
 
  */
 
-router.post('/grading-structure', verifyToken, checkRole(['SuperAdmin']), require('../controllers/classroomController').setGradingStructure);
+router.post('/grading-structure', verifyToken, checkRole(['SuperAdmin']), invalidateResource('classrooms'), setGradingStructure);
 
 
 
@@ -704,14 +711,14 @@ router.post('/grading-structure', verifyToken, checkRole(['SuperAdmin']), requir
 
  */
 
-router.get('/grading-structure', verifyToken, require('../controllers/classroomController').getGradingStructure);
+router.get('/grading-structure', verifyToken, setCacheResource('classrooms'), globalCacheMiddleware, getGradingStructure);
 
 
 // Class Subject Management
-router.post('/class-subjects', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, addSubjectToClass);
-router.get('/class-subjects/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, getClassSubjects);
-router.delete('/class-subjects/:classId/:subjectId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, removeSubjectFromClass);
-router.put('/class-subjects/:classId/:subjectId/teacher', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, updateClassSubjectTeacher);
+router.post('/class-subjects', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), addSubjectToClass);
+router.get('/class-subjects/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Teacher']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getClassSubjects);
+router.delete('/class-subjects/:classId/:subjectId', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), removeSubjectFromClass);
+router.put('/class-subjects/:classId/:subjectId/teacher', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), updateClassSubjectTeacher);
 
 
 module.exports = router;

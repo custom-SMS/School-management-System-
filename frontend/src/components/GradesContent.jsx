@@ -7,9 +7,10 @@
 import { useEffect, useMemo, useState, useCallback, useContext } from 'react';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
-import { useBranch } from '../context/BranchContext';
-import { AuthContext } from '../context/AuthContext';
+import { useBranch } from '../hooks/useBranch';
+import { useAuth } from '../hooks/useAuth';
 import { showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
+import { useAppSelector } from '../store/hooks';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const clampMark = (value, max = 100) => {
@@ -66,6 +67,7 @@ export default function GradesContent({ canEdit = false }) {
   const [loadingClassGrades, setLoadingClassGrades] = useState(false);
   const [classSearch, setClassSearch] = useState('');
   const [editingRowId, setEditingRowId] = useState(null);
+  const { branding, formatDateTime } = useSettings();
   const [editRowMarks, setEditRowMarks] = useState({});
   const [savingRow, setSavingRow] = useState(false);
 
@@ -74,7 +76,7 @@ export default function GradesContent({ canEdit = false }) {
     [classes, selectedClassId],
   );
 
-  const { user } = useContext(AuthContext);
+  const user = useAppSelector((state) => state.auth.user);
 
   // Historical Year configuration for Grades page
   const [years, setYears] = useState([]);

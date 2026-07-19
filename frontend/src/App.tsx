@@ -4,9 +4,6 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-import { SettingsProvider } from "./context/SettingsContext";
-import { BranchProvider } from "./context/BranchContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -66,7 +63,6 @@ import TeacherStudents from "./pages/teacher/AssignedStudents";
 import TeacherAttendance from "./pages/teacher/TeacherAttendance";
 import TeacherAttendanceRecords from "./pages/teacher/TeacherAttendanceRecords";
 import TeacherGradebook from "./pages/teacher/Gradebook";
-import TeacherGrades from "./pages/teacher/TeacherGrades";
 import TeacherTimetable from "./pages/teacher/TeacherTimetable";
 import StudentProfile from "./pages/teacher/StudentProfile";
 import StudentAttendanceDetail from "./pages/teacher/StudentAttendanceDetail";
@@ -98,10 +94,7 @@ import ParentNotifications from "./pages/parent/ParentNotifications";
 
 function App() {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <BranchProvider>
-          <Router>
+    <Router>
             <ToastContainer position="top-right" autoClose={3000} />
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -782,9 +775,6 @@ function App() {
               />
             </Routes>
           </Router>
-        </BranchProvider>
-      </SettingsProvider>
-    </AuthProvider>
   );
 }
 export default App;

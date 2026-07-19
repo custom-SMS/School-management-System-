@@ -1,4 +1,8 @@
 const express = require('express');
+
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
+
 const router = express.Router();
 const { getNotifications, markAsRead, markAllAsRead, sendParentNotifications, submitStudentRecordRequest, broadcastNotification, getAllNotifications, sendStudentNotifications, sendBothNotifications, getTeachersForStudent, sendParentToTeachers, sendSmsToParents } = require('../controllers/notificationController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
@@ -23,7 +27,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: List of notifications
  */
-router.get('/', verifyToken, getNotifications);
+router.get('/', verifyToken, setCacheResource('notifications'), globalCacheMiddleware, getNotifications);
 
 /**
  * @swagger
@@ -38,7 +42,7 @@ router.get('/', verifyToken, getNotifications);
  *       200:
  *         description: List of all notifications
  */
-router.get('/all', verifyToken, checkRole(['SuperAdmin']), getAllNotifications);
+router.get('/all', verifyToken, checkRole(['SuperAdmin']), setCacheResource('notifications'), globalCacheMiddleware, getAllNotifications);
 
 /**
  * @swagger
@@ -64,7 +68,7 @@ router.get('/all', verifyToken, checkRole(['SuperAdmin']), getAllNotifications);
  *       201:
  *         description: Notification broadcasted
  */
-router.post('/broadcast', verifyToken, checkRole(['SuperAdmin']), broadcastNotification);
+router.post('/broadcast', verifyToken, checkRole(['SuperAdmin']), invalidateResource('notifications'), broadcastNotification);
 
 /**
  * @swagger
@@ -85,7 +89,7 @@ router.post('/broadcast', verifyToken, checkRole(['SuperAdmin']), broadcastNotif
  *       200:
  *         description: Notification sent
  */
-router.post('/parents', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), sendParentNotifications);
+router.post('/parents', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), invalidateResource('notifications'), sendParentNotifications);
 
 /**
  * @swagger
@@ -106,7 +110,7 @@ router.post('/parents', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin'
  *       200:
  *         description: SMS sent
  */
-router.post('/sms/parents', verifyToken, checkRole(['Admin', 'SuperAdmin']), sendSmsToParents);
+router.post('/sms/parents', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('notifications'), sendSmsToParents);
 
 /**
  * @swagger
@@ -127,7 +131,7 @@ router.post('/sms/parents', verifyToken, checkRole(['Admin', 'SuperAdmin']), sen
  *       200:
  *         description: Notification sent
  */
-router.post('/students', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), sendStudentNotifications);
+router.post('/students', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), invalidateResource('notifications'), sendStudentNotifications);
 
 /**
  * @swagger
@@ -148,7 +152,7 @@ router.post('/students', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin
  *       200:
  *         description: Notification sent
  */
-router.post('/both', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), sendBothNotifications);
+router.post('/both', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), invalidateResource('notifications'), sendBothNotifications);
 
 /**
  * @swagger
@@ -163,7 +167,7 @@ router.post('/both', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']),
  *       200:
  *         description: List of teachers
  */
-router.get('/teachers-for-student', verifyToken, checkRole(['Parent', 'Teacher', 'Admin', 'SuperAdmin']), getTeachersForStudent);
+router.get('/teachers-for-student', verifyToken, checkRole(['Parent', 'Teacher', 'Admin', 'SuperAdmin']), setCacheResource('notifications'), globalCacheMiddleware, getTeachersForStudent);
 
 /**
  * @swagger
@@ -184,7 +188,7 @@ router.get('/teachers-for-student', verifyToken, checkRole(['Parent', 'Teacher',
  *       200:
  *         description: Notification sent
  */
-router.post('/to-teachers', verifyToken, checkRole(['Parent', 'SuperAdmin']), sendParentToTeachers);
+router.post('/to-teachers', verifyToken, checkRole(['Parent', 'SuperAdmin']), invalidateResource('notifications'), sendParentToTeachers);
 
 /**
  * @swagger
@@ -205,7 +209,7 @@ router.post('/to-teachers', verifyToken, checkRole(['Parent', 'SuperAdmin']), se
  *       200:
  *         description: Request submitted
  */
-router.post('/student-request', verifyToken, checkRole(['Student']), submitStudentRecordRequest);
+router.post('/student-request', verifyToken, checkRole(['Student']), invalidateResource('notifications'), submitStudentRecordRequest);
 
 /**
  * @swagger
@@ -226,7 +230,7 @@ router.post('/student-request', verifyToken, checkRole(['Student']), submitStude
  *       200:
  *         description: Notification marked as read
  */
-router.patch('/:id/read', verifyToken, markAsRead);
-router.patch('/read-all', verifyToken, markAllAsRead);
+router.patch('/:id/read', verifyToken, invalidateResource('notifications'), markAsRead);
+router.patch('/read-all', verifyToken, invalidateResource('notifications'), markAllAsRead);
 
 module.exports = router;

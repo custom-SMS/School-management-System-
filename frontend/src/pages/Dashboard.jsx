@@ -1,5 +1,5 @@
 import { useContext, useState, useEffect } from 'react';
-import { AuthContext } from '../context/AuthContext';
+import { useAuth } from '../hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
@@ -17,7 +17,7 @@ const STATUS_STYLES = {
 };
 
 export default function Dashboard() {
-  const { user, permissions } = useContext(AuthContext);
+  const { user, permissions } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [teacherData, setTeacherData] = useState(null);

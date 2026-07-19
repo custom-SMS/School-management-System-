@@ -1,8 +1,8 @@
-import { useContext, useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { NavLink, Link, useNavigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
 import axios from '../api/axios';
-import { useBranding } from '../context/SettingsContext';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 
 /* Inline icon set — no extra dependency. */
 const icons = {
@@ -35,8 +35,8 @@ const navItems = [
 ];
 
 export default function TeacherLayout({ children, searchPlaceholder = 'Search students or records...' }) {
-  const { user, logout } = useContext(AuthContext);
-  const { branding, logoUrl } = useBranding();
+  const { user, logout } = useAuth();
+  const { branding, logoUrl } = useSettings();
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
