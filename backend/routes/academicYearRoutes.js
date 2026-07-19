@@ -1,11 +1,13 @@
 const express = require('express');
 const router = express.Router();
+
 const {
   createAcademicYear,
   getAcademicYears,
   setActiveAcademicYear,
   updateRegistrationPeriod
 } = require('../controllers/academicYearController');
+
 const { verifyToken, checkPermission } = require('../middleware/authMiddleware');
 
 /**

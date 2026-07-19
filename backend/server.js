@@ -7,7 +7,7 @@ const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./config/swagger');
 require('dotenv').config();
 
-const { globalCacheMiddleware } = require('./middleware/globalCacheMiddleware');
+//const { globalCacheMiddleware } = require('./middleware/globalCacheMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -45,7 +45,7 @@ prisma.$connect()
 // Global Redis cache for GET JSON responses (branch + role based)
 // Must run after auth/branch middleware for the route to populate req.user + req.branchFilter.
 // Route handlers will also attach a cache resource version (req.cacheResourceVersion).
-app.use(globalCacheMiddleware);
+//app.use(globalCacheMiddleware);
 
 // Routes
 

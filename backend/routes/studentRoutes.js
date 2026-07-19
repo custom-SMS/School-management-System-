@@ -16,7 +16,7 @@ const {
   setStudentStatus
 } = require('../controllers/studentController');
 const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
-
+const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
 /**
  * @swagger
  * tags:
@@ -38,10 +38,12 @@ const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBran
  *       200:
  *         description: List of students
  */
-router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), injectBranchFilter, getStudents);
+router.get('/', verifyToken, checkRole(['Admin', 'Teacher', 'SuperAdmin']), injectBranchFilter,globalCacheMiddleware, getStudents);
 
-router.get('/me/subjects', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectSummaries);
-router.get('/me/subjects/:subjectKey/results', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), getStudentSubjectResults);
+router.get('/me/subjects', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']),injectBranchFilter,
+globalCacheMiddleware, getStudentSubjectSummaries);
+router.get('/me/subjects/:subjectKey/results', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), injectBranchFilter,
+globalCacheMiddleware,getStudentSubjectResults);
 
 // Aggregated performance (grades + attendance) for one student
 /**
@@ -63,7 +65,8 @@ router.get('/me/subjects/:subjectKey/results', verifyToken, checkRole(['Student'
  *       200:
  *         description: Performance data
  */
-router.get('/:id/performance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']), getStudentPerformance);
+router.get('/:id/performance', verifyToken, checkRole(['Teacher', 'Admin', 'SuperAdmin']),injectBranchFilter,
+globalCacheMiddleware, getStudentPerformance);
 
 // Register a new student
 /**
@@ -116,7 +119,8 @@ router.post('/grade-fee', verifyToken, checkPermission('student_registration'), 
  *       200:
  *         description: List of grade fees
  */
-router.get('/grade-fee', getGradeFees);
+router.get('/grade-fee', injectBranchFilter,
+globalCacheMiddleware, getGradeFees);
 
 /**
  * @swagger
@@ -131,7 +135,7 @@ router.get('/grade-fee', getGradeFees);
  *       200:
  *         description: List of classes
  */
-router.get('/classes', verifyToken, checkPermission('student_registration'), injectBranchFilter, getRegistrationClasses);
+router.get('/classes', verifyToken, checkPermission('student_registration'), injectBranchFilter,globalCacheMiddleware,  getRegistrationClasses);
 
 /**
  * @swagger
@@ -188,9 +192,10 @@ router.get('/classes', verifyToken, checkPermission('student_registration'), inj
  *       200:
  *         description: Student deleted
  */
-router.get('/:id', verifyToken, checkPermission('student_registration'), getStudents);
-router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, updateStudent);
-router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, deleteStudent);
+router.get('/:id', verifyToken, checkPermission('student_registration'),injectBranchFilter,
+globalCacheMiddleware, getStudents);
+router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter,  updateStudent);
+router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter,  deleteStudent);
 
 // Promotion & Status routes
 /**
@@ -212,7 +217,7 @@ router.delete('/:id', verifyToken, checkPermission('student_registration'), inje
  *       200:
  *         description: Students promoted
  */
-router.post('/promote', verifyToken, checkPermission('student_registration'), injectBranchFilter, promoteStudent);
+router.post('/promote', verifyToken, checkPermission('student_registration'), injectBranchFilter,  promoteStudent);
 
 /**
  * @swagger
@@ -260,6 +265,6 @@ router.post('/repeat', verifyToken, checkPermission('student_registration'), inj
  *       200:
  *         description: Status updated
  */
-router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter, setStudentStatus);
+router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter,  setStudentStatus);
 
 module.exports = router;

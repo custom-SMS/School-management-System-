@@ -3,7 +3,9 @@ const prisma = require('../prisma');
 
 // ─── verifyToken ──────────────────────────────────────────────────────────────
 const verifyToken = (req, res, next) => {
+ ;
   const token = req.cookies?.token;
+  
   if (!token) {
     return res.status(401).json({ message: 'Access Denied. No valid token provided.' });
   }
@@ -45,6 +47,7 @@ const checkRole = (roles) => (req, res, next) => {
 // allowedScopes: array of ScopeType values  e.g. ['SchoolAdmin','BranchAdmin']
 // allowedRoles:  array of Role values       e.g. ['Teacher','SuperAdmin']
 const checkScope = ({ allowedScopes = [], allowedRoles = [] } = {}) => (req, res, next) => {
+
   if (!req.user) {
     return res.status(401).json({ message: 'Access Denied. No authenticated user.' });
   }
@@ -90,12 +93,22 @@ const injectBranchFilter = (req, res, next) => {
   // BranchAdmin / LevelAdmin / Cashier — locked to JWT branchId, header ignored
   if (jwtBranchId) {
     req.branchFilter = { branchId: jwtBranchId };
-    req.levelFilter = jwtLevelId ? { levelId: jwtLevelId } : {};
+    // level is not used for teacher scoping right now
+    req.levelFilter = {};
   } else {
-    // No scope — safe default prevents data leakage
-    req.branchFilter = { branchId: '__none__' };
+
+    // No scope — try to derive branch from teacher JWT claims when missing.
+    // This prevents teachers from getting forced into '__none__' branch.
+    const fallbackBranchId = req.user.branchId;
+    if (fallbackBranchId) {
+      req.branchFilter = { branchId: fallbackBranchId };
+    } else {
+      // Safe default prevents data leakage
+      req.branchFilter = { branchId: '__none__' };
+    }
     req.levelFilter = {};
   }
+
 
   next();
 };

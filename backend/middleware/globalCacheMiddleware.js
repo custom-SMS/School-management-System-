@@ -39,6 +39,7 @@ function isBypassed(req) {
 }
 
 function shouldCache(req, res) {
+  console.log(`[Redis Cache] Entering shouldCache for ${req.method} ${req.originalUrl}`);
   // Only cache GET by default.
   if (req.method !== 'GET') return false;
   if (isBypassed(req)) return false;
@@ -52,8 +53,15 @@ function shouldCache(req, res) {
   // Now that middleware is placed after auth/branch middleware, we can rely on the presence
   // of req.user/req.branchFilter for protected GET requests.
   // For routes that don't set them, don't cache.
-  if (!req.user) return false;
-  if (!req.branchFilter) return false;
+  if (!req.user) {
+  console.log("[Redis Cache] Skipping: req.user is missing");
+  return false;
+}
+
+if (!req.branchFilter) {
+  console.log("[Redis Cache] Skipping: req.branchFilter is missing");
+  return false;
+}
 
   return true;
 }
@@ -68,6 +76,8 @@ function isProbablyJsonResponse(obj) {
 const { getResourceVersion } = require('../utils/cacheVersions');
 
 const globalCacheMiddleware = async (req, res, next) => {
+    console.log("🔥 CACHE MIDDLEWARE EXECUTED");
+  console.log(`[Redis Cache] Entering globalCacheMiddleware for ${req.method} ${req.originalUrl}`);
   try {
     if (!shouldCache(req, res)) {
       return next();
@@ -117,6 +127,8 @@ const globalCacheMiddleware = async (req, res, next) => {
     // On any cache failure, never break the request.
     return next();
   }
+
+  console.log("🔥 CACHE MIDDLEWARE EXECUTED");
 };
 
 module.exports = { globalCacheMiddleware };
