@@ -4,6 +4,7 @@ import {
   Route,
   Navigate,
 } from "react-router-dom";
+
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
@@ -40,6 +41,7 @@ import Classes from "./pages/admin/Classes";
 import Sections from "./pages/admin/Sections";
 import SectionStudents from "./pages/admin/SectionStudents";
 import AdminStudentProfile from "./pages/admin/StudentProfile";
+import StudentHistory from "./pages/admin/StudentHistory";
 import Assignments from "./pages/Assignments";
 import Timetables from "./pages/Timetables";
 import ReportCards from "./pages/ReportCards";
@@ -315,6 +317,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                     <Students />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/students/:id/history"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <StudentHistory />
                   </ProtectedRoute>
                 }
               />

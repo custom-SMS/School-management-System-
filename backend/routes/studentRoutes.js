@@ -13,7 +13,9 @@ const {
   deleteStudent,
   promoteStudent,
   repeatStudent,
-  setStudentStatus
+  setStudentStatus,
+  getStudentHistory,
+  getStudentTranscript
 } = require('../controllers/studentController');
 const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
 const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
@@ -266,5 +268,9 @@ router.post('/repeat', verifyToken, checkPermission('student_registration'), inj
  *         description: Status updated
  */
 router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter,  setStudentStatus);
+
+// Academic history & transcript
+router.get('/:id/history', verifyToken, checkRole(['Admin', 'Teacher', 'Student', 'Parent', 'SuperAdmin']), injectBranchFilter, getStudentHistory);
+router.get('/:id/transcript', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Student', 'Parent']), injectBranchFilter, getStudentTranscript);
 
 module.exports = router;

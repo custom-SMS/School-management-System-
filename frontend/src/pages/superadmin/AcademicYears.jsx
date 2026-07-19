@@ -45,6 +45,10 @@ export default function AcademicYears() {
   const [semEnd, setSemEnd]       = useState('');
   const [savingSem, setSavingSem] = useState(false);
 
+  // Year-end operations
+  const [archiving, setArchiving] = useState(false);
+  const [promoting, setPromoting] = useState(false);
+
   const fetchYears = async () => {
     try {
       const res = await axios.get('/academic-years');
@@ -97,6 +101,32 @@ export default function AcademicYears() {
       fetchYears();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Error activating year');
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const handlePrepareStructure = async (targetYear) => {
+    const sourceYear = activeYear;
+    if (!sourceYear) {
+      toast.error('Set up an active academic year before copying its structure.');
+      return;
+    }
+    const result = await showConfirmDialog({
+      title: 'Prepare academic-year structure?',
+      text: `Copy classes, sections, subjects, teacher assignments, fee structures, and grading settings from "${sourceYear.year}" to "${targetYear.year}". Student records, fees, grades, and attendance will not be copied.`,
+      confirmButtonText: 'Copy structure',
+    });
+    if (!result.isConfirmed) return;
+
+    setActionId(targetYear.id);
+    try {
+      const response = await axios.post(`/academic-years/${targetYear.id}/clone-structure`, {
+        sourceAcademicYearId: sourceYear.id,
+      });
+      toast.success(response.data?.message || 'Academic-year structure prepared.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to prepare academic-year structure.');
     } finally {
       setActionId(null);
     }
@@ -239,6 +269,49 @@ export default function AcademicYears() {
     }
   };
 
+  const handleArchiveReportCards = async (year) => {
+    const result = await showDangerConfirmDialog({
+      title: 'Archive Report Cards?',
+      text: `Permanently archive all published report cards for "${year.year}"? This cannot be undone.`,
+      confirmButtonText: 'Yes, Archive',
+    });
+    if (!result.isConfirmed) return;
+    setArchiving(true);
+    try {
+      const res = await axios.post(`/academic-years/${year.id}/archive-report-cards`);
+      toast.success(res.data.message);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to archive report cards');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleBulkPromote = async (sourceYear, targetYearId) => {
+    if (!targetYearId) {
+      toast.error('Please select a target year for promotion.');
+      return;
+    }
+    const targetYear = years.find(y => y.id === targetYearId);
+    const result = await showConfirmDialog({
+      title: 'Bulk Promote Students?',
+      text: `Promote all enrolled students from "${sourceYear.year}" to "${targetYear.year}"? Students in their final grade will be marked as Graduated.`,
+      confirmButtonText: 'Yes, Promote',
+    });
+    if (!result.isConfirmed) return;
+    setPromoting(true);
+    try {
+      const res = await axios.post(`/academic-years/${targetYearId}/promote-students`, {
+        sourceAcademicYearId: sourceYear.id
+      });
+      toast.success(res.data.message || 'Students promoted successfully.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to promote students');
+    } finally {
+      setPromoting(false);
+    }
+  };
+
   const activeYear = years.find(y => y.isActive);
 
   return (
@@ -308,27 +381,67 @@ export default function AcademicYears() {
 
       {/* Active year + semester banner */}
       {activeYear && (
-        <div className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 px-6 py-4 space-y-2">
-          <div className="flex items-center gap-4">
-            <div className="w-3 h-3 bg-emerald-500 rounded-full ring-4 ring-emerald-200 shrink-0"></div>
-            <div>
-              <div className="text-sm font-bold text-emerald-900">Currently Active: <span className="text-emerald-700">{activeYear.year}</span></div>
-              <div className="text-xs text-emerald-700 mt-0.5">
-                Registration is <span className="font-bold">{activeYear.registrationOpen ? 'OPEN' : 'CLOSED'}</span>
-                {' · '}Window: {fmtDate(activeYear.registrationStart)} → {fmtDate(activeYear.registrationEnd)}
+        <div className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 px-6 py-4 space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full ring-4 ring-emerald-200 shrink-0"></div>
+                <div>
+                  <div className="text-sm font-bold text-emerald-900">Currently Active: <span className="text-emerald-700">{activeYear.year}</span></div>
+                  <div className="text-xs text-emerald-700 mt-0.5">
+                    Registration is <span className="font-bold">{activeYear.registrationOpen ? 'OPEN' : 'CLOSED'}</span>
+                    {' · '}Window: {fmtDate(activeYear.registrationStart)} → {fmtDate(activeYear.registrationEnd)}
+                  </div>
+                </div>
+              </div>
+              {activeSemester && (
+                <div className="ml-7 flex items-center gap-2">
+                  <div className="w-2 h-2 bg-violet-500 rounded-full shrink-0"></div>
+                  <span className="text-xs font-bold text-violet-800">
+                    Active Semester: {activeSemester.name}
+                    {activeSemester.academicYear?.year ? ` (${activeSemester.academicYear.year})` : ''}
+                    {activeSemester.startDate ? ` · ${fmtDate(activeSemester.startDate)} → ${fmtDate(activeSemester.endDate)}` : ''}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Year-End Operations */}
+            <div className="flex flex-col gap-2 p-3 bg-white/60 rounded-lg border border-emerald-200/50">
+              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Year-End Operations</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => handleArchiveReportCards(activeYear)}
+                  disabled={archiving}
+                  className="text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded transition disabled:opacity-50 shadow-sm"
+                >
+                  {archiving ? 'Archiving...' : 'Archive Report Cards'}
+                </button>
+                <div className="flex items-center gap-1">
+                  <select
+                    id="promoteTarget"
+                    className="text-xs border border-slate-300 rounded px-2 py-1.5 bg-white w-36 shadow-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    defaultValue=""
+                  >
+                    <option value="" disabled>Select Target Year...</option>
+                    {years.filter(y => y.id !== activeYear.id).map(y => (
+                      <option key={y.id} value={y.id}>{y.year}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => {
+                      const tgt = document.getElementById('promoteTarget').value;
+                      handleBulkPromote(activeYear, tgt);
+                    }}
+                    disabled={promoting}
+                    className="text-xs font-bold bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1.5 rounded transition disabled:opacity-50 shadow-sm"
+                  >
+                    {promoting ? 'Promoting...' : 'Bulk Promote'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-          {activeSemester && (
-            <div className="ml-7 flex items-center gap-2">
-              <div className="w-2 h-2 bg-violet-500 rounded-full shrink-0"></div>
-              <span className="text-xs font-bold text-violet-800">
-                Active Semester: {activeSemester.name}
-                {activeSemester.academicYear?.year ? ` (${activeSemester.academicYear.year})` : ''}
-                {activeSemester.startDate ? ` · ${fmtDate(activeSemester.startDate)} → ${fmtDate(activeSemester.endDate)}` : ''}
-              </span>
-            </div>
-          )}
         </div>
       )}
 
@@ -419,13 +532,22 @@ export default function AcademicYears() {
                     {y.isActive ? (
                       <span className="text-xs font-bold text-emerald-600">Current Year</span>
                     ) : (
-                      <button
-                        disabled={actionId === y.id}
-                        onClick={() => handleActivate(y.id, y.year)}
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
-                      >
-                        {actionId === y.id ? '…' : 'Set Active Year'}
-                      </button>
+                      <>
+                        <button
+                          disabled={actionId === y.id}
+                          onClick={() => handlePrepareStructure(y)}
+                          className="text-xs font-bold text-violet-700 hover:text-violet-900 bg-violet-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+                        >
+                          {actionId === y.id ? '…' : 'Prepare Structure'}
+                        </button>
+                        <button
+                          disabled={actionId === y.id}
+                          onClick={() => handleActivate(y.id, y.year)}
+                          className="text-xs font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+                        >
+                          {actionId === y.id ? '…' : 'Set Active Year'}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

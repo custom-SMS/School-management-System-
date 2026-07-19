@@ -28,6 +28,9 @@ const getAcademicReport = async (req, res) => {
     if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
       where.class = { ...(req.branchFilter || {}) };
     }
+    if (req.academicYearFilter && Object.keys(req.academicYearFilter).length > 0) {
+      Object.assign(where, req.academicYearFilter);
+    }
     const grades = await prisma.grade.findMany({
       where,
       include: {
@@ -112,6 +115,9 @@ const getAttendanceReport = async (req, res) => {
     const where = {};
     if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
       where.class = { ...(req.branchFilter || {}) };
+    }
+    if (req.academicYearFilter && Object.keys(req.academicYearFilter).length > 0) {
+      Object.assign(where, req.academicYearFilter);
     }
     const attendances = await prisma.attendance.findMany({
       where,
@@ -263,6 +269,9 @@ const getFinancialReport = async (req, res) => {
     const where = {};
     if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
       where.student = { ...(req.branchFilter || {}) };
+    }
+    if (req.academicYearFilter && Object.keys(req.academicYearFilter).length > 0) {
+      Object.assign(where, req.academicYearFilter);
     }
     const fees = await prisma.fee.findMany({
       where,

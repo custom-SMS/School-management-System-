@@ -27,6 +27,13 @@ api.interceptors.response.use(
     // by passing { skipGlobalErrorToast: true } in the request config.
     const skip = error.config?.skipGlobalErrorToast;
 
+    if (status === 400 && error.response?.data?.message?.includes('selected academic year does not exist')) {
+      localStorage.removeItem('superAdminYearViewId');
+      // Reload to clear stale context
+      window.location.reload();
+      return Promise.reject(error);
+    }
+
     if (status === 401 && !onLoginPage) {
       localStorage.removeItem('user');
       window.location.assign('/login');

@@ -870,10 +870,12 @@ const getStudentSubjectSummaries = async (req, res) => {
       return res.status(resolved.error.status).json({ message: resolved.error.message });
     }
     const { student } = resolved;
+    const selectedYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    if (!selectedYear) return res.status(404).json({ message: 'No active academic year found.' });
 
     // Fetch active grading weights so we recalculate correctly on read
     const gradingStructure = await prisma.gradingStructure.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, academicYearId: selectedYear.id }
     }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
 
     const componentDefs = [
@@ -903,7 +905,7 @@ const getStudentSubjectSummaries = async (req, res) => {
     };
 
     const grades = await prisma.grade.findMany({
-      where: { studentId: student.id },
+      where: { studentId: student.id, academicYearId: selectedYear.id },
       include: {
         class: { select: { id: true, name: true, subject: true } },
         subjectRef: { select: { id: true, name: true } }
@@ -911,7 +913,7 @@ const getStudentSubjectSummaries = async (req, res) => {
       orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
     });
 
-    const activeEnrollment = (student.enrollments || []).find((entry) => entry.academicYear?.isActive) || student.enrollments?.[0] || null;
+    const activeEnrollment = (student.enrollments || []).find((entry) => entry.academicYearId === selectedYear.id) || null;
     const subjectMap = new Map();
 
     grades.forEach((grade) => {
@@ -976,14 +978,16 @@ const getStudentSubjectResults = async (req, res) => {
       return res.status(resolved.error.status).json({ message: resolved.error.message });
     }
     const { student } = resolved;
+    const selectedYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    if (!selectedYear) return res.status(404).json({ message: 'No active academic year found.' });
 
     // Fetch active grading weights
     const gradingStructure = await prisma.gradingStructure.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, academicYearId: selectedYear.id }
     }) || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
 
     const grades = await prisma.grade.findMany({
-      where: { studentId: student.id },
+      where: { studentId: student.id, academicYearId: selectedYear.id },
       include: {
         class: { select: { id: true, name: true, subject: true } },
         subjectRef: { select: { id: true, name: true } }
@@ -1720,6 +1724,214 @@ const setStudentStatus = async (req, res) => {
   }
 };
 
+// @desc    Get student academic history across all years
+// @route   GET /api/students/:id/history
+// @access  Private (Admin, Teacher, Student self, Parent of child)
+const getStudentHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user } = req;
+
+    // Access control
+    if (user.role === 'Student') {
+      const self = await prisma.student.findUnique({ where: { userId: user._id } });
+      if (!self || self.id !== id) {
+        return res.status(403).json({ message: 'Access denied.' });
+      }
+    }
+    if (user.role === 'Parent') {
+      const parent = await prisma.parent.findUnique({
+        where: { userId: user._id },
+        include: { children: { select: { id: true } } }
+      });
+      const childIds = (parent?.children || []).map(c => c.id);
+      if (!childIds.includes(id)) {
+        return res.status(403).json({ message: 'Access denied.' });
+      }
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id },
+      include: { user: { select: { id: true, name: true, email: true } } }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { studentId: id },
+      include: {
+        academicYear: { select: { id: true, year: true, isActive: true } },
+        section: {
+          select: {
+            id: true,
+            name: true,
+            class: { select: { id: true, name: true, grade: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Build per-year history
+    const history = await Promise.all(enrollments.map(async (enrollment) => {
+      const yearId = enrollment.academicYearId;
+
+      // Grades for this year
+      const grades = await prisma.grade.findMany({
+        where: { studentId: id, academicYearId: yearId },
+        select: { percentage: true, subject: true, semesterId: true }
+      });
+      const avgScore = grades.length
+        ? Number((grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(2))
+        : null;
+
+      // Attendance for this year
+      const attendanceRecords = await prisma.attendanceRecord.findMany({
+        where: {
+          studentId: id,
+          attendance: { academicYearId: yearId }
+        },
+        select: { status: true }
+      });
+      const totalAtt = attendanceRecords.length;
+      const presentAtt = attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
+      const attendanceRate = totalAtt ? Number(((presentAtt / totalAtt) * 100).toFixed(2)) : null;
+
+      // Report cards for this year
+      const reportCards = await prisma.reportCard.findMany({
+        where: { studentId: id, academicYearId: yearId },
+        select: {
+          id: true,
+          semesterId: true,
+          averageScore: true,
+          rank: true,
+          status: true,
+          workflowStatus: true,
+          promotionStatus: true
+        }
+      });
+
+      return {
+        academicYear: enrollment.academicYear,
+        grade: enrollment.grade,
+        section: enrollment.section ? `${enrollment.section.class?.name || ''} - ${enrollment.section.name}` : null,
+        enrollmentStatus: enrollment.status,
+        averageScore: avgScore,
+        attendanceRate,
+        totalAttendanceSessions: totalAtt,
+        reportCards
+      };
+    }));
+
+    res.json({
+      student: {
+        id: student.id,
+        name: student.user?.name,
+        studentId: student.studentId,
+        grade: student.grade
+      },
+      history
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc    Get student academic transcript
+// @route   GET /api/students/:id/transcript
+// @access  Private (Admin, SuperAdmin, Student self, Parent of child)
+const getStudentTranscript = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { user } = req;
+
+    // Access control
+    if (user.role === 'Student') {
+      const self = await prisma.student.findUnique({ where: { userId: user._id } });
+      if (!self || self.id !== id) return res.status(403).json({ message: 'Access denied.' });
+    }
+    if (user.role === 'Parent') {
+      const parent = await prisma.parent.findUnique({
+        where: { userId: user._id },
+        include: { children: { select: { id: true } } }
+      });
+      const childIds = (parent?.children || []).map(c => c.id);
+      if (!childIds.includes(id)) return res.status(403).json({ message: 'Access denied.' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id },
+      include: {
+        user: { select: { name: true, email: true } },
+        branch: { select: { name: true } }
+      }
+    });
+    if (!student) return res.status(404).json({ message: 'Student not found.' });
+
+    const enrollments = await prisma.enrollment.findMany({
+      where: { studentId: id },
+      include: {
+        academicYear: { select: { id: true, year: true } },
+        section: { select: { name: true, class: { select: { name: true, grade: true } } } }
+      },
+      orderBy: { createdAt: 'asc' }
+    });
+
+    const academicHistory = await Promise.all(enrollments.map(async (enrollment) => {
+      const yearId = enrollment.academicYearId;
+
+      const grades = await prisma.grade.findMany({
+        where: { studentId: id, academicYearId: yearId },
+        select: { subject: true, percentage: true, semesterId: true }
+      });
+
+      const gpa = grades.length
+        ? Number((grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(2))
+        : null;
+
+      const reportCards = await prisma.reportCard.findMany({
+        where: { studentId: id, academicYearId: yearId },
+        select: { averageScore: true, rank: true, status: true, promotionStatus: true }
+      });
+
+      return {
+        year: enrollment.academicYear.year,
+        grade: enrollment.grade,
+        section: enrollment.section ? enrollment.section.name : null,
+        className: enrollment.section?.class?.name || null,
+        enrollmentStatus: enrollment.status,
+        gpa,
+        subjectCount: [...new Set(grades.map(g => g.subject))].length,
+        reportCards
+      };
+    }));
+
+    const allGrades = await prisma.grade.findMany({
+      where: { studentId: id },
+      select: { percentage: true }
+    });
+    const overallGPA = allGrades.length
+      ? Number((allGrades.reduce((s, g) => s + Number(g.percentage || 0), 0) / allGrades.length).toFixed(2))
+      : null;
+
+    res.json({
+      student: {
+        id: student.id,
+        name: student.user?.name,
+        email: student.user?.email,
+        studentId: student.studentId,
+        branch: student.branch?.name,
+        currentGrade: student.grade
+      },
+      academicHistory,
+      overallGPA,
+      totalYearsEnrolled: enrollments.length,
+      generatedAt: new Date()
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   registerStudent,
   getStudents,
@@ -1733,5 +1945,7 @@ module.exports = {
   deleteStudent,
   promoteStudent,
   repeatStudent,
-  setStudentStatus
+  setStudentStatus,
+  getStudentHistory,
+  getStudentTranscript
 };

@@ -165,13 +165,18 @@ model AcademicYear {
   registrationEnd   DateTime?
   createdAt         DateTime  @default(now())
 
-  enrollments Enrollment[]
-  attendances Attendance[]
-  grades      Grade[]
-  fees        Fee[]
-  timetables  Timetable[]
-  reportCards ReportCard[]
-  semesters   Semester[]
+  enrollments       Enrollment[]
+  attendances       Attendance[]
+  grades            Grade[]
+  fees              Fee[]
+  timetables        Timetable[]
+  reportCards       ReportCard[]
+  semesters         Semester[]
+  classes           Class[]
+  sections          Section[]
+  teacherAssignments TeacherAssignment[]
+  gradingStructures GradingStructure[]
+  feeStructures     FeeStructure[]
 
   @@unique([year, branchId])
 }
@@ -312,33 +317,43 @@ model Teacher {
 // ─── Section ──────────────────────────────────────────────────────────────────
 
 model Section {
-  id                String   @id @default(uuid())
+  id                String        @id @default(uuid())
   name              String
   classId           String
-  class             Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  class             Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
   homeroomTeacherId String?
-  homeroomTeacher   Teacher? @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
-  createdAt         DateTime @default(now())
+  homeroomTeacher   Teacher?      @relation(fields: [homeroomTeacherId], references: [id], onDelete: SetNull)
+  academicYearId    String
+  academicYear      AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  capacity          Int           @default(30)
+  createdAt         DateTime      @default(now())
 
   enrollments Enrollment[]
   timetables  Timetable[]
+
+  @@unique([classId, name, academicYearId])
+  @@index([academicYearId])
+  @@index([classId, academicYearId])
 }
 
 // ─── Class ────────────────────────────────────────────────────────────────────
 
 model Class {
-  id        String            @id @default(uuid())
-  name      String
-  teacherId String?
-  teacher   Teacher?          @relation(fields: [teacherId], references: [id])
-  subject   String?           // @deprecated: Use classSubjects relation instead
-  schedule  String?
-  branchId  String?
-  branch    Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  levelId   String?
-  level     EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
-  stream    String?
-  createdAt DateTime          @default(now())
+  id             String            @id @default(uuid())
+  name           String
+  grade          String?
+  teacherId      String?
+  teacher        Teacher?          @relation(fields: [teacherId], references: [id])
+  subject        String?           // @deprecated: Use classSubjects relation instead
+  schedule       String?
+  branchId       String?
+  branch         Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  levelId        String?
+  level          EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
+  stream         String?
+  academicYearId String
+  academicYear   AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
 
   students      Student[]           @relation("ClassStudents")
   attendances   Attendance[]
@@ -347,6 +362,11 @@ model Class {
   sections      Section[]
   timetables    Timetable[]
   classSubjects ClassSubject[]
+
+  @@unique([branchId, name, academicYearId])
+  @@index([academicYearId])
+  @@index([branchId, academicYearId])
+  @@index([teacherId, academicYearId])
 }
 
 // ─── ClassSubject ─────────────────────────────────────────────────────────────
@@ -410,6 +430,8 @@ model TeacherAssignment {
   notes          String?
   assignedBy     User           @relation("AssignedBy", fields: [assignedById], references: [id])
   assignedById   String
+  academicYearId String
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
   createdAt      DateTime       @default(now())
 
   students Student[] @relation("TeacherAssignmentStudents")
@@ -417,24 +439,33 @@ model TeacherAssignment {
   @@index([teacherId])
   @@index([classId])
   @@index([teacherId, assignmentType])
+  @@index([teacherId, academicYearId])
+  @@index([classId, academicYearId])
 }
 
 // ─── GradingStructure ─────────────────────────────────────────────────────────
 
 model GradingStructure {
-  id               String   @id @default(uuid())
+  id               String            @id @default(uuid())
+  name             String            @default("Default")
   branchId         String?
-  branch           Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  branch           Branch?           @relation(fields: [branchId], references: [id], onDelete: SetNull)
   levelId          String?
   level            EducationalLevel? @relation(fields: [levelId], references: [id], onDelete: SetNull)
-  quizWeight       Float    @default(10)
-  assignmentWeight Float    @default(20)
-  midtermWeight    Float    @default(30)
-  finalWeight      Float    @default(40)
-  components       Json?    // Dynamic: [{name: string, weight: number}]
-  passMark         Float    @default(50)
-  isActive         Boolean  @default(true)
-  createdAt        DateTime @default(now())
+  academicYearId   String
+  academicYear     AcademicYear      @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  quizWeight       Float             @default(10)
+  assignmentWeight Float             @default(20)
+  midtermWeight    Float             @default(30)
+  finalWeight      Float             @default(40)
+  components       Json?             // Dynamic: [{name: string, weight: number}]
+  passMark         Float             @default(50)
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+
+  @@unique([branchId, levelId, name, academicYearId])
+  @@index([academicYearId])
+  @@index([branchId, academicYearId])
 }
 
 // ─── Timetable ────────────────────────────────────────────────────────────────
@@ -491,18 +522,20 @@ model Receipt {
 // ─── Fee ──────────────────────────────────────────────────────────────────────
 
 model Fee {
-  id             String        @id @default(uuid())
+  id             String         @id @default(uuid())
   studentId      String
-  student        Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  academicYearId String?
-  academicYear   AcademicYear? @relation(fields: [academicYearId], references: [id])
+  student        Student        @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicYearId String
+  academicYear   AcademicYear   @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  feeStructureId String?
+  feeStructure   FeeStructure?  @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
   amount         Float
   description    String
   month          String
   dueDate        DateTime
-  paid           Boolean       @default(false)
+  paid           Boolean        @default(false)
   paymentDate    DateTime?
-  createdAt      DateTime      @default(now())
+  createdAt      DateTime       @default(now())
 
   payments Payment[]
 
@@ -514,15 +547,27 @@ model Fee {
 // ─── FeeStructure ─────────────────────────────────────────────────────────────
 
 model FeeStructure {
-  id          String   @id @default(uuid())
-  grade       String
-  branchId    String?
-  branch      Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
-  amount      Float
-  description String?
-  createdAt   DateTime @default(now())
+  id             String        @id @default(uuid())
+  name           String
+  grade          String?
+  branchId       String?
+  branch         Branch?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  academicYearId String
+  academicYear   AcademicYear  @relation(fields: [academicYearId], references: [id], onDelete: Cascade)
+  tuitionFee     Float         @default(0)
+  registrationFee Float         @default(0)
+  libraryFee     Float         @default(0)
+  labFee         Float         @default(0)
+  sportsFee      Float         @default(0)
+  otherFees      Float         @default(0)
+  description    String?
+  createdAt      DateTime      @default(now())
 
-  @@unique([grade, branchId])
+  fees Fee[]
+
+  @@unique([branchId, name, academicYearId])
+  @@index([academicYearId])
+  @@index([branchId, academicYearId])
 }
 
 // ─── Grade ────────────────────────────────────────────────────────────────────

@@ -238,18 +238,22 @@ const getStudentPortalStats = async (req, res) => {
       return res.status(404).json({ message: 'Student Profile not found' });
     }
 
+    const selectedYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true }, select: { id: true } });
+    if (!selectedYear) return res.status(404).json({ message: 'No active academic year found.' });
+
     const activeSemester = await (async () => {
       if (req.query.semesterId) {
-        return prisma.semester.findUnique({ where: { id: req.query.semesterId }, select: { id: true } });
+        return prisma.semester.findFirst({ where: { id: req.query.semesterId, academicYearId: selectedYear.id }, select: { id: true } });
       }
-      return prisma.semester.findFirst({ where: { isActive: true }, select: { id: true } });
+      return prisma.semester.findFirst({ where: { isActive: true, academicYearId: selectedYear.id }, select: { id: true } });
     })();
 
     // Use aggregation for attendance stats (much faster than fetching all records)
     const attendanceAgg = await prisma.attendanceRecord.groupBy({
       by: ['status'],
       where: {
-        studentId: student.id
+        studentId: student.id,
+        attendance: { academicYearId: selectedYear.id }
       },
       _count: true
     });
@@ -269,6 +273,7 @@ const getStudentPortalStats = async (req, res) => {
       prisma.grade.findMany({
         where: {
           studentId: student.id,
+          academicYearId: selectedYear.id,
           ...(activeSemester ? { semesterId: activeSemester.id } : {})
         },
         select: {
@@ -293,7 +298,7 @@ const getStudentPortalStats = async (req, res) => {
         orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }]
       }),
       prisma.fee.findMany({
-        where: { studentId: student.id },
+        where: { studentId: student.id, academicYearId: selectedYear.id },
         select: {
           id: true,
           studentId: true,
@@ -309,6 +314,7 @@ const getStudentPortalStats = async (req, res) => {
       }),
       prisma.attendance.findMany({
         where: {
+          academicYearId: selectedYear.id,
           records: {
             some: { studentId: student.id }
           }

@@ -9,7 +9,12 @@ const {
   createAcademicYear,
   getAcademicYears,
   setActiveAcademicYear,
-  updateRegistrationPeriod
+  updateRegistrationPeriod,
+  cloneAcademicYearStructure,
+  confirmHistoricalEdit,
+  getActiveAcademicYear,
+  archiveReportCards,
+  promoteStudentsBulk
 } = require('../controllers/academicYearController');
 
 const { verifyToken, checkPermission } = require('../middleware/authMiddleware');
@@ -91,6 +96,10 @@ router.post('/', verifyToken, checkPermission('manage_academic_year'), invalidat
  */
 router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year'), invalidateResource('semesters'), setActiveAcademicYear);
 
+// Copy classes, sections, subjects, teacher assignments and configurations from
+// an existing year.  It is idempotent and never copies student records.
+router.post('/:id/clone-structure', verifyToken, checkPermission('manage_academic_year'), cloneAcademicYearStructure);
+
 /**
  * @swagger
  * /academic-years/{id}/registration-period:
@@ -129,5 +138,59 @@ router.patch('/:id/active', verifyToken, checkPermission('manage_academic_year')
  *         description: Academic year not found
  */
 router.patch('/:id/registration-period', verifyToken, checkPermission('manage_academic_year'), invalidateResource('semesters'), updateRegistrationPeriod);
+
+/**
+ * @swagger
+ * /academic-years/active:
+ *   get:
+ *     summary: Get the active academic year
+ *     tags: [Academic Years]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     responses:
+ *       200:
+ *         description: Active academic year
+ *       404:
+ *         description: No active academic year found
+ */
+router.get('/active', verifyToken, getActiveAcademicYear);
+
+/**
+ * @swagger
+ * /academic-years/confirm-historical-edit:
+ *   post:
+ *     summary: Confirm historical edit (Super Admin only)
+ *     tags: [Academic Years]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *               - targetData
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for the historical edit
+ *               targetData:
+ *                 type: object
+ *                 description: Data being edited
+ *     responses:
+ *       200:
+ *         description: Edit token generated
+ *       400:
+ *         description: Invalid request
+ */
+router.post('/confirm-historical-edit', verifyToken, checkPermission('manage_academic_year'), confirmHistoricalEdit);
+
+// Year-end operations (SuperAdmin only)
+router.post('/:id/archive-report-cards', verifyToken, checkPermission('manage_academic_year'), archiveReportCards);
+router.post('/:id/promote-students', verifyToken, checkPermission('manage_academic_year'), promoteStudentsBulk);
 
 module.exports = router;

@@ -17,6 +17,7 @@ const { checkHistoricalAccess } = require('../utils/historicalCorrection');
 const { compileClassReportCards } = require('./reportCardController');
 
 const getSelectedYear = async (req, branchId = null) => {
+  if (req.selectedAcademicYear) return req.selectedAcademicYear;
   const superAdminYearHeader = req.headers['x-super-admin-year-view-id'];
   if (req.user?.role === 'SuperAdmin' && superAdminYearHeader) {
     const year = await prisma.academicYear.findUnique({
@@ -210,6 +211,7 @@ const getClassroomOptions = async (req, res) => {
 
     const targetYear = await getSelectedYear(req);
     const targetYearId = targetYear?.id;
+    if (targetYearId) where.academicYearId = targetYearId;
 
     const classes = await prisma.class.findMany({
       where,
@@ -1248,7 +1250,9 @@ const getStudentGrades = async (req, res) => {
     if (semesterId) {
       where.semesterId = semesterId;
     }
-    const targetYearId = academicYearId || req.headers['x-super-admin-year-view-id'];
+    const targetYearId = req.user.role === 'SuperAdmin'
+      ? (academicYearId || req.selectedAcademicYear?.id || req.headers['x-super-admin-year-view-id'])
+      : req.selectedAcademicYear?.id;
     if (targetYearId) {
       where.academicYearId = targetYearId;
     } else {

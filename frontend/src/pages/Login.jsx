@@ -12,12 +12,12 @@ export default function Login() {
   const navigate = useNavigate();
 
   const testAccounts = [
-    { label: 'Student', identifier: 'STU/0024/18', password: '521a9217' },
-    { label: 'Teacher', identifier: 'appleseifu@gmail.com', password: '12345678' },
-    { label: 'Admin', identifier: 'teacher@school.com', password: 'admin123' },
-    { label: 'Super Admin', identifier: 'superadmin@school.com', password: 'superadmin' },
-    { label: 'Cashier', identifier: 'cashier@school.com', password: 'cashier' },
-    { label: 'Parent', identifier: 'lyhu@mailinator.com', password: '1c25db75' }
+    { label: 'Student', identifier: 'student.b1.grade1.01@school.test', password: 'Test@1234' },
+    { label: 'Teacher', identifier: 'teacher.math1@school.test', password: 'Test@1234' },
+    { label: 'Admin', identifier: 'admin.branch1@school.test', password: 'Test@1234' },
+    { label: 'Super Admin', identifier: 'superadmin@school.test', password: 'Test@1234' },
+    { label: 'Cashier', identifier: 'cashier.branch1@school.test', password: 'Test@1234' },
+    { label: 'Parent', identifier: 'parent.01@school.test', password: 'Test@1234' }
   ];
 
   const handleSubmit = async (e) => {

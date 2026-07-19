@@ -208,22 +208,20 @@ const getTeacherTimetable = async (req, res) => {
     }
 
     // Find active academic year
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
-    });
+    const activeYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
     if (!activeYear) {
       return res.status(404).json({ message: 'No active academic year found.' });
     }
 
     // Get teacher classes
     const classes = await prisma.class.findMany({
-      where: { teacherId: teacher.id }
+      where: { teacherId: teacher.id, academicYearId: activeYear.id }
     });
     const classIds = classes.map(c => c.id);
 
     // Also check teacher assignments
     const assignments = await prisma.teacherAssignment.findMany({
-      where: { teacherId: teacher.id }
+      where: { teacherId: teacher.id, academicYearId: activeYear.id }
     });
     assignments.forEach(a => {
       if (a.classId) classIds.push(a.classId);
@@ -232,7 +230,7 @@ const getTeacherTimetable = async (req, res) => {
     const uniqueClassIds = [...new Set(classIds)];
 
     const activeSemester = await prisma.semester.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, academicYearId: activeYear.id }
     });
 
     const timetable = await prisma.timetable.findMany({
@@ -280,9 +278,7 @@ const getStudentTimetable = async (req, res) => {
       studentId = childStudentId;
     }
 
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
-    });
+    const activeYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
     if (!activeYear) {
       return res.status(404).json({ message: 'No active academic year found.' });
     }
@@ -303,12 +299,12 @@ const getStudentTimetable = async (req, res) => {
 
     // Retrieve classes matching the student's grade level
     const classes = await prisma.class.findMany({
-      where: { name: `Class ${enrollment.grade}` }
+      where: { name: `Class ${enrollment.grade}`, academicYearId: activeYear.id }
     });
     const classIds = classes.map(c => c.id);
 
     const activeSemester = await prisma.semester.findFirst({
-      where: { isActive: true }
+      where: { isActive: true, academicYearId: activeYear.id }
     });
 
     const timetable = await prisma.timetable.findMany({

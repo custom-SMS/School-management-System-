@@ -7,7 +7,11 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "generate": "prisma generate",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:uat": "node seeds/uat/index.js",
+    "reset:uat": "node scripts/reset-uat.js",
+    "reset:uat:backup": "node scripts/reset-uat.js --backup",
+    "reset:uat:no-backup": "node scripts/reset-uat.js --no-backup"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",

@@ -241,9 +241,17 @@ const createFeeStructure = async (req, res) => {
     // Normalize grade string to prevent case/spacing duplicates
     const grade = String(rawGrade).trim();
 
-    // Check if a fee for this grade already exists (case-insensitive check)
+    // Check if a fee for this grade already exists for the CURRENT academic year
+    const academicYearId = req.selectedAcademicYear?.id || req.activeYear?.id;
+    if (!academicYearId) {
+      return res.status(400).json({ message: 'No academic year context found.' });
+    }
+
     const existing = await prisma.feeStructure.findFirst({
-      where: { grade: { equals: grade, mode: 'insensitive' } }
+      where: { 
+        grade: { equals: grade, mode: 'insensitive' },
+        academicYearId
+      }
     });
 
     let feeStructure;
@@ -251,18 +259,25 @@ const createFeeStructure = async (req, res) => {
       // Update the existing record using its actual stored grade key
       feeStructure = await prisma.feeStructure.update({
         where: { id: existing.id },
-        data: { amount: Number(amount), description }
+        data: { tuitionFee: Number(amount), description }
       });
     } else {
       feeStructure = await prisma.feeStructure.create({
-        data: { grade, amount: Number(amount), description }
+        data: { 
+          name: `${grade} - Tuition`,
+          grade, 
+          tuitionFee: Number(amount), 
+          description,
+          academicYearId
+        }
       });
     }
 
     const { logActivity } = require('../middleware/auditLogger');
     await logActivity(req.user._id, 'Set Fee Structure', feeStructure.id, `Set tuition for ${grade} to ETB ${amount}`);
 
-    res.status(200).json(feeStructure);
+    // Map tuitionFee back to amount for the frontend
+    res.status(200).json({ ...feeStructure, amount: feeStructure.tuitionFee });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -270,10 +285,14 @@ const createFeeStructure = async (req, res) => {
 
 const getFeeStructures = async (req, res) => {
   try {
+    const academicYearId = req.selectedAcademicYear?.id || req.activeYear?.id;
     const structures = await prisma.feeStructure.findMany({
+      where: academicYearId ? { academicYearId } : {},
       orderBy: { grade: 'asc' }
     });
-    res.status(200).json(structures);
+    // Map tuitionFee to amount for the frontend
+    const mapped = structures.map(s => ({ ...s, amount: s.tuitionFee }));
+    res.status(200).json(mapped);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -309,8 +328,10 @@ const generateMonthlyFees = async (req, res) => {
       where: { isActive: true }
     });
 
-    const feeStructures = await prisma.feeStructure.findMany();
-    const feeByGrade = new Map(feeStructures.map((fs) => [normalizeGradeKey(fs.grade), fs.amount]));
+    const feeStructures = await prisma.feeStructure.findMany({
+      where: { academicYearId: activeYear?.id }
+    });
+    const feeByGrade = new Map(feeStructures.map((fs) => [normalizeGradeKey(fs.grade), fs.tuitionFee]));
 
     // Fetch only students in the cashier's branch
     const students = await prisma.student.findMany({

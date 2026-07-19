@@ -2,8 +2,20 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../prisma');
 
 // ─── verifyToken ──────────────────────────────────────────────────────────────
+const attachAcademicYearContext = (req, res, next) => {
+  // Kept here so every authenticated route receives the same year context,
+  // regardless of the route-specific middleware ordering.
+  const { injectActiveYear, injectAcademicYearFilter, enforceYearAccess } = require('./academicYearMiddleware');
+  return injectActiveYear(req, res, (error) => {
+    if (error) return next(error);
+    return injectAcademicYearFilter(req, res, (filterError) => {
+      if (filterError) return next(filterError);
+      return enforceYearAccess(req, res, next);
+    });
+  });
+};
+
 const verifyToken = (req, res, next) => {
- ;
   const token = req.cookies?.token;
   
   if (!token) {
@@ -12,7 +24,7 @@ const verifyToken = (req, res, next) => {
   try {
     const verified = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
     req.user = verified; // { _id, role, scopeType, schoolId, branchId, levelId }
-    next();
+    attachAcademicYearContext(req, res, next);
   } catch (err) {
     res.status(400).json({ message: 'Invalid or Expired Token' });
   }
@@ -24,7 +36,8 @@ const verifyTokenOptional = (req, res, next) => {
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');
   } catch (err) {}
-  next();
+  if (!req.user) return next();
+  attachAcademicYearContext(req, res, next);
 };
 
 // ─── checkRole ────────────────────────────────────────────────────────────────
