@@ -1,4 +1,31 @@
 const PDFDocument = require('pdfkit');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const http = require('http');
+
+/**
+ * Download image from URL to buffer
+ * @param {string} url - Image URL
+ * @returns {Promise<Buffer>} Image buffer
+ */
+const downloadImage = (url) => {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+    
+    protocol.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        reject(new Error(`Failed to download image: ${res.statusCode}`));
+        return;
+      }
+      
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => resolve(Buffer.concat(chunks)));
+      res.on('error', reject);
+    }).on('error', reject);
+  });
+};
 
 /**
  * Generate a beautifully formatted PDF receipt using PDFKit
@@ -7,12 +34,13 @@ const PDFDocument = require('pdfkit');
  * @returns {Promise<Buffer>} A promise that resolves to the PDF buffer
  */
 const generateReceiptPdf = (receiptData, schoolSettings = {}) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     try {
       const { receipt, payment, fee, student, issuedBy } = receiptData;
       
       const schoolName = schoolSettings.branding?.institutionNameEn || 'School Management System';
       const brandColor = schoolSettings.branding?.brandColor || '#0ea5e9'; // Default modern blue
+      const logoUrl = schoolSettings.branding?.logo || null;
       
       const studentName = student?.user?.name || 'Student';
       const studentId = student?.studentId || 'N/A';
@@ -41,6 +69,31 @@ const generateReceiptPdf = (receiptData, schoolSettings = {}) => {
 
       // --- Header Background ---
       doc.rect(0, 0, doc.page.width, 120).fill(brandColor);
+      
+      // --- Logo (if available) ---
+      let logoBuffer = null;
+      if (logoUrl) {
+        try {
+          if (logoUrl.startsWith('http')) {
+            // Download from URL
+            logoBuffer = await downloadImage(logoUrl);
+          } else {
+            // Local file path
+            const logoPath = path.resolve(logoUrl);
+            if (fs.existsSync(logoPath)) {
+              logoBuffer = fs.readFileSync(logoPath);
+            }
+          }
+          
+          if (logoBuffer) {
+            // Position logo on the left side
+            doc.image(logoBuffer, 50, 30, { fit: [60, 60], align: 'left' });
+          }
+        } catch (logoError) {
+          console.log('Error loading logo:', logoError.message);
+          // Continue without logo if there's an error
+        }
+      }
       
       // --- Header Text ---
       doc.fillColor('#ffffff')

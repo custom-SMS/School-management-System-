@@ -1043,6 +1043,18 @@ const downloadReceiptPdf = async (req, res) => {
     }
 
     const studentId = receipt.payment?.fee?.student?.id;
+    
+    // Get full student details including studentId and grade
+    let studentDetails = receipt.payment?.fee?.student;
+    if (studentId) {
+      const fullStudent = await prisma.student.findUnique({
+        where: { id: studentId },
+        select: { studentId: true, grade: true }
+      });
+      if (fullStudent) {
+        studentDetails = { ...studentDetails, ...fullStudent };
+      }
+    }
 
     if (req.user.role === 'Student') {
       const student = await prisma.student.findUnique({
@@ -1079,7 +1091,7 @@ const downloadReceiptPdf = async (req, res) => {
       receipt,
       payment: receipt.payment,
       fee: receipt.payment.fee,
-      student: receipt.payment.fee.student,
+      student: studentDetails,
       issuedBy: receipt.issuedBy
     }, schoolSettings);
 

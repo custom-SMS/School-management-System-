@@ -10,7 +10,7 @@ export const MaintenanceProvider = ({ children }) => {
   useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const res = await axios.get('/settings');
+        const res = await axios.get('/settings/public');
         const settings = res.data || {};
         if (settings.notifications?.maintenanceBroadcasts && settings.notifications?.maintenanceMessage) {
           setMaintenanceBroadcast({

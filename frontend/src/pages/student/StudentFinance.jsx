@@ -73,7 +73,11 @@ export default function StudentFinance() {
       setTimeout(() => window.URL.revokeObjectURL(url), 1000);
       toast.success('Receipt downloaded.');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to download receipt.');
+      if (err.response?.status === 404) {
+        toast.error('Receipt not yet available. Please contact the cashier if payment was recently made.');
+      } else {
+        toast.error(err.response?.data?.message || 'Failed to download receipt.');
+      }
     }
   };
 
@@ -180,10 +184,12 @@ export default function StudentFinance() {
                     <td className="py-3 pr-4 font-semibold text-slate-900">{f.description || 'Tuition'}</td>
                     <td className="py-3 pr-4 text-right font-bold text-slate-900">{etb(f.amount)}</td>
                     <td className="py-3 pl-4 text-right">
-                      {f.latestPayment?.id ? (
+                      {f.latestPayment?.status === 'Verified' ? (
                         <button onClick={() => handleDownloadReceipt(f.latestPayment.id)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200">
                           Download
                         </button>
+                      ) : f.latestPayment?.status === 'Pending' ? (
+                        <span className="text-xs text-slate-400">Verifying</span>
                       ) : <span className="text-xs text-slate-400">—</span>}
                     </td>
                   </tr>

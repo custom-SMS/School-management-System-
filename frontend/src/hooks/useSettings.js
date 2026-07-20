@@ -20,7 +20,7 @@ export function useSettings() {
   const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
   const serverOrigin = apiBase.replace(/\/api\/?$/, '');
   const logoUrl = branding.logo
-    ? `${serverOrigin}${branding.logo}`
+    ? (branding.logo.startsWith('http') ? branding.logo : `${serverOrigin}${branding.logo}`)
     : null;
 
   // Format date helper

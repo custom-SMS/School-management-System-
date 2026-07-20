@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react';
 import axios from '../api/axios';
 import SuperAdminLayout from '../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function Settings() {
+  const queryClient = useQueryClient();
   // --- Existing Logic/States ---
   const [savingAll, setSavingAll] = useState(false);
   const [sessions, setSessions] = useState([]);
@@ -255,6 +257,8 @@ export default function Settings() {
           passMark,
         },
       });
+      // Invalidate the public settings query so the logo appears immediately
+      queryClient.invalidateQueries({ queryKey: ['settings', 'public'] });
       toast.success('Settings saved successfully.');
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save settings.');
