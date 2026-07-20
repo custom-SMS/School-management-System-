@@ -93,9 +93,11 @@ import ParentAttendance from "./pages/parent/ParentAttendance";
 import ParentFinance from "./pages/parent/ParentFinance";
 import ParentPayment from "./pages/parent/ParentPayment";
 import ParentNotifications from "./pages/parent/ParentNotifications";
+import { AcademicYearProvider } from "./context/AcademicYearContext";
 
 function App() {
   return (
+    <AcademicYearProvider>
     <Router>
             <ToastContainer position="top-right" autoClose={3000} />
             <Routes>
@@ -785,6 +787,7 @@ function App() {
               />
             </Routes>
           </Router>
+    </AcademicYearProvider>
   );
 }
 export default App;
