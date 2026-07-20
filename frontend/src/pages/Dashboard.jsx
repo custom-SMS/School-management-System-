@@ -146,6 +146,18 @@ export default function Dashboard() {
       )
     },
     {
+      label: 'Total Subjects',
+      value: stats?.totalSubjects?.toLocaleString() || '—',
+      badge: 'Active',
+      badgeColor: 'text-blue-600',
+      icon: (
+        <svg viewBox="0 0 36 36" fill="none" className="h-full w-full opacity-20">
+          <path d="M4 6h28v24H4z" stroke="#000" strokeWidth="2" />
+          <path d="M4 10h28M12 6v24" stroke="#000" strokeWidth="2" />
+        </svg>
+      )
+    },
+    {
       label: 'Attendance Rate',
       value: `${stats?.avgAttendance || 0}%`,
       badge: 'Optimal',

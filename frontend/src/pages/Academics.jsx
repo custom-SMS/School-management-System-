@@ -13,6 +13,7 @@ export default function Academics() {
   const [subjectName, setSubjectName] = useState('');
   const [subjectDept, setSubjectDept] = useState('');
   const [selectedGrades, setSelectedGrades] = useState([]);
+  const [editingSubjectId, setEditingSubjectId] = useState(null);
 
   // Class form
   const [classGrade, setClassGrade] = useState('');
@@ -54,7 +55,7 @@ export default function Academics() {
   const fetchTeachers = async () => {
     try {
       const res = await axios.get('/teachers');
-      setTeachers(res.data || []);
+      setTeachers(res.data.teachers || []);
     } catch (err) {
       console.error(err);
     }
@@ -95,19 +96,29 @@ export default function Academics() {
   const handleCreateSubject = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('/subjects', {
-        name: subjectName,
-        department: subjectDept || undefined,
-        gradesOffered: selectedGrades
-      });
-      toast.success(`Subject "${subjectName}" created.`);
+      if (editingSubjectId) {
+        await axios.put(`/subjects/${editingSubjectId}`, {
+          name: subjectName,
+          department: subjectDept || undefined,
+          gradesOffered: selectedGrades
+        });
+        toast.success(`Subject "${subjectName}" updated.`);
+      } else {
+        await axios.post('/subjects', {
+          name: subjectName,
+          department: subjectDept || undefined,
+          gradesOffered: selectedGrades
+        });
+        toast.success(`Subject "${subjectName}" created.`);
+      }
       setSubjectName('');
       setSubjectDept('');
       setSelectedGrades([]);
+      setEditingSubjectId(null);
       fetchSubjects();
       setShowModal(false);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create subject.');
+      toast.error(err.response?.data?.message || 'Failed to save subject.');
     }
   };
 
@@ -181,8 +192,24 @@ if (!result) return;
     return acc;
   }, {});
 
+  // Subjects without grades assigned
+  const unassignedSubjects = subjects.filter((s) => !s.gradesOffered || s.gradesOffered.length === 0);
+
   const openModal = (mode) => {
     setModalMode(mode);
+    setEditingSubjectId(null);
+    setSubjectName('');
+    setSubjectDept('');
+    setSelectedGrades([]);
+    setShowModal(true);
+  };
+
+  const openEditSubjectModal = (subject) => {
+    setEditingSubjectId(subject.id);
+    setSubjectName(subject.name);
+    setSubjectDept(subject.department || '');
+    setSelectedGrades(subject.gradesOffered || []);
+    setModalMode('subject');
     setShowModal(true);
   };
 
@@ -206,7 +233,7 @@ if (!result) return;
           <div className="w-full max-w-md rounded-2xl bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
-                {modalMode === 'subject' ? 'Add New Subject' : 'Add New Class'}
+                {modalMode === 'subject' ? (editingSubjectId ? 'Edit Subject' : 'Add New Subject') : 'Add New Class'}
               </h2>
               <button onClick={() => setShowModal(false)} className="text-xl text-gray-400 hover:text-gray-700">
                 ✕
@@ -417,6 +444,61 @@ if (!result) return;
         ))}
       </div>
 
+      {/* All Subjects List */}
+      <div className="mb-8">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="h-6 w-1 rounded-full bg-black"></div>
+          <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
+          <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
+            {subjects.length} Total
+          </span>
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {subjects.map((s) => (
+            <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="mb-3 flex items-start justify-between">
+                <div>
+                  <div className="font-bold text-gray-900">{s.name}</div>
+                  <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+                  {s.gradesOffered && s.gradesOffered.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {s.gradesOffered.map((grade) => (
+                        <span key={grade} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                          {grade}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                    />
+                  </svg>
+                </button>
+                <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2"
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {Object.keys(subjectsByGrade).length > 0 && (
         Object.entries(subjectsByGrade).sort((a, b) => {
           const aNum = Number(a[0].match(/\d+/)?.[0] || 0);
@@ -442,6 +524,16 @@ if (!result) return;
                   </div>
 
                   <div className="flex justify-end gap-3">
+                    <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600">
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                    </button>
                     <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path

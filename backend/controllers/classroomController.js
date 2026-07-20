@@ -1386,6 +1386,17 @@ const createClass = async (req, res) => {
 
     const branchId = req.branchFilter?.branchId || null;
 
+    // Get the active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true, branchId: branchId || undefined }
+    }) || await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found.' });
+    }
+
     const existingClass = await prisma.class.findFirst({
       where: {
         name: {
@@ -1417,6 +1428,9 @@ const createClass = async (req, res) => {
         schedule,
         stream,
         branchId,
+        academicYear: {
+          connect: { id: activeYear.id }
+        },
         ...(subjectIds && subjectIds.length > 0 ? {
           classSubjects: {
             create: subjectIds.map(subjectId => ({ subjectId }))
@@ -1759,6 +1773,17 @@ const createSection = async (req, res) => {
       return res.status(404).json({ message: 'Class not found.' });
     }
 
+    // Get the active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true, branchId: existingClass.branchId || undefined }
+    }) || await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found.' });
+    }
+
     const normalizedSectionName = typeof name === 'string' && name.trim()
       ? name.trim().toUpperCase()
       : getNextSectionLetter(existingClass.sections.map((section) => section.name));
@@ -1776,6 +1801,9 @@ const createSection = async (req, res) => {
         name: normalizedSectionName,
         class: {
           connect: { id: classId }
+        },
+        academicYear: {
+          connect: { id: activeYear.id }
         }
       },
       include: {

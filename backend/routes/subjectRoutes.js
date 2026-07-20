@@ -4,7 +4,7 @@ const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware')
 const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
 
 const router = express.Router();
-const { createSubject, getSubjects, deleteSubject } = require('../controllers/subjectController');
+const { createSubject, getSubjects, updateSubject, deleteSubject } = require('../controllers/subjectController');
 const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
@@ -54,6 +54,42 @@ router.get('/', verifyToken, injectBranchFilter, setCacheResource('classrooms'),
  *         description: Subject created
  */
 router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), createSubject);
+
+/**
+ * @swagger
+ * /subjects/{id}:
+ *   put:
+ *     summary: Update a subject
+ *     tags: [Subjects]
+ *     security:
+ *       - bearerAuth: []
+ *       - cookieAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               department:
+ *                 type: string
+ *               gradesOffered:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       200:
+ *         description: Subject updated
+ */
+router.put('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), updateSubject);
 
 /**
  * @swagger

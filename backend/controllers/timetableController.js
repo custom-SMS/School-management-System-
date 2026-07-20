@@ -154,6 +154,8 @@ const getTimetablesByClass = async (req, res) => {
     const { classId, academicYearId } = req.params;
     const { sectionId, semesterId } = req.query;
 
+    console.log('Fetching timetable for class:', classId, 'academicYear:', academicYearId, 'section:', sectionId, 'semester:', semesterId);
+
     if (req.user.role === 'Admin') {
       const targetClass = await prisma.class.findUnique({
         where: { id: classId },
@@ -177,6 +179,8 @@ const getTimetablesByClass = async (req, res) => {
       if (activeSemester) whereClause.semesterId = activeSemester.id;
     }
 
+    console.log('Where clause:', whereClause);
+
     const timetable = await prisma.timetable.findMany({
       where: whereClause,
       include: {
@@ -191,8 +195,12 @@ const getTimetablesByClass = async (req, res) => {
       ]
     });
 
+    console.log('Found timetable slots:', timetable.length);
+    console.log('Timetable data:', JSON.stringify(timetable, null, 2));
+
     res.status(200).json(timetable);
   } catch (error) {
+    console.error('Error fetching timetable:', error);
     res.status(500).json({ message: error.message });
   }
 };

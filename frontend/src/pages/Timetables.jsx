@@ -122,19 +122,37 @@ export default function Timetables() {
     }
   }, [formClass]);
 
+  // Load sections for view filter when selectedClass changes
+  useEffect(() => {
+    if (selectedClass) {
+      axios.get(`/classroom/sections/${selectedClass}`).then(res => {
+        const sectionList = res.data || [];
+        setSections(sectionList);
+        if (sectionList.length > 0) {
+          setSelectedSection(sectionList[0].id);
+        } else {
+          setSelectedSection('');
+        }
+      }).catch(err => console.error(err));
+    }
+  }, [selectedClass]);
+
   // Fetch timetable slots based on user role
   const fetchTimetables = async () => {
     setLoading(true);
     try {
       if (user?.role === 'Student') {
         const res = await axios.get('/timetables/student/me');
+        console.log('Student timetable response:', res.data);
         setTimetableSlots(res.data?.timetable || []);
       } else if (user?.role === 'Teacher') {
         const res = await axios.get('/timetables/teacher/me');
+        console.log('Teacher timetable response:', res.data);
         setTimetableSlots(res.data?.timetable || []);
       } else if (user?.role === 'Parent') {
         if (selectedChildId) {
           const res = await axios.get(`/timetables/student/me?childStudentId=${selectedChildId}`);
+          console.log('Parent timetable response:', res.data);
           setTimetableSlots(res.data?.timetable || []);
         }
       } else if (selectedClass && selectedYear) {
@@ -142,11 +160,16 @@ export default function Timetables() {
         const params = new URLSearchParams();
         if (selectedSection) params.append('sectionId', selectedSection);
         if (selectedSemesterId) params.append('semesterId', selectedSemesterId);
-        const res = await axios.get(`/timetables/class/${selectedClass}/${selectedYear}?${params.toString()}`);
+        const url = `/timetables/class/${selectedClass}/${selectedYear}?${params.toString()}`;
+        console.log('Fetching admin timetable with URL:', url);
+        console.log('Selected class:', selectedClass, 'Selected year:', selectedYear, 'Selected section:', selectedSection, 'Selected semester:', selectedSemesterId);
+        const res = await axios.get(url);
+        console.log('Admin timetable response:', res.data);
+        console.log('Timetable slots count:', res.data?.length || 0);
         setTimetableSlots(res.data || []);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error fetching timetables:', err);
       toast.error('Failed to load timetable schedules.');
     } finally {
       setLoading(false);

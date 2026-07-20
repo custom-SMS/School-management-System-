@@ -13,14 +13,26 @@ const createSubject = async (req, res) => {
       ? [...new Set(gradesOffered.map((grade) => String(grade).trim()).filter(Boolean))]
       : [];
 
-    // Get branchId from filter or use default
-    const branchId = req.branchFilter?.branchId || process.env.DEFAULT_BRANCH_ID || null;
+    // Get branchId from filter (can be null for SuperAdmin creating global subjects)
+    let branchId = req.branchFilter?.branchId || null;
 
-    // Check for duplicate subject name within the same branch
+    // If branchId is provided, validate that the branch exists
+    // If branch doesn't exist, set branchId to null and proceed (for global subjects)
+    if (branchId) {
+      const branch = await prisma.branch.findUnique({
+        where: { id: branchId }
+      });
+      if (!branch) {
+        console.warn('Branch not found, creating subject without branch association:', branchId);
+        branchId = null; // Set to null to proceed without branch association
+      }
+    }
+
+    // Check for duplicate subject name within the same branch (or globally if no branch)
     const existing = await prisma.subject.findFirst({
-      where: { 
+      where: {
         name,
-        branchId 
+        branchId
       }
     });
     if (existing) {
@@ -33,13 +45,13 @@ const createSubject = async (req, res) => {
         where: { branchId }
       });
       for (const grade of normalizedGrades) {
-        const duplicateForGrade = allSubjects.find(s => 
-          s.name.toLowerCase() === name.toLowerCase() && 
+        const duplicateForGrade = allSubjects.find(s =>
+          s.name.toLowerCase() === name.toLowerCase() &&
           (s.gradesOffered || []).includes(grade)
         );
         if (duplicateForGrade) {
-          return res.status(400).json({ 
-            message: `Subject "${name}" is already assigned to ${grade} in this branch. Please select a different subject or grade.` 
+          return res.status(400).json({
+            message: `Subject "${name}" is already assigned to ${grade} in this branch. Please select a different subject or grade.`
           });
         }
       }
@@ -58,6 +70,7 @@ const createSubject = async (req, res) => {
 
     res.status(201).json(subject);
   } catch (error) {
+    console.error('Error creating subject:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -65,13 +78,23 @@ const createSubject = async (req, res) => {
 // Get all subjects
 const getSubjects = async (req, res) => {
   try {
-    const whereClause = req.branchFilter || {};
+    const branchFilter = req.branchFilter || {};
+    console.log('Fetching subjects with filter:', branchFilter);
+
+    // Get subjects for the branch AND subjects without branch association (global subjects)
     const subjects = await prisma.subject.findMany({
-      where: whereClause,
+      where: {
+        OR: [
+          branchFilter,
+          { branchId: null }
+        ]
+      },
       orderBy: { name: 'asc' }
     });
+    console.log('Found subjects:', subjects.length);
     res.status(200).json(subjects);
   } catch (error) {
+    console.error('Error fetching subjects:', error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -101,8 +124,76 @@ const deleteSubject = async (req, res) => {
   }
 };
 
+// Update a subject
+const updateSubject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, department, gradesOffered = [] } = req.body;
+
+    const whereClause = { id, ...(req.branchFilter || {}) };
+    const subject = await prisma.subject.findFirst({
+      where: whereClause
+    });
+    if (!subject) {
+      return res.status(404).json({ message: 'Subject not found.' });
+    }
+
+    const normalizedGrades = Array.isArray(gradesOffered)
+      ? [...new Set(gradesOffered.map((grade) => String(grade).trim()).filter(Boolean))]
+      : [];
+
+    // Check for duplicate subject name within the same branch (excluding current subject)
+    if (name && name !== subject.name) {
+      const existing = await prisma.subject.findFirst({
+        where: {
+          name,
+          branchId: subject.branchId,
+          id: { not: id }
+        }
+      });
+      if (existing) {
+        return res.status(400).json({ message: 'Subject already exists in this branch.' });
+      }
+    }
+
+    // Check if subject already exists for any of the selected grades within the same branch
+    if (normalizedGrades.length > 0) {
+      const allSubjects = await prisma.subject.findMany({
+        where: { branchId: subject.branchId, id: { not: id } }
+      });
+      for (const grade of normalizedGrades) {
+        const duplicateForGrade = allSubjects.find(s =>
+          s.name.toLowerCase() === (name || subject.name).toLowerCase() &&
+          (s.gradesOffered || []).includes(grade)
+        );
+        if (duplicateForGrade) {
+          return res.status(400).json({
+            message: `Subject "${name || subject.name}" is already assigned to ${grade} in this branch. Please select a different subject or grade.`
+          });
+        }
+      }
+    }
+
+    const updatedSubject = await prisma.subject.update({
+      where: { id },
+      data: {
+        name: name !== undefined ? name : subject.name,
+        department: department !== undefined ? department : subject.department,
+        gradesOffered: gradesOffered !== undefined ? normalizedGrades : subject.gradesOffered
+      }
+    });
+
+    await logActivity(req.user._id, 'Update Subject', id, `Updated subject: ${updatedSubject.name}`);
+
+    res.status(200).json(updatedSubject);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   createSubject,
   getSubjects,
+  updateSubject,
   deleteSubject
 };

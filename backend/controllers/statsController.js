@@ -37,6 +37,9 @@ const getAdminStats = async (req, res) => {
     // 1. Total Students — scoped to branch
     const totalStudents = await prisma.student.count({ where: { ...bf } });
 
+    // 1.5. Total Subjects — scoped to branch
+    const totalSubjects = await prisma.subject.count({ where: { ...bf } });
+
     const studentsByClassRaw = await prisma.student.groupBy({
       by: ['grade'],
       where: { ...bf },
@@ -200,6 +203,7 @@ const getAdminStats = async (req, res) => {
 
     res.status(200).json({
       totalStudents,
+      totalSubjects,
       totalRevenue,
       totalPendingRevenue,
       avgAttendance,
@@ -891,6 +895,9 @@ const getSuperAdminStats = async (req, res) => {
     const totalTeachers = await prisma.teacher.count({
       where: { user: { isActive: true }, ...branchFilter }
     });
+    const totalSubjects = await prisma.subject.count({
+      where: { ...branchFilter }
+    });
     const totalCashiers = await prisma.user.count({
       where: {
         role: 'Cashier',
@@ -1060,6 +1067,7 @@ const getSuperAdminStats = async (req, res) => {
     res.status(200).json({
       totalStudents,
       totalTeachers,
+      totalSubjects,
       totalCashiers,
       totalRevenue,        // active year only
       allTimeRevenue,      // all academic years combined
