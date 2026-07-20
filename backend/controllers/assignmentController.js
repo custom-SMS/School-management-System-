@@ -104,6 +104,17 @@ const createAssignment = async (req, res) => {
       return res.status(403).json({ message: 'Access denied. Teacher belongs to another branch.' });
     }
 
+    // Get the active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true, branchId: teacher.branchId || undefined }
+    }) || await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found.' });
+    }
+
     let resolvedClasses = [];
     let resolvedSection = null;
 
@@ -257,6 +268,7 @@ const createAssignment = async (req, res) => {
             notes,
             assignmentType,
             assignedById: req.user._id,
+            academicYearId: activeYear.id,
           }
         });
       }
