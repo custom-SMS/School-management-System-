@@ -585,12 +585,29 @@ const getAttendanceSessions = async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
     const skip = (page - 1) * limit;
+    const { className, status } = req.query;
+
+    // Build where clause with filters
+    const where = {
+      class: { ...(req.branchFilter || {}) }
+    };
+
+    // Add class name filter
+    if (className) {
+      where.class.name = {
+        contains: className,
+        mode: 'insensitive'
+      };
+    }
+
+    // Add status filter (locked/open)
+    if (status === 'locked' || status === 'open') {
+      where.locked = status === 'locked';
+    }
 
     const [sessions, total] = await Promise.all([
       prisma.attendance.findMany({
-        where: {
-          class: { ...(req.branchFilter || {}) }
-        },
+        where,
         include: {
           class: { select: { id: true, name: true, subject: true } },
           recordedBy: { select: { id: true, name: true } },
@@ -601,9 +618,7 @@ const getAttendanceSessions = async (req, res) => {
         take: limit
       }),
       prisma.attendance.count({
-        where: {
-          class: { ...(req.branchFilter || {}) }
-        }
+        where
       })
     ]);
 

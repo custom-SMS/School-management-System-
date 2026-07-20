@@ -17,7 +17,10 @@ export default function AttendanceGovernance() {
   const fetchSessions = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await axios.get('/classroom/attendance', { params: { page, limit: 10 } });
+      const params = { page, limit: 10 };
+      if (filterClass) params.className = filterClass;
+      if (filterStatus) params.status = filterStatus;
+      const res = await axios.get('/classroom/attendance', { params });
       setSessions(res.data.data || []);
       setPagination(res.data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
     } catch {
@@ -27,7 +30,7 @@ export default function AttendanceGovernance() {
     }
   };
 
-  useEffect(() => { fetchSessions(); }, [selectedYear]);
+  useEffect(() => { fetchSessions(); }, [selectedYear, filterClass, filterStatus]);
 
   const handleUnlock = async (session) => {
     const { isConfirmed } = await showConfirmDialog({
@@ -52,12 +55,6 @@ export default function AttendanceGovernance() {
     if (newPage < 1 || newPage > pagination.totalPages) return;
     fetchSessions(newPage);
   };
-
-  const filtered = sessions.filter(s => {
-    const matchClass = filterClass ? s.className?.toLowerCase().includes(filterClass.toLowerCase()) : true;
-    const matchStatus = filterStatus === 'locked' ? s.locked : filterStatus === 'open' ? !s.locked : true;
-    return matchClass && matchStatus;
-  });
 
   const lockedCount = sessions.filter(s => s.locked).length;
   const openCount   = sessions.filter(s => !s.locked).length;
@@ -86,7 +83,7 @@ export default function AttendanceGovernance() {
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="text-2xl font-black text-slate-900">{sessions.length}</div>
+          <div className="text-2xl font-black text-slate-900">{pagination.total}</div>
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Total Sessions</div>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-4 shadow-sm">
@@ -130,9 +127,9 @@ export default function AttendanceGovernance() {
         <div className="overflow-x-auto">
           {loading ? (
             <div className="p-12 text-center text-slate-400 text-sm">Loading attendance sessions…</div>
-          ) : filtered.length === 0 ? (
+          ) : sessions.length === 0 ? (
             <div className="p-12 text-center text-slate-400 text-sm">
-              {sessions.length === 0 ? 'No attendance sessions recorded yet.' : 'No sessions match the current filter.'}
+              {pagination.total === 0 ? 'No attendance sessions recorded yet.' : 'No sessions match the current filter.'}
             </div>
           ) : (
             <table className="w-full text-left text-sm whitespace-nowrap">
@@ -148,7 +145,7 @@ export default function AttendanceGovernance() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-slate-700">
-                {filtered.map(s => (
+                {sessions.map(s => (
                   <tr key={s._id} className={`hover:bg-slate-50 transition ${s.locked ? 'bg-red-50/30' : ''}`}>
                     <td className="px-6 py-4 font-bold">{new Date(s.date).toLocaleDateString()}</td>
                     <td className="px-6 py-4 font-semibold text-slate-900">{s.className}</td>
