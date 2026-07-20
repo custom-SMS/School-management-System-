@@ -40,7 +40,7 @@ export default function AuditLogs() {
   const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page, limit: 20 };
+      const params = { page, limit: 8 };
       if (debouncedSearch) params.action = debouncedSearch;
       const res = await axios.get('/audit-logs', { params });
       setData(res.data);

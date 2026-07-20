@@ -5,7 +5,7 @@ const prisma = require('../prisma');
 // @access  SuperAdmin, Admin
 const getAuditLogs = async (req, res) => {
   try {
-    const { userId, action, page = 1, limit = 50 } = req.query;
+    const { userId, action, page = 1, limit = 8 } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
     const where = {};

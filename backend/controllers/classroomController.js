@@ -211,7 +211,10 @@ const getClassroomOptions = async (req, res) => {
 
     const targetYear = await getSelectedYear(req);
     const targetYearId = targetYear?.id;
-    if (targetYearId) where.academicYearId = targetYearId;
+    // Filter by the selected academic year (from dropdown or active year)
+    if (targetYearId) {
+      where.academicYearId = targetYearId;
+    }
 
     const classes = await prisma.class.findMany({
       where,
@@ -579,18 +582,30 @@ const getAttendanceRegister = async (req, res) => {
 // @access  Private (Admin/SuperAdmin)
 const getAttendanceSessions = async (req, res) => {
   try {
-    const sessions = await prisma.attendance.findMany({
-      where: {
-        class: { ...(req.branchFilter || {}) }
-      },
-      include: {
-        class: { select: { id: true, name: true, subject: true } },
-        recordedBy: { select: { id: true, name: true } },
-        _count: { select: { records: true } }
-      },
-      orderBy: { date: 'desc' },
-      take: 200
-    });
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const [sessions, total] = await Promise.all([
+      prisma.attendance.findMany({
+        where: {
+          class: { ...(req.branchFilter || {}) }
+        },
+        include: {
+          class: { select: { id: true, name: true, subject: true } },
+          recordedBy: { select: { id: true, name: true } },
+          _count: { select: { records: true } }
+        },
+        orderBy: { date: 'desc' },
+        skip,
+        take: limit
+      }),
+      prisma.attendance.count({
+        where: {
+          class: { ...(req.branchFilter || {}) }
+        }
+      })
+    ]);
 
     const response = sessions.map((s) => {
       const diffDays = Math.ceil(Math.abs(new Date() - new Date(s.date)) / (1000 * 60 * 60 * 24));
@@ -607,7 +622,15 @@ const getAttendanceSessions = async (req, res) => {
       };
     });
 
-    res.status(200).json(response);
+    res.status(200).json({
+      data: response,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -1051,8 +1074,17 @@ const setGradingStructure = async (req, res) => {
       return res.status(400).json({ message: `Component weights must sum to exactly 100%. Current total: ${totalWeight}%` });
     }
 
-    // Deactivate old structure
-    await prisma.gradingStructure.updateMany({ data: { isActive: false } });
+    // Get the active academic year
+    const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found. Please set an active academic year first.' });
+    }
+
+    // Deactivate old structure for the current academic year
+    await prisma.gradingStructure.updateMany({ 
+      where: { academicYearId: activeYear.id },
+      data: { isActive: false } 
+    });
 
     // Map first 4 components to legacy fixed fields for backward compatibility
     const legacyMap = {};
@@ -1070,6 +1102,7 @@ const setGradingStructure = async (req, res) => {
         assignmentWeight: legacyMap.assignmentWeight ?? 20,
         midtermWeight: legacyMap.midtermWeight ?? 30,
         finalWeight: legacyMap.finalWeight ?? 40,
+        academicYearId: activeYear.id,
       }
     });
 
@@ -1090,7 +1123,26 @@ const setGradingStructure = async (req, res) => {
 
 const getGradingStructure = async (req, res) => {
   try {
-    const structure = await prisma.gradingStructure.findFirst({ where: { isActive: true } });
+    // Get the academic year from header (for historical views) or use active year
+    const yearViewId = req.headers['x-super-admin-year-view-id'];
+    let academicYearId;
+
+    if (yearViewId) {
+      academicYearId = yearViewId;
+    } else {
+      const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+      if (!activeYear) {
+        return res.status(400).json({ message: 'No active academic year found.' });
+      }
+      academicYearId = activeYear.id;
+    }
+
+    const structure = await prisma.gradingStructure.findFirst({ 
+      where: { 
+        isActive: true,
+        academicYearId: academicYearId
+      } 
+    });
 
     if (structure?.components && Array.isArray(structure.components) && structure.components.length > 0) {
       // Return dynamic format

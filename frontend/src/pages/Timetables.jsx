@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect } from 'react';
 import { showDangerConfirmDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
@@ -61,13 +61,19 @@ export default function Timetables() {
     }).catch(err => console.error(err));
 
     if (user?.role === 'Admin' || user?.role === 'SuperAdmin') {
-      // Fetch subjects
-      axios.get('/subjects').then(res => setSubjects(res.data || [])).catch(err => console.error(err));
-      // Fetch assignments to get classes
+      // Fetch subjects — guard against object responses (e.g. { subjects: [...] })
+      axios.get('/subjects').then(res => {
+        const raw = res.data;
+        const list = Array.isArray(raw) ? raw : (raw?.subjects || raw?.data || []);
+        setSubjects(list);
+      }).catch(err => console.error(err));
+      // Fetch assignments to get classes — guard against object responses
       axios.get('/assignments').then(res => {
+        const raw = res.data;
+        const assignmentArr = Array.isArray(raw) ? raw : (raw?.assignments || raw?.data || []);
         const uniqueClasses = Array.from(
           new Map(
-            (res.data || [])
+            assignmentArr
               .map((assignment) => assignment.class)
               .filter(Boolean)
               .map((klass) => [klass._id, klass]),

@@ -8,7 +8,6 @@ export default function Settings() {
   const [savingAll, setSavingAll] = useState(false);
   const [sessions, setSessions] = useState([]);
   const [unlockingId, setUnlockingId] = useState('');
-  const [gpaEnabled, setGpaEnabled] = useState(false);
 
   // --- Dynamic Grading Structure ---
   const [gradingComponents, setGradingComponents] = useState([
@@ -38,6 +37,7 @@ export default function Settings() {
   const [gradeAlerts, setGradeAlerts] = useState(true);
   const [receiptSummaries, setReceiptSummaries] = useState(true);
   const [maintenanceBroadcasts, setMaintenanceBroadcasts] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
   
   const [currency, setCurrency] = useState('ETB Ethiopian Birr');
   const [timezone, setTimezone] = useState('(GMT+03:00) East Africa Time - Addis Ababa');
@@ -88,6 +88,7 @@ export default function Settings() {
         setGradeAlerts(Boolean(s.notifications.gradeAlerts));
         setReceiptSummaries(Boolean(s.notifications.receiptSummaries));
         setMaintenanceBroadcasts(Boolean(s.notifications.maintenanceBroadcasts));
+        setMaintenanceMessage(s.notifications.maintenanceMessage || '');
       }
       if (s.localization) {
         setCurrency(s.localization.currency ?? currency);
@@ -103,7 +104,6 @@ export default function Settings() {
         setLogo(s.branding.logo ?? '');
       }
       if (s.grading) {
-        setGpaEnabled(s.grading.gpaEnabled ?? false);
         setPassMark(s.grading.passMark ?? 50);
       }
     } catch (err) {
@@ -236,6 +236,7 @@ export default function Settings() {
           gradeAlerts,
           receiptSummaries,
           maintenanceBroadcasts,
+          maintenanceMessage,
         },
         localization: {
           currency,
@@ -251,7 +252,6 @@ export default function Settings() {
           logo,
         },
         grading: {
-          gpaEnabled,
           passMark,
         },
       });
@@ -268,7 +268,7 @@ export default function Settings() {
     { id: 'Notifications', label: 'Notifications', icon: '🔔' },
     { id: 'Localization', label: 'Localization', icon: '🌐' },
     { id: 'Platform Branding', label: 'Platform Branding', icon: '🎨' },
-    { id: 'Grading & Attendance', label: 'Grading & Attendance', icon: '📊' }, // Injected to keep existing functional features
+    { id: 'Grading', label: 'Grading', icon: '📊' },
   ];
 
   return (
@@ -406,11 +406,24 @@ export default function Settings() {
                       onChange={(e) => setMaintenanceBroadcasts(e.target.checked)}
                       className="mt-1 w-4 h-4 text-slate-950 border-slate-300 rounded focus:ring-slate-950" 
                     />
-                    <div>
+                    <div className="flex-1">
                       <span className="block text-sm font-bold text-slate-900">System Maintenance Broadcasts</span>
                       <span className="block text-xs text-slate-500 mt-0.5">Allow global dashboard banners for planned downtime notifications.</span>
                     </div>
                   </label>
+                  {maintenanceBroadcasts && (
+                    <div className="ml-7 space-y-1.5">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Broadcast Message</label>
+                      <textarea
+                        value={maintenanceMessage}
+                        onChange={(e) => setMaintenanceMessage(e.target.value)}
+                        placeholder="Enter maintenance message to display across all pages..."
+                        rows={3}
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-slate-400 focus:bg-white resize-none"
+                      />
+                      <p className="text-xs text-slate-400">This message will appear as a banner on all pages when maintenance broadcasts are enabled.</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -564,8 +577,8 @@ export default function Settings() {
               </div>
             )}
 
-            {/* TAB: Grading & Attendance */}
-            {activeTab === 'Grading & Attendance' && (
+            {/* TAB: Grading */}
+            {activeTab === 'Grading' && (
               <div className="space-y-6">
 
                 {/* ── Grading Structure card ── */}
@@ -590,20 +603,8 @@ export default function Settings() {
                     </span>
                   </div>
 
-                  {/* GPA toggle + Pass Mark */}
+                  {/* Pass Mark */}
                   <div className="mb-6 grid md:grid-cols-2 gap-4">
-                    <div className="bg-slate-50 rounded-2xl p-4 flex items-center justify-between border border-slate-200/60">
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-900">Enable GPA Calculation</h4>
-                        <p className="text-xs text-slate-500 mt-0.5">Show GPA alongside percentage on report cards.</p>
-                      </div>
-                      <button
-                        onClick={() => setGpaEnabled(!gpaEnabled)}
-                        className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 focus:outline-none ${gpaEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                      >
-                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ${gpaEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
-                      </button>
-                    </div>
                     <div className="space-y-1.5">
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Pass Mark (%)</label>
                       <input
@@ -757,62 +758,6 @@ export default function Settings() {
                     >
                       {savingWeights ? 'Saving…' : 'Save Grading Structure'}
                     </button>
-                  </div>
-                </div>
-
-                {/* Attendance Locks */}
-                <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-xs">
-                  <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
-                    <span className="text-xl">🔒</span>
-                    <h3 className="text-lg font-bold text-slate-900">Attendance Locks</h3>
-                  </div>
-                  <p className="text-xs text-slate-500 mb-4">Sessions older than 7 days are locked. Unlock to allow teachers to amend them.</p>
-
-                  <div className="overflow-x-auto rounded-xl border border-slate-200">
-                    <table className="min-w-full border-collapse text-left text-sm">
-                      <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold uppercase tracking-wider text-slate-500">
-                          <th className="px-4 py-3.5">Class</th>
-                          <th className="px-4 py-3.5">Date</th>
-                          <th className="px-4 py-3.5">Records</th>
-                          <th className="px-4 py-3.5">Status</th>
-                          <th className="px-4 py-3.5 text-right">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-150 bg-white">
-                        {sessions.map((s) => (
-                          <tr key={s.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="px-4 py-3.5 font-bold text-slate-800">{s.className}</td>
-                            <td className="px-4 py-3.5 text-slate-600">
-                              {new Date(s.date).toLocaleDateString()}{' '}
-                              <span className="text-xs text-slate-400">({s.ageDays}d ago)</span>
-                            </td>
-                            <td className="px-4 py-3.5 text-slate-600 font-medium">{s.recordCount}</td>
-                            <td className="px-4 py-3.5">
-                              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${s.locked ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-emerald-50 text-emerald-700 border border-emerald-100'}`}>
-                                {s.locked ? 'Locked' : 'Editable'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3.5 text-right">
-                              <button
-                                disabled={!s.locked || unlockingId === s.id}
-                                onClick={() => handleUnlock(s.id)}
-                                className="rounded-xl bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-40 transition"
-                              >
-                                {unlockingId === s.id ? 'Unlocking…' : 'Unlock'}
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                        {sessions.length === 0 && (
-                          <tr>
-                            <td colSpan="5" className="px-4 py-8 text-center text-slate-500 font-medium">
-                              No attendance sessions recorded yet.
-                            </td>
-                          </tr>
-                        )}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
 

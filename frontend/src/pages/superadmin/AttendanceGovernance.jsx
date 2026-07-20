@@ -3,19 +3,23 @@ import { showConfirmDialog } from '../../utils/sweetAlert';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { toast } from 'react-toastify';
+import { useAcademicYear } from '../../context/AcademicYearContext';
 
 export default function AttendanceGovernance() {
+  const { selectedYear, isViewingHistory } = useAcademicYear();
   const [sessions, setSessions]   = useState([]);
   const [loading, setLoading]     = useState(true);
   const [filterClass, setFilterClass] = useState('');
   const [filterStatus, setFilterStatus] = useState(''); // 'locked' | 'open' | ''
   const [unlockingId, setUnlockingId]   = useState(null);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 0 });
 
-  const fetchSessions = async () => {
+  const fetchSessions = async (page = 1) => {
     setLoading(true);
     try {
-      const res = await axios.get('/classroom/attendance');
-      setSessions(res.data || []);
+      const res = await axios.get('/classroom/attendance', { params: { page, limit: 10 } });
+      setSessions(res.data.data || []);
+      setPagination(res.data.pagination || { page: 1, limit: 10, total: 0, totalPages: 0 });
     } catch {
       toast.error('Failed to load attendance sessions');
     } finally {
@@ -23,7 +27,7 @@ export default function AttendanceGovernance() {
     }
   };
 
-  useEffect(() => { fetchSessions(); }, []);
+  useEffect(() => { fetchSessions(); }, [selectedYear]);
 
   const handleUnlock = async (session) => {
     const { isConfirmed } = await showConfirmDialog({
@@ -36,12 +40,17 @@ export default function AttendanceGovernance() {
     try {
       await axios.patch(`/classroom/attendance/${session._id}/unlock`);
       toast.success('Attendance session unlocked successfully.');
-      fetchSessions();
+      fetchSessions(pagination.page);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to unlock attendance');
     } finally {
       setUnlockingId(null);
     }
+  };
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    fetchSessions(newPage);
   };
 
   const filtered = sessions.filter(s => {
@@ -59,6 +68,20 @@ export default function AttendanceGovernance() {
         <h2 className="text-2xl font-black tracking-tight text-slate-900">Attendance Governance</h2>
         <p className="text-sm font-medium text-slate-500">Override 7-day attendance locks and manage session access for teachers.</p>
       </div>
+
+      {/* Academic year context banner */}
+      {isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <span className="text-amber-600 font-bold">📅 Viewing historical attendance for {selectedYear.year}</span>
+          <span className="text-amber-500 text-xs">— data is read-only for this year</span>
+        </div>
+      )}
+      {!isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+          <span className="text-emerald-700 font-semibold">Active Year: {selectedYear.year}</span>
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4 mb-6">
@@ -97,7 +120,7 @@ export default function AttendanceGovernance() {
             </button>
           ))}
         </div>
-        <button onClick={fetchSessions} className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-900 flex items-center gap-1.5 bg-indigo-50 px-3 py-2 rounded-lg">
+        <button onClick={() => fetchSessions(pagination.page)} className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-900 flex items-center gap-1.5 bg-indigo-50 px-3 py-2 rounded-lg">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           Refresh
         </button>
@@ -162,6 +185,34 @@ export default function AttendanceGovernance() {
           )}
         </div>
       </div>
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 px-2">
+          <div className="text-sm text-slate-500">
+            Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total} sessions
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handlePageChange(pagination.page - 1)}
+              disabled={pagination.page === 1}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-600">
+              Page {pagination.page} of {pagination.totalPages}
+            </span>
+            <button
+              onClick={() => handlePageChange(pagination.page + 1)}
+              disabled={pagination.page === pagination.totalPages}
+              className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </SuperAdminLayout>
   );
 }

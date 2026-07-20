@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
+import { useAcademicYear } from '../../context/AcademicYearContext';
 
 const etb = (n) =>
   new Intl.NumberFormat('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(Number(n || 0));
 
 export default function FinancialOversight() {
+  const { selectedYear, isViewingHistory } = useAcademicYear();
   const [superStats, setSuperStats] = useState(null);   // /stats/superadmin — all-time, cross-year
   const [adminStats, setAdminStats] = useState(null);   // /stats/admin — scoped to active year
   const [feeStructures, setFeeStructures] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
-  useEffect(() => {
+  const fetchData = () => {
+    setLoading(true);
     Promise.all([
       axios.get('/stats/superadmin'),
       axios.get('/stats/admin'),
@@ -25,7 +28,11 @@ export default function FinancialOversight() {
       })
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, []);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedYear]);
 
   if (loading) {
     return (
@@ -46,7 +53,7 @@ export default function FinancialOversight() {
     );
   }
 
-  const activeYear = adminStats?.activeYear?.year;
+  const activeYear = selectedYear?.year || adminStats?.activeYear?.year;
   const currentRevenue = adminStats?.totalRevenue ?? 0;
   const currentOutstanding = adminStats?.totalPendingRevenue ?? 0;
   const currentBilled = currentRevenue + currentOutstanding;
@@ -64,19 +71,23 @@ export default function FinancialOversight() {
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Financial Oversight</h1>
         <p className="text-sm text-slate-500">
-          Read-only financial audit across all academic years and the active term.
+          Read-only financial audit for the selected academic year.
         </p>
       </div>
 
-      {/* Active year vs all-time banner */}
-      <div className="mb-6 flex flex-wrap gap-3">
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-xs font-bold text-emerald-700">
-          Active Year: {activeYear || 'None'}
-        </span>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-4 py-1.5 text-xs font-bold text-slate-600">
-          All-time revenue includes all academic years
-        </span>
-      </div>
+      {/* Academic year context banner */}
+      {isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <span className="text-amber-600 font-bold">📅 Viewing historical financial data for {selectedYear.year}</span>
+          <span className="text-amber-500 text-xs">— data is read-only for this year</span>
+        </div>
+      )}
+      {!isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+          <span className="text-emerald-700 font-semibold">Active Year: {selectedYear.year}</span>
+        </div>
+      )}
 
       {/* KPI row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
@@ -101,19 +112,19 @@ export default function FinancialOversight() {
           <p className="mt-1 text-xs text-slate-400">ETB {etb(currentRevenue)} of {etb(currentBilled)} billed</p>
         </div>
 
-        {/* All-time revenue */}
+        {/* Total revenue */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">All-Time Revenue</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Revenue</p>
           <p className="mt-2 text-2xl font-black text-slate-900">ETB {etb(allTimeRevenue)}</p>
-          <p className="mt-1 text-xs text-slate-400">Across all academic years</p>
+          <p className="mt-1 text-xs text-slate-400">For active academic year</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2 mb-6">
-        {/* Revenue by division — all time */}
+        {/* Revenue by division — active year */}
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-900">Revenue by Division</h2>
-          <p className="text-xs text-slate-400 mb-4">All-time collected across school divisions</p>
+          <p className="text-xs text-slate-400 mb-4">Collected across school divisions this year</p>
           <div className="space-y-3">
             {revenueByDivision.length === 0 ? (
               <p className="py-6 text-center text-sm text-slate-400">No revenue data.</p>

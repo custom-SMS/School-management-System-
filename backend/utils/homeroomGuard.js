@@ -74,11 +74,22 @@ const resolveClassHomeroomTeacherId = async (prisma, classId, { fallbackToClass 
   return sectionHomeroom?.homeroomTeacherId || assignmentHomeroom?.teacherId || (fallbackToClass ? classRecord?.teacherId : null) || null;
 };
 
-const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, excludeClassId = null) => {
+const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, excludeClassId = null, academicYearId = null) => {
+  // Resolve active academic year if not provided, so conflict checks are
+  // scoped to the current year only (not stale records from past years).
+  let resolvedYearId = academicYearId;
+  if (!resolvedYearId) {
+    const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+    resolvedYearId = activeYear?.id || null;
+  }
+
+  const yearFilter = resolvedYearId ? { academicYearId: resolvedYearId } : {};
+
   const [teacherClasses, teacherSections, teacherAssignments] = await Promise.all([
     prisma.class.findMany({
       where: {
         teacherId,
+        ...yearFilter,
         ...(excludeClassId ? { id: { not: excludeClassId } } : {})
       },
       select: { id: true, name: true }
@@ -86,6 +97,7 @@ const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, 
     prisma.section.findMany({
       where: {
         homeroomTeacherId: teacherId,
+        ...yearFilter,
         ...(excludeSectionId ? { id: { not: excludeSectionId } } : {})
       },
       include: {
@@ -96,6 +108,7 @@ const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, 
       where: {
         teacherId,
         assignmentType: 'HomeRoomTeacher',
+        ...yearFilter,
         ...(excludeClassId ? { classId: { not: excludeClassId } } : {})
       },
       select: { classId: true }
@@ -141,12 +154,12 @@ const buildConflictEntries = async (prisma, teacherId, excludeSectionId = null, 
   });
 };
 
-const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = null, excludeSectionId = null, excludeClassId = null }) => {
+const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = null, excludeSectionId = null, excludeClassId = null, academicYearId = null }) => {
   if (!teacherId) {
     return { ok: false, message: 'teacherId is required.' };
   }
 
-  const conflicts = await buildConflictEntries(prisma, teacherId, excludeSectionId, excludeClassId);
+  const conflicts = await buildConflictEntries(prisma, teacherId, excludeSectionId, excludeClassId, academicYearId);
 
   if (!classId) {
     if (conflicts.length > 0) {

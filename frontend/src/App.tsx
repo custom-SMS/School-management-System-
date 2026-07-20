@@ -8,6 +8,7 @@ import {
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
 
+
 // General
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
@@ -99,6 +100,7 @@ function App() {
   return (
     <AcademicYearProvider>
     <Router>
+      <AcademicYearProvider>
             <ToastContainer position="top-right" autoClose={3000} />
             <Routes>
               <Route path="/login" element={<Login />} />
@@ -786,6 +788,7 @@ function App() {
                 }
               />
             </Routes>
+      </AcademicYearProvider>
           </Router>
     </AcademicYearProvider>
   );

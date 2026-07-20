@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
+import MaintenanceBanner from './MaintenanceBanner';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
@@ -257,6 +258,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
 
       {/* ── Main Content ── */}
       <main className="flex min-w-0 flex-1 flex-col  bg-slate-50/50">
+        <MaintenanceBanner />
         {/* Top Header Bar */}
         <header className="sticky top-0 z-50 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">

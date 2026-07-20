@@ -250,10 +250,12 @@ const getCurrentUserPermissions = async (req, res) => {
     if (req.user.role === 'SuperAdmin') {
       return res.json({ permissions: ["*"] });
     }
-    // Admin scope types (BranchAdmin, SchoolAdmin, LevelAdmin) bypass all permission
-    // checks on the backend via checkPermission middleware. Mirror that here so the
-    // frontend ProtectedRoute & UI guards correctly recognise their full access.
-    if (['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(req.user.scopeType)) {
+    // SchoolAdmin and LevelAdmin bypass all permission checks on the backend via
+    // checkPermission middleware. Mirror that here so the frontend ProtectedRoute &
+    // UI guards correctly recognise their full access.
+    // BranchAdmin permissions are now enforced - they get their actual permissions
+    // from the database instead of hardcoded "*" access.
+    if (['SchoolAdmin', 'LevelAdmin'].includes(req.user.scopeType)) {
       return res.json({ permissions: ["*"] });
     }
     const perms = await prisma.rolePermission.findMany({

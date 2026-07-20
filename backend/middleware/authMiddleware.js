@@ -135,8 +135,9 @@ const checkPermission = (permission) => async (req, res, next) => {
 
   if (req.user.role === 'SuperAdmin') return next();
 
-  // SchoolAdmin / BranchAdmin / LevelAdmin inherit all Admin permissions
-  if (['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(req.user.scopeType)) return next();
+  // SchoolAdmin and LevelAdmin inherit all Admin permissions
+  // BranchAdmin permissions are now enforced - they must have the specific permission
+  if (['SchoolAdmin', 'LevelAdmin'].includes(req.user.scopeType)) return next();
 
   try {
     const rolePerm = await prisma.rolePermission.findUnique({

@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import MaintenanceBanner from './MaintenanceBanner';
 
 /* Inline icon set — no extra dependency. */
 const icons = {
@@ -164,6 +165,7 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <MaintenanceBanner />
           <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button
               type="button"

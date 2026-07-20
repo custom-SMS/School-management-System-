@@ -911,9 +911,9 @@ const getSuperAdminStats = async (req, res) => {
     // Scope all fee queries to the active academic year
     const feeYearFilter = activeYearDoc ? { academicYearId: activeYearDoc.id } : {};
 
-    // All-time revenue (across all years) for the executive KPI card
+    // Year-specific revenue (scoped to active academic year)
     const allTimeRevenueStats = await prisma.fee.aggregate({
-      where: { paid: true, student: branchFilter },
+      where: { paid: true, ...feeYearFilter, student: branchFilter },
       _sum: { amount: true }
     });
     const allTimeRevenue = allTimeRevenueStats._sum.amount || 0;

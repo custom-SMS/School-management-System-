@@ -34,7 +34,7 @@ export default function SystemNotifications() {
   const fetchFeed = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get('/notifications/all', { params: { page, limit: 20 } });
+      const res = await axios.get('/notifications/all', { params: { page, limit: 8 } });
       setFeed(res.data);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load notifications.');

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
+import { useAcademicYear } from '../../context/AcademicYearContext';
 
 const StatCard = ({ title, value, subtitle, colorClass, icon }) => (
   <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm hover:shadow-md transition">
@@ -22,6 +23,7 @@ const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-purple-5
 
 export default function SuperAdminDashboard() {
   const navigate = useNavigate();
+  const { selectedYear, isViewingHistory } = useAcademicYear();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -34,7 +36,7 @@ export default function SuperAdminDashboard() {
         setError(err.response?.data?.message || 'Failed to load dashboard statistics.');
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [selectedYear]);
 
   if (loading) {
     return (
@@ -61,6 +63,20 @@ export default function SuperAdminDashboard() {
         <h2 className="text-2xl font-black tracking-tight text-slate-900">Executive Overview</h2>
         <p className="text-sm font-medium text-slate-500">Global system metrics and health status.</p>
       </div>
+
+      {/* Academic year context banner */}
+      {isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <span className="text-amber-600 font-bold">📅 Viewing historical data for {selectedYear.year}</span>
+          <span className="text-amber-500 text-xs">— data is read-only for this year</span>
+        </div>
+      )}
+      {!isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+          <span className="text-emerald-700 font-semibold">Active Year: {selectedYear.year}</span>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 mb-8">

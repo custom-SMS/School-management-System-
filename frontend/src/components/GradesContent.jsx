@@ -9,8 +9,10 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import { useBranch } from '../hooks/useBranch';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 import { showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
 import { useAppSelector } from '../store/hooks';
+import { useAcademicYear } from '../context/AcademicYearContext';
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 const clampMark = (value, max = 100) => {
@@ -26,6 +28,7 @@ const clampMark = (value, max = 100) => {
 // ─── component ────────────────────────────────────────────────────────────────
 export default function GradesContent({ canEdit = false }) {
   const { selectedBranchId, branches, switchBranch, canSwitchBranch } = useBranch();
+  const { selectedYear, isViewingHistory, activeYear } = useAcademicYear();
 
   // ── grading components (dynamic, from API) ──────────────────────────────
   const [gradingConfig, setGradingConfig] = useState({
@@ -79,23 +82,10 @@ export default function GradesContent({ canEdit = false }) {
   const user = useAppSelector((state) => state.auth.user);
 
   // Historical Year configuration for Grades page
-  const [years, setYears] = useState([]);
-  const selectedYearId = localStorage.getItem('superAdminYearViewId') || '';
   const [historicalEditEnabled, setHistoricalEditEnabled] = useState(false);
   const [historicalReason, setHistoricalReason] = useState('');
 
-  useEffect(() => {
-    axios.get('/academic-years')
-      .then((res) => { setYears(res.data || []); })
-      .catch(() => {});
-  }, []);
-
-  const activeYearObj = useMemo(
-    () => years.find(y => y.id === selectedYearId) || years.find(y => y.isActive) || null,
-    [years, selectedYearId]
-  );
-
-  const isArchivedYear = useMemo(() => activeYearObj && !activeYearObj.isActive, [activeYearObj]);
+  const isArchivedYear = useMemo(() => isViewingHistory && selectedYear && activeYear && selectedYear.id !== activeYear.id, [isViewingHistory, selectedYear, activeYear]);
   const isSuperAdmin = user?.role === 'SuperAdmin';
   const canEditHistorical = isSuperAdmin && isArchivedYear;
   const canEditEffective = canEdit && (!isArchivedYear || historicalEditEnabled);
@@ -103,7 +93,7 @@ export default function GradesContent({ canEdit = false }) {
   const handleEnableHistoricalEdit = async () => {
     const { isConfirmed } = await showDangerConfirmDialog({
       title: 'Enable Historical Editing?',
-      html: `<p class="text-left text-sm text-slate-600 mb-3">You are about to edit <strong>archived grade records</strong> for <strong>${activeYearObj?.year}</strong>.</p><p class="text-left text-sm text-slate-600">This action will be fully audited. Every change will be permanently logged with your account and reason.</p>`,
+      html: `<p class="text-left text-sm text-slate-600 mb-3">You are about to edit <strong>archived grade records</strong> for <strong>${selectedYear?.year}</strong>.</p><p class="text-left text-sm text-slate-600">This action will be fully audited. Every change will be permanently logged with your account and reason.</p>`,
       confirmButtonText: 'Continue',
     });
     if (!isConfirmed) return;
@@ -146,8 +136,8 @@ export default function GradesContent({ canEdit = false }) {
           <div className="flex-1 min-w-0">
             <p className={`font-bold text-sm ${ historicalEditEnabled ? 'text-amber-800' : 'text-slate-700' }`}>
               {historicalEditEnabled
-                ? `⚠️  Historical Editing Enabled — ${activeYearObj?.year}`
-                : `🔒  Viewing: ${activeYearObj?.year} — Read Only`
+                ? `⚠️  Historical Editing Enabled — ${selectedYear?.year}`
+                : `🔒  Viewing: ${selectedYear?.year} — Read Only`
               }
             </p>
             <p className={`text-xs mt-0.5 ${ historicalEditEnabled ? 'text-amber-700' : 'text-slate-500' }`}>
@@ -183,7 +173,12 @@ export default function GradesContent({ canEdit = false }) {
     const isAdminOrSuper = user?.role === 'SuperAdmin' || ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(user?.scopeType);
     const endpoint = isAdminOrSuper ? '/classroom/options' : '/assignments/me';
 
-    axios.get(endpoint)
+    // Pass branch filter as a header so the backend scopes the query correctly.
+    // This is more reliable than client-side filtering by c.branchId, which
+    // breaks whenever a class was created without a branchId (null in DB).
+    const headers = selectedBranchId ? { 'x-branch-id': selectedBranchId } : {};
+
+    axios.get(endpoint, { headers })
       .then((r) => {
         let available = [];
         if (isAdminOrSuper) {
@@ -195,23 +190,20 @@ export default function GradesContent({ canEdit = false }) {
             ).values(),
           );
         }
-        // Filter classes by selected branch if SuperAdmin has a branch selected
-        const filtered = selectedBranchId
-          ? available.filter(c => c.branchId === selectedBranchId)
-          : available;
-        setClasses(filtered);
-        if (filtered.length > 0) setSelectedClassId(filtered[0]._id);
+        setClasses(available);
+        if (available.length > 0) setSelectedClassId(available[0]._id);
         else setSelectedClassId('');
       })
       .catch(() => toast.error('Failed to load classes.'))
       .finally(() => setLoadingClasses(false));
-  }, [selectedBranchId, user]);
+  }, [selectedBranchId, user, selectedYear]);
 
   useEffect(() => {
     if (!selectedClass) { setClassRows([]); return; }
     let active = true;
     setLoadingClassGrades(true);
-    axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(selectedClass.subject)}`)
+    const subject = selectedClass.subject || 'General';
+    axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(subject)}`)
       .then((r) => {
         if (!active) return;
         const gradeMap = new Map(
@@ -260,7 +252,7 @@ export default function GradesContent({ canEdit = false }) {
 
       await axios.post('/classroom/grades', {
         classId: selectedClass._id,
-        subject: selectedClass.subject,
+        subject: selectedClass.subject || 'General',
         gradesData: [{ student: row.student._id, marks }],
       }, {
         headers: historicalEditEnabled && historicalReason ? { 'x-modification-reason': historicalReason } : {}
@@ -327,7 +319,7 @@ export default function GradesContent({ canEdit = false }) {
 
       await axios.post('/classroom/grades', {
         classId: grade.class,
-        subject: grade.subject,
+        subject: grade.subject || 'General',
         gradesData: [{ student: selectedStudent._id, marks }],
       }, {
         headers: historicalEditEnabled && historicalReason ? { 'x-modification-reason': historicalReason } : {}
@@ -527,7 +519,7 @@ export default function GradesContent({ canEdit = false }) {
           >
             {classes.length === 0 && <option value="">No classes</option>}
             {classes.map((c) => (
-              <option key={c._id} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''} · {c.subject}</option>
+              <option key={c._id} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''} · {c.subject || 'General'}</option>
             ))}
           </select>
         </div>

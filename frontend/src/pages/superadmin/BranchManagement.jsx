@@ -15,6 +15,7 @@ export default function BranchManagement() {
   const [branches, setBranches] = useState([]);
   const [users, setUsers] = useState([]);
   const [scopes, setScopes] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Selected school/branch for drill-down
   const [activeSchool, setActiveSchool] = useState(null);
@@ -26,6 +27,7 @@ export default function BranchManagement() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
+    setLoading(true);
     try {
       const [sr, br, ur] = await Promise.all([
         axios.get('/branches/schools', { skipGlobalErrorToast: true }),
@@ -36,6 +38,7 @@ export default function BranchManagement() {
       setBranches(br.data || []);
       setUsers(ur.data?.users || ur.data || []);
     } catch { toast.error('Failed to load branch data.'); }
+    finally { setLoading(false); }
   };
 
   const loadScopes = async () => {
@@ -125,7 +128,19 @@ export default function BranchManagement() {
   };
 
   const removeScope = async (id) => {
-    if (!window.confirm('Remove this scope assignment?')) return;
+    const result = await Swal.fire({
+      title: 'Remove Scope Assignment?',
+      text: 'Are you sure you want to remove this scope assignment?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, Remove',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: true,
+    });
+
+    if (!result.isConfirmed) return;
     try {
       await axios.delete(`/branches/scopes/${id}`);
       toast.success('Scope removed.');
@@ -151,29 +166,33 @@ export default function BranchManagement() {
           <h2 className="text-lg font-bold text-slate-900">School</h2>
 
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {schools.map((s) => (
-            <div key={s.id}
-              onClick={() => setActiveSchool(activeSchool?.id === s.id ? null : s)}
-              className={`cursor-pointer rounded-2xl border p-5 shadow-sm transition ${activeSchool?.id === s.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="font-bold text-slate-900">{s.name}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">Code: {s.code}</div>
-                  {s.address && <div className="text-xs text-slate-400">{s.address}</div>}
+        {loading ? (
+          <div className="text-center py-12 text-slate-400 font-medium">Loading schools...</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {schools.map((s) => (
+              <div key={s.id}
+                onClick={() => setActiveSchool(activeSchool?.id === s.id ? null : s)}
+                className={`cursor-pointer rounded-2xl border p-5 shadow-sm transition ${activeSchool?.id === s.id ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 bg-white hover:bg-slate-50'}`}>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="font-bold text-slate-900">{s.name}</div>
+                    <div className="text-xs text-slate-400 mt-0.5">Code: {s.code}</div>
+                    {s.address && <div className="text-xs text-slate-400">{s.address}</div>}
+                  </div>
+
                 </div>
 
+                <div className="mt-3 text-xs font-semibold text-slate-500">
+                  {branchesOfSchool(s.id).length} branch(es)
+                </div>
               </div>
-
-              <div className="mt-3 text-xs font-semibold text-slate-500">
-                {branchesOfSchool(s.id).length} branch(es)
-              </div>
-            </div>
-          ))}
-          {schools.length === 0 && (
-            <p className="text-sm text-slate-400 col-span-3 py-8 text-center">No schools yet. Add one above.</p>
-          )}
-        </div>
+            ))}
+            {schools.length === 0 && (
+              <p className="text-sm text-slate-400 col-span-3 py-8 text-center">No schools yet. Add one above.</p>
+            )}
+          </div>
+        )}
       </section>
 
 

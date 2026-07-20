@@ -3,6 +3,7 @@ import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { useAuth } from '../../hooks/useAuth';
+import { useAcademicYear } from '../../context/AcademicYearContext';
 import { GRADES, ETHIOPIAN_MONTHS } from '../../constants/school';
 
 const ALLOWED_GRADES = GRADES;
@@ -13,7 +14,10 @@ const etb = (n) =>
 const months = ETHIOPIAN_MONTHS;
 
 export default function SuperAdminFees() {
+  const { selectedYear, isViewingHistory } = useAcademicYear();
   const [structures, setStructures] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
   const [loading, setLoading] = useState(true);
   const [grade, setGrade] = useState('');
   const [amount, setAmount] = useState('');
@@ -26,9 +30,19 @@ export default function SuperAdminFees() {
 
   const { user } = useAuth();
 
+  const fetchBranches = async () => {
+    try {
+      const res = await axios.get('/branches/branches');
+      setBranches(res.data || []);
+    } catch {
+      setBranches([]);
+    }
+  };
+
   const fetchStructures = async () => {
     try {
-      const res = await axios.get('/fees/structures');
+      const params = selectedBranchId ? { branchId: selectedBranchId } : {};
+      const res = await axios.get('/fees/structures', { params });
       setStructures(res.data || []);
     } catch {
       setStructures([]);
@@ -37,7 +51,8 @@ export default function SuperAdminFees() {
     }
   };
 
-  useEffect(() => { fetchStructures(); }, []);
+  useEffect(() => { fetchBranches(); fetchStructures(); }, [selectedYear]);
+  useEffect(() => { fetchStructures(); }, [selectedBranchId]);
 
   const handleGradeChange = (selectedGrade) => {
     setGrade(selectedGrade);
@@ -54,7 +69,12 @@ export default function SuperAdminFees() {
     if (!amount || Number(amount) <= 0) { toast.error('Please enter a valid amount.'); return; }
     setSaving(true);
     try {
-      await axios.post('/fees/structures', { grade, amount: Number(amount), description: 'Monthly Tuition' });
+      await axios.post('/fees/structures', { 
+        grade, 
+        amount: Number(amount), 
+        description: 'Monthly Tuition',
+        branchId: selectedBranchId || null
+      });
       toast.success(`Fee for ${grade} ${isEditing ? 'updated' : 'created'} successfully.`);
       setGrade('');
       setAmount('');
@@ -93,6 +113,7 @@ export default function SuperAdminFees() {
         month: genMonth,
         dueDate: genDueDate || undefined,
         description: `Monthly Tuition - ${genMonth}`,
+        branchId: selectedBranchId || undefined,
       });
       const { created = 0, skippedExisting = 0, skippedNoFeeConfigured = 0 } = res.data || {};
       toast.success(`${created} invoice(s) generated for ${genMonth}.`);
@@ -114,6 +135,37 @@ export default function SuperAdminFees() {
       <div className="mb-6">
         <h1 className="text-3xl font-black tracking-tight text-slate-900">Fee Structures</h1>
         <p className="text-sm text-slate-500">Configure one monthly tuition amount per grade level.</p>
+      </div>
+
+      {/* Academic year context banner */}
+      {isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <span className="text-amber-600 font-bold">📅 Viewing historical fee structures for {selectedYear.year}</span>
+          <span className="text-amber-500 text-xs">— data is read-only for this year</span>
+        </div>
+      )}
+      {!isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+          <span className="text-emerald-700 font-semibold">Active Year: {selectedYear.year}</span>
+        </div>
+      )}
+
+      {/* Branch selector */}
+      <div className="mb-6">
+        <label className="mb-1.5 block text-sm font-semibold text-slate-700">Select Branch</label>
+        <select
+          value={selectedBranchId}
+          onChange={(e) => setSelectedBranchId(e.target.value)}
+          className="w-full max-w-xs rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+        >
+          <option value="">All Branches (Global)</option>
+          {branches.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Summary cards */}

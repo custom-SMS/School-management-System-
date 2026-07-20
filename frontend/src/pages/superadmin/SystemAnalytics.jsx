@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
 import { useBranch } from '../../hooks/useBranch';
+import { useAcademicYear } from '../../context/AcademicYearContext';
 
 const barColors = ['bg-blue-500', 'bg-indigo-500', 'bg-violet-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
 
 export default function SystemAnalytics() {
   const { selectedBranchId, branches, switchBranch, canSwitchBranch } = useBranch();
+  const { selectedYear, isViewingHistory } = useAcademicYear();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -18,7 +20,7 @@ export default function SystemAnalytics() {
       .then((r) => setStats(r.data))
       .catch(() => setError(true))
       .finally(() => setLoading(false));
-  }, [selectedBranchId]);
+  }, [selectedBranchId, selectedYear]);
 
   if (loading) {
     return (
@@ -55,6 +57,20 @@ export default function SystemAnalytics() {
           School-wide academic performance, enrollment, and operational health.
         </p>
       </div>
+
+      {/* Academic year context banner */}
+      {isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm">
+          <span className="text-amber-600 font-bold">📅 Viewing historical analytics for {selectedYear.year}</span>
+          <span className="text-amber-500 text-xs">— data is read-only for this year</span>
+        </div>
+      )}
+      {!isViewingHistory && selectedYear && (
+        <div className="mb-4 flex items-center gap-2 px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-sm">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1" />
+          <span className="text-emerald-700 font-semibold">Active Year: {selectedYear.year}</span>
+        </div>
+      )}
 
       {/* Branch selector */}
       {canSwitchBranch && (

@@ -3,6 +3,7 @@ import { NavLink, Link, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+import MaintenanceBanner from './MaintenanceBanner';
 
 const icons = {
   dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
@@ -131,6 +132,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
         )}
 
         <div className="flex min-w-0 flex-1 flex-col">
+          <MaintenanceBanner />
           <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-500 lg:hidden" aria-label="Open menu">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
