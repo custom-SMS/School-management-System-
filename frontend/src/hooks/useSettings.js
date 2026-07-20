@@ -14,10 +14,14 @@ export function useSettings() {
   const localization = settings?.localization || {};
   const notifications = settings?.notifications || {};
 
-  // Resolve logo URL
+  // Resolve logo URL — derive the server origin from VITE_API_BASE_URL (same
+  // variable the axios instance uses), stripping the trailing /api path so we
+  // get just the host (e.g. http://localhost:8000) for static file serving.
+  const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+  const serverOrigin = apiBase.replace(/\/api\/?$/, '');
   const logoUrl = branding.logo
-    ? `${import.meta.env.VITE_API_URL || 'http://localhost:5000'}${branding.logo}`
-    : '/logo.png';
+    ? `${serverOrigin}${branding.logo}`
+    : null;
 
   // Format date helper
   const formatDateTime = (dateStr) => {

@@ -9,14 +9,14 @@
  */
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSelector } from 'react-redux';
 import axios from '../api/axios';
-import { AuthContext } from './AuthContext';
 import { toast } from 'react-toastify';
 
 export const AcademicYearContext = createContext();
 
 export function AcademicYearProvider({ children }) {
-  const { user } = useContext(AuthContext);
+  const user = useSelector((state) => state.auth.user);
 
   const [activeYear, setActiveYear] = useState(null);
   const [years, setYears] = useState([]);

@@ -9,6 +9,7 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import { useBranch } from '../hooks/useBranch';
 import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 import { showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
 import { useAppSelector } from '../store/hooks';
 
@@ -183,7 +184,12 @@ export default function GradesContent({ canEdit = false }) {
     const isAdminOrSuper = user?.role === 'SuperAdmin' || ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'].includes(user?.scopeType);
     const endpoint = isAdminOrSuper ? '/classroom/options' : '/assignments/me';
 
-    axios.get(endpoint)
+    // Pass branch filter as a header so the backend scopes the query correctly.
+    // This is more reliable than client-side filtering by c.branchId, which
+    // breaks whenever a class was created without a branchId (null in DB).
+    const headers = selectedBranchId ? { 'x-branch-id': selectedBranchId } : {};
+
+    axios.get(endpoint, { headers })
       .then((r) => {
         let available = [];
         if (isAdminOrSuper) {
@@ -195,12 +201,8 @@ export default function GradesContent({ canEdit = false }) {
             ).values(),
           );
         }
-        // Filter classes by selected branch if SuperAdmin has a branch selected
-        const filtered = selectedBranchId
-          ? available.filter(c => c.branchId === selectedBranchId)
-          : available;
-        setClasses(filtered);
-        if (filtered.length > 0) setSelectedClassId(filtered[0]._id);
+        setClasses(available);
+        if (available.length > 0) setSelectedClassId(available[0]._id);
         else setSelectedClassId('');
       })
       .catch(() => toast.error('Failed to load classes.'))
