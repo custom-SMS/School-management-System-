@@ -28,9 +28,9 @@ function buildGlobalCacheKey(req) {
   // resourceVersion is expected to be set by our route handlers (or default to 0).
   const resourceVersion = Number(req.cacheResourceVersion ?? 0);
 
-  // Key is resource-based, not URL-based, to enable invalidation by resource.
-  // Keep the current cache-key format parts (role/user/branch) and add version.
-  return `globalcache:${resourceVersion}:${req.method}:${req.path}:role:${role}:user:${userId}:branch:${safeKeyPart(branchFilter)}`;
+  // Key is resource-based, using full originalUrl to distinguish query parameters (sectionId, semesterId, etc.)
+  const urlKey = req.originalUrl || req.path || '';
+  return `globalcache:${resourceVersion}:${req.method}:${urlKey}:role:${role}:user:${userId}:branch:${safeKeyPart(branchFilter)}`;
 }
 
 

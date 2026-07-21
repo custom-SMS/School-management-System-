@@ -16,12 +16,13 @@ export default function Timetables() {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [sections, setSections] = useState([]);
-  
+  const [viewSections, setViewSections] = useState([]);
+
   // Filter states
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
-  
+
   // Timetable records
   const [timetableSlots, setTimetableSlots] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -61,28 +62,23 @@ export default function Timetables() {
     }).catch(err => console.error(err));
 
     if (user?.role === 'Admin' || user?.role === 'SuperAdmin') {
-      // Fetch subjects — guard against object responses (e.g. { subjects: [...] })
+      // Fetch subjects
       axios.get('/subjects').then(res => {
         const raw = res.data;
         const list = Array.isArray(raw) ? raw : (raw?.subjects || raw?.data || []);
         setSubjects(list);
       }).catch(err => console.error(err));
-      // Fetch assignments to get classes — guard against object responses
-      axios.get('/assignments').then(res => {
+
+      // Bug 1 & 5 fix: fetch classes directly from /classroom/classes (branch-scoped)
+      // instead of /assignments, which returned duplicated/incomplete class objects
+      // with a wrong 'subject' field that polluted the class name display.
+      axios.get('/classroom/classes').then(res => {
         const raw = res.data;
-        const assignmentArr = Array.isArray(raw) ? raw : (raw?.assignments || raw?.data || []);
-        const uniqueClasses = Array.from(
-          new Map(
-            assignmentArr
-              .map((assignment) => assignment.class)
-              .filter(Boolean)
-              .map((klass) => [klass._id, klass]),
-          ).values(),
-        );
-        setClasses(uniqueClasses);
-        if (uniqueClasses.length > 0) {
-          setSelectedClass(uniqueClasses[0]._id);
-          setFormClass(uniqueClasses[0]._id);
+        const classList = Array.isArray(raw) ? raw : (raw?.classes || raw?.data || []);
+        setClasses(classList);
+        if (classList.length > 0) {
+          setSelectedClass(classList[0].id);
+          setFormClass(classList[0].id);
         }
       }).catch(err => console.error(err));
     }
@@ -113,11 +109,11 @@ export default function Timetables() {
     if (formClass) {
       axios.get(`/classroom/sections/${formClass}`).then(res => {
         setSections(res.data || []);
-        if (res.data && res.data.length > 0) {
-          setFormSection(res.data[0].id);
-        } else {
-          setFormSection('');
-        }
+        // Bug 8 fix: do NOT auto-select the first section.
+        // Default to '' so new slots are class-wide unless the admin explicitly
+        // picks a section. Auto-selecting Section A was silently scoping every
+        // slot to one section when the admin wanted a class-wide schedule.
+        setFormSection('');
       }).catch(err => console.error(err));
     }
   }, [formClass]);
@@ -127,13 +123,16 @@ export default function Timetables() {
     if (selectedClass) {
       axios.get(`/classroom/sections/${selectedClass}`).then(res => {
         const sectionList = res.data || [];
-        setSections(sectionList);
-        if (sectionList.length > 0) {
-          setSelectedSection(sectionList[0].id);
-        } else {
-          setSelectedSection('');
-        }
+        setViewSections(sectionList);
+        // Bug 7 fix: default to '' (All Sections) instead of auto-selecting the
+        // first section. The admin can manually pick a specific section if needed.
+        // Previously, auto-selecting sections[0] hid class-wide slots and other
+        // sections on every class change.
+        setSelectedSection('');
       }).catch(err => console.error(err));
+    } else {
+      setViewSections([]);
+      setSelectedSection('');
     }
   }, [selectedClass]);
 
@@ -143,16 +142,13 @@ export default function Timetables() {
     try {
       if (user?.role === 'Student') {
         const res = await axios.get('/timetables/student/me');
-        console.log('Student timetable response:', res.data);
         setTimetableSlots(res.data?.timetable || []);
       } else if (user?.role === 'Teacher') {
         const res = await axios.get('/timetables/teacher/me');
-        console.log('Teacher timetable response:', res.data);
         setTimetableSlots(res.data?.timetable || []);
       } else if (user?.role === 'Parent') {
         if (selectedChildId) {
           const res = await axios.get(`/timetables/student/me?childStudentId=${selectedChildId}`);
-          console.log('Parent timetable response:', res.data);
           setTimetableSlots(res.data?.timetable || []);
         }
       } else if (selectedClass && selectedYear) {
@@ -161,16 +157,17 @@ export default function Timetables() {
         if (selectedSection) params.append('sectionId', selectedSection);
         if (selectedSemesterId) params.append('semesterId', selectedSemesterId);
         const url = `/timetables/class/${selectedClass}/${selectedYear}?${params.toString()}`;
-        console.log('Fetching admin timetable with URL:', url);
-        console.log('Selected class:', selectedClass, 'Selected year:', selectedYear, 'Selected section:', selectedSection, 'Selected semester:', selectedSemesterId);
+        console.log('Fetching:', url);
         const res = await axios.get(url);
-        console.log('Admin timetable response:', res.data);
-        console.log('Timetable slots count:', res.data?.length || 0);
+        console.log('Response:', res.data);
         setTimetableSlots(res.data || []);
+      } else {
+        setTimetableSlots([]);
       }
     } catch (err) {
       console.error('Error fetching timetables:', err);
       toast.error('Failed to load timetable schedules.');
+      setTimetableSlots([]);
     } finally {
       setLoading(false);
     }
@@ -256,6 +253,7 @@ export default function Timetables() {
                 <div className="flex flex-col gap-1.5 w-48">
                   <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Semester</label>
                   <select value={selectedSemesterId} onChange={e => setSelectedSemesterId(e.target.value)} className={inputClass}>
+                    <option value="">All Semesters</option>
                     {yearSemesters.map(s => (
                       <option key={s.id} value={s.id}>
                         {s.name} {s.isActive ? '(Active)' : ''}
@@ -267,9 +265,20 @@ export default function Timetables() {
               <div className="flex flex-col gap-1.5 w-64">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Select Class</label>
                 <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className={inputClass}>
-                  {classes.map(c => <option key={c._id} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''} ({c.subject})</option>)}
+                  {/* Bug 2/5 fix: classes now come from /classroom/classes — use .id
+                  (Prisma returns `id`, not `_id`) and no subject suffix */}
+              {classes.map(c => <option key={c.id} value={c.id}>{c.name}{c.stream ? ` (${c.stream})` : ''}</option>)}
                 </select>
               </div>
+              {viewSections.length > 0 && (
+                <div className="flex flex-col gap-1.5 w-48">
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Section</label>
+                  <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className={inputClass}>
+                    <option value="">All Sections</option>
+                    {viewSections.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  </select>
+                </div>
+              )}
             </>
           )}
 
@@ -349,7 +358,8 @@ export default function Timetables() {
               <div>
                 <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">Select Class</label>
                 <select value={formClass} onChange={e => setFormClass(e.target.value)} className={inputClass}>
-                  {classes.map(c => <option key={`form-c-${c._id}`} value={c._id}>{c.name} {c.stream ? `(${c.stream})` : ''}</option>)}
+                  {/* Bug 2/5 fix: classes now from /classroom/classes — use .id */}
+                  {classes.map(c => <option key={`form-c-${c.id}`} value={c.id}>{c.name}{c.stream ? ` (${c.stream})` : ''}</option>)}
                 </select>
               </div>
 
