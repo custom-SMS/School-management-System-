@@ -9,6 +9,19 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { initAuthFromStorage } from './hooks/useAuth';
 import { MaintenanceProvider } from './context/MaintenanceContext';
+import { registerSW } from 'virtual:pwa-register';
+
+// Register PWA service worker
+const updateSW = registerSW({
+  onNeedRefresh() {
+    if (confirm('New content available. Reload to update?')) {
+      updateSW(true);
+    }
+  },
+  onOfflineReady() {
+    console.log('App is ready to work offline');
+  },
+});
 
 // Hydrate auth state from localStorage
 initAuthFromStorage(store.dispatch);

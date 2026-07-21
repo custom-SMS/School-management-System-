@@ -110,13 +110,11 @@ function App() {
                 element={<Navigate to="/parent/dashboard" replace />}
               />
 
-              {/* Fallback Dashboard for non-admin/superadmin */}
+              {/* Main routing dashboard */}
               <Route
                 path="/dashboard"
                 element={
-                  <ProtectedRoute
-                    allowedRoles={["Teacher", "Student", "Parent", "Cashier"]}
-                  >
+                  <ProtectedRoute>
                     <Dashboard />
                   </ProtectedRoute>
                 }
