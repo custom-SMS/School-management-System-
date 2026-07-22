@@ -41,8 +41,11 @@ export function useAuth() {
 
   const login = async (identifier, password) => {
     const response = await api.post('/auth/login', { identifier, password });
-    const { user: loggedInUser } = response.data;
+    const { user: loggedInUser, token } = response.data;
 
+    if (token) {
+      localStorage.setItem('token', token);
+    }
     localStorage.setItem('user', JSON.stringify(loggedInUser));
     dispatch(setCredentials(loggedInUser));
 
@@ -59,6 +62,7 @@ export function useAuth() {
       // ignore network/cookie errors on logout
     }
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
     dispatch(clearCredentials());
     queryClient.setQueryData(['permissions'], []);
   };

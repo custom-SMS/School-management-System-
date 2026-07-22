@@ -15,8 +15,16 @@ const attachAcademicYearContext = (req, res, next) => {
   });
 };
 
+const getTokenFromReq = (req) => {
+  if (req.cookies?.token) return req.cookies.token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+    return req.headers.authorization.split(' ')[1];
+  }
+  return null;
+};
+
 const verifyToken = (req, res, next) => {
-  const token = req.cookies?.token;
+  const token = getTokenFromReq(req);
   
   if (!token) {
     return res.status(401).json({ message: 'Access Denied. No valid token provided.' });
@@ -31,7 +39,7 @@ const verifyToken = (req, res, next) => {
 };
 
 const verifyTokenOptional = (req, res, next) => {
-  const token = req.cookies?.token;
+  const token = getTokenFromReq(req);
   if (!token) return next();
   try {
     req.user = jwt.verify(token, process.env.JWT_SECRET || 'fallback_secret_key');

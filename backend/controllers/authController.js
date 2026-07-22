@@ -159,10 +159,11 @@ const login = async (req, res) => {
       if (parent) responseUser.parentId = parent.parentId;
     }
 
-    // 4. Store the JWT in an httpOnly cookie and return the (non-sensitive) user details
+    // 4. Store the JWT in an httpOnly cookie and return the (non-sensitive) user details & token for mobile clients
     res.cookie(AUTH_COOKIE, token, cookieOptions);
     res.json({
       message: 'Logged in successfully',
+      token,
       user: responseUser,
     });
   } catch (err) {
