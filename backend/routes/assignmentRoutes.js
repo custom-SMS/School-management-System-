@@ -4,7 +4,7 @@ const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware')
 const { setCacheResource, invalidateResource } = require('../middleware/cacheMiddleware');
 
 const router = express.Router();
-const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment } = require('../controllers/assignmentController');
+const { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment, deleteAssignment } = require('../controllers/assignmentController');
 const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
 
 /**
@@ -113,5 +113,7 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *         description: List of all assignments
  */
 router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAllAssignments);
+
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), deleteAssignment);
 
 module.exports = router;

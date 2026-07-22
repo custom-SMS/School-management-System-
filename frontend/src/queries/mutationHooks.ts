@@ -1,5 +1,4 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../api/axios';
 
 /**
  * Mutation hook helper that invalidates relevant TanStack Query keys

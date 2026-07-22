@@ -17,6 +17,12 @@ export default function AssignedClasses() {
   const classes = data?.classes || [];
   const activeYear = data?.activeYear || null;
 
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
+  const [loadingPromotions, setLoadingPromotions] = useState(false);
+  const [reportCards, setReportCards] = useState([]);
+  const [savingStatus, setSavingStatus] = useState({});
+
   const handleOpenPromotions = async (c) => {
     setSelectedClass(c);
     setPromotionModalOpen(true);
@@ -79,7 +85,8 @@ export default function AssignedClasses() {
                   <th className="px-4 py-3 text-right font-semibold">Students</th>
                   <th className="px-4 py-3 text-right font-semibold">Sessions</th>
                   <th className="px-4 py-3 text-right font-semibold">Avg %</th>
-                  <th className="rounded-r-lg px-4 py-3 text-right font-semibold">Attendance %</th>
+                  <th className="px-4 py-3 text-right font-semibold">Attendance %</th>
+                  <th className="rounded-r-lg px-4 py-3 text-right font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -91,6 +98,18 @@ export default function AssignedClasses() {
                     <td className="px-4 py-4 text-right">{c.attendanceSessions}</td>
                     <td className="px-4 py-4 text-right font-semibold">{c.averageGrade}%</td>
                     <td className="px-4 py-4 text-right font-semibold">{c.attendanceRate}%</td>
+                    <td className="px-4 py-4 text-right">
+                      {c.isHomeroom ? (
+                        <button
+                          onClick={() => handleOpenPromotions(c)}
+                          className="rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-black text-white hover:bg-slate-800 transition"
+                        >
+                          Promotions
+                        </button>
+                      ) : (
+                        <span className="text-xs text-slate-400 font-semibold">—</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>

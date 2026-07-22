@@ -431,7 +431,8 @@ const getTeacherPortalStats = async (req, res) => {
     });
 
     // Parallelize initial queries for better performance
-    const [assignedClassDocs, assignmentDocs, homeroomAssignments, homeroomSections] = await Promise.all([
+    // Parallelize initial queries for better performance
+    const [assignedClassDocs, assignmentDocs, homeroomAssignments, homeroomSections, classSubjectDocs] = await Promise.all([
       prisma.class.findMany({
         where: { teacherId: teacher.id },
         select: {
@@ -458,6 +459,7 @@ const getTeacherPortalStats = async (req, res) => {
         select: {
           id: true,
           classId: true,
+          subjectId: true,
           assignmentType: true,
           class: {
             select: {
@@ -487,6 +489,30 @@ const getTeacherPortalStats = async (req, res) => {
       prisma.section.findMany({
         where: { homeroomTeacherId: teacher.id },
         select: { classId: true }
+      }),
+      prisma.classSubject.findMany({
+        where: { teacherId: teacher.id },
+        select: {
+          class: {
+            select: {
+              id: true,
+              name: true,
+              subject: true,
+              stream: true,
+              sections: {
+                select: {
+                  id: true,
+                  enrollments: {
+                    select: {
+                      studentId: true
+                    },
+                    where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } }
+                  }
+                }
+              }
+            }
+          }
+        }
       })
     ]);
 
@@ -522,6 +548,20 @@ const getTeacherPortalStats = async (req, res) => {
       ...homeroomSections.map((section) => section.classId).filter(Boolean)
     ]);
 
+    // Check ClassSubject mappings for assigned classes to filter out unassigned/stale assignments
+    const assignmentClassIds = assignmentDocs.map((a) => a.classId).filter(Boolean);
+    const classSubjectsInAssigned = assignmentClassIds.length
+      ? await prisma.classSubject.findMany({
+          where: { classId: { in: assignmentClassIds } },
+          select: { classId: true, subjectId: true, teacherId: true }
+        })
+      : [];
+
+    const csTeacherMap = new Map();
+    classSubjectsInAssigned.forEach((cs) => {
+      csTeacherMap.set(`${cs.classId}_${cs.subjectId}`, cs.teacherId);
+    });
+
     const classMap = new Map();
 
     assignedClassDocs.forEach((klass) => {
@@ -532,10 +572,27 @@ const getTeacherPortalStats = async (req, res) => {
       classMap.set(klass.id, klass);
     });
 
-    assignmentDocs.forEach((assignment) => {
-      if (assignment.class?.id) {
-        classMap.set(assignment.class.id, assignment.class);
+    classSubjectDocs.forEach((cs) => {
+      if (cs.class?.id) {
+        classMap.set(cs.class.id, cs.class);
       }
+    });
+
+    assignmentDocs.forEach((assignment) => {
+      if (!assignment.class?.id) return;
+      const cid = assignment.class.id;
+      if (assignment.assignmentType === 'HomeRoomTeacher') {
+        classMap.set(cid, assignment.class);
+        return;
+      }
+      if (assignment.subjectId) {
+        const key = `${cid}_${assignment.subjectId}`;
+        const currentCS = csTeacherMap.get(key);
+        if (currentCS !== undefined && currentCS !== teacher.id) {
+          return; // Skip stale assignment if subject teacher was changed/cleared in ClassSubject
+        }
+      }
+      classMap.set(cid, assignment.class);
     });
 
     const classes = Array.from(classMap.values()).sort((left, right) =>

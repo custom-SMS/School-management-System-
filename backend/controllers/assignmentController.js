@@ -56,7 +56,36 @@ const getAssignmentOptions = async (req, res) => {
 
     const specificClasses = Array.from({ length: 12 }, (_, index) => `Class ${index + 1}`);
 
-    res.json({ teachers: mappedTeachers, classes: mappedClasses, specificClasses, subjects, sections: mappedSections });
+    const unassignedSections = await prisma.section.findMany({
+      where: {
+        homeroomTeacherId: null,
+        class: { ...(req.branchFilter || {}) }
+      },
+      include: {
+        class: { select: { id: true, name: true, stream: true } }
+      }
+    });
+
+    const unassignedClassSubjects = await prisma.classSubject.findMany({
+      where: {
+        teacherId: null,
+        class: { ...(req.branchFilter || {}) }
+      },
+      include: {
+        class: { select: { id: true, name: true, stream: true } },
+        subject: { select: { id: true, name: true, code: true } }
+      }
+    });
+
+    res.json({
+      teachers: mappedTeachers,
+      classes: mappedClasses,
+      specificClasses,
+      subjects,
+      sections: mappedSections,
+      unassignedSections,
+      unassignedClassSubjects
+    });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -553,4 +582,53 @@ const removeHomeRoomAssignment = async (req, res) => {
   }
 };
 
-module.exports = { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment };
+const deleteAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const assignment = await prisma.teacherAssignment.findUnique({
+      where: { id }
+    });
+
+    if (!assignment) {
+      return res.status(404).json({ message: 'Assignment not found.' });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.teacherAssignment.delete({
+        where: { id }
+      });
+
+      if (assignment.classId && assignment.subjectId && assignment.teacherId) {
+        await tx.classSubject.updateMany({
+          where: {
+            classId: assignment.classId,
+            subjectId: assignment.subjectId,
+            teacherId: assignment.teacherId
+          },
+          data: { teacherId: null }
+        });
+      }
+
+      if (assignment.assignmentType === 'HomeRoomTeacher' && assignment.classId && assignment.teacherId) {
+        await tx.section.updateMany({
+          where: { classId: assignment.classId, homeroomTeacherId: assignment.teacherId },
+          data: { homeroomTeacherId: null }
+        });
+        const { resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
+        const resolvedTeacherId = await resolveClassHomeroomTeacherId(tx, assignment.classId, { fallbackToClass: false });
+        await tx.class.update({
+          where: { id: assignment.classId },
+          data: { teacherId: resolvedTeacherId }
+        });
+      }
+    });
+
+    return res.status(200).json({ message: 'Teacher assignment deleted successfully.' });
+  } catch (error) {
+    console.error('Error deleting assignment:', error);
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = { getAssignmentOptions, createAssignment, getMyAssignments, getAllAssignments, removeHomeRoomAssignment, deleteAssignment };

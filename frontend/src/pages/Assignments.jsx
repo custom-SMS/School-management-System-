@@ -10,25 +10,87 @@ export default function Assignments() {
   const [teachers, setTeachers] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [sections, setSections] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [unassignedSections, setUnassignedSections] = useState([]);
+  const [unassignedClassSubjects, setUnassignedClassSubjects] = useState([]);
+  const [statusTab, setStatusTab] = useState('assigned');
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
   const [teacherId, setTeacherId] = useState('');
   const [subjectId, setSubjectId] = useState('');
   const [sectionId, setSectionId] = useState('');
   const [assignmentType, setAssignmentType] = useState('SubjectTeacher');
   const [submitting, setSubmitting] = useState(false);
 
+  const fetchAssignments = async () => {
+    setLoadingAssignments(true);
+    try {
+      const res = await axios.get('/assignments');
+      setAssignments(res.data || []);
+    } catch (error) {
+      console.error('Failed to load assignments:', error);
+    } finally {
+      setLoadingAssignments(false);
+    }
+  };
+
+  const loadOptions = async () => {
+    try {
+      const res = await axios.get('/assignments/options');
+      setTeachers(res.data.teachers || []);
+      setSubjects(res.data.subjects || []);
+      setSections(res.data.sections || []);
+      setUnassignedSections(res.data.unassignedSections || []);
+      setUnassignedClassSubjects(res.data.unassignedClassSubjects || []);
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to load assignment options');
+    }
+  };
+
   useEffect(() => {
-    const loadOptions = async () => {
-      try {
-        const res = await axios.get('/assignments/options');
-        setTeachers(res.data.teachers || []);
-        setSubjects(res.data.subjects || []);
-        setSections(res.data.sections || []);
-      } catch (error) {
-        toast.error(error.response?.data?.message || 'Failed to load assignment options');
-      }
-    };
     loadOptions();
+    fetchAssignments();
   }, []);
+
+  const handleQuickAssignHomeroom = (sec) => {
+    setSectionId(sec._id || sec.id || '');
+    setAssignmentType('HomeRoomTeacher');
+    setSubjectId('');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.info(`Selected ${sec.class?.name || ''} ${sec.name || ''} for Homeroom assignment. Choose a teacher above.`);
+  };
+
+  const handleQuickAssignSubject = (cs) => {
+    setSubjectId(cs.subject?.id || cs.subjectId || '');
+    setAssignmentType('SubjectTeacher');
+    const matchingSection = sections.find((s) => s.class?.id === cs.classId || s.className === cs.class?.name);
+    if (matchingSection) {
+      setSectionId(matchingSection._id || matchingSection.id || '');
+    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    toast.info(`Selected ${cs.class?.name || ''} - ${cs.subject?.name || ''}. Choose a teacher above.`);
+  };
+
+  const handleDeleteAssignment = async (id, teacherName) => {
+    if (!window.confirm(`Are you sure you want to remove this assignment for ${teacherName || 'this teacher'}?`)) {
+      return;
+    }
+    setDeletingId(id);
+    try {
+      await axios.delete(`/assignments/${id}`);
+      toast.success('Assignment removed successfully.');
+      fetchAssignments();
+      loadOptions();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Failed to delete assignment.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -37,6 +99,8 @@ export default function Assignments() {
       const payload = { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType };
       await axios.post('/assignments', payload);
       toast.success('Teacher assigned successfully.');
+      fetchAssignments();
+      loadOptions();
       setTeacherId('');
       setSubjectId('');
       setSectionId('');
@@ -57,6 +121,7 @@ export default function Assignments() {
             const payload = { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType, confirmOverride: true };
             await axios.post('/assignments', payload);
             toast.success('Homeroom teacher replaced successfully.');
+            fetchAssignments();
             setTeacherId('');
             setSubjectId('');
             setSectionId('');
@@ -206,9 +271,360 @@ export default function Assignments() {
 
           <div className="rounded-xl bg-black p-6 text-white">
             <h3 className="mb-2 font-bold">Assignment Details</h3>
-            <p className="text-sm text-gray-300">This page now only requires teacher, subject, and section selection to create each assignment.</p>
+            <p className="text-sm text-gray-300">This page allows you to create or delete teacher assignments.</p>
           </div>
         </div>
+      </div>
+
+      {/* Existing Assignments Section */}
+      <div className="mt-8 rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-gray-900">Class & Subject Coverage Status</h3>
+            <p className="text-sm text-gray-500">Monitor active teacher assignments and identify unassigned homerooms or subjects.</p>
+          </div>
+          <button
+            onClick={() => { fetchAssignments(); loadOptions(); }}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
+          >
+            Refresh Data
+          </button>
+        </div>
+
+        {/* Status Summary Cards & Tabs */}
+        <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <button
+            onClick={() => { setStatusTab('assigned'); setCurrentPage(1); }}
+            className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${statusTab === 'assigned' ? 'border-black bg-gray-900 text-white shadow-md' : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'}`}
+          >
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Assigned Records</div>
+              <div className="text-2xl font-black">{assignments.length}</div>
+            </div>
+            <div className="text-2xl">✅</div>
+          </button>
+
+          <button
+            onClick={() => { setStatusTab('unassigned_homerooms'); setCurrentPage(1); }}
+            className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${statusTab === 'unassigned_homerooms' ? 'border-amber-600 bg-amber-500 text-white shadow-md' : 'border-amber-200 bg-amber-50/50 text-amber-900 hover:border-amber-300'}`}
+          >
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Unassigned Homerooms</div>
+              <div className="text-2xl font-black">{unassignedSections.length}</div>
+            </div>
+            <div className="text-2xl">⚠️</div>
+          </button>
+
+          <button
+            onClick={() => { setStatusTab('unassigned_subjects'); setCurrentPage(1); }}
+            className={`flex items-center justify-between rounded-xl border p-4 text-left transition ${statusTab === 'unassigned_subjects' ? 'border-rose-600 bg-rose-500 text-white shadow-md' : 'border-rose-200 bg-rose-50/50 text-rose-900 hover:border-rose-300'}`}
+          >
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Unassigned Subjects</div>
+              <div className="text-2xl font-black">{unassignedClassSubjects.length}</div>
+            </div>
+            <div className="text-2xl">🚨</div>
+          </button>
+        </div>
+
+        {/* ASSIGNED TAB CONTENT */}
+        {statusTab === 'assigned' && (
+          <>
+            {/* Search and Filters Bar */}
+            <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/70 p-4">
+              <div className="flex flex-1 flex-wrap items-center gap-3 min-w-[280px]">
+                <div className="relative flex-1 min-w-[200px]">
+                  <input
+                    type="text"
+                    placeholder="Search teacher, class, or subject…"
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="w-full rounded-lg border border-gray-200 bg-white py-2 pl-9 pr-4 text-sm outline-none focus:border-black focus:ring-1 focus:ring-black"
+                  />
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    🔍
+                  </span>
+                </div>
+
+                <select
+                  value={typeFilter}
+                  onChange={(e) => {
+                    setTypeFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 outline-none focus:border-black"
+                >
+                  <option value="all">All Assignment Types</option>
+                  <option value="SubjectTeacher">Subject Teacher</option>
+                  <option value="HomeRoomTeacher">Homeroom Teacher</option>
+                </select>
+
+                {(searchQuery || typeFilter !== 'all') && (
+                  <button
+                    onClick={() => {
+                      setSearchQuery('');
+                      setTypeFilter('all');
+                      setCurrentPage(1);
+                    }}
+                    className="text-xs font-bold text-gray-500 hover:text-gray-900 transition"
+                  >
+                    Reset Filters
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2 text-xs font-medium text-gray-500">
+                <span>Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    setPageSize(Number(e.target.value));
+                    setCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-200 bg-white px-2 py-1 outline-none"
+                >
+                  <option value={5}>5</option>
+                  <option value={8}>8</option>
+                  <option value={15}>15</option>
+                  <option value={25}>25</option>
+                </select>
+              </div>
+            </div>
+
+            {loadingAssignments ? (
+              <div className="py-12 text-center text-sm font-medium text-gray-400">Loading active assignments…</div>
+            ) : (() => {
+              const filteredAssignments = assignments.filter((asgn) => {
+                const teacherName = (asgn.teacher?.user?.name || asgn.teacher?.teacherId || '').toLowerCase();
+                const className = (asgn.class?.name || '').toLowerCase();
+                const sectionName = (asgn.section?.name || '').toLowerCase();
+                const subjectName = (asgn.subject?.name || '').toLowerCase();
+                const query = searchQuery.toLowerCase().trim();
+
+                const matchesSearch =
+                  !query ||
+                  teacherName.includes(query) ||
+                  className.includes(query) ||
+                  sectionName.includes(query) ||
+                  subjectName.includes(query);
+
+                const matchesType =
+                  typeFilter === 'all' || asgn.assignmentType === typeFilter;
+
+                return matchesSearch && matchesType;
+              });
+
+              if (filteredAssignments.length === 0) {
+                return (
+                  <div className="rounded-lg border border-dashed border-gray-200 py-12 text-center text-sm text-gray-400">
+                    {searchQuery || typeFilter !== 'all' ? 'No assignments match your search filter.' : 'No active assignments found.'}
+                  </div>
+                );
+              }
+
+              const totalPages = Math.ceil(filteredAssignments.length / pageSize) || 1;
+              const safePage = Math.min(currentPage, totalPages);
+              const startIndex = (safePage - 1) * pageSize;
+              const endIndex = Math.min(startIndex + pageSize, filteredAssignments.length);
+              const paginatedAssignments = filteredAssignments.slice(startIndex, endIndex);
+
+              return (
+                <>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-200 bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                          <th className="px-4 py-3 font-semibold">Teacher</th>
+                          <th className="px-4 py-3 font-semibold">Type</th>
+                          <th className="px-4 py-3 font-semibold">Class / Section</th>
+                          <th className="px-4 py-3 font-semibold">Subject</th>
+                          <th className="px-4 py-3 text-right font-semibold">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {paginatedAssignments.map((asgn) => {
+                          const teacherName = asgn.teacher?.user?.name || asgn.teacher?.teacherId || 'Unknown Teacher';
+                          const isHomeroom = asgn.assignmentType === 'HomeRoomTeacher';
+                          const className = asgn.class?.name || '—';
+                          const sectionName = asgn.section?.name || '';
+                          const subjectName = isHomeroom ? 'All Subjects (Homeroom)' : (asgn.subject?.name || '—');
+
+                          return (
+                            <tr key={asgn._id || asgn.id} className="hover:bg-gray-50/80 transition">
+                              <td className="px-4 py-3.5 font-bold text-gray-900">
+                                {teacherName}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-bold ${isHomeroom ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'}`}>
+                                  {isHomeroom ? 'Homeroom Teacher' : 'Subject Teacher'}
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 font-medium text-gray-700">
+                                {className} {sectionName ? `(${sectionName})` : ''}
+                              </td>
+                              <td className="px-4 py-3.5 text-gray-600">
+                                {subjectName}
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <button
+                                  onClick={() => handleDeleteAssignment(asgn._id || asgn.id, teacherName)}
+                                  disabled={deletingId === (asgn._id || asgn.id)}
+                                  className="rounded-lg bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-600 hover:bg-rose-100 transition disabled:opacity-50"
+                                >
+                                  {deletingId === (asgn._id || asgn.id) ? 'Removing…' : 'Remove'}
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Bar */}
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs font-medium text-gray-500">
+                    <div>
+                      Showing <span className="font-bold text-gray-900">{startIndex + 1}</span> to{' '}
+                      <span className="font-bold text-gray-900">{endIndex}</span> of{' '}
+                      <span className="font-bold text-gray-900">{filteredAssignments.length}</span> assignments
+                    </div>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                        disabled={safePage === 1}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                      >
+                        Previous
+                      </button>
+
+                      <span className="px-2 font-bold text-gray-800">
+                        Page {safePage} of {totalPages}
+                      </span>
+
+                      <button
+                        onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                        disabled={safePage === totalPages}
+                        className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </>
+        )}
+
+        {/* UNASSIGNED HOMEROOMS TAB */}
+        {statusTab === 'unassigned_homerooms' && (
+          <div>
+            <div className="mb-4 rounded-lg bg-amber-50 p-4 border border-amber-200 text-sm text-amber-900">
+              <span className="font-bold">⚠️ Notice:</span> The following sections do not currently have a Homeroom Teacher assigned.
+            </div>
+
+            {unassignedSections.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
+                🎉 Great news! All class sections have a Homeroom Teacher assigned.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-amber-50/50 text-xs uppercase tracking-wider text-amber-900">
+                      <th className="px-4 py-3 font-semibold">Class Name</th>
+                      <th className="px-4 py-3 font-semibold">Section</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {unassignedSections.map((sec) => (
+                      <tr key={sec._id || sec.id} className="hover:bg-amber-50/30 transition">
+                        <td className="px-4 py-3.5 font-bold text-gray-900">
+                          {sec.class?.name || '—'} {sec.class?.stream ? `(${sec.class.stream})` : ''}
+                        </td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-700">
+                          {sec.name || 'Default Section'}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                            Unassigned Homeroom
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            onClick={() => handleQuickAssignHomeroom(sec)}
+                            className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
+                          >
+                            Assign Teacher
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* UNASSIGNED SUBJECTS TAB */}
+        {statusTab === 'unassigned_subjects' && (
+          <div>
+            <div className="mb-4 rounded-lg bg-rose-50 p-4 border border-rose-200 text-sm text-rose-900">
+              <span className="font-bold">🚨 Notice:</span> The following class subjects do not currently have a Subject Teacher assigned.
+            </div>
+
+            {unassignedClassSubjects.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
+                🎉 Great news! All class subjects have a Subject Teacher assigned.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-gray-200 bg-rose-50/50 text-xs uppercase tracking-wider text-rose-900">
+                      <th className="px-4 py-3 font-semibold">Class Name</th>
+                      <th className="px-4 py-3 font-semibold">Subject</th>
+                      <th className="px-4 py-3 font-semibold">Status</th>
+                      <th className="px-4 py-3 text-right font-semibold">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {unassignedClassSubjects.map((cs) => (
+                      <tr key={cs.id || `${cs.classId}_${cs.subjectId}`} className="hover:bg-rose-50/30 transition">
+                        <td className="px-4 py-3.5 font-bold text-gray-900">
+                          {cs.class?.name || '—'} {cs.class?.stream ? `(${cs.class.stream})` : ''}
+                        </td>
+                        <td className="px-4 py-3.5 font-semibold text-gray-700">
+                          {cs.subject?.name || '—'} {cs.subject?.code ? `(${cs.subject.code})` : ''}
+                        </td>
+                        <td className="px-4 py-3.5">
+                          <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
+                            Unassigned Subject
+                          </span>
+                        </td>
+                        <td className="px-4 py-3.5 text-right">
+                          <button
+                            onClick={() => handleQuickAssignSubject(cs)}
+                            className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
+                          >
+                            Assign Teacher
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
