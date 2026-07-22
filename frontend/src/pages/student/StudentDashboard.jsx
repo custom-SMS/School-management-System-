@@ -159,11 +159,10 @@ export default function StudentDashboard() {
                 return (
                   <div key={g._id || i} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex items-center gap-3">
-                      <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-black ${
-                        pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                        pct >= 60 ? 'bg-amber-100 text-amber-700' :
-                        'bg-rose-100 text-rose-700'
-                      }`}>
+                      <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-black ${pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                          pct >= 60 ? 'bg-amber-100 text-amber-700' :
+                            'bg-rose-100 text-rose-700'
+                        }`}>
                         {pct.toFixed(0)}
                       </span>
                       <div>

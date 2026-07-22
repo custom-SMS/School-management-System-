@@ -1,7 +1,7 @@
 const { getRedis } = require('../utils/upstashRedis');
 
-const TTL_SECONDS = Number(process.env.GLOBAL_CACHE_TTL_SECONDS || 60);
-console.log(`[Redis Cache] Global Cache TTL: ${TTL_SECONDS} seconds`);
+const TTL_SECONDS = Number(process.env.GLOBAL_CACHE_TTL_SECONDS || 300);
+console.log(`[Redis Cache] Global Cache TTL: ${TTL_SECONDS} seconds (5 minutes)`);
 
 function stableStringify(value) {
   if (value === null || value === undefined) return String(value);
@@ -92,6 +92,7 @@ const globalCacheMiddleware = async (req, res, next) => {
     const cached = await redis.get(key);
     if (cached) {
       console.log(`[Redis Cache] HIT for key: ${key}`);
+      res.setHeader('X-Redis-Cache', 'HIT');
       try {
         return res.status(200).json(JSON.parse(cached));
       } catch {
@@ -99,6 +100,8 @@ const globalCacheMiddleware = async (req, res, next) => {
         return res.status(200).json(cached);
       }
     }
+
+    res.setHeader('X-Redis-Cache', 'MISS');
 
     // Capture JSON response.
     const originalJson = res.json.bind(res);

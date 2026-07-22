@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 import { useBranch } from '../../hooks/useBranch';
+import { useTeacherDashboardQuery } from '../../queries/teacherPortalQueries';
 
 function StatCard({ label, value, sub, icon, alert, dark }) {
   return (
@@ -22,24 +21,10 @@ function StatCard({ label, value, sub, icon, alert, dark }) {
 
 export default function TeacherDashboard() {
   const { activeSemester } = useBranch();
-  const [stats, setStats] = useState(null);
-  const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data, isLoading: loading, isError: error } = useTeacherDashboardQuery();
 
-  const load = () => {
-    setLoading(true);
-    setError(false);
-    let statsOk = false;
-    const p1 = axios.get('/stats/teacher/me').then((r) => { setStats(r.data); statsOk = true; }).catch(() => {});
-    const p2 = axios.get('/settings/public').then((r) => setGradingSettings(r.data?.grading || { gpaEnabled: false, passMark: 50 })).catch(() => {});
-    Promise.all([p1, p2]).finally(() => {
-      if (!statsOk) setError(true);
-      setLoading(false);
-    });
-  };
-
-  useEffect(load, []);
+  const stats = data?.stats || null;
+  const gradingSettings = data?.gradingSettings || { gpaEnabled: false, passMark: 50 };
 
   const name = stats?.teacher?.name || 'Teacher';
   const firstName = name.split(' ')[0];

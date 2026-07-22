@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
 import { useBranch } from '../../hooks/useBranch';
+import { useStudentAcademicsQuery } from '../../queries/studentPortalQueries';
 
 const letterFor = (p) => (p >= 90 ? 'A+' : p >= 85 ? 'A' : p >= 80 ? 'A-' : p >= 75 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 
@@ -23,11 +24,6 @@ export default function StudentAcademics() {
   const { activeSemester } = useBranch();
   const [semesters, setSemesters] = useState([]);
   const [selectedSemId, setSelectedSemId] = useState('');
-  const [stats, setStats] = useState(null);
-  const [subjects, setSubjects] = useState([]);
-  const [timetable, setTimetable] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
 
   // Fetch semesters of active academic year
   useEffect(() => {
@@ -47,28 +43,11 @@ export default function StudentAcademics() {
     }
   }, [activeSemester]);
 
-  const load = () => {
-    setLoading(true);
-    setError(false);
-    let statsOk = false;
-    let subjectsOk = false;
-    const params = selectedSemId ? `?semesterId=${selectedSemId}` : '';
-    const p1 = axios.get(`/stats/student/me${params}`)
-      .then((r) => { setStats(r.data); statsOk = true; })
-      .catch(() => {});
-    const p2 = axios.get('/timetables/student/me')
-      .then((r) => setTimetable(r.data?.timetable || []))
-      .catch(() => {}); // Silently fail if timetable endpoint doesn't exist
-    const p3 = axios.get(`/students/me/subjects${params}`)
-      .then((r) => { setSubjects(r.data?.subjects || []); subjectsOk = true; })
-      .catch(() => {});
-    Promise.all([p1, p2, p3]).finally(() => {
-      if (!statsOk && !subjectsOk) setError(true);
-      setLoading(false);
-    });
-  };
+  const { data, isLoading: loading, isError: error, refetch: load } = useStudentAcademicsQuery(selectedSemId);
 
-  useEffect(load, [selectedSemId]);
+  const stats = data?.stats || null;
+  const timetable = data?.timetable || [];
+  const subjects = data?.subjects || [];
 
   const grades = stats?.grades || [];
 

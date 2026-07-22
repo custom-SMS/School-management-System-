@@ -75,6 +75,33 @@ app.use('/api/settings', require('./routes/settingsRoutes'));
 // Serve uploaded documents statically.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
+// Health check & Neon DB keep-warm endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    const startTime = Date.now();
+    await prisma.academicYear.findFirst({ select: { id: true } });
+    const latency = Date.now() - startTime;
+    res.status(200).json({
+      status: 'ok',
+      db: 'connected',
+      latencyMs: latency,
+      timestamp: new Date().toISOString()
+    });
+  } catch (err) {
+    res.status(503).json({ status: 'error', message: err.message });
+  }
+});
+
+// Warm endpoint — keeps Neon compute active without heavy queries
+app.get('/api/warm', async (req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.status(200).json({ status: 'warmed', timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 app.get('/', (req, res) => {
   res.send('School Management System API');
 });

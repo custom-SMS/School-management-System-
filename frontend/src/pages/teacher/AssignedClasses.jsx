@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
+import { useTeacherClassesQuery } from '../../queries/teacherPortalQueries';
 
 function tagFor(subject) {
   const s = String(subject || '').toLowerCase();
@@ -11,33 +12,10 @@ function tagFor(subject) {
 }
 
 export default function AssignedClasses() {
-  const [classes, setClasses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [activeYear, setActiveYear] = useState(null);
-  
-  // Promotion Management State
-  const [promotionModalOpen, setPromotionModalOpen] = useState(false);
-  const [selectedClass, setSelectedClass] = useState(null);
-  const [reportCards, setReportCards] = useState([]);
-  const [loadingPromotions, setLoadingPromotions] = useState(false);
-  const [savingStatus, setSavingStatus] = useState({});
+  const { data, isLoading: loading, isError: error } = useTeacherClassesQuery();
 
-  useEffect(() => {
-    // Get active academic year
-    axios.get('/academic-years')
-      .then((res) => {
-        const active = (res.data || []).find(y => y.isActive) || (res.data || [])[0];
-        setActiveYear(active);
-      })
-      .catch(console.error);
-
-    axios
-      .get('/stats/teacher/me')
-      .then((r) => setClasses(r.data?.classSummaries || []))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
+  const classes = data?.classes || [];
+  const activeYear = data?.activeYear || null;
 
   const handleOpenPromotions = async (c) => {
     setSelectedClass(c);

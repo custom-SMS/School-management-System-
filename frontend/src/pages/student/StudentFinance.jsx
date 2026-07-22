@@ -1,31 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
 import { toast } from 'react-toastify';
+import { useStudentFinanceQuery } from '../../queries/studentPortalQueries';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function StudentFinance() {
   const navigate = useNavigate();
-  const [fees, setFees] = useState([]);
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const { data, isLoading: loading, isError: error, refetch: load } = useStudentFinanceQuery();
 
-  const load = () => {
-    setLoading(true);
-    setError(false);
-    let feesOk = false;
-    const p1 = axios.get('/fees/my').then((r) => { setFees(r.data || []); feesOk = true; }).catch(() => {});
-    const p2 = axios.get('/stats/student/me').then((r) => setProfile(r.data)).catch(() => {});
-    Promise.all([p1, p2]).finally(() => {
-      if (!feesOk) setError(true);
-      setLoading(false);
-    });
-  };
-
-  useEffect(load, []);
+  const fees = data?.fees || [];
+  const profile = data?.profile || null;
 
   const totals = useMemo(() => {
     let billed = 0, paid = 0, due = 0, verifying = 0;

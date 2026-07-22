@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import AdminLayout from '../../components/AdminLayout';
 import { useBranch } from '../../hooks/useBranch';
+import { useAdminStatsQuery } from '../../queries/adminPortalQueries';
 
 const StatCard = ({ title, value, colorClass, icon, loading }) => (
   <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm flex items-center justify-between hover:shadow-md transition">
@@ -26,17 +27,8 @@ const fmt = (n) =>
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { activeSemester } = useBranch();
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    setLoading(true);
-    axios.get('/stats/admin')
-      .then(res => setStats(res.data))
-      .catch(err => setError(err.response?.data?.message || 'Failed to load dashboard data.'))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, isLoading: loading, isError } = useAdminStatsQuery();
+  const error = isError ? 'Failed to load dashboard data.' : '';
 
   if (error) {
     return (

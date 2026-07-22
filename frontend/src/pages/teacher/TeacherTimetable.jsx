@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import axios from '../../api/axios';
+import { useMemo } from 'react';
 import TeacherLayout from '../../components/TeacherLayout';
+import { useTeacherTimetableQuery } from '../../queries/teacherPortalQueries';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const HOURS = ['08:00', '09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'];
@@ -16,21 +16,10 @@ const gradeTone = (name) => {
 const toHourKey = (t) => String(t || '').slice(0, 2) + ':00';
 
 export default function TeacherTimetable() {
-  const [slots, setSlots] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [academicYear, setAcademicYear] = useState(null);
+  const { data, isLoading: loading, isError: error } = useTeacherTimetableQuery();
 
-  useEffect(() => {
-    axios
-      .get('/timetables/teacher/me')
-      .then((r) => {
-        setSlots(r.data?.timetable || []);
-        setAcademicYear(r.data?.academicYear || null);
-      })
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  }, []);
+  const slots = data?.timetable || [];
+  const academicYear = data?.academicYear || null;
 
   // Index slots by "Day|HH:00".
   const grid = useMemo(() => {

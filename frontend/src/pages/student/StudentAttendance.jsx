@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import axios from '../../api/axios';
+import { useMemo } from 'react';
 import StudentLayout from '../../components/StudentLayout';
+import { useStudentAttendanceQuery } from '../../queries/studentPortalQueries';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -18,20 +18,7 @@ function FetchError({ onRetry }) {
 }
 
 export default function StudentAttendance() {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  const load = () => {
-    setLoading(true);
-    setError(false);
-    axios.get('/stats/student/me')
-      .then((r) => setStats(r.data))
-      .catch(() => setError(true))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(load, []);
+  const { data: stats, isLoading: loading, isError: error, refetch: load } = useStudentAttendanceQuery();
 
   const bd = stats?.attendanceBreakdown || {};
   const present = bd.presentCount ?? 0;
