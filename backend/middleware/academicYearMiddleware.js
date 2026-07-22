@@ -48,8 +48,8 @@ const injectAcademicYearFilter = (req, res, next) => {
 
   // Support the header already used by the frontend, while retaining the
   // documented header for API clients.
-  const requestedYearId = req.headers['x-super-admin-year-view-id']
-    || req.headers['x-academic-year-id'];
+  const requestedYearId = req.headers?.['x-super-admin-year-view-id']
+    || req.headers?.['x-academic-year-id'];
 
   const applyContext = async () => {
     let selectedYear = activeYear || null;

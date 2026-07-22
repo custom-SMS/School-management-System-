@@ -114,7 +114,7 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
         </span>
       </Link>
 
-      <nav className="mt-8 flex-1 space-y-1.5">
+      <nav className="mt-8 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setMobileOpen(false)}>
             <NavIcon name={item.icon} />
@@ -158,7 +158,7 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
         </aside>
 
         {mobileOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden">
             <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
             <aside className="absolute left-0 top-0 h-full w-72 bg-white px-5 py-6 shadow-2xl">{sidebar}</aside>
           </div>
@@ -166,7 +166,7 @@ export default function TeacherLayout({ children, searchPlaceholder = 'Search st
 
         <div className="flex min-w-0 flex-1 flex-col">
           <MaintenanceBanner />
-          <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+          <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button
               type="button"
               onClick={() => setMobileOpen(true)}

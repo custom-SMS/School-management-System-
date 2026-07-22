@@ -119,7 +119,12 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'An unexpected error occurred. Please try again.' });
 });
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+// Start server only when executed directly (not when required by tests)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+  });
+}
+
+module.exports = app;
+

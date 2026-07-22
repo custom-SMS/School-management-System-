@@ -104,7 +104,7 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
           <span className="block text-xs font-medium text-slate-400">Student Portal</span>
         </span>
       </Link>
-      <nav className="mt-8 flex-1 space-y-1.5">
+      <nav className="mt-8 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {navItems.map((item) => (
           <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setMobileOpen(false)}>
             <NavIcon name={item.icon} /><span>{item.label}</span>
@@ -125,7 +125,7 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
         <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white px-5 py-6 lg:flex">{sidebar}</aside>
 
         {mobileOpen && (
-          <div className="fixed inset-0 z-40 lg:hidden">
+          <div className="fixed inset-0 z-50 lg:hidden">
             <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
             <aside className="absolute left-0 top-0 h-full w-72 bg-white px-5 py-6 shadow-2xl">{sidebar}</aside>
           </div>
@@ -133,7 +133,7 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
 
         <div className="flex min-w-0 flex-1 flex-col">
           <MaintenanceBanner />
-          <header className="sticky top-0 z-50 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
+          <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
             <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-500 lg:hidden" aria-label="Open menu">
               <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
             </button>

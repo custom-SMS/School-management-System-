@@ -265,7 +265,7 @@ export default function StudentRegistrationWizard() {
                 <div className="text-xs text-slate-400">Academic Year {activeYear?.year || '—'}</div>
               </div>
           </div>
-          <nav className="mt-8 flex-1 space-y-1.5">
+          <nav className="mt-8 flex-1 space-y-1.5 overflow-y-auto pr-1">
             {STEPS.map((s, i) => {
               const active = i === stepIdx;
               const done = i < stepIdx;

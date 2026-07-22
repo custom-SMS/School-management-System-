@@ -1,4 +1,4 @@
-﻿@import "tailwindcss";
+@import "tailwindcss";
 
 html {
   scroll-behavior: smooth;
@@ -33,4 +33,23 @@ body {
 ::selection {
   background: rgba(59, 130, 246, 0.18);
   color: #0f172a;
+}
+
+/* Custom Scrollbars for a premium, sleek feel */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.35);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.55);
 }

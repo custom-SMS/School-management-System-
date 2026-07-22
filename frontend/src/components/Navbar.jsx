@@ -259,7 +259,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
             </div>
           </div>
 
-          <div className="flex w-full max-w-full flex-nowrap items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-white/5 px-2 py-2 pb-1 sm:flex-wrap sm:overflow-visible sm:pb-2">
+          <div className="flex flex-1 min-w-0 flex-nowrap items-center gap-2 overflow-x-auto rounded-full border border-white/10 bg-white/5 px-2 py-2">
             {navItems.map((item) => renderNavLink(item, navLinkClass))}
           </div>
 
@@ -380,7 +380,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
 
         <div
           id="mobile-nav-menu"
-          className={`${mobileMenuOpen ? 'mt-3 block' : 'hidden'} space-y-3 rounded-3xl border border-white/10 bg-slate-950/95 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.35)] sm:hidden`}
+          className={`${mobileMenuOpen ? 'mt-3 block' : 'hidden'} space-y-3 rounded-3xl border border-white/10 bg-slate-950/95 p-3 shadow-[0_20px_50px_rgba(15,23,42,0.35)] sm:hidden max-h-[calc(100vh-100px)] overflow-y-auto`}
         >
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
             Signed in as <span className="font-semibold text-white">{user.name}</span> • {getRoleLabel(user.role, user.scopeType)}
