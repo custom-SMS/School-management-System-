@@ -83,7 +83,7 @@ export default function FinanceDashboard() {
           <div className="mt-6 grid grid-cols-1 gap-6 xl:grid-cols-[1.6fr_1fr]">
             {/* Revenue by grade */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="flex items-start justify-between">
+              <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-xl font-bold text-slate-900">Collected Revenue by Grade</h2>
                   <p className="text-sm text-slate-500">Paid tuition · {periodLabel}</p>
@@ -95,19 +95,21 @@ export default function FinanceDashboard() {
                   No revenue collected yet.
                 </div>
               ) : (
-                <div className="mt-8 flex h-64 items-end gap-3 sm:gap-6">
-                  {revenueByGrade.map((g) => (
-                    <div key={g.className} className="flex flex-1 flex-col items-center gap-2">
-                      <span className="text-xs font-semibold text-slate-500">{etb(g.paidAmount)}</span>
-                      <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
-                        <div
-                          className="w-full max-w-12 rounded-t-lg bg-slate-900 transition-all"
-                          style={{ height: `${(Number(g.paidAmount) / maxGradeRevenue) * 100}%` }}
-                        />
+                <div className="overflow-x-auto mt-8">
+                  <div className="flex h-64 items-end gap-3 sm:gap-6 min-w-[500px] pb-2">
+                    {revenueByGrade.map((g) => (
+                      <div key={g.className} className="flex flex-1 flex-col items-center gap-2">
+                        <span className="text-xs font-semibold text-slate-500">{etb(g.paidAmount)}</span>
+                        <div className="flex w-full items-end justify-center" style={{ height: '100%' }}>
+                          <div
+                            className="w-full max-w-12 rounded-t-lg bg-slate-900 transition-all"
+                            style={{ height: `${(Number(g.paidAmount) / maxGradeRevenue) * 100}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-slate-400">{g.className}</span>
                       </div>
-                      <span className="text-xs font-medium text-slate-400">{g.className}</span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </section>
@@ -148,9 +150,9 @@ export default function FinanceDashboard() {
 
           {/* Recent receipts */}
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold text-slate-900">Recent Receipts</h2>
-              <Link to="/finance/payments" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800">
+              <Link to="/finance/payments" className="rounded-xl bg-slate-900 px-4 py-2 text-sm font-bold text-white transition hover:bg-slate-800 whitespace-nowrap flex-nowrap shrink-0">
                 + Issue Receipt
               </Link>
             </div>

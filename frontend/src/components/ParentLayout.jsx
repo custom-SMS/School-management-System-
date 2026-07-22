@@ -140,12 +140,12 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
             <div className="hidden text-lg font-black text-slate-900 sm:block">{branding.institutionNameEn}</div>
 
             {/* Child switcher */}
-            <div className="mx-auto flex items-center gap-2">
+            <div className="mx-auto flex items-center gap-2 min-w-0">
               <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-400 sm:block">Viewing</span>
               <select
                 value={childId || ''}
                 onChange={(e) => onSelectChild?.(e.target.value)}
-                className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-300 focus:bg-white"
+                className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 sm:px-4 sm:py-2 text-sm font-bold text-slate-800 outline-none transition focus:border-slate-300 focus:bg-white max-w-[130px] sm:max-w-xs truncate"
               >
                 {kids.length === 0 && <option value="">No children linked</option>}
                 {kids.map((k) => {

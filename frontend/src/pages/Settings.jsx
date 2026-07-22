@@ -300,17 +300,15 @@ export default function Settings() {
         <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-8 items-start">
           
           {/* Tab Navigation Menu */}
-          <div className="space-y-1 bg-gray-50 p-2.5 rounded-2xl border border-slate-200/65">
+          <div className="flex flex-row overflow-x-auto whitespace-nowrap lg:flex-col lg:space-y-1 bg-gray-50 p-2 rounded-xl border border-slate-200/65 gap-1 shrink-0 scrollbar-none">
             {menuItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-xl transition-all ${
+                className={`flex items-center gap-3 px-4 py-2.5 text-sm font-semibold rounded-xl transition-all whitespace-nowrap shrink-0 ${
                   activeTab === item.id
-                    ? item.danger 
-                      ? 'bg-rose-50 text-rose-700 border-l-4 border-rose-600' 
-                      : 'bg-white text-slate-900 shadow-sm border-l-4 border-slate-900 font-bold'
-                    : 'text-slate-600 border-l-4 border-transparent hover:bg-white/50 hover:text-slate-900'
+                    ? 'bg-white text-slate-900 shadow-sm border-slate-900 font-bold border-b-2 lg:border-b-0 lg:border-l-4'
+                    : 'text-slate-600 border-b-2 lg:border-b-0 lg:border-l-4 border-transparent hover:bg-white/50 hover:text-slate-900'
                 }`}
               >
                 <span>{item.icon}</span>
@@ -706,7 +704,7 @@ export default function Settings() {
                   </div>
 
                   {/* Add new component row */}
-                  <div className="flex gap-3 items-end mb-6">
+                  <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end mb-6">
                     <div className="flex-1 space-y-1.5">
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">New Component Name</label>
                       <input
@@ -718,7 +716,7 @@ export default function Settings() {
                         onKeyDown={e => e.key === 'Enter' && handleAddComponent()}
                       />
                     </div>
-                    <div className="w-28 space-y-1.5">
+                    <div className="sm:w-28 space-y-1.5">
                       <label className="block text-xs font-bold uppercase tracking-wider text-slate-500">Weight (%)</label>
                       <input
                         type="number" min="0" max="100"
@@ -731,14 +729,14 @@ export default function Settings() {
                     </div>
                     <button
                       onClick={handleAddComponent}
-                      className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white hover:bg-slate-800 transition whitespace-nowrap"
+                      className="rounded-xl bg-slate-900 px-5 py-3 text-xs font-bold text-white hover:bg-slate-800 transition whitespace-nowrap flex-nowrap shrink-0 h-[46px] flex items-center justify-center"
                     >
                       + Add Component
                     </button>
                   </div>
 
                   {/* Save bar */}
-                  <div className={`flex items-center justify-between rounded-xl px-5 py-4 border ${
+                  <div className={`flex flex-col sm:flex-row gap-4 items-stretch sm:items-center justify-between rounded-xl px-5 py-4 border ${
                     weightValid ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-100'
                   }`}>
                     <div>
@@ -758,7 +756,7 @@ export default function Settings() {
                     <button
                       onClick={handleSaveWeights}
                       disabled={savingWeights || !weightValid}
-                      className="rounded-xl bg-slate-900 text-white px-6 py-2.5 text-xs font-bold hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="rounded-xl bg-slate-900 text-white px-6 py-2.5 text-xs font-bold hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap flex-nowrap shrink-0 text-center"
                     >
                       {savingWeights ? 'Saving…' : 'Save Grading Structure'}
                     </button>
