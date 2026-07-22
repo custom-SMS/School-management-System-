@@ -154,7 +154,8 @@ router.patch('/:id/registration-period', verifyToken, checkPermission('manage_ac
  *       404:
  *         description: No active academic year found
  */
-router.get('/active', verifyToken, getActiveAcademicYear);
+// Public/authenticated endpoint to read current active academic year
+router.get('/active', getActiveAcademicYear);
 
 /**
  * @swagger

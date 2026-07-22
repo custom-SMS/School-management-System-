@@ -21,7 +21,7 @@ const sanitizeOrigin = (urlStr) => {
   }
 };
 
-const defaultOrigins = 'http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:4173,https://sms-frontend-bice-three.vercel.app';
+const defaultOrigins = 'http://localhost:5173,http://localhost:5174,http://localhost:3000,http://localhost:4173,https://school-management-system-iota-woad.vercel.app/';
 const rawOrigins = process.env.FRONTEND_URL ? `${process.env.FRONTEND_URL},${defaultOrigins}` : defaultOrigins;
 const allowedOrigins = Array.from(new Set(rawOrigins.split(',').map(sanitizeOrigin)));
 
