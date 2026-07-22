@@ -904,8 +904,13 @@ const getStudentSubjectSummaries = async (req, res) => {
       return { total: Number(totalContrib.toFixed(2)), percentage };
     };
 
+    const selectedSemId = req.query.semesterId;
     const grades = await prisma.grade.findMany({
-      where: { studentId: student.id, academicYearId: selectedYear.id },
+      where: {
+        studentId: student.id,
+        academicYearId: selectedYear.id,
+        ...(selectedSemId ? { semesterId: selectedSemId } : {})
+      },
       include: {
         class: { select: { id: true, name: true, subject: true } },
         subjectRef: { select: { id: true, name: true } }

@@ -354,8 +354,10 @@ const getStudentPortalStats = async (req, res) => {
       ...g,
       _id: g.id,
       student: g.studentId,
-      class: g.classId,
+      class: g.class?.name || '',
       teacher: g.teacherId,
+      subject: g.subjectRef?.name || g.subject || '',
+      examName: g.class?.subject || '',
       marks: {
         quiz: g.quiz,
         assignment: g.assignment,
@@ -516,7 +518,6 @@ const getTeacherPortalStats = async (req, res) => {
       : [];
 
     const homeroomClassIds = new Set([
-      ...assignedClassDocs.map((klass) => klass.id),
       ...homeroomAssignments.map((assignment) => assignment.classId).filter(Boolean),
       ...homeroomSections.map((section) => section.classId).filter(Boolean)
     ]);

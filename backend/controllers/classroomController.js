@@ -89,8 +89,17 @@ const mapGradeToResponse = (grade) => ({
 const isTeacherAssignedToClass = async (teacherId, classId, subject = null) => {
   if (!classId) return false;
 
+  // Get active academic year
+  const activeYear = await prisma.academicYear.findFirst({
+    where: { isActive: true }
+  });
+
   const assignment = await prisma.teacherAssignment.findFirst({
-    where: { teacherId, classId }
+    where: { 
+      teacherId, 
+      classId,
+      ...(activeYear ? { academicYearId: activeYear.id } : {})
+    }
   });
 
   // HomeRoomTeacher has full access to the class regardless of subject
@@ -114,12 +123,29 @@ const isTeacherAssignedToClass = async (teacherId, classId, subject = null) => {
 const isTeacherAssignedToStudents = async (teacherId, studentIds = []) => {
   if (!studentIds.length) return false;
 
+  // Get active academic year
+  const activeYear = await prisma.academicYear.findFirst({
+    where: { isActive: true }
+  });
+
   const assignments = await prisma.teacherAssignment.findMany({
-    where: { teacherId },
+    where: { 
+      teacherId,
+      ...(activeYear ? { academicYearId: activeYear.id } : {})
+    },
     include: {
       class: {
         include: {
-          students: { select: { id: true } }
+          students: { select: { id: true } },
+          sections: {
+            where: activeYear ? { academicYearId: activeYear.id } : {},
+            include: {
+              enrollments: {
+                where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                select: { studentId: true }
+              }
+            }
+          }
         }
       }
     }
@@ -133,6 +159,12 @@ const isTeacherAssignedToStudents = async (teacherId, studentIds = []) => {
       if (student?.id) {
         allowed.add(student.id);
       }
+    });
+    // Also include students from section enrollments
+    (assignment.class?.sections || []).forEach((section) => {
+      (section.enrollments || []).forEach((enrollment) => {
+        allowed.add(enrollment.studentId);
+      });
     });
   });
 
@@ -1980,6 +2012,36 @@ const updateSection = async (req, res) => {
       ? null
       : homeroomTeacherId;
 
+    // Fetch active academic year (needed for teacherAssignment.create)
+    let activeAcademicYear = null;
+    if (nextHomeroomTeacherId) {
+      const teacherForYear = await prisma.teacher.findUnique({ where: { id: nextHomeroomTeacherId } });
+      activeAcademicYear = await prisma.academicYear.findFirst({
+        where: { isActive: true, branchId: teacherForYear?.branchId || undefined }
+      }) || await prisma.academicYear.findFirst({ where: { isActive: true } });
+
+      if (!activeAcademicYear) {
+        return res.status(400).json({ message: 'No active academic year found. Cannot assign homeroom teacher.' });
+      }
+    }
+
+    // Pre-fetch read-only data before opening the transaction to reduce its duration
+    const previousTeacherId = section.homeroomTeacherId;
+
+    let existingAssignment = null;
+    if (nextHomeroomTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
+      existingAssignment = await prisma.teacherAssignment.findFirst({
+        where: { teacherId: nextHomeroomTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
+      });
+    }
+
+    let otherSectionsCount = 0;
+    if (previousTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
+      otherSectionsCount = await prisma.section.count({
+        where: { classId: section.classId, homeroomTeacherId: previousTeacherId }
+      });
+    }
+
     const updatedSection = await prisma.$transaction(async (tx) => {
       const savedSection = await tx.section.update({
         where: { id: sectionId },
@@ -1999,37 +2061,28 @@ const updateSection = async (req, res) => {
         }
       });
 
-      const previousTeacherId = section.homeroomTeacherId;
-
-      if (previousTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
-        const otherSections = await tx.section.count({
-          where: { classId: section.classId, homeroomTeacherId: previousTeacherId }
+      // Remove old homeroom assignment if this teacher no longer covers any section in the class
+      if (previousTeacherId && previousTeacherId !== nextHomeroomTeacherId && otherSectionsCount === 0) {
+        await tx.teacherAssignment.deleteMany({
+          where: { teacherId: previousTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
         });
-        if (otherSections === 0) {
-          await tx.teacherAssignment.deleteMany({
-            where: { teacherId: previousTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
-          });
-        }
       }
 
-      if (nextHomeroomTeacherId && previousTeacherId !== nextHomeroomTeacherId) {
-        const existing = await tx.teacherAssignment.findFirst({
-          where: { teacherId: nextHomeroomTeacherId, classId: section.classId, assignmentType: 'HomeRoomTeacher' }
+      // Create new homeroom assignment if one doesn't already exist
+      if (nextHomeroomTeacherId && previousTeacherId !== nextHomeroomTeacherId && !existingAssignment) {
+        await tx.teacherAssignment.create({
+          data: {
+            teacher:     { connect: { id: nextHomeroomTeacherId } },
+            class:       { connect: { id: section.classId } },
+            assignmentType: 'HomeRoomTeacher',
+            assignedBy:  { connect: { id: req.user._id } },
+            academicYear: { connect: { id: activeAcademicYear.id } }
+          }
         });
-        if (!existing) {
-          await tx.teacherAssignment.create({
-            data: {
-              teacherId: nextHomeroomTeacherId,
-              classId: section.classId,
-              assignmentType: 'HomeRoomTeacher',
-              assignedById: req.user._id
-            }
-          });
-        }
       }
 
       return savedSection;
-    });
+    }, { timeout: 15000 });
 
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, section.classId, { fallbackToClass: false });
 

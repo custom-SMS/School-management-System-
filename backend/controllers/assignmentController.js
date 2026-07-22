@@ -312,8 +312,16 @@ const getMyAssignments = async (req, res) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
+    // Get active academic year
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+
     const assignments = await prisma.teacherAssignment.findMany({
-      where: { teacherId: teacher.id },
+      where: { 
+        teacherId: teacher.id,
+        ...(activeYear ? { academicYearId: activeYear.id } : {})
+      },
       include: {
         class: {
           include: {
@@ -324,6 +332,7 @@ const getMyAssignments = async (req, res) => {
               }
             },
             sections: {
+              where: activeYear ? { academicYearId: activeYear.id } : {},
               include: {
                 enrollments: {
                   where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },

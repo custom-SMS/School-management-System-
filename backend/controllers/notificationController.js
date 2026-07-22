@@ -65,13 +65,34 @@ const sendParentNotifications = async (req, res) => {
 
     if (req.user.role === 'Teacher') {
       const teacher = await prisma.teacher.findUnique({
-        where: { userId: req.user._id },
+        where: { userId: req.user._id }
+      });
+
+      if (!teacher) {
+        return res.status(404).json({ message: 'Teacher profile not found.' });
+      }
+
+      // Get active academic year
+      const activeYear = await prisma.academicYear.findFirst({
+        where: { isActive: true }
+      });
+
+      const assignments = await prisma.teacherAssignment.findMany({
+        where: { 
+          teacherId: teacher.id,
+          ...(activeYear ? { academicYearId: activeYear.id } : {})
+        },
         include: {
-          assignments: {
+          class: {
             include: {
-              class: {
+              students: { select: { id: true } },
+              sections: {
+                where: activeYear ? { academicYearId: activeYear.id } : {},
                 include: {
-                  students: { select: { id: true } }
+                  enrollments: {
+                    where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                    select: { studentId: true }
+                  }
                 }
               }
             }
@@ -79,24 +100,21 @@ const sendParentNotifications = async (req, res) => {
         }
       });
 
-      if (!teacher) {
-        return res.status(404).json({ message: 'Teacher profile not found.' });
-      }
-
       const allowedStudentIds = new Set();
-      const allowedClassNumbers = new Set();
 
-      teacher.assignments.forEach((assignment) => {
-        const classNumber = String(assignment.class?.name || '').match(/(\d+)/)?.[1];
-        if (classNumber) allowedClassNumbers.add(classNumber);
+      assignments.forEach((assignment) => {
+        // Add students from direct class-student relation
         (assignment.class?.students || []).forEach((student) => allowedStudentIds.add(student.id));
+        
+        // Add students from section enrollments
+        (assignment.class?.sections || []).forEach((section) => {
+          (section.enrollments || []).forEach((enrollment) => {
+            allowedStudentIds.add(enrollment.studentId);
+          });
+        });
       });
 
-      const unauthorized = students.some((student) => {
-        if (allowedStudentIds.has(student.id)) return false;
-        const gradeNumber = String(student.grade || '').match(/(\d+)/)?.[1];
-        return !gradeNumber || !allowedClassNumbers.has(gradeNumber);
-      });
+      const unauthorized = students.some((student) => !allowedStudentIds.has(student.id));
 
       if (unauthorized) {
         return res.status(403).json({ message: 'You can only notify parents for students assigned to you.' });
@@ -213,11 +231,46 @@ const sendStudentNotifications = async (req, res) => {
 
     // Authorization: if teacher, ensure they are assigned to these students
     if (req.user.role === 'Teacher') {
-      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id }, include: { assignments: { include: { class: { include: { students: { select: { id: true } } } } } } } });
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id } });
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found.' });
 
+      // Get active academic year
+      const activeYear = await prisma.academicYear.findFirst({
+        where: { isActive: true }
+      });
+
+      const assignments = await prisma.teacherAssignment.findMany({
+        where: { 
+          teacherId: teacher.id,
+          ...(activeYear ? { academicYearId: activeYear.id } : {})
+        },
+        include: {
+          class: {
+            include: {
+              students: { select: { id: true } },
+              sections: {
+                where: activeYear ? { academicYearId: activeYear.id } : {},
+                include: {
+                  enrollments: {
+                    where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                    select: { studentId: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
       const allowed = new Set();
-      teacher.assignments.forEach((a) => (a.class?.students || []).forEach((s) => allowed.add(s.id)));
+      assignments.forEach((a) => {
+        (a.class?.students || []).forEach((s) => allowed.add(s.id));
+        (a.class?.sections || []).forEach((section) => {
+          (section.enrollments || []).forEach((enrollment) => {
+            allowed.add(enrollment.studentId);
+          });
+        });
+      });
       const unauthorized = students.some((s) => !allowed.has(s.id));
       if (unauthorized) return res.status(403).json({ message: 'You can only notify students assigned to you.' });
     }
@@ -249,10 +302,46 @@ const sendBothNotifications = async (req, res) => {
     if (!students.length) return res.status(404).json({ message: 'No matching students found.' });
 
     if (req.user.role === 'Teacher') {
-      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id }, include: { assignments: { include: { class: { include: { students: { select: { id: true } } } } } } } });
+      const teacher = await prisma.teacher.findUnique({ where: { userId: req.user._id } });
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found.' });
+
+      // Get active academic year
+      const activeYear = await prisma.academicYear.findFirst({
+        where: { isActive: true }
+      });
+
+      const assignments = await prisma.teacherAssignment.findMany({
+        where: { 
+          teacherId: teacher.id,
+          ...(activeYear ? { academicYearId: activeYear.id } : {})
+        },
+        include: {
+          class: {
+            include: {
+              students: { select: { id: true } },
+              sections: {
+                where: activeYear ? { academicYearId: activeYear.id } : {},
+                include: {
+                  enrollments: {
+                    where: { status: { in: ['Enrolled', 'Promoted', 'Repeated'] } },
+                    select: { studentId: true }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
       const allowed = new Set();
-      teacher.assignments.forEach((a) => (a.class?.students || []).forEach((s) => allowed.add(s.id)));
+      assignments.forEach((a) => {
+        (a.class?.students || []).forEach((s) => allowed.add(s.id));
+        (a.class?.sections || []).forEach((section) => {
+          (section.enrollments || []).forEach((enrollment) => {
+            allowed.add(enrollment.studentId);
+          });
+        });
+      });
       const unauthorized = students.some((s) => !allowed.has(s.id));
       if (unauthorized) return res.status(403).json({ message: 'You can only notify students assigned to you.' });
     }
@@ -286,16 +375,95 @@ const getTeachersForStudent = async (req, res) => {
     const studentId = String(req.query.studentId || '').trim();
     if (!studentId) return res.status(400).json({ message: 'studentId is required' });
 
-    // Find teacher assignments that include this student
-    const assignments = await prisma.teacherAssignment.findMany({ include: { teacher: { include: { user: { select: { id: true, name: true, email: true } } } }, class: { include: { students: { select: { id: true } } } } } });
-    const teachers = [];
-    assignments.forEach((a) => {
-      const studentInClass = (a.class?.students || []).some((s) => s.id === studentId);
-      if (studentInClass && a.teacher) teachers.push({ id: a.teacher.id, user: a.teacher.user });
+    // Active academic year filter
+    const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+
+    // Find student enrollments to determine their current class/section
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        enrollments: {
+          where: activeYear ? { academicYearId: activeYear.id } : {},
+          include: {
+            class: {
+              include: {
+                teacher: { include: { user: { select: { id: true, name: true, email: true } } } }
+              }
+            },
+            section: {
+              include: {
+                homeroomTeacher: { include: { user: { select: { id: true, name: true, email: true } } } }
+              }
+            }
+          }
+        }
+      }
     });
 
-    const unique = Array.from(new Map(teachers.map(t => [t.id, t])).values());
-    res.status(200).json(unique);
+    const teacherMap = new Map();
+
+    if (student) {
+      for (const enrollment of student.enrollments || []) {
+        const classId = enrollment.classId;
+
+        // 1. Homeroom teacher of the section
+        if (enrollment.section?.homeroomTeacher) {
+          const ht = enrollment.section.homeroomTeacher;
+          if (ht.id && ht.user) teacherMap.set(ht.id, { id: ht.id, user: ht.user, role: 'Homeroom Teacher' });
+        }
+
+        // 2. Class teacher
+        if (enrollment.class?.teacher) {
+          const ct = enrollment.class.teacher;
+          if (ct.id && ct.user) teacherMap.set(ct.id, { id: ct.id, user: ct.user, role: 'Class Teacher' });
+        }
+
+        // 3. Teacher assignments for this class
+        if (classId) {
+          const classAssignments = await prisma.teacherAssignment.findMany({
+            where: {
+              classId,
+              ...(activeYear ? { academicYearId: activeYear.id } : {})
+            },
+            include: {
+              teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+              subject: { select: { name: true } }
+            }
+          });
+
+          for (const a of classAssignments) {
+            if (a.teacher && a.teacher.user) {
+              const existing = teacherMap.get(a.teacher.id);
+              const subjectInfo = a.subject?.name ? `Subject (${a.subject.name})` : 'Subject Teacher';
+              teacherMap.set(a.teacher.id, {
+                id: a.teacher.id,
+                user: a.teacher.user,
+                role: existing ? `${existing.role}, ${subjectInfo}` : subjectInfo
+              });
+            }
+          }
+        }
+      }
+    }
+
+    // 4. Direct teacher assignments assigned directly to student
+    const directAssignments = await prisma.teacherAssignment.findMany({
+      where: {
+        students: { some: { id: studentId } },
+        ...(activeYear ? { academicYearId: activeYear.id } : {})
+      },
+      include: {
+        teacher: { include: { user: { select: { id: true, name: true, email: true } } } }
+      }
+    });
+
+    for (const a of directAssignments) {
+      if (a.teacher && a.teacher.user && !teacherMap.has(a.teacher.id)) {
+        teacherMap.set(a.teacher.id, { id: a.teacher.id, user: a.teacher.user, role: 'Assigned Teacher' });
+      }
+    }
+
+    res.status(200).json(Array.from(teacherMap.values()));
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -468,14 +636,31 @@ const getAllNotifications = async (req, res) => {
   }
 };
 
-// Retrieve notifications for current user
+// Retrieve notifications for current user (auto-marks unread as read, filters out notifications > 12h old)
 const getNotifications = async (req, res) => {
   try {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+
     const notifications = await prisma.notification.findMany({
-      where: { userId: req.user._id },
+      where: {
+        userId: req.user._id,
+        createdAt: { gte: twelveHoursAgo }
+      },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
+
+    // Automatically mark fetched unread notifications as read so badge disappears once viewed
+    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
+    if (unreadIds.length > 0) {
+      await prisma.notification.updateMany({
+        where: { id: { in: unreadIds } },
+        data: { read: true }
+      });
+      // Return updated list so badge updates immediately
+      notifications.forEach(n => { n.read = true; });
+    }
+
     res.status(200).json(notifications);
   } catch (error) {
     res.status(500).json({ message: error.message });

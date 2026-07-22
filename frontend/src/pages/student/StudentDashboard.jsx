@@ -4,7 +4,6 @@ import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
 
 const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const letterFor = (p) => (p >= 90 ? 'A' : p >= 85 ? 'A-' : p >= 80 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 
 function FetchError({ onRetry }) {
   return (
@@ -160,15 +159,21 @@ export default function StudentDashboard() {
                 return (
                   <div key={g._id || i} className="flex items-center justify-between gap-3 py-3">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 text-sm font-black text-slate-700">{letterFor(pct)}</span>
+                      <span className={`flex h-9 w-9 items-center justify-center rounded-lg text-sm font-black ${
+                        pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
+                        pct >= 60 ? 'bg-amber-100 text-amber-700' :
+                        'bg-rose-100 text-rose-700'
+                      }`}>
+                        {pct.toFixed(0)}
+                      </span>
                       <div>
                         <div className="text-sm font-bold text-slate-900">{g.subject || 'Subject'}</div>
-                        <div className="text-xs text-slate-400">{g.class || ''}</div>
+                        <div className="text-xs text-slate-400">{g.examName || g.class || ''}</div>
                       </div>
                     </div>
                     <div className="text-right">
                       <div className="text-sm font-bold text-slate-900">{pct.toFixed(0)}/100</div>
-                      <div className="text-xs text-slate-400">Grade: {letterFor(pct)}</div>
+                      <div className="text-xs text-slate-400">{g.class || ''}</div>
                     </div>
                   </div>
                 );
