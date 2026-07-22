@@ -59,7 +59,7 @@ export default function StudentAcademics() {
     const p2 = axios.get('/timetables/student/me')
       .then((r) => setTimetable(r.data?.timetable || []))
       .catch(() => {}); // Silently fail if timetable endpoint doesn't exist
-    const p3 = axios.get('/students/me/subjects')
+    const p3 = axios.get(`/students/me/subjects${params}`)
       .then((r) => { setSubjects(r.data?.subjects || []); subjectsOk = true; })
       .catch(() => {});
     Promise.all([p1, p2, p3]).finally(() => {
@@ -166,62 +166,78 @@ export default function StudentAcademics() {
             </div>
           )}
 
-          {/* Top cards */}
-            <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
-              <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
-                <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-white/80 text-2xl font-black">{avgPct != null ? Math.round(avgPct) + '%' : '—'}</div>
-                <div className="mt-3 text-center text-lg font-bold">Target Goal</div>
-                <div className="text-center text-xs text-slate-400">Term performance average</div>
+          {/* Semester un-opened / Coming Soon state check */}
+          {selectedSem && !selectedSem.isActive && subjectList.length === 0 && grades.length === 0 ? (
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
+                <svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-slate-900">{selectedSem.name} Coming Soon</h2>
+              <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
+                This semester has not officially opened yet. Academic records and subject results will be available once the term begins and grades are published.
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Top cards */}
+              <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
+                <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-white/80 text-2xl font-black">{avgPct != null ? Math.round(avgPct) + '%' : '—'}</div>
+                  <div className="mt-3 text-center text-lg font-bold">Target Goal</div>
+                  <div className="text-center text-xs text-slate-400">Term performance average</div>
+                </div>
               </div>
 
-            </div>
-
-          {/* Subject list (clickable) */}
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-xl font-bold text-slate-900">Enrolled Subjects</h2>
-            <div className="space-y-2">
-              {subjectList.length === 0 ? (
-                <p className="py-8 text-center text-sm text-slate-400">No enrolled subjects yet.</p>
-              ) : (
-                subjectList.map((sub) => (
-                  <Link key={sub.id} to={`/student/academics/${encodeURIComponent(String(sub.id))}`} className="block rounded-xl border border-slate-100 p-4 hover:bg-slate-50">
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0">
-                        <div className="font-bold text-slate-900">{sub.name}</div>
-                        <div className="text-xs text-slate-400">
-                          {sub.courseCode ? `${sub.courseCode} · ` : ''}
-                          {sub.percentage != null ? `${Number(sub.percentage).toFixed(1)}%` : 'Click to view detailed results'}
+              {/* Subject list (clickable) */}
+              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-xl font-bold text-slate-900">Enrolled Subjects</h2>
+                <div className="space-y-2">
+                  {subjectList.length === 0 ? (
+                    <p className="py-8 text-center text-sm text-slate-400">No enrolled subjects yet.</p>
+                  ) : (
+                    subjectList.map((sub) => (
+                      <Link key={sub.id} to={`/student/academics/${encodeURIComponent(String(sub.id))}`} className="block rounded-xl border border-slate-100 p-4 hover:bg-slate-50">
+                        <div className="flex items-center justify-between">
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900">{sub.name}</div>
+                            <div className="text-xs text-slate-400">
+                              {sub.courseCode ? `${sub.courseCode} · ` : ''}
+                              {sub.percentage != null ? `${Number(sub.percentage).toFixed(1)}%` : 'Click to view detailed results'}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {sub.totalMarks != null && (
+                              <div className="text-sm font-bold text-slate-900">{Number(sub.totalMarks).toFixed(1)}</div>
+                            )}
+                            <div className="text-xs font-semibold text-slate-500">View</div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        {sub.totalMarks != null && (
-                          <div className="text-sm font-bold text-slate-900">{Number(sub.totalMarks).toFixed(1)}</div>
-                        )}
-                        <div className="text-xs font-semibold text-slate-500">View</div>
-                      </div>
-                    </div>
-                  </Link>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Upcoming (from timetable) */}
-          <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-xl font-bold text-slate-900">This Week's Classes</h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {timetable.slice(0, 6).map((s, i) => (
-                <div key={s.id || i} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
-                  <div>
-                    <div className="font-bold text-slate-900">{s.subject?.name || s.class?.name}</div>
-                    <div className="text-xs text-slate-400">{s.dayOfWeek} · {s.startTime}–{s.endTime}{s.room ? ` · Room ${s.room}` : ''}</div>
-                  </div>
-                  <span className="text-xs font-semibold text-slate-400">{s.class?.name}</span>
+                      </Link>
+                    ))
+                  )}
                 </div>
-              ))}
-              {timetable.length === 0 && <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">No timetable published yet.</p>}
-            </div>
-          </section>
+              </section>
+
+              {/* Upcoming (from timetable) */}
+              <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <h2 className="mb-4 text-xl font-bold text-slate-900">This Week's Classes</h2>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  {timetable.slice(0, 6).map((s, i) => (
+                    <div key={s.id || i} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
+                      <div>
+                        <div className="font-bold text-slate-900">{s.subject?.name || s.class?.name}</div>
+                        <div className="text-xs text-slate-400">{s.dayOfWeek} · {s.startTime}–{s.endTime}{s.room ? ` · Room ${s.room}` : ''}</div>
+                      </div>
+                      <span className="text-xs font-semibold text-slate-400">{s.class?.name}</span>
+                    </div>
+                  ))}
+                  {timetable.length === 0 && <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">No timetable published yet.</p>}
+                </div>
+              </section>
+            </>
+          )}
         </>
       )}
     </StudentLayout>

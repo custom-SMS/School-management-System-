@@ -32,6 +32,7 @@ export default function Sections() {
   const [originalHomeroomTeacherId, setOriginalHomeroomTeacherId] = useState('');
   const [editingLoading, setEditingLoading] = useState(false);
   const [deletingSectionId, setDeletingSectionId] = useState('');
+  const [pendingConfirm, setPendingConfirm] = useState(false);
 
   useEffect(() => {
     axios.get('/classroom/classes')
@@ -60,7 +61,16 @@ export default function Sections() {
   const getNextSectionLetter = (sectionList = []) => {
     const usedLetters = new Set(
       sectionList
-        .map((section) => String(section?.name || '').trim().toUpperCase())
+        .map((section) => {
+          const name = String(section?.name || '').trim().toUpperCase();
+          // Extract single letter if the name is just a letter (A, B, C, etc.)
+          if (/^[A-Z]$/.test(name)) {
+            return name;
+          }
+          // If name contains a letter at the end (e.g., "SECTION A" -> "A")
+          const match = name.match(/([A-Z])$/);
+          return match ? match[1] : null;
+        })
         .filter(Boolean)
     );
 
@@ -167,21 +177,12 @@ export default function Sections() {
       editingHomeroomTeacherId !== originalHomeroomTeacherId;
 
     if (isOverridingHomeroom) {
-      const previousTeacher = teachers.find(
-        (t) => (t._id || t.id) === originalHomeroomTeacherId
-      );
-      const newTeacher = teachers.find(
-        (t) => (t._id || t.id) === editingHomeroomTeacherId
-      );
-      const confirmed = window.confirm(
-        `⚠️ Caution — Homeroom Teacher Override\n\n` +
-        `You are about to replace the current homeroom teacher` +
-        `${previousTeacher ? ` (${previousTeacher.user?.name || previousTeacher.teacherId})` : ''} ` +
-        `with ${newTeacher ? (newTeacher.user?.name || newTeacher.teacherId) : 'a new teacher'}.\n\n` +
-        `This action will remove the existing homeroom assignment. ` +
-        `Are you sure you want to proceed?`
-      );
-      if (!confirmed) return;
+      if (!pendingConfirm) {
+        setPendingConfirm(true);
+        return;
+      }
+      // User clicked Confirm — proceed
+      setPendingConfirm(false);
     }
 
     setSaving(true);
@@ -198,6 +199,7 @@ export default function Sections() {
       setEditingSectionName('');
       setEditingHomeroomTeacherId('');
       setOriginalHomeroomTeacherId('');
+      setPendingConfirm(false);
       await fetchSections(selectedClassId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update section.');
@@ -288,14 +290,23 @@ export default function Sections() {
             <div className="mb-6 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">Edit Section</h2>
               <button
-                onClick={() => setShowEditModal(false)}
+                onClick={() => { setShowEditModal(false); setPendingConfirm(false); }}
                 className="text-gray-400 hover:text-gray-700 text-xl"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleUpdateSection} className="space-y-4">
+            {editingLoading ? (
+              <div className="flex flex-col items-center justify-center py-10 gap-3">
+                <svg className="animate-spin h-8 w-8 text-gray-400" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <p className="text-sm text-gray-500 font-medium">Loading section details…</p>
+              </div>
+            ) : (
+              <form onSubmit={handleUpdateSection} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-semibold text-gray-700">Section Name</label>
                 <input
@@ -341,23 +352,51 @@ export default function Sections() {
                   )}
               </div>
 
+              {/* Inline confirmation panel — replaces window.confirm */}
+              {pendingConfirm && (
+                <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 mt-2">
+                  <p className="text-xs font-bold text-amber-800 mb-1">⚠️ Confirm Homeroom Override</p>
+                  <p className="text-xs text-amber-700 mb-3">
+                    You are replacing the current homeroom teacher. The existing assignment will be removed.
+                    Are you sure you want to proceed?
+                  </p>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setPendingConfirm(false)}
+                      className="rounded-lg border border-amber-400 px-4 py-1.5 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={saving}
+                      className="rounded-lg bg-amber-600 px-4 py-1.5 text-xs font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                    >
+                      {saving ? 'Updating…' : 'Yes, Replace Teacher'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className="mt-2 flex justify-end gap-3">
                 <button
                   type="button"
-                  onClick={() => setShowEditModal(false)}
+                  onClick={() => { setShowEditModal(false); setPendingConfirm(false); }}
                   className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || editingLoading}
+                  disabled={saving || editingLoading || pendingConfirm}
                   className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50"
                 >
                   {saving ? 'Updating…' : 'Update Section'}
                 </button>
               </div>
             </form>
+            )} {/* end editingLoading else */}
           </div>
         </div>
       )}

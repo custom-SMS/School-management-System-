@@ -88,10 +88,6 @@ export default function StudentFinance() {
           <h1 className="text-3xl font-black tracking-tight text-slate-900">Student Fee Status</h1>
           <p className="text-sm text-slate-500">{profile?.profile?.user?.name || 'Student'} · {profile?.grade || ''} · ID: {profile?.studentId || '—'}</p>
         </div>
-        <button className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800">
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3v10l3-3 1.4 1.4L12 16.8 7.6 11.4 9 10l3 3V3zM4 19h16v2H4z" /></svg>
-          Download Statement
-        </button>
       </div>
 
       {loading ? (
