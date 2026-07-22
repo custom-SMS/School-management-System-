@@ -200,7 +200,7 @@ export default function AdminDashboard() {
           ) : (
             <div className="space-y-3">
               {studentsByClass.slice(0, 7).map((row, idx) => (
-                <div key={`${row.className}-${row.classId || idx}`} className="flex items-center justify-between text-sm">
+                <div key={`${row.className}-${row.classId || idx}`} className="flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 text-sm">
                   <span className="font-semibold text-gray-700">{row.className}</span>
                   <div className="flex items-center gap-3">
                     <div className="w-24 bg-gray-100 rounded-full h-2">

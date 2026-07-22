@@ -229,7 +229,7 @@ export default function Classes() {
       )}
 
       <div className="bg-white border border-gray-200 rounded-xl shadow-sm">
-        <div className="p-6 border-b border-gray-200 flex justify-between items-center bg-white">
+        <div className="p-6 border-b border-gray-200 flex flex-wrap justify-between items-center gap-4 bg-white">
           <div>
             <h2 className="text-lg font-bold text-gray-900">Manage Classes</h2>
             <p className="text-sm font-medium text-gray-500">View and manage grade levels and their homeroom teachers.</p>
@@ -237,7 +237,7 @@ export default function Classes() {
           <button
             onClick={openCreateModal}
             disabled={availableClassOptions.length === 0}
-            className="px-4 py-2 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + New Class
           </button>

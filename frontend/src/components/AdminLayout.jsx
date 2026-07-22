@@ -328,7 +328,7 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
               )}
             </div>
 
-            {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4">{headerAction}</div>}
+            {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
           </div>
         </header>
 

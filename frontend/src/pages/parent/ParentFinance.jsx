@@ -44,26 +44,14 @@ export default function ParentFinance() {
     return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
   };
 
-  const handleDownloadReceipt = async (paymentId) => {
+  const handleDownloadReceipt = (paymentId) => {
     try {
-      const res = await axios.get(`/fees/receipts/${paymentId}/pdf`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `receipt-${paymentId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-      toast.success('Receipt downloaded.');
+      const token = localStorage.getItem('token');
+      const url = `${axios.defaults.baseURL}/fees/receipts/${paymentId}/pdf?token=${token}`;
+      window.open(url, '_blank');
+      toast.success('Downloading receipt...');
     } catch (err) {
-      if (err.response?.status === 404) {
-        toast.error('Receipt not yet available. Please contact the cashier if payment was recently made.');
-      } else {
-        toast.error(err.response?.data?.message || 'Failed to download receipt.');
-      }
+      toast.error('Failed to initiate download.');
     }
   };
 

@@ -138,7 +138,7 @@ export default function SectionStudents() {
         </div>
 
         <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-100 p-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 bg-white p-6">
             <div>
               <h2 className="text-lg font-bold text-gray-900">Eligible Students</h2>
               <p className="text-sm text-gray-500">
@@ -146,13 +146,13 @@ export default function SectionStudents() {
               </p>
             </div>
 
-            <div className="w-full max-w-sm">
+            <div className="flex flex-wrap items-center gap-3">
               <input
                 type="text"
                 placeholder="Search by student name, ID, email..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-black focus:outline-none"
+                className="w-full max-w-sm rounded-lg border border-gray-300 px-4 py-2.5 text-sm focus:border-black focus:outline-none"
               />
             </div>
           </div>

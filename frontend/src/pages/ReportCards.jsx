@@ -351,10 +351,20 @@ export default function ReportCards() {
 
   const handlePrintSingleClassCard = async (rc) => {
     if (!rc.studentId || !selectedYear) return;
+    
+    // Open window synchronously to bypass mobile popup blockers
+    const win = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
+    if (!win) {
+      toast.error('Popup blocked. Please allow popups and try again.');
+      return;
+    }
+    win.document.write('<h2>Loading Report Card...</h2><p>Please wait while we fetch the latest grades.</p>');
+    
     try {
       const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
       const res = await axios.get(`/report-cards/${rc.studentId}/${selectedYear}${params}`);
       if (res.data) {
+        win.document.body.innerHTML = ''; // Clear loading text
         printReportCard({
           reportCard: { ...res.data.reportCard, academicYear: activeYear },
           grades: res.data.grades || [],
@@ -363,9 +373,13 @@ export default function ReportCards() {
           passMark: Number(grading?.passMark || 50),
           gpaEnabled: Boolean(grading?.gpaEnabled),
           classSize: classCards.length || getStudentClassSize(rc),
+          preOpenedWindow: win,
         });
+      } else {
+        win.close();
       }
     } catch (err) {
+      win.close();
       toast.error('Failed to fetch grades for report card PDF generation.');
     }
   };

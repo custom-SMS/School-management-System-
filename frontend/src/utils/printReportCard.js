@@ -10,6 +10,7 @@ export function printReportCard({
   passMark = 50,
   gpaEnabled = false,
   classSize = null,
+  preOpenedWindow = null
 }) {
   const school = branding.institutionNameEn || 'School';
   const schoolAm = branding.institutionNameAm || '';
@@ -424,7 +425,7 @@ export function printReportCard({
 </body>
 </html>`;
 
-  const win = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
+  const win = preOpenedWindow || window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
   if (!win) {
     alert('Popup blocked — please allow popups for this site and try again.');
     return;

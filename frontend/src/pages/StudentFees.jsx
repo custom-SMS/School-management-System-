@@ -93,22 +93,14 @@ export default function StudentFees() {
     }
   };
 
-  const handleDownloadReceipt = async (paymentId) => {
+  const handleDownloadReceipt = (paymentId) => {
     try {
-      const res = await axios.get(`/fees/receipts/${paymentId}/pdf`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', `receipt-${paymentId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => window.URL.revokeObjectURL(url), 1000);
-      toast.success('Receipt downloaded.');
+      const token = localStorage.getItem('token');
+      const url = `${axios.defaults.baseURL}/fees/receipts/${paymentId}/pdf?token=${token}`;
+      window.open(url, '_blank');
+      toast.success('Downloading receipt...');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to download receipt.');
+      toast.error('Failed to initiate download.');
     }
   };
 

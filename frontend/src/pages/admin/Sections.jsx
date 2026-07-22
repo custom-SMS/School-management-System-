@@ -410,7 +410,7 @@ export default function Sections() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <select
               value={selectedClassId}
               onChange={(e) => setSelectedClassId(e.target.value)}
@@ -430,7 +430,7 @@ export default function Sections() {
                 setShowModal(true);
               }}
               disabled={!selectedClassId}
-              className="rounded-lg bg-black px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-lg flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-black px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
             >
               + New Section
             </button>

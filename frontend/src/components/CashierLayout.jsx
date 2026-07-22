@@ -158,10 +158,6 @@ export default function CashierLayout({ children, searchPlaceholder = 'Search st
 
       {/* Footer nav */}
       <div className="mt-6 space-y-1.5 border-t border-slate-100 pt-6">
-        <NavLink to="/settings" className={linkClass} onClick={() => setMobileOpen(false)}>
-          <NavIcon name="settings" />
-          <span>Settings</span>
-        </NavLink>
         <button
           type="button"
           onClick={handleLogout}
