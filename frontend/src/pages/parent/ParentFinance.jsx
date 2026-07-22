@@ -47,11 +47,20 @@ export default function ParentFinance() {
   const handleDownloadReceipt = (paymentId) => {
     try {
       const token = localStorage.getItem('token');
-      const url = `${axios.defaults.baseURL}/fees/receipts/${paymentId}/pdf?token=${token}`;
-      window.open(url, '_blank');
+      const baseUrl = axios.defaults.baseURL || '';
+      const url = `${baseUrl}/fees/receipts/${paymentId}/pdf?token=${token}`;
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.setAttribute('download', `receipt-${paymentId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
       toast.success('Downloading receipt...');
     } catch (err) {
-      toast.error('Failed to initiate download.');
+      toast.error(`Failed to initiate download: ${err.message}`);
     }
   };
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import StudentLayout from '../../components/StudentLayout';
 import { toast } from 'react-toastify';
 import { useStudentFinanceQuery } from '../../queries/studentPortalQueries';
+import axios from '../../api/axios';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
@@ -47,11 +48,20 @@ export default function StudentFinance() {
   const handleDownloadReceipt = (paymentId) => {
     try {
       const token = localStorage.getItem('token');
-      const url = `${axios.defaults.baseURL}/fees/receipts/${paymentId}/pdf?token=${token}`;
-      window.open(url, '_blank');
+      const baseUrl = axios.defaults.baseURL || '';
+      const url = `${baseUrl}/fees/receipts/${paymentId}/pdf?token=${token}`;
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.setAttribute('download', `receipt-${paymentId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
       toast.success('Downloading receipt...');
     } catch (err) {
-      toast.error('Failed to initiate download.');
+      toast.error(`Failed to initiate download: ${err.message}`);
     }
   };
 
