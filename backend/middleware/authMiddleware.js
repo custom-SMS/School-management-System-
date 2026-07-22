@@ -112,7 +112,7 @@ const injectBranchFilter = (req, res, next) => {
 
     // No scope — try to derive branch from teacher JWT claims when missing.
     // This prevents teachers from getting forced into '__none__' branch.
-    const fallbackBranchId = req.user.branchId;
+    const fallbackBranchId = req.user?.branchId;
     if (fallbackBranchId) {
       req.branchFilter = { branchId: fallbackBranchId };
     } else {

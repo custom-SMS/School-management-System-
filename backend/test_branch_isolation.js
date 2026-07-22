@@ -56,20 +56,20 @@ async function runTest() {
 
     // Create classes
     classAlpha = await prisma.class.create({
-      data: { name: 'Class Alpha', branchId: branchAlpha.id, teacherId: teacherAlpha.id }
+      data: { name: 'Class Alpha', branchId: branchAlpha.id, teacherId: teacherAlpha.id, academicYearId: yearAlpha.id }
     });
 
     classBeta = await prisma.class.create({
-      data: { name: 'Class Beta', branchId: branchBeta.id, teacherId: teacherBeta.id }
+      data: { name: 'Class Beta', branchId: branchBeta.id, teacherId: teacherBeta.id, academicYearId: yearBeta.id }
     });
 
     // Create sections
     sectionAlpha = await prisma.section.create({
-      data: { name: 'Sec-Alpha', classId: classAlpha.id, homeroomTeacherId: teacherAlpha.id }
+      data: { name: 'Sec-Alpha', classId: classAlpha.id, homeroomTeacherId: teacherAlpha.id, academicYearId: yearAlpha.id }
     });
 
     sectionBeta = await prisma.section.create({
-      data: { name: 'Sec-Beta', classId: classBeta.id, homeroomTeacherId: teacherBeta.id }
+      data: { name: 'Sec-Beta', classId: classBeta.id, homeroomTeacherId: teacherBeta.id, academicYearId: yearBeta.id }
     });
 
     // Create students
@@ -98,11 +98,11 @@ async function runTest() {
 
     // Create weights for both branches
     weightsAlpha = await prisma.gradingStructure.create({
-      data: { branchId: branchAlpha.id, isActive: true, quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 }
+      data: { branchId: branchAlpha.id, academicYearId: yearAlpha.id, isActive: true, quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 }
     });
 
     weightsBeta = await prisma.gradingStructure.create({
-      data: { branchId: branchBeta.id, isActive: true, quizWeight: 20, assignmentWeight: 20, midtermWeight: 20, finalWeight: 40 }
+      data: { branchId: branchBeta.id, academicYearId: yearBeta.id, isActive: true, quizWeight: 20, assignmentWeight: 20, midtermWeight: 20, finalWeight: 40 }
     });
 
     console.log('✅ Test setup successfully created.');
@@ -125,6 +125,7 @@ async function runTest() {
     console.log('Running Test 1: saveGrades for Class Alpha...');
     const req1 = {
       user: { _id: userTeacherAlpha.id, role: 'Teacher', branchId: branchAlpha.id },
+      headers: {},
       body: {
         classId: classAlpha.id,
         subject: 'General',
@@ -175,6 +176,7 @@ async function runTest() {
     console.log('Running Test 2: saveGrades for Class Beta...');
     const req2 = {
       user: { _id: userTeacherBeta.id, role: 'Teacher', branchId: branchBeta.id },
+      headers: {},
       body: {
         classId: classBeta.id,
         subject: 'General',
@@ -225,6 +227,7 @@ async function runTest() {
     console.log('Running Test 3: getGrades (Branch-specific Semester Resolution)...');
     const req3 = {
       user: { _id: userTeacherAlpha.id, role: 'Teacher', branchId: branchAlpha.id },
+      headers: {},
       params: { classId: classAlpha.id, subject: 'General' },
       query: {}
     };
@@ -248,6 +251,7 @@ async function runTest() {
     console.log('Running Test 4: recordAttendance...');
     const req4 = {
       user: { _id: userTeacherAlpha.id, role: 'Teacher', branchId: branchAlpha.id },
+      headers: {},
       body: {
         classId: classAlpha.id,
         date: new Date().toISOString(),
@@ -258,7 +262,7 @@ async function runTest() {
     const res4 = mockRes();
     await recordAttendance(req4, res4);
 
-    if (res4.statusCode !== 200) {
+    if (![200, 201].includes(res4.statusCode)) {
       throw new Error(`recordAttendance failed: ${JSON.stringify(res4.jsonData)}`);
     }
 
@@ -274,6 +278,7 @@ async function runTest() {
     console.log('Running Test 5: getSectionStudents...');
     const req5 = {
       user: { _id: userTeacherAlpha.id, role: 'Teacher', branchId: branchAlpha.id },
+      headers: {},
       params: { sectionId: sectionAlpha.id }
     };
     const res5 = mockRes();
