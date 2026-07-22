@@ -1,7 +1,19 @@
 import axios from 'axios';
 
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  const isBrowser = typeof window !== 'undefined';
+  const isProductionDomain = isBrowser && !['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+  if (isProductionDomain && (!envUrl || envUrl.includes('localhost'))) {
+    return 'https://school-management-system-1-bd84.onrender.com/api';
+  }
+
+  return envUrl || 'http://localhost:8000/api';
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
+  baseURL: getBaseUrl(),
   withCredentials: true, // send/receive the httpOnly auth cookie automatically
 });
 
