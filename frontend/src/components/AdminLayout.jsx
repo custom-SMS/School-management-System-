@@ -1,128 +1,132 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
+import { useAuth } from '../hooks/useAuth';
+import { useSettings } from '../hooks/useSettings';
 import MaintenanceBanner from './MaintenanceBanner';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
 const DashboardIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="3" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="3" width="7" height="7" rx="1" />
-    <rect x="14" y="14" width="7" height="7" rx="1" />
-    <rect x="3" y="14" width="7" height="7" rx="1" />
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
   </svg>
 );
 const UsersIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-    <circle cx="9" cy="7" r="4" />
-    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
   </svg>
 );
-const RoleIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-6-5-6 5V4H4a2 2 0 0 0-2 2v14z" />
-    <path d="M14 14h-4v-4h4v4z" />
+const RegisterIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
   </svg>
 );
-const ShieldIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    <path d="m9 12 2 2 4-4" />
+const TeacherIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
   </svg>
 );
-const CalendarIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-    <line x1="16" y1="2" x2="16" y2="6" />
-    <line x1="8" y1="2" x2="8" y2="6" />
-    <line x1="3" y1="10" x2="21" y2="10" />
+const ClassIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
   </svg>
 );
-const ActivityIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+const SectionIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
   </svg>
 );
-const SettingsIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+const SubjectIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
   </svg>
 );
-const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-gray-500">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+const GradeIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+  </svg>
+);
+const AssignmentIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+  </svg>
+);
+const TimetableIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+const ReportCardIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+const ReportIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
+const SmsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
   </svg>
 );
 const BellIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-gray-600">
-    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  <svg className="w-5 h-5 text-[#3b6b82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+);
+const SearchIcon = () => (
+  <svg className="h-4 w-4 text-[#799cb0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
   </svg>
 );
 const LogoutIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-const SystemIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
-    <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
-    <line x1="8" y1="21" x2="16" y2="21" />
-    <line x1="12" y1="17" x2="12" y2="21" />
+  <svg className="w-5 h-5 text-[#8daec0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
   </svg>
 );
 const MenuIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-    <line x1="3" y1="12" x2="21" y2="12" />
-    <line x1="3" y1="6" x2="21" y2="6" />
-    <line x1="3" y1="18" x2="21" y2="18" />
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
   </svg>
 );
 const CloseIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
   </svg>
 );
 
 const navItems = [
   { to: '/admin/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/admin/users', label: 'User Management', icon: <UsersIcon />, permission: 'manage_users' },
+  { to: '/admin/registration', label: 'Student Registration', icon: <RegisterIcon />, permission: 'student_registration' },
   { to: '/admin/students', label: 'Students', icon: <UsersIcon /> },
-  { to: '/admin/teachers', label: 'Teachers', icon: <UsersIcon /> },
-  { to: '/admin/subjects', label: 'Subjects', icon: <CalendarIcon /> },
-  { to: '/admin/classes', label: 'Classes', icon: <SystemIcon /> },
-  { to: '/admin/sections', label: 'Sections', icon: <SystemIcon /> },
-  { to: '/admin/grades', label: 'Grades', icon: <ActivityIcon /> },
-  { to: '/admin/assignments', label: 'Assignments', icon: <ActivityIcon /> },
-  { to: '/admin/timetables', label: 'Timetables', icon: <CalendarIcon /> },
-  { to: '/admin/report-cards', label: 'Report Cards', icon: <ActivityIcon /> },
-  { to: '/admin/sms-communication', label: 'SMS Communication', icon: <BellIcon /> },
-  { to: '/admin/academic-reports', label: 'General Reports', icon: <ActivityIcon />, permission: 'generate_reports' },
-  { to: '/admin/registration', label: 'Registration', icon: <ShieldIcon />, permission: 'student_registration' },
-  { to: '/roles', label: 'Role Management', icon: <RoleIcon />, superAdminOnly: true },
-  { to: '/permissions', label: 'Permission Management', icon: <ShieldIcon />, superAdminOnly: true },
-  { to: '/audit', label: 'Audit Logs', icon: <ActivityIcon />, superAdminOnly: true },
-  { to: '/settings', label: 'System Settings', icon: <SettingsIcon />, superAdminOnly: true },
+  { to: '/admin/teachers', label: 'Teachers', icon: <TeacherIcon /> },
+  { to: '/admin/users', label: 'User Management', icon: <UsersIcon />, permission: 'manage_users' },
+  { to: '/admin/classes', label: 'Classes', icon: <ClassIcon /> },
+  { to: '/admin/sections', label: 'Sections', icon: <SectionIcon /> },
+  { to: '/admin/subjects', label: 'Subjects', icon: <SubjectIcon /> },
+  { to: '/admin/grades', label: 'Gradebook', icon: <GradeIcon /> },
+  { to: '/admin/assignments', label: 'Assignments', icon: <AssignmentIcon /> },
+  { to: '/admin/timetables', label: 'Timetables', icon: <TimetableIcon /> },
+  { to: '/admin/report-cards', label: 'Report Cards', icon: <ReportCardIcon /> },
+  { to: '/admin/academic-reports', label: 'Academic Reports', icon: <ReportIcon />, permission: 'generate_reports' },
+  { to: '/admin/sms-communication', label: 'SMS Notice', icon: <SmsIcon /> },
 ];
 
-import { useAuth } from '../hooks/useAuth';
-import { useSettings } from '../hooks/useSettings';
-
-export default function AdminLayout({ children, pageTitle, headerAction }) {
-  const { user, logout, permissions } = useAuth();
+export default function AdminLayout({ children, pageTitle = 'Dashboard', searchPlaceholder = 'Search students, classes...' }) {
+  const { user, logout, permissions = [] } = useAuth();
   const { branding, logoUrl } = useSettings();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const notificationsRef = useRef(null);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
-  const notificationsRef = useRef(null);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   const fetchNotifications = async () => {
     try {
@@ -132,20 +136,20 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) return undefined;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
   }, [user]);
 
   useEffect(() => {
-    const handler = (e) => {
-      if (notificationsRef.current && !notificationsRef.current.contains(e.target)) {
+    const closeOnOutsideClick = (event) => {
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
         setNotificationsOpen(false);
       }
     };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, []);
 
   const markAsRead = async (id) => {
@@ -160,136 +164,157 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
       await axios.patch('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch { /* silent */ }
-  };;
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
   };
 
-  const initials = (user?.name || 'A').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const initials = (user?.name || 'A')
+    .split(' ')
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const filteredNavItems = navItems.filter(item => {
-    if (item.superAdminOnly) return user?.role === 'SuperAdmin';
-    if (item.permission && user?.role !== 'SuperAdmin') {
-      return permissions.includes('*') || permissions.includes(item.permission);
-    }
-    return true;
-  });
+  const filteredNavItems = navItems.filter((item) =>
+    !item.permission || permissions.includes('*') || permissions.includes(item.permission)
+  );
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
-      {/* ── Mobile overlay ── */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
+    <div className="flex min-h-screen bg-[#e7eff3] font-sans text-[#203e4f]">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
-      {/* ── Sidebar ── */}
+      {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-[#203e4f] text-[#cbe1eb] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        {/* Brand */}
-        <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
-          <div className="flex items-center gap-3 min-w-0">
-            {logoUrl && (
-              <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
-            )}
-            <div className="min-w-0">
-              <div className="mb-1 text-lg font-black tracking-tight text-slate-900 truncate">
-                {branding.institutionNameEn}
-              </div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Branch Admin Console
-              </div>
-            </div>
-          </div>
+        {/* Top School Branding Header */}
+        <div className="flex flex-col items-center pt-5 sm:pt-6 pb-4 sm:pb-5 px-3 sm:px-4 border-b border-white/10 relative">
           <button
-            className="text-slate-400 hover:text-slate-900 lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close menu"
+            className="text-[#9bbcc9] hover:text-white lg:hidden absolute top-4 right-4"
+            onClick={() => setMobileOpen(false)}
           >
             <CloseIcon />
           </button>
+
+          {/* Big Circular School Logo */}
+          <div className="relative mb-2.5 sm:mb-3">
+            <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#33566b] border border-white/30 ring-4 ring-white/10 flex items-center justify-center overflow-hidden shadow-md text-white font-black text-xl sm:text-2xl">
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="w-full h-full object-cover p-1 rounded-full" />
+              ) : (
+                <span>{(branding?.institutionNameEn || 'S')[0]}</span>
+              )}
+            </div>
+          </div>
+
+          <h2 className="text-white font-black text-sm sm:text-base leading-tight text-center tracking-tight truncate max-w-full px-1">
+            {branding?.institutionNameEn || 'School Management System'}
+          </h2>
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9bbcc9] mt-0.5 text-center">
+            Branch Admin
+          </p>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-3">
           {filteredNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${isActive || window.location.pathname.startsWith(item.to)
-                  ? 'bg-slate-100 font-bold text-black'
-                  : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return `w-full flex items-center gap-3 px-3.5 py-2 rounded-full text-xs sm:text-sm font-semibold transition-all duration-200 ${
+                  isItemActive
+                    ? 'bg-white text-[#203e4f] shadow-lg font-bold translate-x-1'
+                    : 'text-[#d3e5ed] hover:bg-[#2a4e63] hover:text-white'
+                }`;
+              }}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              {({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return (
+                  <>
+                    <span className={isItemActive ? 'text-[#203e4f]' : 'text-[#8daec0]'}>
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </>
+                );
+              }}
             </NavLink>
           ))}
         </nav>
 
-        {/* User Profile */}
-        <div className="border-t border-slate-200 p-4 bg-slate-50">
-          <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-200 cursor-pointer" onClick={handleLogout}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black shadow-md text-sm font-bold text-white">
+        {/* Bottom User Profile Card */}
+        <div className="p-3 border-t border-[#2d566e]/60 bg-[#1a3443]/60">
+          <div className="flex items-center gap-2.5 p-2 sm:p-2.5 rounded-2xl bg-[#284c60]/90 border border-[#3b6b82]/40 shadow-sm">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 shrink-0 rounded-full bg-[#3d697e] border-2 border-white/40 flex items-center justify-center overflow-hidden text-white font-black text-xs shadow-inner">
               {user?.profileImage ? (
-                <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
+                <img src={user.profileImage} alt="" className="w-full h-full object-cover" />
               ) : (
-                initials
+                <span>{initials}</span>
               )}
             </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Super Admin'}</div>
-              <div className="text-[10px] font-bold uppercase text-slate-500">Log Out</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-extrabold text-white">
+                {user?.name || 'Admin User'}
+              </div>
+              <div className="truncate text-[10px] text-[#9bbcc9] font-medium">
+                {user?.email || 'admin@school.test'}
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="p-1.5 sm:p-2 text-[#9bbcc9] hover:text-white hover:bg-red-500/20 hover:text-red-300 rounded-xl transition shrink-0"
+              title="Logout"
+            >
+              <LogoutIcon />
+            </button>
           </div>
         </div>
       </aside>
 
-      {/* ── Main Content ── */}
-      <main className="flex min-w-0 flex-1 flex-col  bg-slate-50/50">
+      {/* Main Content */}
+      <main className="flex min-w-0 flex-1 flex-col bg-[#e7eff3]">
         <MaintenanceBanner />
+
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-40 flex h-14 sm:h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/95 backdrop-blur-md px-3 sm:px-6 lg:px-8 shadow-xs">
+          <div className="flex min-w-0 items-center gap-2.5 sm:gap-3">
             <button
-              className="text-slate-600 hover:text-black lg:hidden"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open menu"
+              className="text-[#203e4f] hover:text-black lg:hidden p-1"
+              onClick={() => setMobileOpen(true)}
             >
               <MenuIcon />
             </button>
-            <span className="hidden sm:inline-flex"><SystemIcon /></span>
-            <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">{pageTitle || 'System Management'}</h1>
+            <h1 className="truncate text-base sm:text-xl lg:text-2xl font-black text-[#203e4f] tracking-tight">
+              {pageTitle}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-6">
-            <div className="relative hidden items-center md:flex">
-              <span className="absolute left-3">
-                <SearchIcon />
-              </span>
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* Search Pill Input */}
+            <div className="relative hidden items-center sm:flex w-40 md:w-56 lg:w-64">
               <input
                 type="text"
-                placeholder="Search records..."
-                className="w-48 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-slate-500 lg:w-64"
+                placeholder={searchPlaceholder}
+                className="w-full bg-white text-xs sm:text-sm text-[#203e4f] placeholder-[#8caab8] px-3.5 py-1.5 sm:py-2 pl-3.5 pr-8 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
               />
+              <span className="absolute right-3">
+                <SearchIcon />
+              </span>
             </div>
 
+            {/* Notification Bell */}
             <div className="relative" ref={notificationsRef}>
               <button
-                className="relative text-slate-400 hover:text-black transition"
-                onClick={() => setNotificationsOpen(o => !o)}
-                aria-label="Notifications"
+                className="relative p-1.5 sm:p-2 bg-white rounded-full border border-[#d2e2eb] text-[#3b6b82] hover:bg-slate-50 transition shadow-sm"
+                onClick={() => setNotificationsOpen((o) => !o)}
               >
                 <BellIcon />
                 {unreadCount > 0 && (
@@ -298,42 +323,41 @@ export default function AdminLayout({ children, pageTitle, headerAction }) {
                   </span>
                 )}
               </button>
+
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
-                  <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span className="text-sm font-black text-slate-900">Notifications</span>
-                    <div className="flex items-center gap-2">
-                      {unreadCount > 0 && (
-                        <>
-                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
-                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
-                        </>
-                      )}
-                    </div>
+                <div className="absolute right-0 top-full z-50 mt-3 w-72 sm:w-80 rounded-2xl border border-[#d2e2eb] bg-white p-3.5 sm:p-4 shadow-2xl">
+                  <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-2.5">
+                    <span className="text-xs sm:text-sm font-black text-[#203e4f]">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                    )}
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
-                    {notifications.length > 0 ? notifications.map(n => (
-                      <button key={n.id} type="button" onClick={() => markAsRead(n.id)}
-                        className={`w-full rounded-xl p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-                      >
-                        <span className="block font-bold">{n.title}</span>
-                        <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
-                        <span className={`mt-2 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{new Date(n.createdAt).toLocaleString()}</span>
-                      </button>
-                    )) : (
-                      <p className="py-6 text-center text-sm text-slate-400">No notifications yet.</p>
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <button
+                          type="button"
+                          key={n.id}
+                          onClick={() => markAsRead(n.id)}
+                          className={`w-full rounded-xl p-2.5 sm:p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-[#203e4f] text-white hover:bg-[#2a4e63]'}`}
+                        >
+                          <span className="block font-bold">{n.title}</span>
+                          <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
+                          <span className={`mt-1.5 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{new Date(n.createdAt).toLocaleString()}</span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="py-6 text-center text-xs sm:text-sm text-slate-400">No notifications yet.</p>
                     )}
                   </div>
                 </div>
               )}
             </div>
-
-            {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>

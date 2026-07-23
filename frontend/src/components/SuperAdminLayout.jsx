@@ -57,19 +57,26 @@ const ActivityIcon = () => (
 const SettingsIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
   </svg>
 );
 const SearchIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-gray-500">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4 text-[#799cb0]">
     <circle cx="11" cy="11" r="8" />
     <line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 const BellIcon = () => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-gray-600">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-[#3b6b82]">
     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+const LogoutIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-[#8daec0]">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
   </svg>
 );
 const FinanceIcon = () => (
@@ -123,9 +130,6 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
   const { branches, selectedBranch, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
   const [academicYears, setAcademicYears] = useState([]);
   const [yearViewId, setYearViewId] = useState(localStorage.getItem('superAdminYearViewId') || '');
-  const levels = [];
-  const selectedLevel = null;
-  const switchLevel = () => {};
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -196,7 +200,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
   const initials = (user?.name || 'SA').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className="flex min-h-screen bg-[#F8FAFC] font-sans text-slate-900">
+    <div className="flex min-h-screen bg-[#e7eff3] font-sans text-[#203e4f]">
       {/* ── Mobile overlay ── */}
       {sidebarOpen && (
         <div
@@ -208,145 +212,172 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-[#203e4f] text-[#cbe1eb] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
-        {/* Brand */}
-        <div className="flex items-center justify-between px-6 py-6 border-b border-slate-100">
-          <div className="flex items-center gap-3 min-w-0">
-            {logoUrl && (
-              <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-lg object-contain" />
-            )}
-            <div className="min-w-0">
-              <div className="mb-1 text-lg font-black tracking-tight truncate">
-                {branding.institutionNameEn}
-              </div>
-              <div className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
-                Super Admin Console
-              </div>
-            </div>
-          </div>
+        {/* Top School Branding Header */}
+        <div className="flex flex-col items-center pt-6 pb-5 px-4 border-b border-white/10 relative">
           <button
-            className="text-slate-400 hover:text-slate-900 lg:hidden"
+            className="text-[#9bbcc9] hover:text-white lg:hidden absolute top-4 right-4"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
           >
             <CloseIcon />
           </button>
+
+          {/* Big Circular School Logo */}
+          <div className="relative mb-3">
+            <div className="w-20 h-20 rounded-full bg-[#33566b] border border-white/30 ring-4 ring-white/10 flex items-center justify-center overflow-hidden shadow-md text-white font-black text-2xl">
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="w-full h-full object-cover p-1.5 rounded-full" />
+              ) : (
+                <span>{(branding?.institutionNameEn || 'S')[0]}</span>
+              )}
+            </div>
+          </div>
+
+          <h2 className="text-white font-black text-base text-center tracking-tight truncate max-w-full px-2">
+            {branding?.institutionNameEn || 'School Management System'}
+          </h2>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#9bbcc9] mt-0.5 text-center">
+            Super Admin Console
+          </p>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               onClick={() => setSidebarOpen(false)}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 ${isActive || window.location.pathname.startsWith(item.to)
-                  ? 'bg-indigo-50 font-bold '
-                  : 'font-semibold text-slate-500 hover:bg-slate-50 hover:text-slate-900'
-                }`
-              }
+              className={({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return `w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                  isItemActive
+                    ? 'bg-white text-[#203e4f] shadow-lg font-bold translate-x-1'
+                    : 'text-[#d3e5ed] hover:bg-[#2a4e63] hover:text-white'
+                }`;
+              }}
             >
-              {item.icon}
-              <span>{item.label}</span>
+              {({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return (
+                  <>
+                    <span className={isItemActive ? 'text-[#203e4f]' : 'text-[#8daec0]'}>
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </>
+                );
+              }}
             </NavLink>
           ))}
         </nav>
 
-        {/* User Profile */}
-        <div className="border-t border-slate-200 p-4 bg-slate-50">
-          <div className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-slate-200 cursor-pointer" onClick={handleLogout}>
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black shadow-md text-sm font-bold text-white">
+        {/* Bottom User Profile & Logout Card */}
+        <div className="p-3 border-t border-[#2d566e]/60 bg-[#1a3443]/60">
+          <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#284c60]/90 border border-[#3b6b82]/40 shadow-sm">
+            <div className="w-10 h-10 shrink-0 rounded-full bg-[#3d697e] border-2 border-white/40 flex items-center justify-center overflow-hidden text-white font-black text-xs shadow-inner">
               {user?.profileImage ? (
-                <img src={user.profileImage} alt="" className="h-full w-full rounded-full object-cover" />
+                <img src={user.profileImage} alt="" className="w-full h-full object-cover" />
               ) : (
-                initials
+                <span>{initials}</span>
               )}
             </div>
-            <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-slate-900">{user?.name || 'Super Admin'}</div>
-              <div className="text-[10px] font-bold uppercase text-slate-500">Log Out</div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-extrabold text-white">
+                {user?.name || 'Super Admin'}
+              </div>
+              <div className="truncate text-[10px] text-[#9bbcc9] font-medium">
+                {user?.email || 'superadmin@school.test'}
+              </div>
             </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-[#9bbcc9] hover:text-white hover:bg-red-500/20 hover:text-red-300 rounded-xl transition shrink-0"
+              title="Logout"
+            >
+              <LogoutIcon />
+            </button>
           </div>
         </div>
       </aside>
 
       {/* ── Main Content ── */}
-      <main className="flex min-w-0 flex-1 flex-col  bg-slate-50/50">
+      <main className="flex min-w-0 flex-1 flex-col bg-[#e7eff3]">
         <MaintenanceBanner />
+
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-slate-200 bg-white/80 backdrop-blur-md px-4 shadow-sm sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs">
           <div className="flex min-w-0 items-center gap-3">
             <button
-              className="text-slate-600 hover:text-black lg:hidden"
+              className="text-[#203e4f] hover:text-black lg:hidden"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
             >
               <MenuIcon />
             </button>
             <span className="hidden sm:inline-flex"><SystemIcon /></span>
-            <h1 className="truncate text-base font-bold tracking-tight text-slate-900 sm:text-lg">{pageTitle || 'Governance Console'}</h1>
+            <h1 className="truncate text-lg sm:text-2xl font-extrabold text-[#203e4f] tracking-tight">
+              {pageTitle ? `Welcome ${pageTitle}` : `Welcome ${user?.name || 'Super Admin'} !`}
+            </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-6">
-            {canSwitchBranch && branches.length > 0 && (
-              <div className="hidden lg:flex items-center gap-2">
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Branch Switcher Select */}
+            {canSwitchBranch && (
+              <div className="flex items-center gap-2">
+                <span className="hidden text-xs font-bold uppercase tracking-wider text-[#63889b] sm:inline">Branch</span>
                 <select
                   value={selectedBranchId || ''}
                   onChange={(e) => switchBranch(e.target.value)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
+                  className="bg-white text-xs font-bold text-[#203e4f] px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition max-w-[140px] sm:max-w-xs truncate"
                 >
+                  <option value="">All Branches</option>
                   {branches.map((b) => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
+                    <option key={b.id || b._id} value={b.id || b._id}>{b.name}</option>
                   ))}
                 </select>
-                {levels.length > 0 && (
-                  <select
-                    value={selectedLevel?.id || ''}
-                    onChange={(e) => switchLevel(e.target.value || null)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white"
-                  >
-                    <option value="">All Levels</option>
-                    {levels.map((l) => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                )}
               </div>
             )}
-            {user?.role === 'SuperAdmin' && academicYears.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="hidden xl:inline text-xs font-bold text-slate-400 uppercase tracking-wider">Year:</span>
+
+            {/* Academic Year Filter */}
+            {academicYears.length > 0 && (
+              <div className="hidden md:flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">Year</span>
                 <select
                   value={yearViewId}
                   onChange={handleYearViewChange}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-4 py-2 text-sm font-bold text-gray outline-none transition focus:border-slate-300 focus:bg-white cursor-pointer hover:border-indigo-300"
+                  className="bg-white text-xs font-bold text-[#203e4f] px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
                 >
                   {academicYears.map((y) => (
                     <option key={y.id} value={y.id}>
-                      {y.year} {y.isActive ? '(Current)' : ''}
+                      {y.year} {y.isActive ? '(Active)' : ''}
                     </option>
                   ))}
                 </select>
               </div>
             )}
-            <div className="relative hidden items-center md:flex">
-              <span className="absolute left-3">
-                <SearchIcon />
-              </span>
+
+            {/* Search Input */}
+            <div className="relative hidden items-center lg:flex w-48 lg:w-64">
               <input
                 type="text"
-                placeholder="Global search..."
-                className="w-48 rounded-full bg-slate-100 py-2 pl-9 pr-4 text-sm font-medium outline-none transition focus:bg-white focus:ring-2 focus:ring-black lg:w-64"
+                placeholder="Search system..."
+                className="w-full bg-white text-sm text-[#203e4f] placeholder-[#8caab8] px-4 py-2 pl-4 pr-9 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
               />
+              <span className="absolute right-3">
+                <SearchIcon />
+              </span>
             </div>
 
+            {/* Notification Bell */}
             <div className="relative" ref={notificationsRef}>
               <button
-                className="relative text-slate-400 hover:text-black transition"
-                onClick={() => setNotificationsOpen(o => !o)}
+                className="relative p-2 bg-white rounded-full border border-[#d2e2eb] text-[#3b6b82] hover:bg-slate-50 transition shadow-sm"
+                onClick={() => setNotificationsOpen((o) => !o)}
                 aria-label="Notifications"
               >
                 <BellIcon />
@@ -357,9 +388,9 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
                 )}
               </button>
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span className="text-sm font-black text-slate-900">Notifications</span>
+                    <span className="text-sm font-black text-[#203e4f]">Notifications</span>
                     <div className="flex items-center gap-2">
                       {unreadCount > 0 && (
                         <>
@@ -370,15 +401,17 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
                     </div>
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
-                    {notifications.length > 0 ? notifications.map(n => (
-                      <button key={n.id} type="button" onClick={() => markAsRead(n.id)}
-                        className={`w-full rounded-xl p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
-                      >
-                        <span className="block font-bold">{n.title}</span>
-                        <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
-                        <span className={`mt-2 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{new Date(n.createdAt).toLocaleString()}</span>
-                      </button>
-                    )) : (
+                    {notifications.length > 0 ? (
+                      notifications.map((n) => (
+                        <button key={n.id} type="button" onClick={() => markAsRead(n.id)}
+                          className={`w-full rounded-xl p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-[#203e4f] text-white hover:bg-[#2a4e63]'}`}
+                        >
+                          <span className="block font-bold">{n.title}</span>
+                          <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
+                          <span className={`mt-2 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{new Date(n.createdAt).toLocaleString()}</span>
+                        </button>
+                      ))
+                    ) : (
                       <p className="py-6 text-center text-sm text-slate-400">No notifications yet.</p>
                     )}
                   </div>
@@ -386,7 +419,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               )}
             </div>
 
-            {headerAction && <div className="ml-2 border-l border-slate-200 pl-2 sm:pl-4">{headerAction}</div>}
+            {headerAction && <div className="ml-2 border-l border-[#d8e6ed] pl-2 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
           </div>
         </header>
 

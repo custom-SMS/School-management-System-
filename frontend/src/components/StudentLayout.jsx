@@ -5,27 +5,61 @@ import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import MaintenanceBanner from './MaintenanceBanner';
 
-const icons = {
-  dashboard: <path d="M4 4h6v6H4V4zm0 10h6v6H4v-6zm10-10h6v6h-6V4zm0 10h6v6h-6v-6z" />,
-  attendance: <path d="M7 2v2H5a2 2 0 0 0-2 2v14h18V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2H7zm12 8H5V6h14v4z" />,
-  academics: <path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3zM5 13.2v3.3l7 3.8 7-3.8v-3.3L12 17l-7-3.8z" />,
-  finance: <path d="M2 7h20v10H2V7zm2 2v6h16V9H4zm8 1.5A1.5 1.5 0 1 1 10.5 12 1.5 1.5 0 0 1 12 10.5z" />,
-  reports: <path d="M4 20V10h3v10H4zm6.5 0V4h3v16h-3zM17 20v-7h3v7h-3z" />,
-  logout: <path d="M16 17v-3H9v-4h7V7l5 5-5 5zM14 2a2 2 0 0 1 2 2v2h-2V4H5v16h9v-2h2v2a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9z" />,
-};
-
-function NavIcon({ name }) {
-  return <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">{icons[name]}</svg>;
-}
+const DashboardIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+  </svg>
+);
+const CalendarIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  </svg>
+);
+const AcademicsIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l9-5-9-5-9 5 9 5z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0112 20.055a11.952 11.952 0 01-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+  </svg>
+);
+const FinanceIcon = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+  </svg>
+);
+const BellIcon = () => (
+  <svg className="w-5 h-5 text-[#3b6b82]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+  </svg>
+);
+const SearchIcon = () => (
+  <svg className="h-4 w-4 text-[#799cb0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+);
+const LogoutIcon = () => (
+  <svg className="w-5 h-5 text-[#8daec0]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+  </svg>
+);
+const MenuIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16" />
+  </svg>
+);
+const CloseIcon = () => (
+  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+  </svg>
+);
 
 const navItems = [
-  { to: '/student/dashboard', label: 'Dashboard', icon: 'dashboard' },
-  { to: '/student/attendance', label: 'Attendance', icon: 'attendance' },
-  { to: '/student/academics', label: 'Academics', icon: 'academics' },
-  { to: '/student/finance', label: 'Finance', icon: 'finance' },
+  { to: '/student/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
+  { to: '/student/attendance', label: 'Attendance', icon: <CalendarIcon /> },
+  { to: '/student/academics', label: 'Academics', icon: <AcademicsIcon /> },
+  { to: '/student/finance', label: 'Finance', icon: <FinanceIcon /> },
 ];
 
-export default function StudentLayout({ children, searchPlaceholder = 'Search records...' }) {
+export default function StudentLayout({ children, searchPlaceholder = 'Search...' }) {
   const { user, logout } = useAuth();
   const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = useSettings();
   const navigate = useNavigate();
@@ -40,14 +74,11 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
     try {
       const res = await axios.get('/notifications');
       setNotifications(res.data || []);
-    } catch (error) {
-      console.error('Failed to fetch notifications', error);
-    }
+    } catch { /* silent */ }
   };
 
   useEffect(() => {
     if (!user) return undefined;
-
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 30000);
     return () => clearInterval(interval);
@@ -59,7 +90,6 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
         setNotificationsOpen(false);
       }
     };
-
     document.addEventListener('mousedown', closeOnOutsideClick);
     return () => document.removeEventListener('mousedown', closeOnOutsideClick);
   }, []);
@@ -68,121 +98,184 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
     try {
       await axios.patch(`/notifications/${id}/read`);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    } catch (error) {
-      console.error('Failed to mark notification as read', error);
-    }
+    } catch { /* silent */ }
   };
 
   const markAllAsRead = async () => {
     try {
       await axios.patch('/notifications/read-all');
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    } catch (error) {
-      console.error('Failed to mark all as read', error);
-    }
+    } catch { /* silent */ }
   };
 
-  const linkClass = ({ isActive }) =>
-    ['flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition',
-      isActive ? 'bg-slate-100 text-slate-900' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-900'].join(' ');
-
   const initials = (user?.name || 'S').split(' ').map((p) => p[0]).slice(0, 2).join('').toUpperCase();
-  const unreadCount = notifications.filter((notification) => !notification.read).length;
-
-  const sidebar = (
-    <div className="flex h-full flex-col">
-      <Link to="/student/dashboard" className="flex items-center gap-3 px-2 py-2">
-        {logoUrl ? (
-          <img src={logoUrl} alt="" className="h-11 w-11 shrink-0 rounded-2xl object-contain" />
-        ) : (
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl text-white" style={{ backgroundColor: branding.brandColor }}>
-            <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3 1 9l11 6 9-4.9V17h2V9L12 3z" /></svg>
-          </span>
-        )}
-        <span>
-          <span className="block text-lg font-black tracking-tight text-slate-900">{branding.institutionNameEn}</span>
-          <span className="block text-xs font-medium text-slate-400">Student Portal</span>
-        </span>
-      </Link>
-      <nav className="mt-8 flex-1 space-y-1.5 overflow-y-auto pr-1">
-        {navItems.map((item) => (
-          <NavLink key={item.to} to={item.to} className={linkClass} onClick={() => setMobileOpen(false)}>
-            <NavIcon name={item.icon} /><span>{item.label}</span>
-          </NavLink>
-        ))}
-      </nav>
-      <div className="mt-6 border-t border-slate-100 pt-6">
-        <button type="button" onClick={handleLogout} className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-900">
-          <NavIcon name="logout" /><span>Logout</span>
-        </button>
-      </div>
-    </div>
-  );
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   return (
-    <div className="min-h-screen bg-slate-50/70 text-slate-900">
-      <div className="mx-auto flex min-h-screen w-full">
-        <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r border-slate-200 bg-white px-5 py-6 lg:flex">{sidebar}</aside>
+    <div className="flex min-h-screen bg-[#e7eff3] font-sans text-[#203e4f]">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
+      )}
 
-        {mobileOpen && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div className="absolute inset-0 bg-slate-900/40" onClick={() => setMobileOpen(false)} />
-            <aside className="absolute left-0 top-0 h-full w-72 bg-white px-5 py-6 shadow-2xl">{sidebar}</aside>
-          </div>
-        )}
+      {/* Sidebar */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-[#203e4f] text-[#cbe1eb] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {/* Top School Branding Header */}
+        <div className="flex flex-col items-center pt-6 pb-5 px-4 border-b border-white/10 relative">
+          <button
+            className="text-[#9bbcc9] hover:text-white lg:hidden absolute top-4 right-4"
+            onClick={() => setMobileOpen(false)}
+          >
+            <CloseIcon />
+          </button>
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <MaintenanceBanner />
-          <header className="sticky top-0 z-40 flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4 sm:px-8">
-            <button type="button" onClick={() => setMobileOpen(true)} className="rounded-lg border border-slate-200 p-2 text-slate-500 lg:hidden" aria-label="Open menu">
-              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2H4V6zm0 5h16v2H4v-2zm0 5h16v2H4v-2z" /></svg>
-            </button>
-            <div className="hidden text-lg font-black text-slate-900 sm:block">{branding.institutionNameEn}</div>
-            <div className="relative mx-auto w-full max-w-md">
-              <svg className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M10 4a6 6 0 1 0 3.5 10.9l4.3 4.3 1.4-1.4-4.3-4.3A6 6 0 0 0 10 4zm0 2a4 4 0 1 1 0 8 4 4 0 0 1 0-8z" /></svg>
-              <input type="search" placeholder={searchPlaceholder} className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-2.5 pl-12 pr-4 text-sm text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5" />
+          <div className="relative mb-3">
+            <div className="w-20 h-20 rounded-full bg-[#33566b] border border-white/30 ring-4 ring-white/10 flex items-center justify-center overflow-hidden shadow-md text-white font-black text-2xl">
+              {logoUrl ? (
+                <img src={logoUrl} alt="" className="w-full h-full object-cover p-1.5 rounded-full" />
+              ) : (
+                <span>{(branding?.institutionNameEn || 'S')[0]}</span>
+              )}
             </div>
+          </div>
+
+          <h2 className="text-white font-black text-base text-center tracking-tight truncate max-w-full px-2">
+            {branding?.institutionNameEn || 'School Management System'}
+          </h2>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-[#9bbcc9] mt-0.5 text-center">
+            Student Portal
+          </p>
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
+          {navItems.map((item) => (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              onClick={() => setMobileOpen(false)}
+              className={({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return `w-full flex items-center gap-3 px-4 py-2.5 rounded-full text-sm font-semibold transition-all duration-200 ${
+                  isItemActive
+                    ? 'bg-white text-[#203e4f] shadow-lg font-bold translate-x-1'
+                    : 'text-[#d3e5ed] hover:bg-[#2a4e63] hover:text-white'
+                }`;
+              }}
+            >
+              {({ isActive }) => {
+                const isItemActive = isActive || window.location.pathname.startsWith(item.to);
+                return (
+                  <>
+                    <span className={isItemActive ? 'text-[#203e4f]' : 'text-[#8daec0]'}>
+                      {item.icon}
+                    </span>
+                    <span className="truncate">{item.label}</span>
+                  </>
+                );
+              }}
+            </NavLink>
+          ))}
+        </nav>
+
+        {/* Bottom User Profile Card */}
+        <div className="p-3 border-t border-[#2d566e]/60 bg-[#1a3443]/60">
+          <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-[#284c60]/90 border border-[#3b6b82]/40 shadow-sm">
+            <div className="w-10 h-10 shrink-0 rounded-full bg-[#3d697e] border-2 border-white/40 flex items-center justify-center overflow-hidden text-white font-black text-xs shadow-inner">
+              {user?.profileImage ? (
+                <img src={user.profileImage} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-extrabold text-white">
+                {user?.name || 'Student'}
+              </div>
+              <div className="truncate text-[10px] text-[#9bbcc9] font-medium">
+                {user?.email || 'student@school.test'}
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="p-2 text-[#9bbcc9] hover:text-white hover:bg-red-500/20 hover:text-red-300 rounded-xl transition shrink-0"
+              title="Logout"
+            >
+              <LogoutIcon />
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex min-w-0 flex-1 flex-col bg-[#e7eff3]">
+        <MaintenanceBanner />
+
+        {/* Top Header Bar */}
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              className="text-[#203e4f] hover:text-black lg:hidden"
+              onClick={() => setMobileOpen(true)}
+            >
+              <MenuIcon />
+            </button>
+            <h1 className="truncate text-lg sm:text-2xl font-extrabold text-[#203e4f] tracking-tight">
+              {branding?.institutionNameEn || 'Student Portal'}
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3 sm:gap-4">
+            {/* Search Pill Input */}
+            <div className="relative hidden items-center sm:flex w-48 lg:w-64">
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                className="w-full bg-white text-sm text-[#203e4f] placeholder-[#8caab8] px-4 py-2 pl-4 pr-9 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
+              />
+              <span className="absolute right-3">
+                <SearchIcon />
+              </span>
+            </div>
+
+            {/* Notification Bell */}
             <div className="relative" ref={notificationsRef}>
               <button
-                type="button"
-                onClick={() => setNotificationsOpen((current) => !current)}
-                className="relative rounded-full p-2 text-slate-500 hover:bg-slate-100"
-                aria-label="Notifications"
+                className="relative p-2 bg-white rounded-full border border-[#d2e2eb] text-[#3b6b82] hover:bg-slate-50 transition shadow-sm"
+                onClick={() => setNotificationsOpen((o) => !o)}
               >
-                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm6-6V11a6 6 0 0 0-5-5.9V4a1 1 0 0 0-2 0v1.1A6 6 0 0 0 6 11v5l-1.7 1.7c-.6.6-.2 1.7.7 1.7h14c.9 0 1.3-1.1.7-1.7L18 16z" /></svg>
+                <BellIcon />
                 {unreadCount > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white ring-2 ring-white">
                     {unreadCount}
                   </span>
                 )}
               </button>
+
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span className="text-sm font-black text-slate-900">Notifications</span>
-                    <div className="flex items-center gap-2">
-                      {unreadCount > 0 && (
-                        <>
-                          <span className="rounded-full bg-rose-50 px-2 py-1 text-xs font-bold text-rose-600">{unreadCount} new</span>
-                          <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
-                        </>
-                      )}
-                    </div>
+                    <span className="text-sm font-black text-[#203e4f]">Notifications</span>
+                    {unreadCount > 0 && (
+                      <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                    )}
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
                     {notifications.length > 0 ? (
-                      notifications.map((notification) => (
+                      notifications.map((n) => (
                         <button
                           type="button"
-                          key={notification.id}
-                          onClick={() => markAsRead(notification.id)}
-                          className={`w-full rounded-xl p-3 text-left text-xs transition ${notification.read ? 'bg-slate-50 text-slate-500' : 'bg-slate-900 text-white hover:bg-slate-800'}`}
+                          key={n.id}
+                          onClick={() => markAsRead(n.id)}
+                          className={`w-full rounded-xl p-3 text-left text-xs transition ${n.read ? 'bg-slate-50 text-slate-500' : 'bg-[#203e4f] text-white hover:bg-[#2a4e63]'}`}
                         >
-                          <span className="block font-bold">{notification.title}</span>
-                          <span className={`mt-1 block whitespace-pre-line ${notification.read ? 'text-slate-500' : 'text-white/80'}`}>{notification.message}</span>
-                          <span className={`mt-2 block text-[10px] ${notification.read ? 'text-slate-400' : 'text-white/50'}`}>
-                            {formatDateTime(notification.createdAt)}
-                          </span>
+                          <span className="block font-bold">{n.title}</span>
+                          <span className={`mt-1 block whitespace-pre-line ${n.read ? 'text-slate-500' : 'text-white/80'}`}>{n.message}</span>
+                          <span className={`mt-2 block text-[10px] ${n.read ? 'text-slate-400' : 'text-white/50'}`}>{formatDateTime(n.createdAt)}</span>
                         </button>
                       ))
                     ) : (
@@ -192,16 +285,20 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search re
                 </div>
               )}
             </div>
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-sm font-bold text-white">{initials}</span>
-          </header>
-          {publicNotifications.maintenanceBroadcasts && (
-            <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 sm:px-8">
-              Maintenance broadcasts are enabled. Check your notifications for service updates and planned downtime notices.
-            </div>
-          )}
-          <main className="flex-1 px-4 py-6 sm:px-8 sm:py-8">{children}</main>
+          </div>
+        </header>
+
+        {publicNotifications.maintenanceBroadcasts && (
+          <div className="border-b border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-900 sm:px-8">
+            Maintenance broadcasts are enabled. Check your notifications for service updates and planned downtime notices.
+          </div>
+        )}
+
+        {/* Page Content */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          {children}
         </div>
-      </div>
+      </main>
     </div>
   );
 }

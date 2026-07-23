@@ -229,10 +229,14 @@ const attachStudentToGradeClass = async (student, grade) => {
   const className = resolveClassNameFromGrade(grade);
   const branchId = student.branchId || null;
 
+  // Fetch the active academic year so we can link the class to it
+  const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+
   let klass = await prisma.class.findFirst({
     where: {
       name: className,
-      branchId: branchId
+      branchId: branchId,
+      ...(activeYear ? { academicYearId: activeYear.id } : {})
     }
   });
   if (!klass) {
@@ -241,6 +245,7 @@ const attachStudentToGradeClass = async (student, grade) => {
         name: className,
         subject: 'General',
         branchId: branchId,
+        ...(activeYear ? { academicYearId: activeYear.id } : {}),
         students: {
           connect: { id: student.id }
         }
