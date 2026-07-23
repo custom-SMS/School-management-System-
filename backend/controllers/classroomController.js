@@ -198,11 +198,20 @@ const resolveTeacherClass = async (teacherId, classId, studentIds = []) => {
       }
     });
   } else {
+    const activeYear = await prisma.academicYear.findFirst({
+      where: { isActive: true }
+    });
+    if (!activeYear) {
+      throw new Error('No active academic year found to create a default class.');
+    }
     return prisma.class.create({
       data: {
         name: 'Default',
-        teacherId,
         subject: 'General',
+        teacher: teacherId ? { connect: { id: teacherId } } : undefined,
+        academicYear: {
+          connect: { id: activeYear.id }
+        },
         students: {
           connect: studentIds.map(id => ({ id }))
         }
@@ -1437,6 +1446,7 @@ const createClass = async (req, res) => {
         },
         stream: stream || null,
         ...(req.branchFilter || {})
+     
       }
     });
 
@@ -1455,14 +1465,14 @@ const createClass = async (req, res) => {
     const newClass = await prisma.class.create({
       data: {
         name: normalizedName,
-        teacherId: teacherId || null,
         subject: 'General',
         schedule,
         stream,
-        branchId,
         academicYear: {
           connect: { id: activeYear.id }
         },
+        ...(branchId ? { branch: { connect: { id: branchId } } } : {}),
+        ...(teacherId ? { teacher: { connect: { id: teacherId } } } : {}),
         ...(subjectIds && subjectIds.length > 0 ? {
           classSubjects: {
             create: subjectIds.map(subjectId => ({ subjectId }))
@@ -1480,6 +1490,16 @@ const createClass = async (req, res) => {
 
     const { logActivity } = require('../middleware/auditLogger');
     await logActivity(req.user._id, 'Create Class', newClass.id, `Created class: ${normalizedName}`);
+
+    // Clear all classroom-related cache keys
+    try {
+      const branchFilter = req.branchFilter || {};
+      await delKey(classesKey(branchFilter));
+      await delKey(classroomOptionsKey(branchFilter, req.user?.role, req.user?._id));
+      console.log('[Cache Cleared] Classroom cache keys cleared after class creation');
+    } catch (cacheError) {
+      console.error('[Cache Error] Failed to clear classroom cache:', cacheError);
+    }
 
     res.status(201).json(newClass);
   } catch (error) {
@@ -1609,8 +1629,10 @@ const updateClass = async (req, res) => {
         if (!homeroomCheck.ok) {
           return res.status(400).json({ message: homeroomCheck.message });
         }
+        updateData.teacher = { connect: { id: teacherId } };
+      } else {
+        updateData.teacher = { disconnect: true };
       }
-      updateData.teacherId = teacherId || null;
     }
 
     const updatedClass = await prisma.class.update({
@@ -2088,7 +2110,9 @@ const updateSection = async (req, res) => {
 
     await prisma.class.update({
       where: { id: section.classId },
-      data: { teacherId: resolvedTeacherId }
+      data: {
+        teacher: resolvedTeacherId ? { connect: { id: resolvedTeacherId } } : { disconnect: true }
+      }
     });
 
     res.status(200).json(updatedSection);

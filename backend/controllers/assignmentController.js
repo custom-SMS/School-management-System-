@@ -73,7 +73,7 @@ const getAssignmentOptions = async (req, res) => {
       },
       include: {
         class: { select: { id: true, name: true, stream: true } },
-        subject: { select: { id: true, name: true, code: true } }
+        subject: { select: { id: true, name: true, department: true, gradesOffered: true } }
       }
     });
 
@@ -182,11 +182,21 @@ const createAssignment = async (req, res) => {
           continue;
         }
 
+        const activeYear = await prisma.academicYear.findFirst({
+          where: { isActive: true, branchId: branchId || undefined }
+        }) || await prisma.academicYear.findFirst({
+          where: { isActive: true }
+        });
+        if (!activeYear) {
+          return res.status(400).json({ message: 'No active academic year found to create a new class.' });
+        }
+
         const createdClass = await prisma.class.create({
           data: {
             name: className,
             subject: 'General',
-            branchId
+            branch: branchId ? { connect: { id: branchId } } : undefined,
+            academicYear: { connect: { id: activeYear.id } }
           }
         });
         specificClassDocs.push(createdClass);
@@ -306,7 +316,7 @@ const createAssignment = async (req, res) => {
       if (assignmentType === 'HomeRoomTeacher') {
         await prisma.class.update({
           where: { id: selectedClassId },
-          data: { teacherId }
+          data: { teacher: { connect: { id: teacherId } } }
         });
 
         if (resolvedSection) {
@@ -565,7 +575,9 @@ const removeHomeRoomAssignment = async (req, res) => {
     const resolvedTeacherId = await resolveClassHomeroomTeacherId(prisma, classId, { fallbackToClass: false });
     const updatedClass = await prisma.class.update({
       where: { id: classId },
-      data: { teacherId: resolvedTeacherId }
+      data: {
+        teacher: resolvedTeacherId ? { connect: { id: resolvedTeacherId } } : { disconnect: true }
+      }
     });
 
     return res.status(200).json({

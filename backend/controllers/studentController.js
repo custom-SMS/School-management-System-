@@ -240,12 +240,15 @@ const attachStudentToGradeClass = async (student, grade) => {
     }
   });
   if (!klass) {
+    if (!activeYear) {
+      throw new Error('No active academic year found to create a new class.');
+    }
     klass = await prisma.class.create({
       data: {
         name: className,
         subject: 'General',
-        branchId: branchId,
-        ...(activeYear ? { academicYearId: activeYear.id } : {}),
+        branch: branchId ? { connect: { id: branchId } } : undefined,
+        academicYear: { connect: { id: activeYear.id } },
         students: {
           connect: { id: student.id }
         }
