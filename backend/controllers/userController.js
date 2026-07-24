@@ -42,18 +42,18 @@ const isUserInScope = async (reqUser, targetUserId) => {
   return false;
 };
 
-// @desc    Get all users
+// @desc    Get all users (with optional pagination, search, role filter)
 // @route   GET /api/users
 // @access  Private (SuperAdmin)
 const getUsers = async (req, res) => {
   try {
     const { role, scopeType, schoolId, branchId } = req.user || {};
 
-    let where = {};
+    let baseWhere = {};
 
     if (role === 'Admin') {
       if (branchId) {
-        where = {
+        baseWhere = {
           OR: [
             { studentProfile: { branchId } },
             { teacherProfile: { branchId } },
@@ -63,12 +63,95 @@ const getUsers = async (req, res) => {
         };
       } else {
         // Admin without a branch scope sees nothing
-        where = { id: '__none__' };
+        baseWhere = { id: '__none__' };
       }
     }
 
+    const isPaginated = req.query.paginate === 'true' || req.query.page || req.query.limit || req.query.search || req.query.role;
+
+    if (isPaginated) {
+      const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 15);
+      const search = req.query.search?.trim();
+      const filterRole = req.query.role?.trim();
+
+      const whereConditions = [baseWhere];
+
+      if (filterRole) {
+        whereConditions.push({ role: filterRole });
+      }
+
+      if (search) {
+        whereConditions.push({
+          OR: [
+            { name: { contains: search, mode: 'insensitive' } },
+            { email: { contains: search, mode: 'insensitive' } }
+          ]
+        });
+      }
+
+      const where = whereConditions.length > 1 ? { AND: whereConditions } : baseWhere;
+
+      // Group role counts across baseWhere scope for top summary cards
+      const roleGroupCounts = await prisma.user.groupBy({
+        by: ['role'],
+        where: baseWhere,
+        _count: { role: true }
+      });
+
+      const roleCounts = {
+        SuperAdmin: 0,
+        Admin: 0,
+        Teacher: 0,
+        Cashier: 0,
+        Student: 0,
+        Parent: 0
+      };
+      roleGroupCounts.forEach(item => {
+        if (roleCounts[item.role] !== undefined) {
+          roleCounts[item.role] = item._count.role;
+        }
+      });
+
+      const [total, users] = await Promise.all([
+        prisma.user.count({ where }),
+        prisma.user.findMany({
+          where,
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            isActive: true,
+            createdAt: true,
+            updatedAt: true,
+            userScope: {
+              select: {
+                scopeType: true,
+                schoolId: true,
+                branchId: true,
+                levelId: true
+              }
+            }
+          },
+          skip: (pageNum - 1) * limitNum,
+          take: limitNum,
+          orderBy: { createdAt: 'desc' }
+        })
+      ]);
+
+      return res.status(200).json({
+        users,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        roleCounts
+      });
+    }
+
     const users = await prisma.user.findMany({
-      where,
+      where: baseWhere,
       select: {
         id: true,
         name: true,
@@ -88,7 +171,7 @@ const getUsers = async (req, res) => {
       },
       orderBy: { createdAt: 'desc' }
     });
-    res.status(200).json(users);
+    return res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

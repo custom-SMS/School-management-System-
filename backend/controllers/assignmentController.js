@@ -242,9 +242,9 @@ const createAssignment = async (req, res) => {
           });
 
           if (sectionWithTeacher?.homeroomTeacherId &&
-              sectionWithTeacher.homeroomTeacherId !== teacherId) {
+            sectionWithTeacher.homeroomTeacherId !== teacherId) {
             previousTeacherName = sectionWithTeacher.homeroomTeacher?.user?.name ||
-                                  sectionWithTeacher.homeroomTeacher?.teacherId || 'Unknown';
+              sectionWithTeacher.homeroomTeacher?.teacherId || 'Unknown';
             previousTeacherId = sectionWithTeacher.homeroomTeacherId;
           }
         }
@@ -261,9 +261,9 @@ const createAssignment = async (req, res) => {
           });
 
           if (classWithTeacher?.teacherId &&
-              classWithTeacher.teacherId !== teacherId) {
+            classWithTeacher.teacherId !== teacherId) {
             previousTeacherName = classWithTeacher.teacher?.user?.name ||
-                                  classWithTeacher.teacher?.teacherId || 'Unknown';
+              classWithTeacher.teacher?.teacherId || 'Unknown';
             previousTeacherId = classWithTeacher.teacherId;
           }
         }
@@ -278,7 +278,7 @@ const createAssignment = async (req, res) => {
 
           return res.status(409).json({
             message: `This section already has a homeroom teacher (${previousTeacherName}). ` +
-                     `Assigning ${newTeacherName} will replace them. Do you want to proceed?`,
+              `Assigning ${newTeacherName} will replace them. Do you want to proceed?`,
             requiresConfirmation: true,
             previousTeacher: previousTeacherName,
             newTeacher: newTeacherName
@@ -357,7 +357,7 @@ const getMyAssignments = async (req, res) => {
     });
 
     const assignments = await prisma.teacherAssignment.findMany({
-      where: { 
+      where: {
         teacherId: teacher.id,
         ...(activeYear ? { academicYearId: activeYear.id } : {})
       },
