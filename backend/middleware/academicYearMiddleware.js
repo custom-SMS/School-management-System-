@@ -1,10 +1,11 @@
 /**
  * Academic Year Middleware
- * 
+ *
  * This middleware handles academic year filtering and access control.
  * It injects the active academic year and enforces year-based access rules.
  */
 
+const prisma = require('../prisma');
 const { getActiveAcademicYear } = require('../utils/academicYear');
 
 /**

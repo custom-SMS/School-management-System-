@@ -25,6 +25,10 @@ function getRedis() {
       del: async () => null,
       mget: async () => [],
       mset: async () => null,
+      hget: async () => null,
+      hset: async () => null,
+      hincrby: async () => null,
+      incr: async () => null,
       // keep the same interface surface for caching helpers
       z: null,
     };

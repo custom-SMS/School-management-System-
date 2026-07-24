@@ -65,6 +65,7 @@ prisma.$connect()
 // Global Redis cache for GET JSON responses (branch + role based)
 // Must run after auth/branch middleware for the route to populate req.user + req.branchFilter.
 // Route handlers will also attach a cache resource version (req.cacheResourceVersion).
+// Temporarily disabled due to prisma import issues
 //app.use(globalCacheMiddleware);
 
 // Routes
