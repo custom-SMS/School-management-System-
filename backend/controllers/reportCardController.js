@@ -193,6 +193,9 @@ const compileReportCards = async (req, res) => {
             rank: d.rank,
             status: d.status,
             workflowStatus: 'Draft',
+            // NOTE: do NOT overwrite teacher-entered fields on re-compile
+            // promotionStatus, conductGrade, homeroomRemarks, promotedById, promotionDate
+            // are intentionally excluded here so the teacher's values are preserved.
             ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
             ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
           },
@@ -724,6 +727,26 @@ const upsertHomeroomReview = async (req, res) => {
       await saveReportCardHistorySnapshot(existingCard.id, getActorId(req), histCheck.reason);
     }
 
+    // Calculate real averageScore from approved grades for use on first create
+    const approvedGrades = await prisma.grade.findMany({
+      where: {
+        studentId,
+        academicYearId,
+        ...(semesterId ? { semesterId } : {}),
+        submissionStatus: 'ApprovedByHomeroom',
+      },
+      select: { percentage: true },
+    });
+    const computedAvgScore = approvedGrades.length > 0
+      ? Number((approvedGrades.reduce((s, g) => s + Number(g.percentage || 0), 0) / approvedGrades.length).toFixed(2))
+      : 0;
+    console.log(`[upsertHomeroomReview] studentId=${studentId} academicYearId=${academicYearId} semesterId=${semesterId} approvedGrades.length=${approvedGrades.length} percentages=${JSON.stringify(approvedGrades.map(g=>g.percentage))} computedAvgScore=${computedAvgScore}`);
+
+    const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' } });
+    const gradingSettings = parseSettingValue(gradingSetting?.value, {});
+    const passMark = Number(gradingSettings.passMark || 50);
+    const computedStatus = computedAvgScore >= passMark ? 'Pass' : 'Fail';
+
     const rc = await prisma.reportCard.upsert({
       where: {
         studentId_academicYearId_semesterId: {
@@ -732,19 +755,60 @@ const upsertHomeroomReview = async (req, res) => {
           semesterId: semesterId || null
         }
       },
-      update: updateData,
+      update: {
+        // Always update computed fields so the card stays in sync
+        averageScore: computedAvgScore,
+        status: computedStatus,
+        ...updateData,
+      },
       create: {
         studentId,
         academicYearId,
         semesterId: semesterId || null,
-        averageScore: 0,
+        averageScore: computedAvgScore,
+        status: computedStatus,
         attendancePercentage: 100,
         ...updateData
       }
     });
 
     await logActivity(getActorId(req), 'Upsert Homeroom Review', rc.id, `Upserted homeroom review for student ${studentId}`);
-    res.status(200).json(rc);
+
+    // Auto-trigger re-compile so averageScore, rank, and status are recalculated
+    // from the newly approved grades immediately — no manual Admin compile step needed.
+    try {
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { studentId, academicYearId },
+        include: { section: { select: { classId: true } } },
+      });
+      const classId = enrollment?.section?.classId || null;
+      if (classId && semesterId) {
+        await compileClassReportCards(academicYearId, semesterId, classId);
+      } else if (classId) {
+        // Fallback: find active semester
+        const activeSem = await prisma.semester.findFirst({
+          where: { academicYearId, isActive: true },
+          select: { id: true },
+        });
+        if (activeSem) await compileClassReportCards(academicYearId, activeSem.id, classId);
+      }
+    } catch (compileErr) {
+      // Non-fatal: compile failure should not block the homeroom review save
+      console.warn('Auto-compile after homeroom review failed:', compileErr.message);
+    }
+
+    // Return the freshest report card data after compile
+    const freshRc = await prisma.reportCard.findUnique({
+      where: {
+        studentId_academicYearId_semesterId: {
+          studentId,
+          academicYearId,
+          semesterId: semesterId || null,
+        },
+      },
+    });
+
+    res.status(200).json(freshRc || rc);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -791,16 +855,30 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
   if (!semester) return;
   const isSemester2 = semester.order === 2;
 
-  const enrollments = await prisma.enrollment.findMany({
-    where: {
-      academicYearId,
-      section: { classId },
-      status: 'Enrolled'
-    }
-  });
-  if (!enrollments.length) return;
+  // ── Ground truth: use Grade records to find class members ─────────────────
+  // Grade records are the most reliable signal — students in this class have grades here.
+  const gradeStudentIds = (await prisma.grade.findMany({
+    where: { academicYearId, semesterId, classId },
+    select: { studentId: true },
+    distinct: ['studentId'],
+  })).map(g => g.studentId);
 
-  const studentIds = enrollments.map(e => e.studentId);
+  // Also include students enrolled via section → class (even with no grades yet)
+  const sectionEnrollments = await prisma.enrollment.findMany({
+    where: { academicYearId, section: { classId }, status: 'Enrolled' },
+    select: { studentId: true },
+  });
+
+  // Merge both — deduplicated
+  const allStudentIds = [...new Set([...gradeStudentIds, ...sectionEnrollments.map(e => e.studentId)])];
+  if (!allStudentIds.length) return;
+
+  // Fetch full enrollment records for metadata (gradeLevel) only
+  const enrollments = await prisma.enrollment.findMany({
+    where: { academicYearId, studentId: { in: allStudentIds } },
+  });
+
+  const studentIds = allStudentIds;
 
   const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' } });
   const gradingSettings = parseSettingValue(gradingSetting?.value, {});
@@ -857,8 +935,12 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
     }
   }
 
-  const compiledData = enrollments.map((enrollment) => {
-    const sid = enrollment.studentId;
+  // Build an enrollment lookup map for gradeLevel resolution
+  const enrollmentByStudent = {};
+  enrollments.forEach(e => { enrollmentByStudent[e.studentId] = e; });
+
+  const compiledData = studentIds.map((sid) => {
+    const enrollment = enrollmentByStudent[sid];
     const gs = gradeSummary.get(sid) || { total: 0, count: 0, classIds: new Set() };
     const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
     const avgScore = gs.count > 0 ? gs.total / gs.count : 0;
@@ -872,7 +954,7 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
 
     return {
       studentId: sid,
-      gradeLevel: normalizeLabel(enrollment.grade),
+      gradeLevel: normalizeLabel(enrollment?.grade),
       averageScore: Number(avgScore.toFixed(2)),
       attendancePercentage: Number(attPct.toFixed(2)),
       attendancePresent: as.present,
@@ -912,6 +994,8 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
         averageScore: d.averageScore,
         rank: d.rank,
         status: d.status,
+        // NOTE: teacher-entered fields (promotionStatus, conductGrade, homeroomRemarks,
+        // promotedById, promotionDate) are intentionally NOT overwritten on re-compile.
         ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
         ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage })
       },

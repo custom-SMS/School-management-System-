@@ -10,7 +10,8 @@ export function printReportCard({
   passMark = 50,
   gpaEnabled = false,
   classSize = null,
-  preOpenedWindow = null
+  preOpenedWindow = null,
+  gradingComponents = null,
 }) {
   const school = branding.institutionNameEn || 'School';
   const schoolAm = branding.institutionNameAm || '';
@@ -40,29 +41,49 @@ export function printReportCard({
     ? `<img src="${logoUrl}" style="width:80px;height:80px;object-fit:contain;border-radius:50%;border:3px solid #fff" />`
     : `<div style="width:80px;height:80px;border-radius:50%;background:#d1d5db;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#374151;text-align:center;line-height:1.2">LOGO<br/><span style="font-size:7px;font-weight:400">Slogan text here</span></div>`;
 
+  // Resolve grading component definitions (fall back to legacy defaults)
+  const components = Array.isArray(gradingComponents) && gradingComponents.length > 0
+    ? gradingComponents
+    : [
+        { name: 'Quiz', weight: 10 },
+        { name: 'Assignment', weight: 20 },
+        { name: 'Midterm', weight: 30 },
+        { name: 'Final', weight: 40 },
+      ];
+
+  // Convert stored percentage (0-100) back to raw mark out of the component weight
+  const pctToRaw = (pct, weight) => {
+    if (pct == null || weight == null || weight === 0) return '';
+    const raw = (Number(pct) / 100) * Number(weight);
+    return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
+  };
+
   // ── grade rows ───────────────────────────────────────────────────────────
-  // Each subject gets one row. We show Quiz, Assignment, Midterm, Final as Q1–Q4
+  // Each subject gets one row with dynamically resolved component columns.
   const gradeRows = grades.length
     ? grades.map((g, i) => {
       const subj = g.subjectRef?.name || g.subject || `Subject – ${i + 1}`;
       const bg = i % 2 === 0 ? '#fff' : '#f9fafb';
-      const fmt = (v) => v != null ? String(v) : '';
-      // Mark the overall row differently if it's the last
+      // Build a cell for each grading component, converting percentage → raw mark
+      const componentCells = components.map(c => {
+        // Try componentScores first (dynamic JSON), fall back to legacy fixed fields
+        const pctVal = g.componentScores?.[c.name]
+          ?? g[c.name]
+          ?? g[c.name.toLowerCase()];
+        return `<td class="td-grade">${pctToRaw(pctVal, c.weight)}</td>`;
+      }).join('');
       return `<tr style="background:${bg}">
           <td class="td-subj">${subj}</td>
-          <td class="td-grade">${fmt(g.quiz)}</td>
-          <td class="td-grade">${fmt(g.assignment)}</td>
-          <td class="td-grade">${fmt(g.midterm)}</td>
-          <td class="td-grade">${fmt(g.final)}</td>
+          ${componentCells}
         </tr>`;
     }).join('')
-    : `<tr><td class="td-subj" colspan="5" style="color:#9ca3af;font-style:italic;text-align:center">No grades recorded</td></tr>`;
+    : `<tr><td class="td-subj" colspan="${1 + components.length}" style="color:#9ca3af;font-style:italic;text-align:center">No grades recorded</td></tr>`;
 
   // ── Overall row (weighted average per subject if available) ──────────────
   const overallRow = `
     <tr style="background:#e5e7eb;font-weight:700">
       <td class="td-subj" style="font-weight:700">Overall</td>
-      <td class="td-grade" colspan="4" style="font-weight:700;color:#1e293b">${avg}%&nbsp;&nbsp;${result}</td>
+      <td class="td-grade" colspan="${components.length}" style="font-weight:700;color:#1e293b">${avg}%&nbsp;&nbsp;${result}</td>
     </tr>`;
 
   // ── feedback lines ───────────────────────────────────────────────────────
@@ -343,12 +364,9 @@ export function printReportCard({
   <div class="section">
     <table class="tbl">
       <thead class="tbl-head">
-        <tr>
+         <tr>
           <th>Subject</th>
-          <th class="center">Quiz (10%)</th>
-          <th class="center">Assignment (20%)</th>
-          <th class="center">Midterm (30%)</th>
-          <th class="center">Final (40%)</th>
+          ${components.map(c => `<th class="center">${c.name} (${c.weight}%)</th>`).join('')}
         </tr>
       </thead>
       <tbody>

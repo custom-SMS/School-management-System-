@@ -25,6 +25,15 @@ export default function ReportCard() {
     [gradingConfig]
   );
 
+  // Convert stored percentage (0-100) back to raw mark out of the component weight.
+  // Backend always stores percentages (e.g. quiz=100 means 10/10 when weight=10).
+  const pctToRaw = (pct, weight) => {
+    if (pct == null || weight == null || weight === 0) return '—';
+    const raw = (Number(pct) / 100) * Number(weight);
+    // Show whole number if it's exact, otherwise 2 dp
+    return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
+  };
+
   useEffect(() => {
     const prevTitle = document.title;
     document.title = 'Report Card | School Management System';
@@ -70,12 +79,13 @@ export default function ReportCard() {
   // Normalise grade rows from either source
   const rawGrades = reportCard?.grades || studentStats?.grades || [];
   const gradeRows = rawGrades.map((g) => {
+    // marks is stored as percentages per component (0-100 each)
     const marks = g.marks || g;
     const pct = Number(g.percentage ?? 0);
     return {
       _id: g._id || g.id,
       subject: g.subject || '—',
-      marks,
+      marks,   // raw percentage values — will be converted by pctToRaw() in the table
       total: Number(g.total ?? 0),
       percentage: pct,
       pass: pct >= passMark,
@@ -272,7 +282,10 @@ export default function ReportCard() {
                     <tr key={g._id} className="hover:bg-slate-50 transition">
                       <td className="border border-slate-100 px-4 py-3 text-left font-semibold text-slate-900">{g.subject}</td>
                       {gradingComponents.map((c) => (
-                        <td key={c.field} className="border border-slate-100 px-4 py-3">{g.marks?.[c.field] ?? '—'}</td>
+                        <td key={c.field} className="border border-slate-100 px-4 py-3">
+                          {pctToRaw(g.marks?.[c.field], c.weight)}
+                          <span className="ml-1 text-xs text-slate-400">/{c.weight}</span>
+                        </td>
                       ))}
                       <td className="border border-slate-100 px-4 py-3 font-bold text-slate-900">{g.total}</td>
                       <td className="border border-slate-100 px-4 py-3 font-bold text-slate-900">{g.percentage}%</td>

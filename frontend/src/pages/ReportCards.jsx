@@ -65,6 +65,24 @@ export default function ReportCards() {
   const { activeSemester } = useBranch();
   const { user } = useAuth();
   const isSuperAdmin = user?.role === 'SuperAdmin';
+
+  // Grading structure from SuperAdmin Settings → fetched from /classroom/grading-structure
+  const DEFAULT_COMPONENTS = [
+    { name: 'Quiz', weight: 10 },
+    { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 },
+    { name: 'Final', weight: 40 },
+  ];
+  const [gradingComponents, setGradingComponents] = useState(DEFAULT_COMPONENTS);
+
+  // Convert stored percentage (0-100) → raw mark out of component weight.
+  // e.g. pctToRaw(90, 10) → '9'  (90% of 10-point quiz = 9)
+  const pctToRaw = (pct, weight) => {
+    if (pct == null || weight == null || Number(weight) === 0) return '—';
+    const raw = (Number(pct) / 100) * Number(weight);
+    return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
+  };
+
   const [years, setYears] = useState([]);
   const [selectedYear, setSelectedYear] = useState('');
   const [selectedSemesterId, setSelectedSemesterId] = useState('');
@@ -151,6 +169,15 @@ export default function ReportCards() {
       setClasses(r.data || []);
       if ((r.data || []).length > 0) setSelectedClassId(r.data[0]._id || r.data[0].id);
     }).catch(() => { });
+
+    // Load grading structure configured in SuperAdmin Settings
+    axios.get('/classroom/grading-structure')
+      .then((r) => {
+        if (r.data?.components && Array.isArray(r.data.components) && r.data.components.length > 0) {
+          setGradingComponents(r.data.components);
+        }
+      })
+      .catch(() => { /* use defaults */ });
   }, []);
 
   // Load class-level cards when class, year, or semester changes
@@ -346,6 +373,7 @@ export default function ReportCards() {
       passMark: Number(grading?.passMark || 50),
       gpaEnabled: Boolean(grading?.gpaEnabled),
       classSize: getStudentClassSize(card),
+      gradingComponents,
     });
   };
 
@@ -374,6 +402,7 @@ export default function ReportCards() {
           gpaEnabled: Boolean(grading?.gpaEnabled),
           classSize: classCards.length || getStudentClassSize(rc),
           preOpenedWindow: win,
+          gradingComponents,
         });
       } else {
         win.close();
@@ -872,17 +901,18 @@ export default function ReportCards() {
                 </div>
               )}
 
-              {/* Grades table */}
+              {/* Grades table — marks converted from stored % to raw score per component weight */}
               <div className="overflow-x-auto rounded-xl border border-slate-200">
                 <table className="w-full text-left text-sm">
                   <thead className="border-b border-slate-200 bg-slate-50">
                     <tr className="text-xs uppercase tracking-wide text-slate-400">
                       <th className="px-5 py-3">Subject</th>
                       <th className="px-4 py-3">Class</th>
-                      <th className="px-4 py-3 text-center">Quiz</th>
-                      <th className="px-4 py-3 text-center">Assign.</th>
-                      <th className="px-4 py-3 text-center">Midterm</th>
-                      <th className="px-4 py-3 text-center">Final</th>
+                      {gradingComponents.map((c) => (
+                        <th key={c.name} className="px-4 py-3 text-center">
+                          {c.name}<span className="ml-1 text-slate-300">/{c.weight}</span>
+                        </th>
+                      ))}
                       <th className="px-4 py-3 text-center font-semibold text-slate-600">Total</th>
                       <th className="px-4 py-3 text-center font-semibold text-slate-600">%</th>
                     </tr>
@@ -892,16 +922,21 @@ export default function ReportCards() {
                       <tr key={g.id} className="hover:bg-slate-50 transition">
                         <td className="px-5 py-3 font-semibold text-slate-900">{getGradeSubjectLabel(g)}</td>
                         <td className="px-4 py-3 text-slate-500">{getGradeClassLabel(g)}</td>
-                        <td className="px-4 py-3 text-center">{g.quiz ?? '—'}</td>
-                        <td className="px-4 py-3 text-center">{g.assignment ?? '—'}</td>
-                        <td className="px-4 py-3 text-center">{g.midterm ?? '—'}</td>
-                        <td className="px-4 py-3 text-center">{g.final ?? '—'}</td>
+                        {gradingComponents.map((c) => {
+                          // componentScores is a JSON field with named keys matching component names
+                          const pct = g.componentScores?.[c.name] ?? g[c.name] ?? g[c.name.toLowerCase()];
+                          return (
+                            <td key={c.name} className="px-4 py-3 text-center">
+                              {pctToRaw(pct, c.weight)}
+                            </td>
+                          );
+                        })}
                         <td className="px-4 py-3 text-center font-bold text-slate-900">{g.total ?? '—'}</td>
                         <td className="px-4 py-3 text-center font-bold text-slate-900">{g.percentage != null ? `${g.percentage}%` : '—'}</td>
                       </tr>
                     )) : (
                       <tr>
-                        <td colSpan="8" className="px-5 py-8 text-center text-slate-400">No grades recorded.</td>
+                        <td colSpan={2 + gradingComponents.length + 2} className="px-5 py-8 text-center text-slate-400">No grades recorded.</td>
                       </tr>
                     )}
                   </tbody>

@@ -31,7 +31,7 @@ const rcStatusBadge = (wf) => {
 };
 
 // ─── Collapsible student row ──────────────────────────────────────────────────
-function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSave, isSaving }) {
+function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSave, isSaving, gradingComponents, pctToRaw }) {
   const [open, setOpen] = useState(false);
   const { student, grades = [], rc } = studentMap[studentId] || {};
 
@@ -140,7 +140,18 @@ function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSa
                             {grade.percentage?.toFixed(1) ?? 0}%
                           </span>
                           <span className="text-xs text-slate-400">
-                            Q:{grade.quiz ?? 0} · A:{grade.assignment ?? 0} · M:{grade.midterm ?? 0} · F:{grade.final ?? 0}
+                            {gradingComponents.map((c, i) => {
+                              // Try componentScores JSON first, then fixed field names
+                              const pct = grade.componentScores?.[c.name]
+                                ?? grade[c.name]
+                                ?? grade[c.name.toLowerCase()];
+                              return (
+                                <span key={c.name}>
+                                  {i > 0 && ' · '}
+                                  {c.name.charAt(0)}:{pctToRaw(pct, c.weight)}
+                                </span>
+                              );
+                            })}
                           </span>
                         </div>
                         <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${gradeStatusBadge(grade.submissionStatus)}`}>
@@ -231,6 +242,23 @@ export default function HomeroomGradeReview() {
   const [savingStudentId, setSavingStudentId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
+  // Grading structure — same source as SuperAdmin Settings
+  const DEFAULT_COMPONENTS = [
+    { name: 'Quiz', weight: 10 },
+    { name: 'Assignment', weight: 20 },
+    { name: 'Midterm', weight: 30 },
+    { name: 'Final', weight: 40 },
+  ];
+  const [gradingComponents, setGradingComponents] = useState(DEFAULT_COMPONENTS);
+
+  // Convert stored percentage (0-100) → raw mark out of the component weight
+  // e.g. pctToRaw(100, 10) → '10'  |  pctToRaw(90, 10) → '9'
+  const pctToRaw = (pct, weight) => {
+    if (pct == null || weight == null || Number(weight) === 0) return '—';
+    const raw = (Number(pct) / 100) * Number(weight);
+    return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
+  };
+
   // ─── Load ─────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!classId) return;
@@ -239,6 +267,14 @@ export default function HomeroomGradeReview() {
       const yrsRes = await axios.get('/academic-years');
       const ay = (yrsRes.data || []).find((y) => y.isActive) || (yrsRes.data || [])[0] || null;
       setActiveYear(ay);
+
+      // Fetch grading structure from SuperAdmin Settings
+      try {
+        const gradingRes = await axios.get('/classroom/grading-structure');
+        if (gradingRes.data?.components?.length) {
+          setGradingComponents(gradingRes.data.components);
+        }
+      } catch { /* use defaults */ }
 
       const statsRes = await axios.get('/stats/teacher/me');
       const found = (statsRes.data?.classSummaries || []).find((c) => c.classId === classId);
@@ -519,6 +555,8 @@ export default function HomeroomGradeReview() {
               onEditChange={setStudentEdit}
               onApproveAndSave={handleApproveAndSave}
               isSaving={savingStudentId === sid}
+              gradingComponents={gradingComponents}
+              pctToRaw={pctToRaw}
             />
           ))}
         </div>
