@@ -219,12 +219,12 @@ if (!result) return;
       headerAction={
         <button
           onClick={() => openModal('subject')}
-          className="flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 rounded-lg bg-black px-4 py-2 text-sm font-bold text-white transition hover:bg-gray-800"
+          className="flex items-center gap-1.5 shrink-0 rounded-lg bg-black px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white transition hover:bg-gray-800"
         >
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v14m-7-7h14" />
           </svg>
-          + Add New Subject
+          <span className="hidden sm:inline">Add Subject</span>
         </button>
       }
     >
