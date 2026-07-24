@@ -8,6 +8,9 @@ export default function Academics() {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [loadingClasses, setLoadingClasses] = useState(true);
+  const [loadingSubjects, setLoadingSubjects] = useState(true);
+  const [loadingTeachers, setLoadingTeachers] = useState(true);
 
   // Subject form
   const [subjectName, setSubjectName] = useState('');
@@ -35,29 +38,38 @@ export default function Academics() {
   const [modalMode, setModalMode] = useState('subject');
 
   const fetchSubjects = async () => {
+    setLoadingSubjects(true);
     try {
       const res = await axios.get('/subjects');
       setSubjects(res.data || []);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingSubjects(false);
     }
   };
 
   const fetchClasses = async () => {
+    setLoadingClasses(true);
     try {
       const res = await axios.get('/classroom/classes');
       setClasses(res.data || []);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingClasses(false);
     }
   };
 
   const fetchTeachers = async () => {
+    setLoadingTeachers(true);
     try {
       const res = await axios.get('/teachers');
       setTeachers(res.data.teachers || []);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingTeachers(false);
     }
   };
 
@@ -270,7 +282,9 @@ if (!result) return;
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-gray-700">Grades</label>
                     <div className="max-h-40 overflow-y-auto rounded-lg border border-gray-300 p-3">
-                      {gradeOptions.length > 0 ? (
+                      {loadingClasses ? (
+                        <div className="text-sm text-gray-500">Loading grades...</div>
+                      ) : gradeOptions.length > 0 ? (
                         <div className="space-y-2">
                           {gradeOptions.map((grade) => (
                             <label key={grade} className="flex items-center gap-2 text-sm text-gray-700">
@@ -606,7 +620,7 @@ if (!result) return;
         ))
       )}
 
-      {subjects.length === 0 && Object.entries(groupedByGrade).length === 0 && (
+      {!loadingSubjects && !loadingClasses && subjects.length === 0 && Object.entries(groupedByGrade).length === 0 && (
         <div className="mb-8 rounded-xl border border-dashed border-gray-300 bg-white py-12 text-center">
           <p className="text-gray-500">No subjects or classes configured yet.</p>
           <button
@@ -615,6 +629,12 @@ if (!result) return;
           >
             Add First Subject
           </button>
+        </div>
+      )}
+
+      {(loadingSubjects || loadingClasses) && (
+        <div className="mb-8 rounded-xl border border-gray-200 bg-white py-12 text-center">
+          <p className="text-gray-500">Loading subjects and classes...</p>
         </div>
       )}
 

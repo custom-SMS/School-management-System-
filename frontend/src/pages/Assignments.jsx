@@ -109,27 +109,62 @@ export default function Assignments() {
       // Handle homeroom override confirmation (409 Conflict)
       if (error.response?.status === 409 && error.response?.data?.requiresConfirmation) {
         const { previousTeacher, newTeacher } = error.response.data;
-        const confirmed = window.confirm(
-          `⚠️ Caution — Homeroom Teacher Override\n\n` +
-          `You are about to replace the current homeroom teacher (${previousTeacher}) ` +
-          `with ${newTeacher}.\n\n` +
-          `This action will remove the existing homeroom assignment. ` +
-          `Are you sure you want to proceed?`
-        );
-        if (confirmed) {
-          try {
-            const payload = { teacherId, subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId, sectionId, assignmentType, confirmOverride: true };
-            await axios.post('/assignments', payload);
-            toast.success('Homeroom teacher replaced successfully.');
-            fetchAssignments();
-            setTeacherId('');
-            setSubjectId('');
-            setSectionId('');
-            setAssignmentType('SubjectTeacher');
-          } catch (retryError) {
-            toast.error(retryError.response?.data?.message || 'Failed to save teacher assignment');
+        toast.warn(
+          ({ closeToast }) => (
+            <div className="py-1">
+              <div className="font-bold text-sm text-slate-900 mb-1 flex items-center gap-1.5">
+                <span>⚠️</span>
+                <span>Homeroom Teacher Override</span>
+              </div>
+              <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                You are about to replace <strong>{previousTeacher}</strong> with <strong>{newTeacher}</strong> as the Homeroom Teacher for this section.
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    closeToast();
+                    try {
+                      const payload = {
+                        teacherId,
+                        subjectId: assignmentType === 'HomeRoomTeacher' ? null : subjectId,
+                        sectionId,
+                        assignmentType,
+                        confirmOverride: true
+                      };
+                      await axios.post('/assignments', payload);
+                      toast.success('Homeroom teacher replaced successfully.');
+                      fetchAssignments();
+                      loadOptions();
+                      setTeacherId('');
+                      setSubjectId('');
+                      setSectionId('');
+                      setAssignmentType('SubjectTeacher');
+                    } catch (retryError) {
+                      toast.error(retryError.response?.data?.message || 'Failed to save teacher assignment');
+                    }
+                  }}
+                  className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition cursor-pointer"
+                >
+                  Confirm Replace
+                </button>
+                <button
+                  type="button"
+                  onClick={closeToast}
+                  className="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ),
+          {
+            autoClose: false,
+            closeOnClick: false,
+            draggable: false,
+            closeButton: false,
           }
-        }
+        );
       } else {
         toast.error(error.response?.data?.message || 'Failed to save teacher assignment');
       }
