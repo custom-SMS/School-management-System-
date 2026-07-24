@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import axios from '../../api/axios';
 import SuperAdminLayout from '../../components/SuperAdminLayout';
@@ -45,6 +45,53 @@ const SectionCard = ({ title, description, children }) => (
   </section>
 );
 
+// ── Reset Password Modal ───────────────────────────────────────────────────
+function ResetPasswordModal({ user, onClose, onSave }) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 6) { toast.error('Password must be at least 6 characters.'); return; }
+    if (password !== confirm) { toast.error('Passwords do not match.'); return; }
+    setSaving(true);
+    await onSave(password);
+    setSaving(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8">
+        <h3 className="text-lg font-black text-slate-900 mb-1">Reset Password</h3>
+        <p className="text-sm text-slate-500 mb-6">Resetting password for <span className="font-bold text-slate-800">{user.name}</span></p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">New Password</label>
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+              className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1.5">Confirm Password</label>
+            <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} required
+              className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+          </div>
+          <div className="flex gap-3 pt-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-lg hover:bg-slate-50 transition text-sm">
+              Cancel
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition text-sm disabled:opacity-60">
+              {saving ? 'Resetting…' : 'Reset Password'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function UserDetails() {
   const { id } = useParams();
   const { user: currentUser } = useAuth();
@@ -53,6 +100,17 @@ export default function UserDetails() {
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [resetTarget, setResetTarget] = useState(null);
+
+  const handleResetPassword = async (password) => {
+    try {
+      await axios.post(`/users/${id}/reset-password`, { newPassword: password });
+      toast.success('Password reset successfully.');
+      setResetTarget(null);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Error resetting password');
+    }
+  };
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -113,6 +171,13 @@ export default function UserDetails() {
 
   return (
     <Layout pageTitle="User Details">
+      {resetTarget && (
+        <ResetPasswordModal
+          user={resetTarget}
+          onClose={() => setResetTarget(null)}
+          onSave={handleResetPassword}
+        />
+      )}
       <div className="space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
@@ -129,13 +194,24 @@ export default function UserDetails() {
               Full account overview for this user.
             </p>
           </div>
-          <span
-            className={`inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${
-              ROLE_COLORS[user.role] || 'bg-slate-100 text-slate-700'
-            }`}
-          >
-            {getRoleLabel(user.role)}
-          </span>
+          <div className="flex items-center gap-3">
+            <span
+              className={`inline-flex rounded-full px-3 py-1.5 text-xs font-bold ${
+                ROLE_COLORS[user.role] || 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              {getRoleLabel(user.role)}
+            </span>
+            <button
+              onClick={() => setResetTarget(user)}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 hover:bg-red-100 hover:border-red-300 transition"
+            >
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              Reset Password
+            </button>
+          </div>
         </div>
 
         <SectionCard title="Account Overview" description="Core account information visible to super admin.">
