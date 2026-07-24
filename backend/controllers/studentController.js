@@ -1,7 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { isRegistrationOpen } = require('../utils/academicYear');
+const { isRegistrationOpen, getActiveAcademicYear } = require('../utils/academicYear');
 const { sendGuardianCredentialsEmail } = require('../utils/emailService');
 const { createStudentSchema, updateStudentSchema } = require('../utils/validation');
 
@@ -230,7 +230,7 @@ const attachStudentToGradeClass = async (student, grade) => {
   const branchId = student.branchId || null;
 
   // Fetch the active academic year so we can link the class to it
-  const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
+  const activeYear = await getActiveAcademicYear({ branchId });
 
   let klass = await prisma.class.findFirst({
     where: {
@@ -442,9 +442,7 @@ const registerStudent = async (req, res) => {
     } = validatedData;
 
     // Enforce active academic year
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
-    });
+    const activeYear = await getActiveAcademicYear({ selectedAcademicYear: req.selectedAcademicYear });
     if (!activeYear) {
       return res.status(400).json({ message: 'No active academic year found. Registration is closed.' });
     }
@@ -878,7 +876,7 @@ const getStudentSubjectSummaries = async (req, res) => {
       return res.status(resolved.error.status).json({ message: resolved.error.message });
     }
     const { student } = resolved;
-    const selectedYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    const selectedYear = await getActiveAcademicYear({ selectedAcademicYear: req.selectedAcademicYear });
     if (!selectedYear) return res.status(404).json({ message: 'No active academic year found.' });
 
     // Fetch active grading weights so we recalculate correctly on read
@@ -991,7 +989,7 @@ const getStudentSubjectResults = async (req, res) => {
       return res.status(resolved.error.status).json({ message: resolved.error.message });
     }
     const { student } = resolved;
-    const selectedYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    const selectedYear = await getActiveAcademicYear({ selectedAcademicYear: req.selectedAcademicYear });
     if (!selectedYear) return res.status(404).json({ message: 'No active academic year found.' });
 
     // Fetch active grading weights

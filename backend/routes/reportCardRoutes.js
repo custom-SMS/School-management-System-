@@ -19,8 +19,8 @@ const {
 } = require('../controllers/reportCardController');
 const { verifyToken, checkRole, checkScope, injectBranchFilter } = require('../middleware/authMiddleware');
 
-// Compile (Admin/SuperAdmin/BranchAdmin)
-router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, invalidateResource('report-cards'), compileReportCards);
+// Compile (Admin/SuperAdmin/BranchAdmin/Teacher)
+router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin', 'Teacher'] }), injectBranchFilter, invalidateResource('report-cards'), compileReportCards);
 
 // Publish all / unpublish all (Admin/SuperAdmin/BranchAdmin)
 router.post('/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, invalidateResource('report-cards'), publishReportCards);

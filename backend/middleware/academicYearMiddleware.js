@@ -5,16 +5,14 @@
  * It injects the active academic year and enforces year-based access rules.
  */
 
-const prisma = require('../prisma');
+const { getActiveAcademicYear } = require('../utils/academicYear');
 
 /**
- * Get active academic year with caching
+ * Get active academic year with caching and persistent fallback
  */
-async function getActiveYear() {
+async function getActiveYear(branchId) {
   try {
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
-    });
+    const activeYear = await getActiveAcademicYear({ branchId });
     return activeYear;
   } catch (error) {
     console.error('Error fetching active academic year:', error);
