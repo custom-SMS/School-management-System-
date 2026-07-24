@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { getActiveAcademicYear } = require('../utils/academicYear');
 const { logActivity } = require('../middleware/auditLogger');
 
 // Create or update a timetable slot
@@ -255,7 +256,10 @@ const getTeacherTimetable = async (req, res) => {
     }
 
     // Find active academic year
-    const activeYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    const activeYear = await getActiveAcademicYear({
+      branchId: teacher?.branchId,
+      selectedAcademicYear: req.selectedAcademicYear
+    });
     if (!activeYear) {
       return res.status(404).json({ message: 'No active academic year found.' });
     }
@@ -368,7 +372,9 @@ const getStudentTimetable = async (req, res) => {
       studentId = childStudentId;
     }
 
-    const activeYear = req.selectedAcademicYear || await prisma.academicYear.findFirst({ where: { isActive: true } });
+    const activeYear = await getActiveAcademicYear({
+      selectedAcademicYear: req.selectedAcademicYear
+    });
     if (!activeYear) {
       return res.status(404).json({ message: 'No active academic year found.' });
     }

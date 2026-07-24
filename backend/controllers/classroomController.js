@@ -16,21 +16,18 @@ const { createClassSchema, updateClassSchema, saveGradesSchema, recordAttendance
 const { checkHistoricalAccess } = require('../utils/historicalCorrection');
 const { compileClassReportCards } = require('./reportCardController');
 
+const { getActiveAcademicYear } = require('../utils/academicYear');
+
 const getSelectedYear = async (req, branchId = null) => {
-  if (req.selectedAcademicYear) return req.selectedAcademicYear;
-  const superAdminYearHeader = req.headers['x-super-admin-year-view-id'];
-  if (req.user?.role === 'SuperAdmin' && superAdminYearHeader) {
+  if (req?.selectedAcademicYear) return req.selectedAcademicYear;
+  const superAdminYearHeader = req?.headers?.['x-super-admin-year-view-id'];
+  if (req?.user?.role === 'SuperAdmin' && superAdminYearHeader) {
     const year = await prisma.academicYear.findUnique({
       where: { id: superAdminYearHeader }
     });
     if (year) return year;
   }
-  return prisma.academicYear.findFirst({
-    where: {
-      isActive: true,
-      ...(branchId ? { branchId } : {})
-    }
-  });
+  return getActiveAcademicYear({ branchId });
 };
 
 const cleanGradeName = (name) => {
@@ -1022,6 +1019,7 @@ const getSubmittedGradesForHomeroom = async (req, res) => {
         g."submittedToId",
         g."classId",
         g."studentId",
+        g."componentScores",
         s.id as student_id,
         s."studentId" as student_number,
         u.name as student_name,
@@ -1048,6 +1046,7 @@ const getSubmittedGradesForHomeroom = async (req, res) => {
       percentage: g.percentage,
       submissionStatus: g.submissionStatus,
       submittedAt: g.submittedAt,
+      componentScores: g.componentScores, // Include component scores with max marks info
       student: {
         id: g.student_id,
         studentId: g.student_number,
@@ -1145,8 +1144,10 @@ const setGradingStructure = async (req, res) => {
     // Map first 4 components to legacy fixed fields for backward compatibility
     const legacyMap = {};
     const legacyFields = ['quizWeight', 'assignmentWeight', 'midtermWeight', 'finalWeight'];
+    const legacyMaxMarks = ['quizMaxMarks', 'assignmentMaxMarks', 'midtermMaxMarks', 'finalMaxMarks'];
     components.slice(0, 4).forEach((comp, i) => {
       legacyMap[legacyFields[i]] = comp.weight;
+      legacyMap[legacyMaxMarks[i]] = comp.maxMarks || 100;
     });
 
     const structure = await prisma.gradingStructure.create({
@@ -1158,6 +1159,10 @@ const setGradingStructure = async (req, res) => {
         assignmentWeight: legacyMap.assignmentWeight ?? 20,
         midtermWeight: legacyMap.midtermWeight ?? 30,
         finalWeight: legacyMap.finalWeight ?? 40,
+        quizMaxMarks: legacyMap.quizMaxMarks ?? 20,
+        assignmentMaxMarks: legacyMap.assignmentMaxMarks ?? 50,
+        midtermMaxMarks: legacyMap.midtermMaxMarks ?? 100,
+        finalMaxMarks: legacyMap.finalMaxMarks ?? 100,
         academicYearId: activeYear.id,
       }
     });
@@ -1171,6 +1176,10 @@ const setGradingStructure = async (req, res) => {
       components: structure.components,
       passMark: structure.passMark,
       isActive: structure.isActive,
+      quizMaxMarks: structure.quizMaxMarks,
+      assignmentMaxMarks: structure.assignmentMaxMarks,
+      midtermMaxMarks: structure.midtermMaxMarks,
+      finalMaxMarks: structure.finalMaxMarks,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -1210,6 +1219,11 @@ const getGradingStructure = async (req, res) => {
         assignmentWeight: structure.assignmentWeight,
         midtermWeight: structure.midtermWeight,
         finalWeight: structure.finalWeight,
+        // Max marks fields for display
+        quizMaxMarks: structure.quizMaxMarks ?? 20,
+        assignmentMaxMarks: structure.assignmentMaxMarks ?? 50,
+        midtermMaxMarks: structure.midtermMaxMarks ?? 100,
+        finalMaxMarks: structure.finalMaxMarks ?? 100,
       });
     }
 
@@ -1217,16 +1231,20 @@ const getGradingStructure = async (req, res) => {
     const fallback = structure || { quizWeight: 10, assignmentWeight: 20, midtermWeight: 30, finalWeight: 40 };
     return res.status(200).json({
       components: [
-        { name: 'Quiz', weight: fallback.quizWeight ?? 10 },
-        { name: 'Assignment', weight: fallback.assignmentWeight ?? 20 },
-        { name: 'Midterm', weight: fallback.midtermWeight ?? 30 },
-        { name: 'Final', weight: fallback.finalWeight ?? 40 },
+        { name: 'Quiz', weight: fallback.quizWeight ?? 10, maxMarks: structure?.quizMaxMarks ?? 20 },
+        { name: 'Assignment', weight: fallback.assignmentWeight ?? 20, maxMarks: structure?.assignmentMaxMarks ?? 50 },
+        { name: 'Midterm', weight: fallback.midtermWeight ?? 30, maxMarks: structure?.midtermMaxMarks ?? 100 },
+        { name: 'Final', weight: fallback.finalWeight ?? 40, maxMarks: structure?.finalMaxMarks ?? 100 },
       ],
       passMark: fallback.passMark ?? 50,
       quizWeight: fallback.quizWeight ?? 10,
       assignmentWeight: fallback.assignmentWeight ?? 20,
       midtermWeight: fallback.midtermWeight ?? 30,
       finalWeight: fallback.finalWeight ?? 40,
+      quizMaxMarks: structure?.quizMaxMarks ?? 20,
+      assignmentMaxMarks: structure?.assignmentMaxMarks ?? 50,
+      midtermMaxMarks: structure?.midtermMaxMarks ?? 100,
+      finalMaxMarks: structure?.finalMaxMarks ?? 100,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -2194,9 +2212,7 @@ const getSectionStudents = async (req, res) => {
       return res.status(404).json({ message: 'Section not found.' });
     }
 
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true, branchId: section.class?.branchId || undefined }
-    });
+    const activeYear = await getSelectedYear(req, section.class?.branchId);
 
     const classClean = cleanGradeName(section.class?.name);
     const allStudents = await prisma.student.findMany({
@@ -2283,9 +2299,7 @@ const assignStudentsToSection = async (req, res) => {
       return res.status(404).json({ message: 'Section not found.' });
     }
 
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true, branchId: section.class?.branchId || undefined }
-    });
+    const activeYear = await getSelectedYear(req, section.class?.branchId);
 
     if (!activeYear) {
       return res.status(400).json({ message: 'No active academic year found.' });

@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { getActiveAcademicYear } = require('../utils/academicYear');
 const { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId } = require('../utils/homeroomGuard');
 
 const getAssignmentOptions = async (req, res) => {
@@ -134,10 +135,9 @@ const createAssignment = async (req, res) => {
     }
 
     // Get the active academic year
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true, branchId: teacher.branchId || undefined }
-    }) || await prisma.academicYear.findFirst({
-      where: { isActive: true }
+    const activeYear = await getActiveAcademicYear({
+      branchId: teacher?.branchId,
+      selectedAcademicYear: req.selectedAcademicYear
     });
 
     if (!activeYear) {
@@ -182,10 +182,9 @@ const createAssignment = async (req, res) => {
           continue;
         }
 
-        const activeYear = await prisma.academicYear.findFirst({
-          where: { isActive: true, branchId: branchId || undefined }
-        }) || await prisma.academicYear.findFirst({
-          where: { isActive: true }
+        const activeYear = await getActiveAcademicYear({
+          branchId,
+          selectedAcademicYear: req.selectedAcademicYear
         });
         if (!activeYear) {
           return res.status(400).json({ message: 'No active academic year found to create a new class.' });
