@@ -114,7 +114,7 @@ const navItems = [
   { to: '/admin/sms-communication', label: 'SMS Notice', icon: <SmsIcon /> },
 ];
 
-export default function AdminLayout({ children, pageTitle = 'Dashboard', searchPlaceholder = 'Search students, classes...' }) {
+export default function AdminLayout({ children, pageTitle = 'Dashboard', searchPlaceholder = 'Search students, classes...', headerAction = null }) {
   const { user, logout, permissions = [] } = useAuth();
   const { branding, logoUrl } = useSettings();
   const navigate = useNavigate();
@@ -295,6 +295,11 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
             <h1 className="truncate text-base sm:text-xl lg:text-2xl font-black text-[#203e4f] tracking-tight">
               {pageTitle}
             </h1>
+            {headerAction && (
+              <div className="ml-2 shrink-0">
+                {headerAction}
+              </div>
+            )}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4">
