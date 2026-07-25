@@ -231,6 +231,7 @@ export default function HomeroomGradeReview() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const classId = params.get('classId');
+  const sectionId = params.get('sectionId');
   const { activeSemester } = useBranch();
 
   const [loading, setLoading] = useState(true);

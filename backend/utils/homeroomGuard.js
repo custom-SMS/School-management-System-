@@ -202,4 +202,34 @@ const ensureHomeroomAssignmentAllowed = async (prisma, { teacherId, classId = nu
   return { ok: true };
 };
 
-module.exports = { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId };
+// Check if a teacher is authorized to access a specific section
+const isTeacherHomeroomForSection = async (prisma, { teacherId, sectionId, classId }) => {
+  if (!teacherId) return false;
+  
+  // If sectionId is provided, check direct section assignment
+  if (sectionId) {
+    const section = await prisma.section.findUnique({
+      where: { id: sectionId },
+      select: { homeroomTeacherId: true, classId: true }
+    });
+    
+    if (section?.homeroomTeacherId === teacherId) return true;
+  }
+  
+  // If classId is provided, check if teacher is homeroom for any section in that class
+  if (classId) {
+    const section = await prisma.section.findFirst({
+      where: { 
+        classId,
+        homeroomTeacherId: teacherId
+      },
+      select: { id: true }
+    });
+    
+    if (section) return true;
+  }
+  
+  return false;
+};
+
+module.exports = { ensureHomeroomAssignmentAllowed, resolveClassHomeroomTeacherId, isTeacherHomeroomForSection };

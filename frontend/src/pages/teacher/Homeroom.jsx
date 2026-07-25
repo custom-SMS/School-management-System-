@@ -17,7 +17,14 @@ export default function Homeroom() {
         if (!active) return;
         const classes = r.data?.classSummaries || [];
         const hms = classes.filter((c) => c.isHomeroom) || [];
-        setHomerooms(hms);
+        // Deduplicate by classId to prevent duplicate cards
+        const uniqueHomerooms = new Map();
+        hms.forEach((hm) => {
+          if (!uniqueHomerooms.has(hm.classId)) {
+            uniqueHomerooms.set(hm.classId, hm);
+          }
+        });
+        setHomerooms(Array.from(uniqueHomerooms.values()));
       })
       .catch(() => { if (active) setError(true); })
       .finally(() => { if (active) setLoading(false); });
@@ -46,7 +53,10 @@ export default function Homeroom() {
             <div key={hm.classId} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-slate-900">{hm.className} {hm.stream ? `(${hm.stream})` : ''}</h3>
+                  <h3 className="text-xl font-bold text-slate-900">
+                    {hm.sectionName ? `${hm.className} — ${hm.sectionName}` : hm.className}
+                    {hm.stream ? ` (${hm.stream})` : ''}
+                  </h3>
                   <p className="text-sm text-slate-500">{hm.subject || '—'}</p>
                 </div>
                 <div className="text-right">
@@ -56,9 +66,9 @@ export default function Homeroom() {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3">
-                <Link to={`/teacher/attendance?classId=${hm.classId}`} className="inline-block rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800">Open Attendance</Link>
-                <Link to={`/teacher/homeroom/grade-review?classId=${hm.classId}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Review Grades</Link>
-                <Link to={`/teacher/homeroom/report-cards?classId=${hm.classId}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">View Report Cards</Link>
+                <Link to={`/teacher/attendance?classId=${hm.classId}${hm.sectionId ? `&sectionId=${hm.sectionId}` : ''}`} className="inline-block rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800">Open Attendance</Link>
+                <Link to={`/teacher/homeroom/grade-review?classId=${hm.classId}${hm.sectionId ? `&sectionId=${hm.sectionId}` : ''}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">Review Grades</Link>
+                <Link to={`/teacher/homeroom/report-cards?classId=${hm.classId}${hm.sectionId ? `&sectionId=${hm.sectionId}` : ''}`} className="inline-block rounded-xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50">View Report Cards</Link>
               </div>
             </div>
           ))}

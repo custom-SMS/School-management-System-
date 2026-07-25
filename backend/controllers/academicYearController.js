@@ -141,8 +141,11 @@ const cloneAcademicYearStructure = async (req, res) => {
 
     const result = { classes: 0, sections: 0, subjects: 0, teacherAssignments: 0, feeStructures: 0, gradingStructures: 0 };
 
+    console.log('Starting transaction to clone structure...');
     await prisma.$transaction(async (tx) => {
+      console.log(`Processing ${sourceClasses.length} classes...`);
       for (const sourceClass of sourceClasses) {
+        console.log(`Processing class: ${sourceClass.name}`);
         let targetClass = await tx.class.findFirst({
           where: { branchId: sourceClass.branchId, name: sourceClass.name, academicYearId: targetYearId },
         });
@@ -180,25 +183,32 @@ const cloneAcademicYearStructure = async (req, res) => {
           }
         }
 
+        console.log(`Processing ${sourceClass.assignments.length} assignments for class ${sourceClass.name}...`);
         for (const sourceAssignment of sourceClass.assignments) {
-          const existing = await tx.teacherAssignment.findFirst({
-            where: {
-              teacherId: sourceAssignment.teacherId, classId: targetClass.id,
-              subjectId: sourceAssignment.subjectId, assignmentType: sourceAssignment.assignmentType,
-              academicYearId: targetYearId,
-            },
-          });
-          if (!existing) {
-            await tx.teacherAssignment.create({ data: {
-              teacherId: sourceAssignment.teacherId, classId: targetClass.id, subjectId: sourceAssignment.subjectId,
-              assignmentType: sourceAssignment.assignmentType, notes: sourceAssignment.notes,
-              assignedById: req.user._id, academicYearId: targetYearId,
-            }});
-            result.teacherAssignments += 1;
+          try {
+            const existing = await tx.teacherAssignment.findFirst({
+              where: {
+                teacherId: sourceAssignment.teacherId, classId: targetClass.id,
+                subjectId: sourceAssignment.subjectId, assignmentType: sourceAssignment.assignmentType,
+                academicYearId: targetYearId,
+              },
+            });
+            if (!existing) {
+              await tx.teacherAssignment.create({ data: {
+                teacherId: sourceAssignment.teacherId, classId: targetClass.id, subjectId: sourceAssignment.subjectId,
+                assignmentType: sourceAssignment.assignmentType, notes: sourceAssignment.notes,
+                assignedById: req.user._id, academicYearId: targetYearId,
+              }});
+              result.teacherAssignments += 1;
+            }
+          } catch (err) {
+            console.error('Error processing assignment:', err);
+            throw err;
           }
         }
       }
 
+      console.log('Processing fee structures...');
       for (const fee of sourceFeeStructures) {
         const existing = await tx.feeStructure.findFirst({ where: { branchId: fee.branchId, name: fee.name, academicYearId: targetYearId } });
         if (!existing) {
@@ -211,6 +221,7 @@ const cloneAcademicYearStructure = async (req, res) => {
         }
       }
 
+      console.log('Processing grading structures...');
       for (const grading of sourceGradingStructures) {
         const existing = await tx.gradingStructure.findFirst({
           where: { branchId: grading.branchId, levelId: grading.levelId, academicYearId: targetYearId },
@@ -225,13 +236,15 @@ const cloneAcademicYearStructure = async (req, res) => {
           result.gradingStructures += 1;
         }
       }
-    });
+      console.log('Transaction completed successfully');
+    }, { timeout: 120000 });
 
     await logActivity(req.user._id, 'Clone Academic Year Structure', targetYearId,
       `Copied reusable structure from ${sourceYear.year} to ${targetYear.year}: ${JSON.stringify(result)}`);
     res.status(200).json({ message: 'Academic-year structure prepared successfully.', ...result });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Clone academic year structure error:', error);
+    res.status(500).json({ message: error.message, details: error.stack });
   }
 };
 

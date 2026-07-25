@@ -232,15 +232,19 @@ export default function GradesContent({ canEdit = false }) {
   const startEditRow = (row) => {
     setEditingRowId(row.student._id);
     // Build initial edit state keyed by component name
+    // Convert stored percentage to raw score for editing
     const initial = {};
     components.forEach(c => {
-      initial[c.field] = row.marks?.[c.field] ?? null;
+      const percentage = row.marks?.[c.field];
+      initial[c.field] = percentage != null ? Math.round((percentage / 100) * c.weight) : null;
     });
     setEditRowMarks(initial);
   };
 
   const handleEditRowChange = (field, value) => {
-    setEditRowMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
+    const component = components.find(c => c.field === field);
+    const maxScore = component?.weight || 100;
+    setEditRowMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(maxScore, Math.max(0, Number(value))) }));
   };
 
   const handleSaveRow = async (row) => {
@@ -299,15 +303,19 @@ export default function GradesContent({ canEdit = false }) {
   const startEdit = (grade) => {
     setEditingId(grade._id);
     // Build edit state keyed by component name
+    // Convert stored percentage to raw score for editing
     const initial = {};
     components.forEach(c => {
-      initial[c.field] = grade.marks?.[c.field] ?? null;
+      const percentage = grade.marks?.[c.field];
+      initial[c.field] = percentage != null ? Math.round((percentage / 100) * c.weight) : null;
     });
     setEditMarks(initial);
   };
 
   const handleEditChange = (field, value) => {
-    setEditMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
+    const component = components.find(c => c.field === field);
+    const maxScore = component?.weight || 100;
+    setEditMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(maxScore, Math.max(0, Number(value))) }));
   };
 
   const handleSave = async (grade) => {
@@ -466,7 +474,7 @@ export default function GradesContent({ canEdit = false }) {
                         />
                       ) : (
                         <div className={`mt-2 text-xl font-black ${displayMarks[c.field] != null ? 'text-slate-900' : 'text-slate-300'}`}>
-                          {displayMarks[c.field] != null ? displayMarks[c.field] : '—'}
+                          {displayMarks[c.field] != null ? Math.round((displayMarks[c.field] / 100) * c.weight) : '—'}
                           {displayMarks[c.field] != null && (
                             <span className="ml-1 text-xs font-normal text-slate-400">/ {c.weight}</span>
                           )}
@@ -612,7 +620,7 @@ export default function GradesContent({ canEdit = false }) {
                             />
                           ) : (
                             <span className={row.marks[c.field] != null ? 'font-semibold text-slate-800' : 'text-slate-300'}>
-                              {row.marks[c.field] != null ? `${row.marks[c.field]} / ${c.weight}` : '—'}
+                              {row.marks[c.field] != null ? `${Math.round((row.marks[c.field] / 100) * c.weight)} / ${c.weight}` : '—'}
                             </span>
                           )}
                         </td>

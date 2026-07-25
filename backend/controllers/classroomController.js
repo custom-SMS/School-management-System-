@@ -833,16 +833,22 @@ const saveGrades = async (req, res) => {
       for (const comp of gradingComponents) {
         const raw = marks[comp.name];
         const score = raw === null || raw === undefined ? 0 : Number(raw);
-        if (Number.isNaN(score) || score < 0 || score > 100) {
+        const maxScore = comp.weight; // The weight is also the max score for this component
+        
+        // Validate score is between 0 and max score for this component
+        if (Number.isNaN(score) || score < 0 || score > maxScore) {
           return res.status(400).json({
-            message: `${comp.name} score must be between 0 and 100.`,
+            message: `${comp.name} score must be between 0 and ${maxScore}.`,
             field: comp.name,
-            maxAllowed: 100,
+            maxAllowed: maxScore,
             studentId: data.student
           });
         }
-        componentScores[comp.name] = score;
-        total += score * (comp.weight / 100);
+        // Store as percentage (0-100) for compatibility with Homeroom Grade Review
+        const percentageForComponent = (score / maxScore) * 100;
+        componentScores[comp.name] = percentageForComponent;
+        // Calculate total contribution: percentage * weight / 100
+        total += percentageForComponent * (comp.weight / 100);
       }
 
       // Legacy fixed fields for backward compatibility (used by old client code)

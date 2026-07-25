@@ -488,7 +488,12 @@ const getTeacherPortalStats = async (req, res) => {
       }),
       prisma.section.findMany({
         where: { homeroomTeacherId: teacher.id },
-        select: { classId: true }
+        select: { 
+          id: true,
+          name: true,
+          classId: true,
+          academicYearId: true
+        }
       }),
       prisma.classSubject.findMany({
         where: { teacherId: teacher.id },
@@ -530,6 +535,7 @@ const getTeacherPortalStats = async (req, res) => {
           sections: {
             select: {
               id: true,
+              name: true,
               enrollments: {
                 select: {
                   studentId: true
@@ -543,10 +549,10 @@ const getTeacherPortalStats = async (req, res) => {
       })
       : [];
 
-    const homeroomClassIds = new Set([
-      ...homeroomAssignments.map((assignment) => assignment.classId).filter(Boolean),
-      ...homeroomSections.map((section) => section.classId).filter(Boolean)
-    ]);
+    // Only use section-based homeroom assignments for more accurate section-specific data
+    const homeroomClassIds = new Set(
+      homeroomSections.map((section) => section.classId).filter(Boolean)
+    );
 
     // Check ClassSubject mappings for assigned classes to filter out unassigned/stale assignments
     const assignmentClassIds = assignmentDocs.map((a) => a.classId).filter(Boolean);
@@ -565,15 +571,19 @@ const getTeacherPortalStats = async (req, res) => {
     const classMap = new Map();
 
     assignedClassDocs.forEach((klass) => {
-      classMap.set(klass.id, klass);
+      if (!classMap.has(klass.id)) {
+        classMap.set(klass.id, klass);
+      }
     });
 
     homeroomSectionClasses.forEach((klass) => {
-      classMap.set(klass.id, klass);
+      if (!classMap.has(klass.id)) {
+        classMap.set(klass.id, klass);
+      }
     });
 
     classSubjectDocs.forEach((cs) => {
-      if (cs.class?.id) {
+      if (cs.class?.id && !classMap.has(cs.class.id)) {
         classMap.set(cs.class.id, cs.class);
       }
     });
@@ -582,7 +592,9 @@ const getTeacherPortalStats = async (req, res) => {
       if (!assignment.class?.id) return;
       const cid = assignment.class.id;
       if (assignment.assignmentType === 'HomeRoomTeacher') {
-        classMap.set(cid, assignment.class);
+        if (!classMap.has(cid)) {
+          classMap.set(cid, assignment.class);
+        }
         return;
       }
       if (assignment.subjectId) {
@@ -592,70 +604,121 @@ const getTeacherPortalStats = async (req, res) => {
           return; // Skip stale assignment if subject teacher was changed/cleared in ClassSubject
         }
       }
-      classMap.set(cid, assignment.class);
+      if (!classMap.has(cid)) {
+        classMap.set(cid, assignment.class);
+      }
     });
 
-    const classes = Array.from(classMap.values()).sort((left, right) =>
+    // Deduplicate classes by ID to prevent duplicates from multiple sources
+    const uniqueClasses = new Map();
+    Array.from(classMap.values()).forEach((klass) => {
+      if (!uniqueClasses.has(klass.id)) {
+        uniqueClasses.set(klass.id, klass);
+      }
+    });
+    const classes = Array.from(uniqueClasses.values()).sort((left, right) =>
       compareClassLabels(left.name, right.name),
     );
 
     // Optimize class summaries by reducing queries per class
     const classSummaries = await Promise.all(classes.map(async (klass) => {
-      // Get student count from enrollments (lighter than fetching full student objects)
-      const studentIds = new Set();
-      (klass.sections || []).forEach(section => {
-        (section.enrollments || []).forEach(enrollment => {
-          studentIds.add(enrollment.studentId);
+      try {
+        // Get student count from enrollments (lighter than fetching full student objects)
+        const studentIds = new Set();
+        (klass.sections || []).forEach(section => {
+          (section.enrollments || []).forEach(enrollment => {
+            studentIds.add(enrollment.studentId);
+          });
         });
-      });
-      const studentCount = studentIds.size;
+        let studentCount = studentIds.size;
 
-      // Combine attendance queries into single aggregation
-      const [attendanceAgg, gradesAgg, latestAttendance, attendanceCount] = await Promise.all([
-        prisma.attendanceRecord.groupBy({
-          by: ['status'],
-          where: {
-            attendance: { classId: klass.id }
-          },
-          _count: true
-        }),
-        prisma.grade.aggregate({
-          where: {
-            classId: klass.id,
-            teacherId: req.user._id,
-            ...(activeSemester ? { semesterId: activeSemester.id } : {})
-          },
-          _avg: { percentage: true },
-          _count: true
-        }),
-        prisma.attendance.findFirst({
-          where: { classId: klass.id },
-          orderBy: { date: 'desc' },
-          select: { date: true }
-        }),
-        prisma.attendance.count({ where: { classId: klass.id } })
-      ]);
+        // Check if this teacher is homeroom for a specific section of this class
+        const homeroomSection = homeroomSections.find(section => section.classId === klass.id);
+        const isHomeroom = homeroomClassIds.has(klass.id);
+        
+        // For homeroom teachers, filter to only their specific section's students
+        let sectionName = null;
+        let sectionId = null;
+        if (homeroomSection) {
+          sectionName = homeroomSection.name;
+          sectionId = homeroomSection.id;
+          // Recalculate student count for just this section
+          const sectionEnrollments = await prisma.enrollment.count({
+            where: {
+              sectionId: homeroomSection.id,
+              status: { in: ['Enrolled', 'Promoted', 'Repeated'] }
+            }
+          });
+          studentCount = sectionEnrollments;
+        }
 
-      const attendanceTotal = attendanceAgg.reduce((sum, item) => sum + item._count, 0);
-      const attendancePresent = attendanceAgg.find(item => item.status === 'Present')?._count || 0;
+        // Combine attendance queries into single aggregation
+        const [attendanceAgg, gradesAgg, latestAttendance, attendanceCount] = await Promise.all([
+          prisma.attendanceRecord.groupBy({
+            by: ['status'],
+            where: {
+              attendance: { classId: klass.id }
+            },
+            _count: true
+          }),
+          prisma.grade.aggregate({
+            where: {
+              classId: klass.id,
+              teacherId: req.user._id,
+              ...(activeSemester ? { semesterId: activeSemester.id } : {})
+            },
+            _avg: { percentage: true },
+            _count: true
+          }),
+          prisma.attendance.findFirst({
+            where: { classId: klass.id },
+            orderBy: { date: 'desc' },
+            select: { date: true }
+          }),
+          prisma.attendance.count({ where: { classId: klass.id } })
+        ]);
 
-      const averageGrade = gradesAgg._count > 0
-        ? Math.round(gradesAgg._avg.percentage || 0)
-        : 0;
+        const attendanceTotal = attendanceAgg.reduce((sum, item) => sum + item._count, 0);
+        const attendancePresent = attendanceAgg.find(item => item.status === 'Present')?._count || 0;
 
-      return {
-        classId: klass.id,
-        className: normalizeClassLabel(klass.name),
-        subject: normalizeClassLabel(klass.subject),
-        stream: klass.stream || '',
-        studentCount,
-        attendanceSessions: attendanceCount,
-        attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
-        gradesCount: gradesAgg._count,
-        averageGrade,
-        latestAttendanceDate: latestAttendance?.date || null,
-        isHomeroom: homeroomClassIds.has(klass.id)
-      };
+        const averageGrade = gradesAgg._count > 0
+          ? Math.round(gradesAgg._avg.percentage || 0)
+          : 0;
+
+        return {
+          classId: klass.id,
+          className: normalizeClassLabel(klass.name),
+          subject: normalizeClassLabel(klass.subject),
+          stream: klass.stream || '',
+          studentCount,
+          attendanceSessions: attendanceCount,
+          attendanceRate: attendanceTotal > 0 ? Number(((attendancePresent / attendanceTotal) * 100).toFixed(2)) : 0,
+          gradesCount: gradesAgg._count,
+          averageGrade,
+          latestAttendanceDate: latestAttendance?.date || null,
+          isHomeroom,
+          sectionName,
+          sectionId
+        };
+      } catch (error) {
+        console.error('Error processing class summary for class', klass.id, error);
+        // Return a safe default if there's an error
+        return {
+          classId: klass.id,
+          className: normalizeClassLabel(klass.name),
+          subject: normalizeClassLabel(klass.subject),
+          stream: klass.stream || '',
+          studentCount: 0,
+          attendanceSessions: 0,
+          attendanceRate: 0,
+          gradesCount: 0,
+          averageGrade: 0,
+          latestAttendanceDate: null,
+          isHomeroom: false,
+          sectionName: null,
+          sectionId: null
+        };
+      }
     }));
 
     // Calculate unique student count from enrollment data
@@ -753,7 +816,8 @@ const getTeacherPortalStats = async (req, res) => {
       recentAttendance,
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    console.error('Teacher portal stats error:', error);
+    res.status(500).json({ message: error.message, stack: error.stack });
   }
 };
 
