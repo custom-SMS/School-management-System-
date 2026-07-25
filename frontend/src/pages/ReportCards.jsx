@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useContext } from 'react';
+import { useEffect, useMemo, useState, useContext, useRef } from 'react';
 import { showConfirmDialog, showDangerConfirmDialog, showPromptDialog } from '../utils/sweetAlert';
 import axios from '../api/axios';
 import AdminLayout from '../components/AdminLayout';
@@ -97,6 +97,27 @@ export default function ReportCards() {
   // Historical editing state
   const [historicalEditEnabled, setHistoricalEditEnabled] = useState(false);
   const [historicalReason, setHistoricalReason] = useState('');
+
+  // Track toast IDs to prevent duplicates
+  const toastIdRef = useRef(null);
+
+  // Helper to show toast without duplicates
+  const showToast = (message, type = 'success') => {
+    if (toastIdRef.current) {
+      toast.dismiss(toastIdRef.current);
+    }
+    let id;
+    if (type === 'success') {
+      id = toast.success(message);
+    } else if (type === 'error') {
+      id = toast.error(message);
+    } else if (type === 'info') {
+      id = toast.info(message);
+    } else {
+      id = toast(message);
+    }
+    toastIdRef.current = id;
+  };
 
   const activeYear = useMemo(
     () => years.find((y) => y.id === selectedYear) || years.find((y) => y.isActive) || null,
@@ -310,7 +331,7 @@ export default function ReportCards() {
         academicYearId: selectedYear,
         semesterId: selectedSemesterId || undefined,
       });
-      toast.success(res.data?.message || 'Report cards published.');
+      showToast(res.data?.message || 'Report cards published.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
       if (selectedClassId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
@@ -318,7 +339,7 @@ export default function ReportCards() {
         setClassCards(r.data || []);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to publish.');
+      showToast(err.response?.data?.message || 'Failed to publish.', 'error');
     } finally {
       setBusy('');
     }
@@ -339,7 +360,7 @@ export default function ReportCards() {
         academicYearId: selectedYear,
         semesterId: selectedSemesterId || undefined,
       });
-      toast.success('Report cards unpublished.');
+      showToast('Report cards unpublished.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
       if (selectedClassId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
@@ -347,7 +368,7 @@ export default function ReportCards() {
         setClassCards(r.data || []);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to unpublish.');
+      showToast(err.response?.data?.message || 'Failed to unpublish.', 'error');
     } finally {
       setBusy('');
     }
@@ -358,13 +379,13 @@ export default function ReportCards() {
     const nextPublished = !rc.published;
     try {
       await axios.patch(`/report-cards/${rc.id}/publish`, { published: nextPublished });
-      toast.success(nextPublished ? 'Report card published.' : 'Report card unpublished.');
+      showToast(nextPublished ? 'Report card published.' : 'Report card unpublished.');
       setClassCards((prev) => prev.map((c) =>
         c.id === rc.id ? { ...c, published: nextPublished, workflowStatus: nextPublished ? 'Published' : 'BranchAdminReview' } : c
       ));
       if (preview?.reportCard?.id === rc.id) loadPreview(selectedStudent);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to toggle publish.');
+      showToast(err.response?.data?.message || 'Failed to toggle publish.', 'error');
     }
   };
 
@@ -396,16 +417,16 @@ export default function ReportCards() {
   const handleSaveComments = async () => {
     if (!preview?.reportCard?.id) return;
     if (isArchivedYear && !historicalEditEnabled) {
-      toast.error('Enable Historical Editing to modify archived records.');
+      showToast('Enable Historical Editing to modify archived records.', 'error');
       return;
     }
     setBusy('comments');
     try {
       await axios.patch(`/report-cards/${preview.reportCard.id}/comments`, { comments }, { headers: getHistoricalHeaders() });
-      toast.success('Comments saved.');
+      showToast('Comments saved.');
       loadPreview(selectedStudent);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save comments.');
+      showToast(err.response?.data?.message || 'Failed to save comments.', 'error');
     } finally {
       setBusy('');
     }
@@ -444,7 +465,7 @@ export default function ReportCards() {
     // Open window synchronously to bypass mobile popup blockers
     const win = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
     if (!win) {
-      toast.error('Popup blocked. Please allow popups and try again.');
+      showToast('Popup blocked. Please allow popups and try again.', 'error');
       return;
     }
     win.document.write('<h2>Loading Report Card...</h2><p>Please wait while we fetch the latest grades.</p>');
@@ -470,7 +491,7 @@ export default function ReportCards() {
       }
     } catch (err) {
       win.close();
-      toast.error('Failed to fetch grades for report card PDF generation.');
+      showToast('Failed to fetch grades for report card PDF generation.', 'error');
     }
   };
 
@@ -494,13 +515,13 @@ export default function ReportCards() {
 
     setHistoricalReason(reason.trim());
     setHistoricalEditEnabled(true);
-    toast.success('Historical editing enabled. All changes will be audited.', { icon: '⚠️' });
+    showToast('Historical editing enabled. All changes will be audited.');
   };
 
   const handleDisableHistoricalEdit = () => {
     setHistoricalEditEnabled(false);
     setHistoricalReason('');
-    toast.info('Historical editing disabled. Viewing in read-only mode.');
+    showToast('Historical editing disabled. Viewing in read-only mode.', 'info');
   };
 
   const inputClass = 'w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-gray-400 focus:bg-white focus:ring-4 focus:ring-gray-500/10';

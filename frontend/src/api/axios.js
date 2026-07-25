@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { toast } from 'react-toastify';
 
 const getBaseUrl = () => {
   const envUrl = import.meta.env.VITE_API_BASE_URL;
@@ -17,7 +18,8 @@ const api = axios.create({
   withCredentials: true, // send/receive the httpOnly auth cookie automatically
 });
 
-import { toast } from 'react-toastify';
+// Track toast ID to prevent duplicate error toasts
+let lastToastId = null;
 
 api.interceptors.request.use(
   (config) => {
@@ -54,13 +56,16 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       window.location.assign('/login');
     } else if (!skip && status >= 500) {
-      toast.error('Server error. Please try again later.');
+      if (lastToastId) toast.dismiss(lastToastId);
+      lastToastId = toast.error('Server error. Please try again later.');
     } else if (!error.response && error.code !== 'ERR_CANCELED') {
-      toast.error('Network error. Please check your connection.');
+      if (lastToastId) toast.dismiss(lastToastId);
+      lastToastId = toast.error('Network error. Please check your connection.');
     } else if (!skip && status >= 400 && status !== 401) {
       // Don't show toast for 400 if it's already handled, but for GET requests it's useful
       if (error.config?.method === 'get') {
-         toast.error(error.response?.data?.message || 'Failed to fetch data.');
+         if (lastToastId) toast.dismiss(lastToastId);
+         lastToastId = toast.error(error.response?.data?.message || 'Failed to fetch data.');
       }
     }
     return Promise.reject(error);
