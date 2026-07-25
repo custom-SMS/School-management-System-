@@ -82,7 +82,22 @@ const compileReportCards = async (req, res) => {
     const gradingSettings = parseSettingValue(gradingSetting?.value, {});
     const passMark = Number(gradingSettings.passMark || 50);
 
+    // Fetch grading structure to get component weights
+    const gradingStructure = await prisma.gradingStructure.findFirst({
+      where: { academicYearId, isActive: true },
+    });
+    console.log('Grading structure found:', gradingStructure);
+    const components = gradingStructure?.components || [
+      { name: 'Quiz', weight: 10 },
+      { name: 'Assignment', weight: 20 },
+      { name: 'Midterm', weight: 30 },
+      { name: 'Final', weight: 40 },
+    ];
+    console.log('Components to use:', components);
+
     const studentIds = enrollments.map((e) => e.studentId);
+    console.log('Student IDs for compilation:', studentIds);
+    console.log('Academic Year ID:', academicYearId, 'Semester ID:', semesterId);
 
     const [grades, attendanceRecords] = await Promise.all([
       prisma.grade.findMany({
@@ -90,9 +105,9 @@ const compileReportCards = async (req, res) => {
           academicYearId, 
           semesterId, 
           studentId: { in: studentIds },
-          submissionStatus: 'ApprovedByHomeroom' // Only use approved grades for report cards
+          // Remove submissionStatus filter to include all grades for compilation
         },
-        select: { studentId: true, classId: true, percentage: true },
+        select: { studentId: true, classId: true, percentage: true, componentScores: true, maxTotal: true },
       }),
       prisma.attendanceRecord.findMany({
         where: { studentId: { in: studentIds }, attendance: { academicYearId } },
@@ -100,10 +115,42 @@ const compileReportCards = async (req, res) => {
       }),
     ]);
 
+    console.log('Grades found:', grades.length);
+    console.log('Sample grade data:', grades[0]);
+
     const gradeSummary = new Map();
     grades.forEach((g) => {
       const b = gradeSummary.get(g.studentId) || { total: 0, count: 0, classIds: new Set() };
-      b.total += Number(g.percentage || 0);
+      
+      // Calculate percentage from componentScores if available, otherwise use stored percentage
+      let percentage = Number(g.percentage || 0);
+      console.log('Grade for student', g.studentId, ':', { percentage: g.percentage, componentScores: g.componentScores });
+      
+      if (g.componentScores && typeof g.componentScores === 'object') {
+        // Calculate percentage from raw scores in componentScores using actual weights
+        const componentEntries = Object.entries(g.componentScores);
+        console.log('Component entries:', componentEntries);
+        console.log('Grading structure components:', components);
+        
+        if (componentEntries.length > 0) {
+          let weightedTotal = 0;
+          let totalWeight = 0;
+          componentEntries.forEach(([name, rawScore]) => {
+            // Find the weight for this component from the grading structure
+            const componentDef = components.find(c => c.name === name);
+            const weight = componentDef?.weight || 10; // Default fallback
+            const score = Number(rawScore) || 0;
+            const percentageForComponent = (score / weight) * 100;
+            console.log(`Component ${name}: raw=${score}, weight=${weight}, pct=${percentageForComponent}`);
+            weightedTotal += percentageForComponent * (weight / 100);
+            totalWeight += weight;
+          });
+          percentage = totalWeight > 0 ? weightedTotal : 0;
+          console.log('Calculated percentage:', percentage);
+        }
+      }
+      
+      b.total += percentage;
       b.count += 1;
       if (g.classId) b.classIds.add(g.classId);
       gradeSummary.set(g.studentId, b);
@@ -603,20 +650,43 @@ const getReportCardsByClass = async (req, res) => {
     const { classId, academicYearId } = req.params;
     const { semesterId } = req.query;
 
-    const classData = await prisma.class.findUnique({
+    // Check if classId is actually a sectionId
+    const sectionData = await prisma.section.findUnique({
       where: { id: classId },
-      include: { students: true },
+      include: { 
+        enrollments: {
+          include: {
+            student: true
+          }
+        },
+        class: { include: { students: true } }
+      },
     });
-    if (!classData) return res.status(404).json({ message: 'Class not found' });
+
+    let studentIds = [];
+    let actualClassId = classId;
+
+    if (sectionData) {
+      // It's a section - use section students through enrollments
+      studentIds = sectionData.enrollments.map((e) => e.studentId);
+      actualClassId = sectionData.classId;
+    } else {
+      // It's a class - use class students
+      const classData = await prisma.class.findUnique({
+        where: { id: classId },
+        include: { students: true },
+      });
+      if (!classData) return res.status(404).json({ message: 'Class not found' });
+      studentIds = classData.students.map((s) => s.id);
+    }
 
     if (req.user.role === 'Teacher') {
       const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
       if (!teacherProfile) return res.status(404).json({ message: 'Teacher profile not found.' });
-      const authorized = await canTeacherAccessClass(teacherProfile.id, classId);
+      const authorized = await canTeacherAccessClass(teacherProfile.id, actualClassId);
       if (!authorized) return res.status(403).json({ message: 'You are not authorized to view report cards for this class.' });
     }
 
-    const studentIds = classData.students.map((s) => s.id);
     const where = { academicYearId, studentId: { in: studentIds } };
     if (semesterId) where.semesterId = semesterId;
 

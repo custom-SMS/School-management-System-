@@ -844,10 +844,10 @@ const saveGrades = async (req, res) => {
             studentId: data.student
           });
         }
-        // Store as percentage (0-100) for compatibility with Homeroom Grade Review
+        // Store raw score directly
+        componentScores[comp.name] = score;
+        // Calculate total contribution: (score / maxScore) * weight
         const percentageForComponent = (score / maxScore) * 100;
-        componentScores[comp.name] = percentageForComponent;
-        // Calculate total contribution: percentage * weight / 100
         total += percentageForComponent * (comp.weight / 100);
       }
 

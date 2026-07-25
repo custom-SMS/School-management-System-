@@ -75,11 +75,10 @@ export default function ReportCards() {
   ];
   const [gradingComponents, setGradingComponents] = useState(DEFAULT_COMPONENTS);
 
-  // Convert stored percentage (0-100) → raw mark out of component weight.
-  // e.g. pctToRaw(90, 10) → '9'  (90% of 10-point quiz = 9)
-  const pctToRaw = (pct, weight) => {
-    if (pct == null || weight == null || Number(weight) === 0) return '—';
-    const raw = (Number(pct) / 100) * Number(weight);
+  // Raw score is now stored directly, no conversion needed
+  // e.g. pctToRaw(8, 10) → '8'  |  pctToRaw(9, 10) → '9'
+  const pctToRaw = (raw, weight) => {
+    if (raw == null || weight == null || Number(weight) === 0) return '—';
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
 
@@ -134,6 +133,49 @@ export default function ReportCards() {
     [activeYear]
   );
 
+  // Process classes data to flatten sections
+  const processClassesData = (classesData) => {
+    const flattenedClasses = [];
+    classesData.forEach(klass => {
+      if (klass.sections && klass.sections.length > 0) {
+        klass.sections.forEach(section => {
+          // Include sections - filter by academic year if selectedYear is set
+          if (!selectedYear || section.academicYearId === selectedYear) {
+            flattenedClasses.push({
+              ...klass,
+              _id: section._id || section.id,
+              id: section._id || section.id,
+              displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} — ${section.name}`,
+              isSection: true,
+              sectionId: section._id || section.id,
+              sectionName: section.name,
+              academicYearId: section.academicYearId,
+              originalClassId: klass._id || klass.id
+            });
+          }
+        });
+      }
+      // Always include the class itself as an option
+      flattenedClasses.push({
+        ...klass,
+        displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} (All Sections)`,
+        isSection: false,
+        academicYearId: klass.academicYearId
+      });
+    });
+    // Remove duplicates based on _id
+    const uniqueClasses = [];
+    const seenIds = new Set();
+    flattenedClasses.forEach(c => {
+      if (!seenIds.has(c._id)) {
+        seenIds.add(c._id);
+        uniqueClasses.push(c);
+      }
+    });
+    setClasses(uniqueClasses);
+    if (uniqueClasses.length > 0 && !selectedClassId) setSelectedClassId(uniqueClasses[0]._id);
+  };
+
   // Auto-select active semester when year or activeSemester changes
   useEffect(() => {
     if (!yearSemesters.length) return;
@@ -147,6 +189,14 @@ export default function ReportCards() {
       if (sem1) setSelectedSemesterId(sem1.id);
     }
   }, [yearSemesters, activeSemester]);
+
+  // Reprocess classes when selected year changes to filter sections by academic year
+  useEffect(() => {
+    axios.get('/classroom/classes').then((r) => {
+      const classesData = r.data || [];
+      processClassesData(classesData);
+    }).catch(() => { });
+  }, [selectedYear]);
 
   const sortedStudents = useMemo(() => (
     [...students].sort((a, b) => getStudentDisplayName(a).localeCompare(getStudentDisplayName(b)))
@@ -164,10 +214,10 @@ export default function ReportCards() {
       setStudents(Array.isArray(payload) ? payload : (payload?.students || []));
     }).catch(console.error);
 
-    // Load classes for pipeline view
+    // Load classes for pipeline view with section information
     axios.get('/classroom/classes').then((r) => {
-      setClasses(r.data || []);
-      if ((r.data || []).length > 0) setSelectedClassId(r.data[0]._id || r.data[0].id);
+      const classesData = r.data || [];
+      processClassesData(classesData);
     }).catch(() => { });
 
     // Load grading structure configured in SuperAdmin Settings
@@ -186,18 +236,29 @@ export default function ReportCards() {
     setLoadingClassCards(true);
     const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
     axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`)
-      .then((r) => setClassCards(r.data || []))
+      .then((r) => {
+        const data = r.data;
+        if (Array.isArray(data)) {
+          setClassCards(data);
+        } else if (data && typeof data === 'object') {
+          setClassCards([]);
+        } else {
+          setClassCards([]);
+        }
+      })
       .catch(() => setClassCards([]))
       .finally(() => setLoadingClassCards(false));
   }, [selectedClassId, selectedYear, selectedSemesterId]);
 
   const workflowCounts = useMemo(() => {
     const counts = { Draft: 0, HomeroomReview: 0, BranchAdminReview: 0, Published: 0 };
-    classCards.forEach((rc) => {
-      let key = rc.workflowStatus || 'Draft';
-      if (key === 'AdminReview') key = 'BranchAdminReview';
-      if (counts[key] !== undefined) counts[key]++;
-    });
+    if (Array.isArray(classCards)) {
+      classCards.forEach((rc) => {
+        let key = rc.workflowStatus || 'Draft';
+        if (key === 'AdminReview') key = 'BranchAdminReview';
+        if (counts[key] !== undefined) counts[key]++;
+      });
+    }
     return counts;
   }, [classCards]);
 
@@ -606,7 +667,7 @@ export default function ReportCards() {
               ) : (
                 classes.map((c) => (
                   <option key={c._id || c.id} value={c._id || c.id}>
-                    {c.name}{c.stream ? ` (${c.stream})` : ''}{c.subject ? ` · ${c.subject}` : ''}
+                    {c.displayName || `${c.name}${c.stream ? ` (${c.stream})` : ''}${c.subject ? ` · ${c.subject}` : ''}`}
                   </option>
                 ))
               )}
@@ -621,7 +682,7 @@ export default function ReportCards() {
             <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
             Loading…
           </div>
-        ) : classCards.length === 0 ? (
+        ) : !Array.isArray(classCards) || classCards.length === 0 ? (
           <p className="py-8 text-center text-sm text-slate-400">No report cards compiled yet for this class.</p>
         ) : (
           <div className="overflow-x-auto">
@@ -638,7 +699,7 @@ export default function ReportCards() {
                   <th className="px-4 py-3 text-center">Action</th>                </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {classCards.map((rc) => (
+                {Array.isArray(classCards) && classCards.map((rc) => (
                   <tr key={rc.id} className="hover:bg-slate-50 transition">
                     <td className="px-4 py-3 font-semibold text-slate-900">
                       {rc.student?.user?.name || '—'}

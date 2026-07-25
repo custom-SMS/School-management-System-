@@ -51,10 +51,9 @@ export function printReportCard({
         { name: 'Final', weight: 40 },
       ];
 
-  // Convert stored percentage (0-100) back to raw mark out of the component weight
-  const pctToRaw = (pct, weight) => {
-    if (pct == null || weight == null || weight === 0) return '';
-    const raw = (Number(pct) / 100) * Number(weight);
+  // Raw score is now stored directly, no conversion needed
+  const pctToRaw = (raw, weight) => {
+    if (raw == null || weight == null || Number(weight) === 0) return '';
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
 
