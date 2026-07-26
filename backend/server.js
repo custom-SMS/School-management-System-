@@ -8,6 +8,7 @@ const swaggerSpec = require('./config/swagger');
 require('dotenv').config();
 
 //const { globalCacheMiddleware } = require('./middleware/globalCacheMiddleware');
+const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -44,6 +45,9 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Global rate limiter — 100 requests per minute per user (or IP when unauthenticated)
+app.use('/api', apiLimiter);
 
 
 // Swagger API Documentation

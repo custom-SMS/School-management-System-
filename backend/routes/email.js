@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { sendEmail } = require('../utils/sendEmail');
+const { sensitiveLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @swagger
@@ -36,7 +37,7 @@ const { sendEmail } = require('../utils/sendEmail');
  *       500:
  *         description: Failed to send email
  */
-router.post('/send', async (req, res) => {
+router.post('/send', sensitiveLimiter, async (req, res) => {
   const { to, subject, html } = req.body;
   if (!to || !subject || !html) {
     return res.status(400).json({ error: 'Missing to, subject, or html' });

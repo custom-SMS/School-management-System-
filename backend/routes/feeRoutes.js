@@ -24,6 +24,7 @@ const {
   downloadReceiptPdf
 } = require('../controllers/feeController');
 const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/authMiddleware');
+const { sensitiveLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @swagger
@@ -63,7 +64,7 @@ const { verifyToken, checkRole, injectBranchFilter } = require('../middleware/au
  *       201:
  *         description: Payment recorded
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), recordPayment);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sensitiveLimiter, invalidateResource('fees'), recordPayment);
 
 /**
  * @swagger
@@ -140,7 +141,7 @@ router.get('/paid/:month/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  *       201:
  *         description: Fee structure created
  */
-router.post('/structures', verifyToken, checkRole(['SuperAdmin']), invalidateResource('fees'), createFeeStructure);
+router.post('/structures', verifyToken, checkRole(['SuperAdmin']), sensitiveLimiter, invalidateResource('fees'), createFeeStructure);
 
 /**
  * @swagger
@@ -160,7 +161,7 @@ router.post('/structures', verifyToken, checkRole(['SuperAdmin']), invalidateRes
  *       200:
  *         description: Fee structure deleted
  */
-router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), invalidateResource('fees'), deleteFeeStructure);
+router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), sensitiveLimiter, invalidateResource('fees'), deleteFeeStructure);
 
 /**
  * @swagger
@@ -206,7 +207,7 @@ router.get('/structures', verifyToken, setCacheResource('fees'), globalCacheMidd
  *       201:
  *         description: Invoices generated
  */
-router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), generateMonthlyFees);
+router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sensitiveLimiter, invalidateResource('fees'), generateMonthlyFees);
 
 /**
  * @swagger
@@ -221,7 +222,7 @@ router.post('/generate', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier
  *       200:
  *         description: Reminders sent
  */
-router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), sendBulkFeeReminders);
+router.post('/reminders', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sensitiveLimiter, invalidateResource('fees'), sendBulkFeeReminders);
 
 // Cashier desk
 
@@ -261,7 +262,7 @@ router.get('/outstanding', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashi
  */
 router.get('/payments', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getCashierPayments);
 
-router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, invalidateResource('fees'), markFeePaidInCash);
+router.patch('/:feeId/pay', verifyToken, checkRole(['Admin', 'SuperAdmin', 'Cashier']), injectBranchFilter, sensitiveLimiter, invalidateResource('fees'), markFeePaidInCash);
 
 // Student/Parent fee portal
 
@@ -316,7 +317,7 @@ router.get('/my', verifyToken, checkRole(['Student', 'Parent']), setCacheResourc
  *       201:
  *         description: Bank payment submitted
  */
-router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), invalidateResource('fees'), submitBankPayment);
+router.post('/bank-pay', verifyToken, checkRole(['Student', 'Parent', 'SuperAdmin']), sensitiveLimiter, invalidateResource('fees'), submitBankPayment);
 
 /**
  * @swagger
@@ -362,7 +363,7 @@ router.get('/pending-verifications', verifyToken, checkRole(['Admin', 'SuperAdmi
  *       200:
  *         description: Payment verified
  */
-router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), injectBranchFilter, invalidateResource('fees'), verifyPayment);
+router.patch('/verify/:paymentId', verifyToken, checkRole(['Cashier', 'SuperAdmin']), injectBranchFilter, sensitiveLimiter, invalidateResource('fees'), verifyPayment);
 
 /**
  * @swagger

@@ -18,16 +18,17 @@ const {
   upsertHomeroomReview,
 } = require('../controllers/reportCardController');
 const { verifyToken, checkRole, checkScope, injectBranchFilter } = require('../middleware/authMiddleware');
+const { sensitiveLimiter } = require('../middleware/rateLimiter');
 
 // Compile (Admin/SuperAdmin/BranchAdmin/Teacher)
-router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin', 'Teacher'] }), injectBranchFilter, invalidateResource('report-cards'), compileReportCards);
+router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin', 'Teacher'] }), injectBranchFilter, sensitiveLimiter, invalidateResource('report-cards'), compileReportCards);
 
 // Publish all / unpublish all (Admin/SuperAdmin/BranchAdmin)
-router.post('/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, invalidateResource('report-cards'), publishReportCards);
-router.post('/unpublish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, invalidateResource('report-cards'), unpublishReportCards);
+router.post('/publish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, sensitiveLimiter, invalidateResource('report-cards'), publishReportCards);
+router.post('/unpublish', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin'] }), injectBranchFilter, sensitiveLimiter, invalidateResource('report-cards'), unpublishReportCards);
 
 // Homeroom teacher: bulk submit to Admin
-router.post('/submit-to-admin', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), invalidateResource('report-cards'), submitToAdmin);
+router.post('/submit-to-admin', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), sensitiveLimiter, invalidateResource('report-cards'), submitToAdmin);
 
 // Get report cards by class (Teacher/Admin/SuperAdmin)
 // MUST be before /:studentId/:academicYearId to avoid route conflict
