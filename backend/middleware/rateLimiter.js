@@ -51,7 +51,7 @@ const buildLimiter = (ratelimit, identifier) => async (req, res, next) => {
 const authRatelimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(10, '15 m'),
+      limiter: Ratelimit.slidingWindow(10, '0 m'),
       analytics: true,
       prefix: 'sms:rl:auth',
     })
