@@ -11,6 +11,7 @@ require('dotenv').config();
 const { apiLimiter } = require('./middleware/rateLimiter');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 5000;
 
 // Allowed frontend origins (must be explicit when credentials are enabled — '*' is not allowed)

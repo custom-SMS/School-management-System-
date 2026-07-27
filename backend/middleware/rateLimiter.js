@@ -12,12 +12,30 @@ try {
   console.warn('[rateLimiter] Failed to initialise Redis client — rate limiting will be disabled.', err?.message);
 }
 
+// ─── Helper: Safely extract real client IP ────────────────────────────────────
+const getClientIp = (req) => {
+  const xForwardedFor = req.headers['x-forwarded-for'];
+  if (xForwardedFor) {
+    const ips = String(xForwardedFor).split(',').map((ip) => ip.trim());
+    if (ips[0]) return ips[0];
+  }
+  return req.ip || req.socket?.remoteAddress || '127.0.0.1';
+};
+
+const isLoopbackIp = (ip) => {
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip === 'localhost';
+};
+
 // ─── Helper: build an Express middleware from an @upstash/ratelimit instance ──
-// identifier: function that receives (req) and returns a string key to rate-limit on.
 const buildLimiter = (ratelimit, identifier) => async (req, res, next) => {
   // Graceful fallback: if Redis is not available, skip rate limiting
   if (!redis || !ratelimit) {
-    console.warn('[rateLimiter] Redis unavailable — skipping rate limit check.');
+    return next();
+  }
+
+  // Bypass rate limiting on local loopback IP during development
+  const clientIp = getClientIp(req);
+  if (process.env.NODE_ENV !== 'production' && isLoopbackIp(clientIp)) {
     return next();
   }
 
@@ -32,7 +50,7 @@ const buildLimiter = (ratelimit, identifier) => async (req, res, next) => {
 
     if (!success) {
       return res.status(429).json({
-        message: 'Too many requests. Please slow down and try again later.',
+        message: 'Too many login or request attempts. Please slow down and try again in a few minutes.',
         retryAfter: new Date(reset).toISOString(),
       });
     }
@@ -46,58 +64,54 @@ const buildLimiter = (ratelimit, identifier) => async (req, res, next) => {
 };
 
 // ─── Tier 1: Auth Limiter ─────────────────────────────────────────────────────
-// Strict: 10 requests per 15 minutes, keyed by IP.
-// Applied to: POST /api/auth/login  and  POST /api/auth/register-admin
+// 20 requests per 15 minutes, keyed by IP + identifier when present
 const authRatelimit = redis
   ? new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(10, '0 m'),
+      limiter: Ratelimit.slidingWindow(10, '15 m'),
       analytics: true,
-      prefix: 'sms:rl:auth',
+      prefix: 'sms:v2:auth',
     })
   : null;
 
-const authLimiter = buildLimiter(
-  authRatelimit,
-  (req) => `ip:${req.ip || req.headers['x-forwarded-for'] || 'unknown'}`
-);
+const authLimiter = buildLimiter(authRatelimit, (req) => {
+  const ip = getClientIp(req);
+  const loginTarget = req.body?.identifier || req.body?.email || req.body?.studentId || '';
+  return loginTarget ? `auth:${ip}:${loginTarget.toLowerCase().trim()}` : `auth:${ip}`;
+});
 
 // ─── Tier 2: Global API Limiter ───────────────────────────────────────────────
-// Moderate: 100 requests per minute.
-// Keyed by userId (from JWT) when authenticated, otherwise by IP.
-// Applied globally to all /api/* routes in server.js
+// Moderate: 100 requests per minute, keyed by userId or IP.
 const apiRatelimit = redis
   ? new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(100, '1 m'),
       analytics: true,
-      prefix: 'sms:rl:api',
+      prefix: 'sms:v2:api',
     })
   : null;
 
 const apiLimiter = buildLimiter(apiRatelimit, (req) => {
-  // Prefer userId from JWT payload (populated by verifyToken), fall back to IP
   const userId = req.user?._id || req.user?.id;
   if (userId) return `user:${userId}`;
-  return `ip:${req.ip || req.headers['x-forwarded-for'] || 'unknown'}`;
+  return `ip:${getClientIp(req)}`;
 });
 
 // ─── Tier 3: Sensitive Operations Limiter ────────────────────────────────────
-// Strict: 30 requests per minute, keyed by userId or IP.
-// Applied per-route to high-impact mutations (POST/PUT/DELETE/PATCH on key resources).
+// 30 requests per minute, keyed by userId or IP.
 const sensitiveRatelimit = redis
   ? new Ratelimit({
       redis,
       limiter: Ratelimit.slidingWindow(30, '1 m'),
       analytics: true,
-      prefix: 'sms:rl:sensitive',
+      prefix: 'sms:v2:sensitive',
     })
   : null;
 
 const sensitiveLimiter = buildLimiter(sensitiveRatelimit, (req) => {
   const userId = req.user?._id || req.user?.id;
   if (userId) return `user:${userId}`;
-  return `ip:${req.ip || req.headers['x-forwarded-for'] || 'unknown'}`;
+  return `ip:${getClientIp(req)}`;
 });
 
 module.exports = { authLimiter, apiLimiter, sensitiveLimiter };
