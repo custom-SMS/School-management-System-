@@ -1217,10 +1217,16 @@ const getGradeFees = async (req, res) => {
 // @access  Private (student_registration permission)
 const getRegistrationClasses = async (req, res) => {
   try {
+    // Resolve the active academic year — reuse what middleware already fetched when possible
+    const activeYear = req.activeYear || await getActiveAcademicYear({ branchId: req.branchFilter?.branchId });
+
     const [classes, fees] = await Promise.all([
       prisma.class.findMany({
         where: {
           ...(req.branchFilter || {}),
+          // Only show classes that belong to the active academic year to avoid
+          // duplicate class names from previous years showing in the dropdown.
+          ...(activeYear ? { academicYearId: activeYear.id } : {}),
         },
         orderBy: { name: 'asc' },
         include: { teacher: { include: { user: { select: { name: true } } } } },
