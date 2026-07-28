@@ -42,6 +42,31 @@ const registerTeacher = async (req, res) => {
     const plainPassword = password || generatePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 10);
 
+    // ── Resolve & validate branchId before touching the DB ──────────────────
+    // Priority: branch-filter from middleware → JWT claim → env default
+    const resolvedBranchId =
+      (req.branchFilter?.branchId && req.branchFilter.branchId !== '__none__')
+        ? req.branchFilter.branchId
+        : (req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null);
+
+    if (!resolvedBranchId) {
+      return res.status(400).json({
+        message: 'Unable to determine branch. Please contact a system administrator.',
+      });
+    }
+
+    const branchExists = await prisma.branch.findUnique({
+      where: { id: resolvedBranchId },
+      select: { id: true },
+    });
+
+    if (!branchExists) {
+      return res.status(400).json({
+        message: `Branch not found (id: ${resolvedBranchId}). Ensure your account is assigned to a valid branch.`,
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
     // Generating the teacherId from the current max is racy under concurrent
     // registrations, so retry on a unique-constraint collision (P2002).
     const MAX_ATTEMPTS = 5;
@@ -66,9 +91,7 @@ const registerTeacher = async (req, res) => {
               userId: user.id,
               teacherId,
               subject,
-              branchId: (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
-                ? req.branchFilter.branchId
-                : (req.user?.branchId || process.env.DEFAULT_BRANCH_ID || null),
+              branchId: resolvedBranchId,
             },
             include: { user: true }
           });
@@ -96,18 +119,8 @@ const registerTeacher = async (req, res) => {
       }
     };
 
-    // Attempt to email credentials to the teacher if email provided
-    let emailStatus = null;
-    try {
-      if (teacher.user?.email) {
-        const emailResult = await sendTeacherCredentialsEmail(teacher.user.email, teacher.user.name || 'Teacher', teacherId, plainPassword);
-        emailStatus = { email: teacher.user.email, status: 'sent', resendId: emailResult.id || null };
-      }
-    } catch (emailErr) {
-      console.error('Failed to send teacher credentials email:', emailErr);
-      emailStatus = { email: teacher.user?.email || null, status: 'failed', reason: emailErr.message };
-    }
-
+    // Respond immediately — do NOT await the email so the HTTP round-trip
+    // is not blocked by the SMTP handshake.
     res.status(201).json({
       message: 'Teacher registered successfully',
       teacher: responseTeacher,
@@ -115,8 +128,26 @@ const registerTeacher = async (req, res) => {
         teacherId,
         password: plainPassword,
       },
-      teacherEmailStatus: emailStatus,
+      teacherEmailStatus: teacher.user?.email
+        ? { email: teacher.user.email, status: 'queued' }
+        : null,
     });
+
+    // Fire the credentials email in the background after the response is sent.
+    if (teacher.user?.email) {
+      sendTeacherCredentialsEmail(
+        teacher.user.email,
+        teacher.user.name || 'Teacher',
+        teacherId,
+        plainPassword,
+      )
+        .then((result) => {
+          console.log(`[teacherController] Credentials email sent to ${teacher.user.email}, id: ${result?.id || 'n/a'}`);
+        })
+        .catch((emailErr) => {
+          console.error('[teacherController] Failed to send teacher credentials email:', emailErr.message);
+        });
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
