@@ -16,6 +16,7 @@ export default function BranchManagement() {
   const [users, setUsers] = useState([]);
   const [scopes, setScopes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [scopesLoading, setScopesLoading] = useState(true);
 
   // Selected school/branch for drill-down
   const [activeSchool, setActiveSchool] = useState(null);
@@ -42,10 +43,12 @@ export default function BranchManagement() {
   };
 
   const loadScopes = async () => {
+    setScopesLoading(true);
     try {
       const res = await axios.get('/branches/scopes', { skipGlobalErrorToast: true });
       setScopes(res.data || []);
     } catch { /* silent */ }
+    finally { setScopesLoading(false); }
   };
 
   useEffect(() => { load(); loadScopes(); }, []);
@@ -258,7 +261,9 @@ export default function BranchManagement() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {scopes.length === 0 ? (
+              {scopesLoading ? (
+                <tr><td colSpan="4" className="px-4 py-8 text-center text-slate-400">Loading scope assignments…</td></tr>
+              ) : scopes.length === 0 ? (
                 <tr><td colSpan="4" className="px-4 py-8 text-center text-slate-400">No scope assignments yet.</td></tr>
               ) : scopes.map((sc) => (
                 <tr key={sc.id} className="hover:bg-slate-50">

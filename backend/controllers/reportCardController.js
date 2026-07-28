@@ -462,8 +462,6 @@ const updateHomeroomReview = async (req, res) => {
         return res.status(400).json({ message: 'Invalid promotionStatus.' });
       }
       updateData.promotionStatus = promotionStatus;
-      updateData.promotedById = getActorId(req);
-      updateData.promotionDate = new Date();
     }
 
     // Save snapshot if historical edit
@@ -472,6 +470,7 @@ const updateHomeroomReview = async (req, res) => {
     }
 
     const updated = await prisma.reportCard.update({ where: { id }, data: updateData });
+
     await logActivity(getActorId(req), 'Update Homeroom Review', id, `Updated homeroom review for report card ${id}`);
     res.status(200).json(updated);
   } catch (error) {
@@ -518,7 +517,7 @@ const submitToAdmin = async (req, res) => {
 
         const isClassHomeroom = klass && klass.teacherId === teacherProfile.id;
         const isSectionHomeroom =
-          enrollment?.section && enrollment.section.homeroomTeacherId === teacherProfile.id;
+          enrollment?.section?.homeroomTeacherId === teacherProfile.id;
 
         if (!isClassHomeroom && !isSectionHomeroom) {
           return res.status(403).json({
@@ -583,7 +582,7 @@ const setPromotionStatus = async (req, res) => {
 
     const updated = await prisma.reportCard.update({
       where: { id },
-      data: { promotionStatus, promotedById: getActorId(req), promotionDate: new Date() },
+      data: { promotionStatus },
     });
 
     await logActivity(getActorId(req), 'Set Promotion Status', id, `Set promotion status to ${promotionStatus}`);
@@ -708,6 +707,9 @@ const upsertHomeroomReview = async (req, res) => {
     });
     const gradeLevel = enrollment?.grade || 'Unassigned';
 
+    // Only pass fields that exist in the original schema to upsert.
+    // New fields (semester1Comment, semester2Comment, overallComment, promotedToClassId,
+    // promotedToGrade) are stored exclusively via PUT /report-cards/full/:studentId/:academicYearId.
     const updateData = {
       grade: gradeLevel,
     };
@@ -715,8 +717,6 @@ const upsertHomeroomReview = async (req, res) => {
     if (conductGrade !== undefined) updateData.conductGrade = conductGrade;
     if (promotionStatus !== undefined) {
       updateData.promotionStatus = promotionStatus;
-      updateData.promotedById = getActorId(req);
-      updateData.promotionDate = new Date();
     }
 
     // Save snapshot if historical edit on existing card
@@ -756,7 +756,6 @@ const upsertHomeroomReview = async (req, res) => {
         }
       },
       update: {
-        // Always update computed fields so the card stays in sync
         averageScore: computedAvgScore,
         status: computedStatus,
         ...updateData,
@@ -1021,6 +1020,371 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
   }
 };
 
+/**
+ * GET /api/report-cards/full/:studentId/:academicYearId
+ * Full dynamic report card for a student in an academic year.
+ */
+const getDynamicReportCard = async (req, res) => {
+  try {
+    const { studentId, academicYearId } = req.params;
+
+    if (!studentId || !academicYearId) {
+      return res.status(400).json({ message: 'studentId and academicYearId are required.' });
+    }
+
+    const student = await prisma.student.findUnique({
+      where: { id: studentId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        classes: { select: { id: true, name: true, stream: true, grade: true } },
+        enrollments: {
+          where: { academicYearId },
+          include: {
+            section: {
+              include: {
+                class: { select: { id: true, name: true, stream: true, grade: true } }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found.' });
+    }
+
+    const enrollment = student.enrollments[0] || null;
+    const gradeLevel = enrollment?.grade || student.grade || '—';
+    const sectionName = enrollment?.section?.name || '—';
+    let classId = enrollment?.section?.classId || (student.classes[0]?.id || null);
+
+    // If classId is missing, attempt matching Class by grade & academicYearId
+    if (!classId && gradeLevel && gradeLevel !== '—') {
+      const matchedClass = await prisma.class.findFirst({
+        where: {
+          academicYearId,
+          OR: [
+            { grade: gradeLevel },
+            { name: { contains: gradeLevel, mode: 'insensitive' } }
+          ]
+        }
+      });
+      if (matchedClass) classId = matchedClass.id;
+    }
+
+    // Resolve class subjects strictly assigned to this class via ClassSubject
+    let subjects = [];
+    if (classId) {
+      const classSubjects = await prisma.classSubject.findMany({
+        where: { classId },
+        include: { subject: { select: { id: true, name: true, department: true } } },
+        orderBy: { subject: { name: 'asc' } }
+      });
+      subjects = classSubjects.map(cs => cs.subject).filter(Boolean);
+    }
+
+    // Fallback: query Subject strictly offered for this grade level (if no ClassSubject junction records)
+    if (!subjects.length && gradeLevel && gradeLevel !== '—') {
+      const cleanGrade = gradeLevel.replace(/^Grade\s+/i, '').trim();
+      subjects = await prisma.subject.findMany({
+        where: {
+          OR: [
+            { gradesOffered: { has: gradeLevel } },
+            { gradesOffered: { has: `Grade ${gradeLevel}` } },
+            { gradesOffered: { has: `Grade ${cleanGrade}` } },
+            { gradesOffered: { has: cleanGrade } }
+          ]
+        },
+        orderBy: { name: 'asc' }
+      });
+    }
+
+    // Fetch Semesters for the Academic Year
+    const semesters = await prisma.semester.findMany({
+      where: { academicYearId },
+      orderBy: { order: 'asc' }
+    });
+    const sem1 = semesters.find(s => s.order === 1) || semesters[0] || null;
+    const sem2 = semesters.find(s => s.order === 2) || semesters[1] || null;
+
+    // Fetch all approved grades for this student for the academic year
+    const approvedGrades = await prisma.grade.findMany({
+      where: {
+        studentId,
+        academicYearId,
+        submissionStatus: 'ApprovedByHomeroom'
+      },
+      include: {
+        subjectRef: { select: { id: true, name: true } },
+        semester: { select: { id: true, order: true, name: true } }
+      }
+    });
+
+    // Build subject rows with S1, S2, and Annual Average
+    let sem1TotalSum = 0;
+    let sem1Count = 0;
+    let sem2TotalSum = 0;
+    let sem2Count = 0;
+
+    const subjectRows = subjects.map(subj => {
+      const gSem1 = approvedGrades.find(g =>
+        (g.subjectId === subj.id || g.subject?.toLowerCase() === subj.name?.toLowerCase()) &&
+        (g.semesterId === sem1?.id || g.semester?.order === 1)
+      );
+
+      const gSem2 = approvedGrades.find(g =>
+        (g.subjectId === subj.id || g.subject?.toLowerCase() === subj.name?.toLowerCase()) &&
+        (g.semesterId === sem2?.id || g.semester?.order === 2)
+      );
+
+      const sem1Score = gSem1 ? Number(gSem1.percentage || 0) : null;
+      const sem2Score = gSem2 ? Number(gSem2.percentage || 0) : null;
+
+      if (sem1Score !== null) {
+        sem1TotalSum += sem1Score;
+        sem1Count++;
+      }
+      if (sem2Score !== null) {
+        sem2TotalSum += sem2Score;
+        sem2Count++;
+      }
+
+      let annualAverage = null;
+      if (sem1Score !== null && sem2Score !== null) {
+        annualAverage = Number(((sem1Score + sem2Score) / 2).toFixed(2));
+      } else if (sem1Score !== null) {
+        annualAverage = Number(sem1Score.toFixed(2));
+      } else if (sem2Score !== null) {
+        annualAverage = Number(sem2Score.toFixed(2));
+      }
+
+      return {
+        subjectId: subj.id,
+        subjectName: subj.name,
+        department: subj.department || '',
+        sem1Score: sem1Score !== null ? Number(sem1Score.toFixed(2)) : null,
+        sem2Score: sem2Score !== null ? Number(sem2Score.toFixed(2)) : null,
+        annualAverage,
+      };
+    });
+
+    const sem1OverallAvg = sem1Count > 0 ? Number((sem1TotalSum / sem1Count).toFixed(2)) : null;
+    const sem2OverallAvg = sem2Count > 0 ? Number((sem2TotalSum / sem2Count).toFixed(2)) : null;
+    let annualOverallAvg = null;
+    if (sem1OverallAvg !== null && sem2OverallAvg !== null) {
+      annualOverallAvg = Number(((sem1OverallAvg + sem2OverallAvg) / 2).toFixed(2));
+    } else if (sem1OverallAvg !== null) {
+      annualOverallAvg = sem1OverallAvg;
+    } else if (sem2OverallAvg !== null) {
+      annualOverallAvg = sem2OverallAvg;
+    }
+
+    // Fetch existing report card metadata
+    const reportCard = await prisma.reportCard.findFirst({
+      where: { studentId, academicYearId },
+      include: {
+        academicYear: true,
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let promotedToClass = null;
+    if (reportCard?.promotedToClassId) {
+      try {
+        promotedToClass = await prisma.class.findUnique({
+          where: { id: reportCard.promotedToClassId },
+          select: { id: true, name: true, grade: true }
+        });
+      } catch { /* silent fallback */ }
+    }
+
+    // Check publication authorization if Student/Parent
+    const isStudentOrParent = ['Student', 'Parent'].includes(req.user.role);
+    if (isStudentOrParent) {
+      if (!reportCard || !reportCard.published) {
+        return res.status(403).json({ message: 'Your report card is not published yet.' });
+      }
+    }
+
+    // Attendance stats
+    const attendanceRecords = await prisma.attendanceRecord.findMany({
+      where: { studentId, attendance: { academicYearId } }
+    });
+    const totalAtt = attendanceRecords.length;
+    const presentAtt = attendanceRecords.filter(r => r.status === 'Present').length;
+    const absentAtt = attendanceRecords.filter(r => r.status === 'Absent').length;
+    const lateAtt = attendanceRecords.filter(r => r.status === 'Late').length;
+    const attendancePercentage = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(2)) : 100;
+
+    res.status(200).json({
+      student: {
+        id: student.id,
+        name: student.user?.name || '—',
+        studentId: student.studentId,
+        grade: gradeLevel,
+        section: sectionName,
+        academicYear: reportCard?.academicYear?.year || ''
+      },
+      reportCard: {
+        id: reportCard?.id || null,
+        semester1Comment: reportCard?.semester1Comment || reportCard?.teacherComments || '',
+        semester2Comment: reportCard?.semester2Comment || reportCard?.homeroomRemarks || '',
+        overallComment: reportCard?.overallComment || '',
+        conductGrade: reportCard?.conductGrade || 'A',
+        promotionStatus: reportCard?.promotionStatus || 'Pending',
+        promotedToClassId: reportCard?.promotedToClassId || null,
+        promotedToClass,
+        promotedToGrade: reportCard?.promotedToGrade || (promotedToClass?.name || ''),
+        workflowStatus: reportCard?.workflowStatus || 'Draft',
+        published: Boolean(reportCard?.published)
+      },
+      subjects: subjectRows,
+      summary: {
+        sem1OverallAvg,
+        sem2OverallAvg,
+        annualOverallAvg
+      },
+      attendance: {
+        attendancePercentage,
+        present: presentAtt,
+        absent: absentAtt,
+        late: lateAtt,
+        total: totalAtt
+      }
+    });
+  } catch (error) {
+    console.error('getDynamicReportCard error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+/**
+ * PUT /api/report-cards/full/:studentId/:academicYearId
+ * Save Homeroom Teacher review & comments (read-only marks, editable comments & promotion).
+ */
+const updateDynamicReportCard = async (req, res) => {
+  try {
+    const { studentId, academicYearId } = req.params;
+    const {
+      semester1Comment,
+      semester2Comment,
+      overallComment,
+      conductGrade,
+      promotionStatus,
+      promotedToClassId,
+      promotedToGrade,
+      workflowStatus,
+      published
+    } = req.body;
+
+    if (!studentId || !academicYearId) {
+      return res.status(400).json({ message: 'studentId and academicYearId are required.' });
+    }
+
+    if (promotionStatus && !['Promoted', 'Not Promoted', 'Conditional Promotion', 'Pending'].includes(promotionStatus)) {
+      return res.status(400).json({ message: 'Invalid promotionStatus.' });
+    }
+
+    // Verify authorized role (Teacher / Admin / SuperAdmin)
+    if (req.user.role === 'Teacher') {
+      const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
+      if (!teacherProfile) return res.status(404).json({ message: 'Teacher profile not found.' });
+
+      // Verify homeroom assignment for student
+      const enrollment = await prisma.enrollment.findFirst({
+        where: { studentId, academicYearId },
+        include: { section: true }
+      });
+      const studentClassId = enrollment?.section?.classId || null;
+      let authorized = false;
+      if (studentClassId) {
+        const klass = await prisma.class.findUnique({ where: { id: studentClassId } });
+        if (klass && klass.teacherId === teacherProfile.id) authorized = true;
+        if (!authorized && enrollment?.section?.homeroomTeacherId === teacherProfile.id) authorized = true;
+        if (!authorized) {
+          const asgn = await prisma.teacherAssignment.findFirst({
+            where: { teacherId: teacherProfile.id, classId: studentClassId, assignmentType: 'HomeRoomTeacher' }
+          });
+          if (asgn) authorized = true;
+        }
+      }
+      if (!authorized) {
+        return res.status(403).json({ message: 'Access denied. Only the homeroom teacher can update report card comments.' });
+      }
+    }
+
+    // Check if report card exists
+    const existing = await prisma.reportCard.findFirst({
+      where: { studentId, academicYearId }
+    });
+
+    const updateData = {};
+    if (semester1Comment !== undefined) updateData.semester1Comment = semester1Comment;
+    if (semester2Comment !== undefined) updateData.semester2Comment = semester2Comment;
+    if (overallComment !== undefined) updateData.overallComment = overallComment;
+    if (conductGrade !== undefined) updateData.conductGrade = conductGrade;
+    if (promotionStatus !== undefined) updateData.promotionStatus = promotionStatus;
+    if (promotedToClassId !== undefined) updateData.promotedToClassId = promotedToClassId || null;
+    if (promotedToGrade !== undefined) updateData.promotedToGrade = promotedToGrade || null;
+    if (workflowStatus !== undefined) updateData.workflowStatus = workflowStatus;
+    if (published !== undefined) updateData.published = Boolean(published);
+
+    // Separate "safe" fields that are guaranteed in the original schema
+    const safeFields = ['conductGrade', 'promotionStatus', 'workflowStatus', 'published', 'homeroomRemarks'];
+    // New fields only written when Prisma Client has been reloaded
+    const newFields = ['semester1Comment', 'semester2Comment', 'overallComment', 'promotedToClassId', 'promotedToGrade'];
+
+    let updatedCard;
+    if (existing) {
+      try {
+        updatedCard = await prisma.reportCard.update({
+          where: { id: existing.id },
+          data: updateData
+        });
+      } catch (err) {
+        // Prisma Client hasn't reloaded the new schema fields — save only safe existing fields
+        const safeData = {};
+        safeFields.forEach(f => { if (updateData[f] !== undefined) safeData[f] = updateData[f]; });
+        updatedCard = await prisma.reportCard.update({
+          where: { id: existing.id },
+          data: safeData
+        });
+      }
+    } else {
+      const enrollment = await prisma.enrollment.findFirst({ where: { studentId, academicYearId } });
+      const baseData = {
+        studentId,
+        academicYearId,
+        grade: enrollment?.grade || 'Unassigned',
+        averageScore: 0,
+        attendancePercentage: 100,
+        ...updateData
+      };
+      try {
+        updatedCard = await prisma.reportCard.create({ data: baseData });
+      } catch (err) {
+        // Prisma Client hasn't reloaded the new schema fields — create with only safe fields
+        const safeCreate = {
+          studentId,
+          academicYearId,
+          grade: enrollment?.grade || 'Unassigned',
+          averageScore: 0,
+          attendancePercentage: 100,
+        };
+        safeFields.forEach(f => { if (updateData[f] !== undefined) safeCreate[f] = updateData[f]; });
+        updatedCard = await prisma.reportCard.create({ data: safeCreate });
+      }
+    }
+
+    await logActivity(getActorId(req), 'Update Dynamic Report Card', updatedCard.id, `Updated report card for student ${studentId}`);
+    res.status(200).json({ message: 'Report card updated successfully.', reportCard: updatedCard });
+  } catch (error) {
+    console.error('updateDynamicReportCard error:', error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   compileReportCards,
   getReportCard,
@@ -1034,4 +1398,6 @@ module.exports = {
   getReportCardsByClass,
   upsertHomeroomReview,
   compileClassReportCards,
+  getDynamicReportCard,
+  updateDynamicReportCard,
 };

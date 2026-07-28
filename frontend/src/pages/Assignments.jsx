@@ -14,7 +14,8 @@ export default function Assignments() {
   const [unassignedSections, setUnassignedSections] = useState([]);
   const [unassignedClassSubjects, setUnassignedClassSubjects] = useState([]);
   const [statusTab, setStatusTab] = useState('assigned');
-  const [loadingAssignments, setLoadingAssignments] = useState(false);
+  const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [loadingOptions, setLoadingOptions] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -39,6 +40,7 @@ export default function Assignments() {
   };
 
   const loadOptions = async () => {
+    setLoadingOptions(true);
     try {
       const res = await axios.get('/assignments/options');
       setTeachers(res.data.teachers || []);
@@ -48,6 +50,8 @@ export default function Assignments() {
       setUnassignedClassSubjects(res.data.unassignedClassSubjects || []);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to load assignment options');
+    } finally {
+      setLoadingOptions(false);
     }
   };
 
@@ -334,7 +338,7 @@ export default function Assignments() {
           >
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Assigned Records</div>
-              <div className="text-2xl font-black">{assignments.length}</div>
+              <div className="text-2xl font-black">{loadingAssignments ? '...' : assignments.length}</div>
             </div>
             <div className="text-2xl">✅</div>
           </button>
@@ -345,7 +349,7 @@ export default function Assignments() {
           >
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Unassigned Homerooms</div>
-              <div className="text-2xl font-black">{unassignedSections.length}</div>
+              <div className="text-2xl font-black">{loadingOptions ? '...' : unassignedSections.length}</div>
             </div>
             <div className="text-2xl">⚠️</div>
           </button>
@@ -356,7 +360,7 @@ export default function Assignments() {
           >
             <div>
               <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Unassigned Subjects</div>
-              <div className="text-2xl font-black">{unassignedClassSubjects.length}</div>
+              <div className="text-2xl font-black">{loadingOptions ? '...' : unassignedClassSubjects.length}</div>
             </div>
             <div className="text-2xl">🚨</div>
           </button>
@@ -562,7 +566,9 @@ export default function Assignments() {
               <span className="font-bold">⚠️ Notice:</span> The following sections do not currently have a Homeroom Teacher assigned.
             </div>
 
-            {unassignedSections.length === 0 ? (
+            {loadingOptions ? (
+              <div className="py-12 text-center text-sm font-medium text-gray-400">Loading homeroom coverage status…</div>
+            ) : unassignedSections.length === 0 ? (
               <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
                 🎉 Great news! All class sections have a Homeroom Teacher assigned.
               </div>
@@ -615,7 +621,9 @@ export default function Assignments() {
               <span className="font-bold">🚨 Notice:</span> The following class subjects do not currently have a Subject Teacher assigned.
             </div>
 
-            {unassignedClassSubjects.length === 0 ? (
+            {loadingOptions ? (
+              <div className="py-12 text-center text-sm font-medium text-gray-400">Loading subject coverage status…</div>
+            ) : unassignedClassSubjects.length === 0 ? (
               <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
                 🎉 Great news! All class subjects have a Subject Teacher assigned.
               </div>

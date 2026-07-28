@@ -246,10 +246,8 @@ const createAssignment = async (req, res) => {
               sectionWithTeacher.homeroomTeacher?.teacherId || 'Unknown';
             previousTeacherId = sectionWithTeacher.homeroomTeacherId;
           }
-        }
-
-        // Also check the class-level homeroom teacher
-        if (!previousTeacherId) {
+        } else {
+          // Also check the class-level homeroom teacher if assigning at class level
           const classWithTeacher = await prisma.class.findUnique({
             where: { id: classIdForCheck },
             include: {
@@ -311,17 +309,17 @@ const createAssignment = async (req, res) => {
         });
       }
 
-      // Keep the class homeroom pointer in sync for HomeRoomTeacher assignments
+      // Keep the class or section homeroom pointer in sync for HomeRoomTeacher assignments
       if (assignmentType === 'HomeRoomTeacher') {
-        await prisma.class.update({
-          where: { id: selectedClassId },
-          data: { teacher: { connect: { id: teacherId } } }
-        });
-
         if (resolvedSection) {
           await prisma.section.update({
             where: { id: resolvedSection.id },
             data: { homeroomTeacherId: teacherId }
+          });
+        } else {
+          await prisma.class.update({
+            where: { id: selectedClassId },
+            data: { teacher: { connect: { id: teacherId } } }
           });
         }
       }

@@ -3,15 +3,17 @@ import { useAuth } from '../hooks/useAuth';
 import axios from '../api/axios';
 import Navbar from '../components/Navbar';
 import { useSettings } from '../hooks/useSettings';
+import { printReportCard } from '../utils/printReportCard';
 
 export default function ReportCard() {
   const { user } = useAuth();
-  const { grading: gradingSettings = {} } = useSettings() || {};
+  const { branding, logoUrl, grading: gradingSettings = {} } = useSettings() || {};
   const passMark = Number(gradingSettings.passMark || 50);
   const gpaEnabled = Boolean(gradingSettings.gpaEnabled);
 
   const [studentStats, setStudentStats] = useState(null);
   const [reportCard, setReportCard] = useState(null); // { reportCard, grades }
+  const [fullReportCardData, setFullReportCardData] = useState(null);
   const [activeYear, setActiveYear] = useState(null);
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
@@ -26,17 +28,15 @@ export default function ReportCard() {
   );
 
   // Convert stored percentage (0-100) back to raw mark out of the component weight.
-  // Backend always stores percentages (e.g. quiz=100 means 10/10 when weight=10).
   const pctToRaw = (pct, weight) => {
     if (pct == null || weight == null || weight === 0) return '—';
     const raw = (Number(pct) / 100) * Number(weight);
-    // Show whole number if it's exact, otherwise 2 dp
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
 
   useEffect(() => {
     const prevTitle = document.title;
-    document.title = 'Report Card | School Management System';
+    document.title = 'Report Card |BIYYAAF SCHOOL';
 
     const load = async () => {
       if (user?.role !== 'Student') { setLoading(false); return; }
@@ -57,10 +57,11 @@ export default function ReportCard() {
         const active = (yearsRes.data || []).find((y) => y.isActive) || (yearsRes.data || [])[0] || null;
         setActiveYear(active);
 
-        const studentId = statsRes.data?.profile?._id;
+        const studentId = statsRes.data?.profile?._id || statsRes.data?.profile?.id;
         if (active && studentId) {
           try {
-            const rcRes = await axios.get(`/report-cards/${studentId}/${active.id}`);
+            const rcRes = await axios.get(`/report-cards/full/${studentId}/${active.id}`);
+            setFullReportCardData(rcRes.data);
             setReportCard(rcRes.data);
           } catch (rcErr) {
             const status = rcErr.response?.status;
@@ -79,13 +80,12 @@ export default function ReportCard() {
   // Normalise grade rows from either source
   const rawGrades = reportCard?.grades || studentStats?.grades || [];
   const gradeRows = rawGrades.map((g) => {
-    // marks is stored as percentages per component (0-100 each)
     const marks = g.marks || g;
     const pct = Number(g.percentage ?? 0);
     return {
       _id: g._id || g.id,
       subject: g.subject || '—',
-      marks,   // raw percentage values — will be converted by pctToRaw() in the table
+      marks,
       total: Number(g.total ?? 0),
       percentage: pct,
       pass: pct >= passMark,
@@ -105,12 +105,16 @@ export default function ReportCard() {
   const yearLabel = activeYear?.year || card?.academicYear?.year || '—';
 
   const attPct = card ? Math.round(Number(card.attendancePercentage || 0)) : (studentStats?.attendanceRate != null ? Math.round(Number(studentStats.attendanceRate)) : null);
-  const present = card?.attendancePresent ?? null;
-  const absent = card?.attendanceAbsent ?? null;
-  const late = card?.attendanceLate ?? null;
-  const total = card?.attendanceTotal ?? null;
 
-  const bestSubject = gradeRows.reduce((best, g) => (!best || g.percentage > best.percentage ? g : best), null);
+  const handlePrint = () => {
+    printReportCard({
+      reportCardData: fullReportCardData,
+      reportCard: card,
+      grades: gradeRows,
+      branding,
+      logoUrl,
+    });
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50">
@@ -153,26 +157,16 @@ export default function ReportCard() {
 
         {/* Printable area */}
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-          <style>{`
-            @media print {
-              @page { size: A4 portrait; margin: 10mm; }
-              html, body { margin: 0; padding: 0; background: white; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-              nav, .no-print { display: none !important; }
-              .printable { box-shadow: none !important; border: 0 !important; border-radius: 0 !important; }
-              table th, table td { font-size: 10px !important; padding: 5px 8px !important; }
-            }
-          `}</style>
-
           {/* Print button */}
           <div className="no-print flex justify-end border-b border-slate-100 px-6 py-4">
             <button
-              onClick={() => window.print()}
+              onClick={handlePrint}
               className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M19 8H5c-1.66 0-3 1.34-3 3v6h4v4h12v-4h4v-6c0-1.66-1.34-3-3-3zm-3 11H8v-5h8v5zm3-7c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1zm-1-9H6v4h12V3z" />
               </svg>
-              Print Report Card
+              Print A4 Landscape Report Card
             </button>
           </div>
 

@@ -363,6 +363,7 @@ model Class {
   sections      Section[]
   timetables    Timetable[]
   classSubjects ClassSubject[]
+  promotedReportCards ReportCard[]  @relation("PromotedToClass")
 
   @@unique([branchId, name, academicYearId])
   @@index([academicYearId])
@@ -666,6 +667,12 @@ model ReportCard {
   teacherComments      String?
   homeroomRemarks      String?
   conductGrade         String?
+  semester1Comment     String?
+  semester2Comment     String?
+  overallComment       String?
+  promotedToClassId    String?
+  promotedToClass      Class?       @relation("PromotedToClass", fields: [promotedToClassId], references: [id], onDelete: SetNull)
+  promotedToGrade      String?
   workflowStatus       String       @default("Draft") // Draft, HomeroomReview, BranchAdminReview, Published
   published            Boolean      @default(false)
   promotionStatus      String       @default("Pending")

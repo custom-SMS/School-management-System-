@@ -16,8 +16,14 @@ const {
   setPromotionStatus,
   getReportCardsByClass,
   upsertHomeroomReview,
+  getDynamicReportCard,
+  updateDynamicReportCard,
 } = require('../controllers/reportCardController');
 const { verifyToken, checkRole, checkScope, injectBranchFilter } = require('../middleware/authMiddleware');
+
+// Full Dynamic Report Card Endpoints
+router.get('/full/:studentId/:academicYearId', verifyToken, injectBranchFilter, getDynamicReportCard);
+router.put('/full/:studentId/:academicYearId', verifyToken, checkRole(['SuperAdmin', 'Admin', 'Teacher']), invalidateResource('report-cards'), updateDynamicReportCard);
 
 // Compile (Admin/SuperAdmin/BranchAdmin/Teacher)
 router.post('/compile', verifyToken, checkScope({ allowedScopes: ['SchoolAdmin', 'BranchAdmin', 'LevelAdmin'], allowedRoles: ['SuperAdmin', 'Admin', 'Teacher'] }), injectBranchFilter, invalidateResource('report-cards'), compileReportCards);

@@ -4,6 +4,7 @@ import axios from '../../api/axios';
 import TeacherLayout from '../../components/TeacherLayout';
 import { toast } from 'react-toastify';
 import { useBranch } from '../../hooks/useBranch';
+import { printReportCard } from '../../utils/printReportCard';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CONDUCT_OPTIONS = ['Excellent', 'Good', 'Satisfactory', 'Needs Improvement'];
@@ -31,7 +32,7 @@ const rcStatusBadge = (wf) => {
 };
 
 // ─── Collapsible student row ──────────────────────────────────────────────────
-function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSave, isSaving, gradingComponents, pctToRaw }) {
+function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSave, onPrintReportCard, classList, isSaving, gradingComponents, pctToRaw }) {
   const [open, setOpen] = useState(false);
   const { student, grades = [], rc } = studentMap[studentId] || {};
 
@@ -169,7 +170,7 @@ function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSa
             </div>
           )}
 
-          {/* Conduct & Remarks */}
+          {/* Conduct, Promotion & Comments */}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label className="mb-1 block text-xs font-semibold text-slate-600">Conduct Grade</label>
@@ -194,11 +195,77 @@ function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSa
               </select>
             </div>
 
-            <div className="flex items-end">
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-600">Promoted To Class / Grade</label>
+              <select
+                value={edit?.promotedToClassId || ''}
+                onChange={(e) => {
+                  const targetId = e.target.value;
+                  const matched = (classList || []).find((c) => (c.id || c._id) === targetId);
+                  onEditChange(studentId, 'promotedToClassId', targetId);
+                  if (matched) {
+                    onEditChange(studentId, 'promotedToGrade', matched.name);
+                  }
+                }}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+              >
+                <option value="">— Select Class —</option>
+                {(classList || []).map((c) => (
+                  <option key={c.id || c._id} value={c.id || c._id}>
+                    {c.name} {c.stream ? `(${c.stream})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="sm:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Semester 1 Comment</label>
+                <textarea
+                  rows={2}
+                  value={edit?.semester1Comment || ''}
+                  onChange={(e) => onEditChange(studentId, 'semester1Comment', e.target.value)}
+                  placeholder="Semester 1 homeroom comment…"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-xs font-semibold text-slate-600">Semester 2 Comment</label>
+                <textarea
+                  rows={2}
+                  value={edit?.semester2Comment || ''}
+                  onChange={(e) => onEditChange(studentId, 'semester2Comment', e.target.value)}
+                  placeholder="Semester 2 homeroom comment…"
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+                />
+              </div>
+            </div>
+
+            <div className="sm:col-span-3">
+              <label className="mb-1 block text-xs font-semibold text-slate-600">Overall Comment (Optional)</label>
+              <textarea
+                rows={2}
+                value={edit?.overallComment || ''}
+                onChange={(e) => onEditChange(studentId, 'overallComment', e.target.value)}
+                placeholder="Optional overall comment for the entire academic year…"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
+              />
+            </div>
+
+            <div className="sm:col-span-3 flex flex-wrap items-center justify-between gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => onPrintReportCard(studentId)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-xs font-bold text-slate-700 hover:bg-slate-50 transition flex items-center gap-1.5"
+              >
+                📄 Preview &amp; Print A4 Landscape Report Card
+              </button>
+
               <button
                 onClick={() => onApproveAndSave(studentId)}
                 disabled={isSaving || !isDirty}
-                className="w-full rounded-xl bg-indigo-600 py-2 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:opacity-40 flex items-center justify-center gap-2"
+                className="ml-auto rounded-xl bg-indigo-600 px-6 py-2 text-sm font-bold text-white transition hover:bg-indigo-500 disabled:opacity-40 flex items-center justify-center gap-2"
               >
                 {isSaving ? (
                   <>
@@ -207,17 +274,6 @@ function StudentCard({ studentId, studentMap, edit, onEditChange, onApproveAndSa
                   </>
                 ) : pendingGrades.length > 0 ? '✓ Approve & Save' : 'Save Review'}
               </button>
-            </div>
-
-            <div className="sm:col-span-3">
-              <label className="mb-1 block text-xs font-semibold text-slate-600">Homeroom Remarks</label>
-              <textarea
-                rows={2}
-                value={edit?.homeroomRemarks || ''}
-                onChange={(e) => onEditChange(studentId, 'homeroomRemarks', e.target.value)}
-                placeholder="Optional remarks about the student's performance, behaviour, goals…"
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none transition focus:border-slate-400 focus:bg-white"
-              />
             </div>
           </div>
         </div>
@@ -259,6 +315,8 @@ export default function HomeroomGradeReview() {
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
 
+  const [classList, setClassList] = useState([]);
+
   // ─── Load ─────────────────────────────────────────────────────────────────
   const load = useCallback(async () => {
     if (!classId) return;
@@ -267,6 +325,12 @@ export default function HomeroomGradeReview() {
       const yrsRes = await axios.get('/academic-years');
       const ay = (yrsRes.data || []).find((y) => y.isActive) || (yrsRes.data || [])[0] || null;
       setActiveYear(ay);
+
+      // Fetch classes list for Promoted To Class dropdown
+      try {
+        const clsRes = await axios.get('/classroom/classes');
+        setClassList(clsRes.data || []);
+      } catch { /* ignore */ }
 
       // Fetch grading structure from SuperAdmin Settings
       try {
@@ -344,7 +408,11 @@ export default function HomeroomGradeReview() {
         initialEdits[student.id] = {
           conductGrade: rc?.conductGrade || '',
           promotionStatus: rc?.promotionStatus || 'Pending',
-          homeroomRemarks: rc?.homeroomRemarks || '',
+          promotedToClassId: rc?.promotedToClassId || '',
+          promotedToGrade: rc?.promotedToGrade || (rc?.promotedToClass?.name || ''),
+          semester1Comment: rc?.semester1Comment || rc?.teacherComments || '',
+          semester2Comment: rc?.semester2Comment || rc?.homeroomRemarks || '',
+          overallComment: rc?.overallComment || '',
         };
       });
 
@@ -365,6 +433,20 @@ export default function HomeroomGradeReview() {
     setEdits((prev) => ({ ...prev, [studentId]: { ...prev[studentId], [field]: value } }));
   }, []);
 
+  const handlePrintReportCard = useCallback(async (studentId) => {
+    if (!activeYear?.id) {
+      toast.error('No active academic year found.');
+      return;
+    }
+    try {
+      toast.info('Loading dynamic landscape report card…');
+      const res = await axios.get(`/report-cards/full/${studentId}/${activeYear.id}`);
+      printReportCard({ reportCardData: res.data });
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load report card for printing.');
+    }
+  }, [activeYear]);
+
   const handleApproveAndSave = useCallback(async (studentId) => {
     const { student, grades, rc } = studentMap[studentId] || {};
     const edit = edits[studentId] || {};
@@ -378,7 +460,11 @@ export default function HomeroomGradeReview() {
       hasGrades ||
       (edit.conductGrade || '') !== (rc?.conductGrade || '') ||
       (edit.promotionStatus || 'Pending') !== (rc?.promotionStatus || 'Pending') ||
-      (edit.homeroomRemarks || '') !== (rc?.homeroomRemarks || '');
+      (edit.promotedToClassId || '') !== (rc?.promotedToClassId || '') ||
+      (edit.promotedToGrade || '') !== (rc?.promotedToGrade || '') ||
+      (edit.semester1Comment || '') !== (rc?.semester1Comment || rc?.teacherComments || '') ||
+      (edit.semester2Comment || '') !== (rc?.semester2Comment || rc?.homeroomRemarks || '') ||
+      (edit.overallComment || '') !== (rc?.overallComment || '');
 
     if (!hasChanges) { toast.info('Nothing to save.'); return; }
 
@@ -391,42 +477,37 @@ export default function HomeroomGradeReview() {
       const payload = {
         studentId,
         academicYearId: activeYear?.id,
+        semester1Comment: edit.semester1Comment || '',
+        semester2Comment: edit.semester2Comment || '',
+        overallComment: edit.overallComment || '',
+        conductGrade: edit.conductGrade || '',
+        promotionStatus: edit.promotionStatus || 'Pending',
+        promotedToClassId: edit.promotedToClassId || null,
+        promotedToGrade: edit.promotedToGrade || null,
+      };
+      await axios.put(`/report-cards/full/${studentId}/${activeYear.id}`, payload);
+      await axios.patch('/report-cards/homeroom-review/upsert', {
+        studentId,
+        academicYearId: activeYear?.id,
         semesterId: activeSemester?.id || null,
         conductGrade: edit.conductGrade || '',
         promotionStatus: edit.promotionStatus || 'Pending',
-        homeroomRemarks: edit.homeroomRemarks || '',
-      };
-      const rcRes = await axios.patch('/report-cards/homeroom-review/upsert', payload);
-      const updatedRC = rcRes.data;
+        homeroomRemarks: edit.semester2Comment || edit.overallComment || '',
+      });
 
       toast.success(
         hasGrades
-          ? `Approved ${pendingGradeIds.length} grade(s) + saved review for ${student?.user?.name || 'student'}.`
-          : `Review saved for ${student?.user?.name || 'student'}.`
+          ? `Approved ${pendingGradeIds.length} grade(s) + saved report card review for ${student?.user?.name || 'student'}.`
+          : `Report card review saved for ${student?.user?.name || 'student'}.`
       );
 
-      setStudentMap((prev) => {
-        const entry = { ...prev[studentId] };
-        entry.grades = entry.grades.map((g) =>
-          pendingGradeIds.includes(g.id) ? { ...g, submissionStatus: 'ApprovedByHomeroom' } : g
-        );
-        entry.rc = updatedRC;
-        return { ...prev, [studentId]: entry };
-      });
-      setEdits((prev) => ({
-        ...prev,
-        [studentId]: {
-          conductGrade: updatedRC.conductGrade || '',
-          promotionStatus: updatedRC.promotionStatus || 'Pending',
-          homeroomRemarks: updatedRC.homeroomRemarks || '',
-        },
-      }));
+      load();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save student review.');
     } finally {
       setSavingStudentId(null);
     }
-  }, [studentMap, edits, activeYear, activeSemester]);
+  }, [studentMap, edits, activeYear, activeSemester, load]);
 
   const handleSubmitToAdmin = async () => {
     const rcIds = studentOrder.map((sid) => studentMap[sid]?.rc?.id).filter(Boolean);
@@ -554,6 +635,8 @@ export default function HomeroomGradeReview() {
               edit={edits[sid]}
               onEditChange={setStudentEdit}
               onApproveAndSave={handleApproveAndSave}
+              onPrintReportCard={handlePrintReportCard}
+              classList={classList}
               isSaving={savingStudentId === sid}
               gradingComponents={gradingComponents}
               pctToRaw={pctToRaw}

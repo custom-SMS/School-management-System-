@@ -126,13 +126,14 @@ export function AcademicYearProvider({ children }) {
     }
   }, [user, fetchActiveYear, fetchYears]);
 
-  // Poll for active year changes every 30 seconds
+  // Poll for active year changes every 30 seconds (only when logged in)
   useEffect(() => {
+    if (!user) return;
     const interval = setInterval(() => {
       fetchActiveYear();
     }, 30000);
     return () => clearInterval(interval);
-  }, [fetchActiveYear]);
+  }, [user, fetchActiveYear]);
 
   // Reset viewYear when user logs out
   useEffect(() => {

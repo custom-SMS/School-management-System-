@@ -45,18 +45,21 @@ export default function Classes() {
     });
   }, [classes]);
 
-  const fetchClasses = () => {
+  const fetchClasses = async () => {
     setError(false);
-    return axios.get('/classroom/classes')
-      .then(res => setClasses(res.data || []))
-      .catch(err => {
-        console.error(err);
-        setError(true);
-      });
+    try {
+      const res = await axios.get('/classroom/classes');
+      setClasses(res.data || []);
+    } catch (err) {
+      console.error(err);
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchClasses().finally(() => setLoading(false));
+    fetchClasses();
   }, []);
 
   const resetForm = () => {
@@ -158,7 +161,7 @@ export default function Classes() {
     }
   };
 
-  if (loading) return <AdminLayout pageTitle="Classes Management"><div className="p-4">Loading...</div></AdminLayout>;
+  if (loading) return <AdminLayout pageTitle="Classes Management"><div className="p-8 text-center text-slate-400 font-medium">Loading...</div></AdminLayout>;
 
   return (
     <AdminLayout pageTitle="Classes Management">
