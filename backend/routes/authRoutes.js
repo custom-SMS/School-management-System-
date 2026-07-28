@@ -9,6 +9,7 @@ const {
   getCurrentUserPermissions
 } = require('../controllers/authController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { authLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @swagger
@@ -45,7 +46,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       400:
  *         description: Invalid email or password
  */
-router.post('/login', login);
+router.post('/login', authLimiter, login);
 
 /**
  * @swagger
@@ -89,7 +90,7 @@ router.post('/logout', logout);
  *       201:
  *         description: Admin user created successfully
  */
-router.post('/register-admin', registerInitialAdmin);
+router.post('/register-admin', authLimiter, registerInitialAdmin);
 
 /**
  * @swagger

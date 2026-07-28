@@ -240,7 +240,9 @@ export default function GradesContent({ canEdit = false }) {
   };
 
   const handleEditRowChange = (field, value) => {
-    setEditRowMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
+    const component = components.find(c => c.field === field);
+    const maxScore = component?.weight || 100;
+    setEditRowMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(maxScore, Math.max(0, Number(value))) }));
   };
 
   const handleSaveRow = async (row) => {
@@ -259,12 +261,21 @@ export default function GradesContent({ canEdit = false }) {
       });
       toast.success('Grade saved.');
       setEditingRowId(null);
-      // Optimistic update: reflect saved marks directly in local state
-      setClassRows((prev) =>
-        prev.map((r) =>
-          r.student._id === row.student._id ? { ...r, marks } : r
-        )
-      );
+      // Reload grades from server to ensure correct data (backend stores as percentages)
+      const subject = selectedClass.subject || 'General';
+      axios.get(`/classroom/grades/${selectedClass._id}/${encodeURIComponent(subject)}`)
+        .then((r) => {
+          const gradeMap = new Map(
+            (r.data || []).map((g) => [g.student?._id || g.student, g]),
+          );
+          setClassRows((prev) =>
+            prev.map((r) => {
+              const grade = gradeMap.get(r.student._id);
+              return { student: r.student, marks: grade?.marks || {}, gradeId: grade?._id || null };
+            })
+          );
+        })
+        .catch(() => toast.error('Failed to reload grades.'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save grade.');
     } finally {
@@ -307,7 +318,9 @@ export default function GradesContent({ canEdit = false }) {
   };
 
   const handleEditChange = (field, value) => {
-    setEditMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(100, Math.max(0, Number(value))) }));
+    const component = components.find(c => c.field === field);
+    const maxScore = component?.weight || 100;
+    setEditMarks((prev) => ({ ...prev, [field]: value === '' || value === null ? null : Math.min(maxScore, Math.max(0, Number(value))) }));
   };
 
   const handleSave = async (grade) => {
@@ -326,12 +339,10 @@ export default function GradesContent({ canEdit = false }) {
       });
       toast.success('Grade saved.');
       setEditingId(null);
-      // Optimistic update: patch the edited grade in local state directly
-      setStudentGrades((prev) =>
-        prev.map((g) =>
-          g._id === grade._id ? { ...g, marks: { ...g.marks, ...marks } } : g
-        )
-      );
+      // Reload student grades from server to ensure correct data
+      axios.get(`/classroom/grades/student/${selectedStudent._id}`)
+        .then((r) => setStudentGrades(r.data || []))
+        .catch(() => toast.error('Failed to reload grades.'));
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save grade.');
     } finally {
@@ -418,7 +429,7 @@ export default function GradesContent({ canEdit = false }) {
                     <div className="text-xs text-slate-400">{grade.classRef?.name || '—'}</div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {canEditEffective && (
+                    {canEdit && canEditEffective && (
                       isEditing ? (
                         <div className="flex gap-2">
                           <button
@@ -574,13 +585,6 @@ export default function GradesContent({ canEdit = false }) {
               <thead>
                 <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
                   <th className="px-5 py-4 font-semibold">Student</th>
-                  {components.map((c) => (
-                    <th key={c.field} className="px-4 py-4 font-semibold">
-                      {c.label}
-                      <span className="ml-1 font-normal text-slate-300">(/{c.weight})</span>
-                    </th>
-                  ))}
-                  {canEditEffective && <th className="px-4 py-4 font-semibold">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -598,53 +602,6 @@ export default function GradesContent({ canEdit = false }) {
                           <div className="text-xs text-slate-400">{row.student.studentId}</div>
                         </button>
                       </td>
-                      {components.map((c) => (
-                        <td key={c.field} className="px-4 py-3.5">
-                          {isEditing ? (
-                            <input
-                              type="number"
-                              min="0"
-                              max={c.weight}
-                              value={displayMarks[c.field] ?? ''}
-                              onChange={(e) => handleEditRowChange(c.field, e.target.value === '' ? null : e.target.value)}
-                              className="w-20 rounded-lg border border-slate-200 bg-white px-2 py-1 text-center text-sm font-semibold outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-500/20"
-                              placeholder="—"
-                            />
-                          ) : (
-                            <span className={row.marks[c.field] != null ? 'font-semibold text-slate-800' : 'text-slate-300'}>
-                              {row.marks[c.field] != null ? `${row.marks[c.field]} / ${c.weight}` : '—'}
-                            </span>
-                          )}
-                        </td>
-                      ))}
-                      {canEditEffective && (
-                        <td className="px-4 py-3.5">
-                          {isEditing ? (
-                            <div className="flex gap-2">
-                              <button
-                                onClick={handleCancelRow}
-                                className="rounded-lg border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                              >
-                                Cancel
-                              </button>
-                              <button
-                                onClick={() => handleSaveRow(row)}
-                                disabled={savingRow}
-                                className="rounded-lg bg-slate-900 px-2 py-1 text-xs font-bold text-white hover:bg-slate-800 disabled:opacity-50"
-                              >
-                                {savingRow ? 'Saving…' : 'Save'}
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => startEditRow(row)}
-                              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-indigo-500"
-                            >
-                              Edit
-                            </button>
-                          )}
-                        </td>
-                      )}
                     </tr>
                   );
                 })}

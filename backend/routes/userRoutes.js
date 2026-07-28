@@ -12,6 +12,7 @@ const {
   resetUserPassword
 } = require('../controllers/userController');
 const { verifyToken, checkRole } = require('../middleware/authMiddleware');
+const { sensitiveLimiter } = require('../middleware/rateLimiter');
 
 /**
  * @swagger
@@ -71,7 +72,7 @@ router.route('/:id')
  *         description: User status updated
  */
 router.route('/:id/status')
-  .patch(checkRole(['SuperAdmin', 'Admin']), updateUserStatus);
+  .patch(checkRole(['SuperAdmin', 'Admin']), sensitiveLimiter, updateUserStatus);
 
 /**
  * @swagger
@@ -102,7 +103,7 @@ router.route('/:id/status')
  *         description: User role updated
  */
 router.route('/:id/role')
-  .patch(checkRole(['SuperAdmin']), updateUserRole);
+  .patch(checkRole(['SuperAdmin']), sensitiveLimiter, updateUserRole);
 
 /**
  * @swagger
@@ -133,6 +134,6 @@ router.route('/:id/role')
  *         description: Password reset successfully
  */
 router.route('/:id/reset-password')
-  .post(checkRole(['SuperAdmin', 'Admin']), resetUserPassword);
+  .post(checkRole(['SuperAdmin', 'Admin']), sensitiveLimiter, resetUserPassword);
 
 module.exports = router;

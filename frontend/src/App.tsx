@@ -100,7 +100,12 @@ function App() {
   return (
     <Router>
       <AcademicYearProvider>
-            <ToastContainer position="top-right" autoClose={3000} />
+            <ToastContainer 
+              position="top-right" 
+              autoClose={3000}
+              className="toast-container"
+              toastClassName="toast-item"
+            />
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

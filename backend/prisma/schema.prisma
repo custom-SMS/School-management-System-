@@ -365,7 +365,7 @@ model Class {
   classSubjects ClassSubject[]
   promotedReportCards ReportCard[]  @relation("PromotedToClass")
 
-  @@unique([branchId, name, academicYearId])
+  @@unique([branchId, name, stream, academicYearId])
   @@index([academicYearId])
   @@index([branchId, academicYearId])
   @@index([teacherId, academicYearId])

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams, useNavigate } from 'react-router-dom';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
 import { useAuth } from '../../hooks/useAuth';
@@ -22,9 +22,12 @@ function daysDiff(dateStr) {
 
 export default function TeacherAttendance() {
   const { user } = useAuth();
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
 
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState('');
   const [date, setDate] = useState(todayString());
   const [attendance, setAttendance] = useState({});
   const [saving, setSaving] = useState(false);
@@ -51,7 +54,9 @@ export default function TeacherAttendance() {
         try {
           const qp = new URLSearchParams(window.location.search);
           const qClass = qp.get('classId');
+          const qSection = qp.get('sectionId');
           if (qClass && list.some((l) => l._id === qClass)) setSelectedClassId(qClass);
+          if (qSection) setSelectedSectionId(qSection);
         } catch (_) { /* ignore */ }
       })
       .catch((err) => {

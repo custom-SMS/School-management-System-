@@ -287,6 +287,7 @@ export default function HomeroomGradeReview() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const classId = params.get('classId');
+  const sectionId = params.get('sectionId');
   const { activeSemester } = useBranch();
 
   const [loading, setLoading] = useState(true);
@@ -307,11 +308,10 @@ export default function HomeroomGradeReview() {
   ];
   const [gradingComponents, setGradingComponents] = useState(DEFAULT_COMPONENTS);
 
-  // Convert stored percentage (0-100) → raw mark out of the component weight
-  // e.g. pctToRaw(100, 10) → '10'  |  pctToRaw(90, 10) → '9'
-  const pctToRaw = (pct, weight) => {
-    if (pct == null || weight == null || Number(weight) === 0) return '—';
-    const raw = (Number(pct) / 100) * Number(weight);
+  // Raw score is now stored directly, no conversion needed
+  // e.g. rawToDisplay(8, 10) → '8'  |  rawToDisplay(9, 10) → '9'
+  const pctToRaw = (raw, weight) => {
+    if (raw == null || weight == null || Number(weight) === 0) return '—';
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
 

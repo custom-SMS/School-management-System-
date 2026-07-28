@@ -18,6 +18,7 @@ const {
   getStudentTranscript
 } = require('../controllers/studentController');
 const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
+const { sensitiveLimiter } = require('../middleware/rateLimiter');
 const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
 /**
  * @swagger
@@ -87,7 +88,7 @@ globalCacheMiddleware, getStudentPerformance);
  *       201:
  *         description: Student registered
  */
-router.post('/', verifyTokenOptional, injectBranchFilter, registerStudent);
+router.post('/', verifyTokenOptional, injectBranchFilter, sensitiveLimiter, registerStudent);
 
 // Manage grade fee rules
 /**
@@ -109,7 +110,7 @@ router.post('/', verifyTokenOptional, injectBranchFilter, registerStudent);
  *       200:
  *         description: Grade fee set
  */
-router.post('/grade-fee', verifyToken, checkPermission('student_registration'), setGradeFee);
+router.post('/grade-fee', verifyToken, checkPermission('student_registration'), sensitiveLimiter, setGradeFee);
 
 /**
  * @swagger
@@ -196,8 +197,8 @@ router.get('/classes', verifyToken, checkPermission('student_registration'), inj
  */
 router.get('/:id', verifyToken, checkPermission('student_registration'),injectBranchFilter,
 globalCacheMiddleware, getStudents);
-router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter,  updateStudent);
-router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter,  deleteStudent);
+router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, updateStudent);
+router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, deleteStudent);
 
 // Promotion & Status routes
 /**
@@ -219,7 +220,7 @@ router.delete('/:id', verifyToken, checkPermission('student_registration'), inje
  *       200:
  *         description: Students promoted
  */
-router.post('/promote', verifyToken, checkPermission('student_registration'), injectBranchFilter,  promoteStudent);
+router.post('/promote', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, promoteStudent);
 
 /**
  * @swagger
@@ -240,7 +241,7 @@ router.post('/promote', verifyToken, checkPermission('student_registration'), in
  *       200:
  *         description: Students set to repeat
  */
-router.post('/repeat', verifyToken, checkPermission('student_registration'), injectBranchFilter, repeatStudent);
+router.post('/repeat', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, repeatStudent);
 
 /**
  * @swagger
@@ -267,7 +268,7 @@ router.post('/repeat', verifyToken, checkPermission('student_registration'), inj
  *       200:
  *         description: Status updated
  */
-router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter,  setStudentStatus);
+router.patch('/:id/status', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, setStudentStatus);
 
 // Academic history & transcript
 router.get('/:id/history', verifyToken, checkRole(['Admin', 'Teacher', 'Student', 'Parent', 'SuperAdmin']), injectBranchFilter, getStudentHistory);

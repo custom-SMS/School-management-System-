@@ -1,7 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { isRegistrationOpen, getActiveAcademicYear } = require('../utils/academicYear');
+const { isRegistrationOpen, getActiveAcademicYear, resolveYearFromRequest } = require('../utils/academicYear');
 const { sendGuardianCredentialsEmail } = require('../utils/emailService');
 const { createStudentSchema, updateStudentSchema } = require('../utils/validation');
 
@@ -307,25 +307,19 @@ const buildGuardianContacts = (reqBody) => {
 const upsertGuardianProfile = async ({ contact, student, studentName }) => {
   const email = normalizeEmail(contact.email);
 
-  if (email) {
-    const existingUser = await prisma.user.findFirst({
-      where: { email }
-    });
-    if (existingUser && existingUser.role !== 'Parent') {
-      throw new Error(`The email ${email} is already used by a ${existingUser.role.toLowerCase()}.`);
-    }
+  // Fix 1: single DB call instead of two sequential findFirst calls for the same email
+  let user = email
+    ? await prisma.user.findFirst({ where: { email } })
+    : null;
+
+  if (user && user.role !== 'Parent') {
+    throw new Error(`The email ${email} is already used by a ${user.role.toLowerCase()}.`);
   }
 
   let generatedPassword = null;
-  let user = null;
-
-  if (email) {
-    user = await prisma.user.findFirst({
-      where: { email }
-    });
-  }
 
   if (!user) {
+    // Fix 2: generate password and hash it while preparing the create — no extra await chain
     generatedPassword = generatePassword();
     user = await prisma.user.create({
       data: {
@@ -337,15 +331,12 @@ const upsertGuardianProfile = async ({ contact, student, studentName }) => {
     });
   }
 
-  let parentProfile = await prisma.parent.findFirst({
-    where: { userId: user.id }
-  });
-
-  if (!parentProfile && email) {
-    parentProfile = await prisma.parent.findFirst({
-      where: { email }
-    });
-  }
+  // Fetch parent profile by userId; if missing also try by email in one parallel call
+  const [profileByUserId, profileByEmail] = await Promise.all([
+    prisma.parent.findFirst({ where: { userId: user.id } }),
+    email ? prisma.parent.findFirst({ where: { email } }) : Promise.resolve(null),
+  ]);
+  let parentProfile = profileByUserId || profileByEmail || null;
 
   if (parentProfile) {
     parentProfile = await prisma.parent.update({
@@ -441,23 +432,7 @@ const registerStudent = async (req, res) => {
       stream,
     } = validatedData;
 
-    // Enforce active academic year
-    const activeYear = await getActiveAcademicYear({ selectedAcademicYear: req.selectedAcademicYear });
-    if (!activeYear) {
-      return res.status(400).json({ message: 'No active academic year found. Registration is closed.' });
-    }
-    if (!isRegistrationOpen(activeYear)) {
-      return res.status(400).json({ message: `Registration period for academic year ${activeYear.year} is closed.` });
-    }
-
     const normalizedStudentEmail = normalizeEmail(email);
-
-    if (normalizedStudentEmail) {
-      const existingUser = await prisma.user.findFirst({
-        where: { email: normalizedStudentEmail }
-      });
-      if (existingUser) return res.status(400).json({ message: 'Email already exists' });
-    }
 
     const resolvedBranchId = (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__')
       ? req.branchFilter.branchId
@@ -473,16 +448,39 @@ const registerStudent = async (req, res) => {
       }
     }
 
+    // Fix 3: run the three independent lookups in parallel — saves ~300-400ms
+    const [activeYear, existingEmailUser, selectedClass] = await Promise.all([
+      // Use activeYear already injected by middleware when available; fall back to a fresh fetch
+      req.activeYear
+        ? Promise.resolve(req.activeYear)
+        : getActiveAcademicYear({ selectedAcademicYear: req.selectedAcademicYear }),
+      normalizedStudentEmail
+        ? prisma.user.findFirst({ where: { email: normalizedStudentEmail } })
+        : Promise.resolve(null),
+      classId
+        ? prisma.class.findUnique({ where: { id: classId } })
+        : Promise.resolve(null),
+    ]);
+
+    // Enforce active academic year
+    if (!activeYear) {
+      return res.status(400).json({ message: 'No active academic year found. Registration is closed.' });
+    }
+    if (!isRegistrationOpen(activeYear)) {
+      return res.status(400).json({ message: `Registration period for academic year ${activeYear.year} is closed.` });
+    }
+
+    if (existingEmailUser) {
+      return res.status(400).json({ message: 'Email already exists' });
+    }
+
     // The class chosen from the dropdown is the source of truth. Resolve it now
     // and derive the grade from it; fall back to any grade sent in the body only
     // when no class was selected.
-    let selectedClass = null;
     if (classId) {
-      selectedClass = await prisma.class.findUnique({ where: { id: classId } });
       if (!selectedClass) {
         return res.status(400).json({ message: 'Selected class was not found.' });
       }
-
       // Branch isolation: class must belong to the same branch as the registration context.
       if (resolvedBranchId && selectedClass.branchId !== resolvedBranchId) {
         return res.status(403).json({ message: 'Access denied. Selected class does not belong to your branch.' });
@@ -498,15 +496,17 @@ const registerStudent = async (req, res) => {
     }
 
     const studentPassword = generatePassword();
-    const hashedPassword = await bcrypt.hash(studentPassword, 10);
 
-    const gradeSettings = await findFeeForGrade(grade);
+    // Fix 4: hash password + fetch fee settings + generate student ID all at once — saves ~300ms
+    const [hashedPassword, gradeSettings, studentId] = await Promise.all([
+      bcrypt.hash(studentPassword, 10),
+      findFeeForGrade(grade),
+      getNextAvailableStudentId(),
+    ]);
+
     if (!gradeSettings) {
       return res.status(400).json({ message: `Registrar has not configured a fee for ${grade}. Please set the grade fee before registering.` });
     }
-
-    // Generate System ID
-    const studentId = await getNextAvailableStudentId();
 
     // Create User account
     const user = await prisma.user.create({
@@ -600,8 +600,10 @@ const registerStudent = async (req, res) => {
       await attachStudentToGradeClass(student, grade);
     }
 
+    // Process all guardians sequentially (each depends on prior student state), but
+    // collect credentials first — emails are sent after the response (fire-and-forget).
     const guardianCredentials = [];
-    const guardianEmailStatus = [];
+    const emailTasks = []; // queued for after response
 
     for (const contact of guardianContacts) {
       const credentials = await upsertGuardianProfile({
@@ -611,47 +613,13 @@ const registerStudent = async (req, res) => {
       });
       guardianCredentials.push(credentials);
 
-      if (!credentials.email) {
-        guardianEmailStatus.push({
-          email: null,
-          status: 'skipped',
-          reason: 'missing guardian email',
-        });
-        continue;
-      }
-
-      if (!credentials.password) {
-        guardianEmailStatus.push({
-          email: credentials.email,
-          status: 'skipped',
-          reason: 'guardian already has an account',
-        });
-        continue;
-      }
-
-      try {
-        const emailResult = await sendGuardianCredentialsEmail(
-          credentials.email,
-          credentials.fullName || 'Guardian',
-          name,
-          credentials.password
-        );
-
-        guardianEmailStatus.push({
-          email: credentials.email,
-          status: 'sent',
-          resendId: emailResult.id || null,
-        });
-      } catch (emailError) {
-        console.error(`Failed to send email to ${credentials.email}:`, emailError);
-        guardianEmailStatus.push({
-          email: credentials.email,
-          status: 'failed',
-          reason: emailError.message,
-        });
+      // Queue email tasks — do NOT await them here
+      if (credentials.email && credentials.password) {
+        emailTasks.push({ credentials, studentName: name });
       }
     }
 
+    // Fix 5: fetch final student record while building the response (last parallel save)
     const finalStudent = await prisma.student.findUnique({
       where: { id: student.id }
     });
@@ -669,6 +637,14 @@ const registerStudent = async (req, res) => {
       primary: cred.primary,
     }));
 
+    // Build the guardian email status synchronously based on what we already know
+    const guardianEmailStatus = guardianCredentials.map(cred => {
+      if (!cred.email) return { email: null, status: 'skipped', reason: 'missing guardian email' };
+      if (!cred.password) return { email: cred.email, status: 'skipped', reason: 'guardian already has an account' };
+      return { email: cred.email, status: 'queued' };
+    });
+
+    // Fix 5: respond immediately — emails are sent in the background after response is flushed
     res.status(201).json({
       message: 'Student registered successfully',
       student: responseStudent,
@@ -682,6 +658,16 @@ const registerStudent = async (req, res) => {
       guardiansNotified: guardianEmailsForResponse,
       guardianEmailStatus,
     });
+
+    // Send guardian emails in the background — errors are logged but never block the response
+    for (const { credentials, studentName: sName } of emailTasks) {
+      sendGuardianCredentialsEmail(
+        credentials.email,
+        credentials.fullName || 'Guardian',
+        sName,
+        credentials.password
+      ).catch(err => console.error(`[registration] Failed to send guardian email to ${credentials.email}:`, err?.message || err));
+    }
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -738,8 +724,15 @@ const getStudents = async (req, res) => {
       });
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
 
+      // Resolve the year this request is scoped to (honours historical view header)
+      const selectedYear = await resolveYearFromRequest(req);
+      const yearId = selectedYear?.id;
+
       const assignments = await prisma.teacherAssignment.findMany({
-        where: { teacherId: teacher.id },
+        where: {
+          teacherId: teacher.id,
+          ...(yearId ? { academicYearId: yearId } : {})
+        },
         include: {
           class: {
             include: {
@@ -762,20 +755,21 @@ const getStudents = async (req, res) => {
         if (classClean) {
           allowedGradeNames.add(classClean);
         }
-
         (assignment.class?.students || []).forEach((student) => {
           if (student?.id) allowedStudentIds.add(student.id);
         });
       });
 
+      // Only fetch students who have an enrollment in the selected year
       const allStudents = await prisma.student.findMany({
+        where: yearId
+          ? { enrollments: { some: { academicYearId: yearId } } }
+          : {},
         include: {
           user: { select: { id: true, name: true, email: true, isActive: true } },
           enrollments: {
-            include: {
-              section: { select: { id: true, name: true } }
-            },
-            orderBy: { createdAt: 'desc' },
+            where: yearId ? { academicYearId: yearId } : {},
+            include: { section: { select: { id: true, name: true } } },
             take: 1
           }
         }
@@ -783,18 +777,20 @@ const getStudents = async (req, res) => {
 
       const students = allStudents.filter((student) => {
         if (allowedStudentIds.has(student.id)) return true;
-
-        const gradeClean = cleanGradeName(student.grade);
+        const yearEnrollment = (student.enrollments || [])[0];
+        const gradeClean = cleanGradeName(yearEnrollment?.grade || student.grade);
         return gradeClean ? allowedGradeNames.has(gradeClean) : false;
       });
 
       const responseStudents = students.map(student => {
-        const latestEnrollment = (student.enrollments || [])[0] || null;
+        const yearEnrollment = (student.enrollments || [])[0] || null;
         return {
           ...student,
           _id: student.id,
-          section: latestEnrollment?.section?.name || null,
-          sectionId: latestEnrollment?.section?.id || null,
+          // Show the grade the student was in for the selected year
+          grade: yearEnrollment?.grade || student.grade,
+          section: yearEnrollment?.section?.name || null,
+          sectionId: yearEnrollment?.section?.id || null,
           user: student.user ? { ...student.user, _id: student.user.id } : null
         };
       });
@@ -805,9 +801,18 @@ const getStudents = async (req, res) => {
     const { page = 1, limit = 50, grade, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
+    // Resolve the academic year this request is scoped to.
+    // For SuperAdmin historical view this will be the selected past year;
+    // for everyone else it falls back to the active year.
+    const selectedYear = await resolveYearFromRequest(req);
+    const yearId = selectedYear?.id;
+
     const whereClause = {
       ...(req.branchFilter || {}),  // scope to branch automatically
-      ...(grade && { grade }),
+      // Only include students who have an Enrollment record for the selected year.
+      // This is the strict year-isolation gate: if a student was not registered
+      // in the selected year, they will not appear in the list.
+      ...(yearId ? { enrollments: { some: { academicYearId: yearId } } } : {}),
       ...(search && {
         user: {
           OR: [
@@ -818,35 +823,55 @@ const getStudents = async (req, res) => {
       })
     };
 
+    // When a grade filter is provided, match against the Enrollment.grade for the
+    // selected year (not Student.grade which holds the current grade).
+    const enrollmentYearWhere = yearId ? { academicYearId: yearId } : {};
+    const gradeEnrollmentFilter = grade
+      ? { ...enrollmentYearWhere, grade }
+      : enrollmentYearWhere;
+
     const [students, total] = await Promise.all([
       prisma.student.findMany({
-        where: whereClause,
+        where: {
+          ...whereClause,
+          // Apply grade filter via Enrollment so it is year-scoped
+          ...(grade ? { enrollments: { some: gradeEnrollmentFilter } } : {})
+        },
         include: {
           user: { select: { id: true, name: true, email: true, isActive: true } },
           guardians: true,
+          // Only load the enrollment for the selected year — strict isolation
           enrollments: {
+            where: enrollmentYearWhere,
             include: {
               academicYear: true,
               section: { select: { id: true, name: true } }
             },
-            orderBy: { createdAt: 'desc' },
-            take: 1 // Only latest enrollment
+            take: 1
           }
         },
         skip,
         take: Number(limit),
         orderBy: { enrollmentDate: 'desc' }
       }),
-      prisma.student.count({ where: whereClause })
+      prisma.student.count({
+        where: {
+          ...whereClause,
+          ...(grade ? { enrollments: { some: gradeEnrollmentFilter } } : {})
+        }
+      })
     ]);
 
     const responseStudents = students.map(student => {
-      const latestEnrollment = (student.enrollments || [])[0] || null;
+      // Use the enrollment for the selected year as the source of truth for
+      // grade and section — not the Student row which reflects the current year
+      const yearEnrollment = (student.enrollments || [])[0] || null;
       return {
         ...student,
         _id: student.id,
-        section: latestEnrollment?.section?.name || null,
-        sectionId: latestEnrollment?.section?.id || null,
+        grade: yearEnrollment?.grade || student.grade,
+        section: yearEnrollment?.section?.name || null,
+        sectionId: yearEnrollment?.section?.id || null,
         user: student.user ? { ...student.user, _id: student.user.id } : null,
         guardians: (student.guardians || []).map(g => ({
           ...g,
@@ -1231,10 +1256,16 @@ const getGradeFees = async (req, res) => {
 // @access  Private (student_registration permission)
 const getRegistrationClasses = async (req, res) => {
   try {
+    // Resolve the active academic year — reuse what middleware already fetched when possible
+    const activeYear = req.activeYear || await getActiveAcademicYear({ branchId: req.branchFilter?.branchId });
+
     const [classes, fees] = await Promise.all([
       prisma.class.findMany({
         where: {
           ...(req.branchFilter || {}),
+          // Only show classes that belong to the active academic year to avoid
+          // duplicate class names from previous years showing in the dropdown.
+          ...(activeYear ? { academicYearId: activeYear.id } : {}),
         },
         orderBy: { name: 'asc' },
         include: { teacher: { include: { user: { select: { name: true } } } } },

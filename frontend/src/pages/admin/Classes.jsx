@@ -124,16 +124,26 @@ export default function Classes() {
           stream: needsStream ? stream : null
         });
         toast.success(`Class "${normalizedName}" updated.`);
+        resetForm();
+        setShowModal(false);
+        // Optimistically update the edited class in-place
+        setClasses(prev => prev.map(c => c.id === editingClassId
+          ? { ...c, stream: needsStream ? stream : null }
+          : c
+        ));
       } else {
-        await axios.post('/classroom/classes', {
+        const res = await axios.post('/classroom/classes', {
           name: normalizedName,
           stream: needsStream ? stream : null
         });
         toast.success(`Class "${normalizedName}" created.`);
+        resetForm();
+        setShowModal(false);
+        // Optimistically append the new class returned by the server
+        setClasses(prev => [...prev, res.data]);
       }
-      resetForm();
-      setShowModal(false);
-      await fetchClasses();
+      // Background refetch to sync full data (teacher name, sections, etc.)
+      fetchClasses();
     } catch (err) {
       toast.error(err.response?.data?.message || (editingClassId ? 'Failed to update class.' : 'Failed to create class.'));
     } finally {
@@ -142,9 +152,10 @@ export default function Classes() {
   };
 
   const handleDeleteClass = async (klass) => {
+    const classLabel = klass.stream ? `${klass.name} (${klass.stream})` : klass.name;
     const { isConfirmed } = await showDangerConfirmDialog({
-      title: 'Delete class?',
-      text: `Delete class "${klass.name}"? This cannot be undone.`,
+      title: `Delete ${classLabel}?`,
+      text: `This will permanently delete "${classLabel}". This cannot be undone.`,
       confirmButtonText: 'Delete',
     });
     if (!isConfirmed) return;
@@ -152,8 +163,11 @@ export default function Classes() {
     setDeletingClassId(klass.id);
     try {
       await axios.delete(`/classroom/classes/${klass.id}`);
-      toast.success(`Class "${klass.name}" deleted.`);
-      await fetchClasses();
+      // Immediately remove from UI — no waiting for re-fetch
+      setClasses(prev => prev.filter(c => c.id !== klass.id));
+      toast.success(`"${classLabel}" deleted successfully.`);
+      // Background refetch to stay in sync (cache is now cleared server-side)
+      fetchClasses();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete class.');
     } finally {

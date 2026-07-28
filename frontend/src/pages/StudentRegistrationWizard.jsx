@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
+import { useBranch } from '../hooks/useBranch';
 
 const STEPS = [
   { key: 'student', label: 'Student Info', icon: <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z" /> },
@@ -19,6 +20,7 @@ const blank = {
   // UI stores only the digits after +2519 (8 digits)
   parentPhone: '', parentOccupation: '',
   emergencyName: '', emergencyPhone: '',
+  emergencyName2: '', emergencyPhone2: '',
   classId: '', transport: false,
   consent: false,
 };
@@ -39,6 +41,9 @@ const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-4 py-3 t
 export default function StudentRegistrationWizard() {
   const navigate = useNavigate();
   const { id: studentId } = useParams();
+  const { selectedBranchId } = useBranch();
+  const effectiveBranchId = localStorage.getItem('branchId') || selectedBranchId || '';
+
   const isEditMode = Boolean(studentId);
   const [stepIdx, setStepIdx] = useState(0);
   const [form, setForm] = useState(blank);
@@ -76,29 +81,24 @@ export default function StudentRegistrationWizard() {
   useEffect(() => {
     axios.get('/students/grade-fee').then((r) => setGradeFees(r.data || [])).catch(() => {});
 
-    // Branch scoping fix: backend uses X-Branch-Id / X-Level-Id to populate req.branchFilter/req.levelFilter
-    // for BranchAdmin/Teacher. Ensure these headers are sent so the class dropdown is filtered.
-    const branchId = localStorage.getItem('branchId');
     const levelId = localStorage.getItem('levelId');
 
     axios.get('/students/classes', {
       headers: {
-        ...(branchId ? { 'x-branch-id': branchId } : {}),
+        ...(effectiveBranchId ? { 'x-branch-id': effectiveBranchId } : {}),
         ...(levelId ? { 'x-level-id': levelId } : {}),
       },
     })
       .then((r) => {
         const all = r.data || [];
-        // Server already scopes by branch, but also keep the UI safe by filtering
-        // out any class that has a different branchId.
-        setClasses(all.filter((c) => c.feeConfigured !== false && (!c.branchId || c.branchId === localStorage.getItem('branchId'))));
+        setClasses(all.filter((c) => c.feeConfigured !== false && (!effectiveBranchId || !c.branchId || c.branchId === effectiveBranchId)));
       })
       .catch(() => setClasses([]));
 
     axios.get('/academic-years')
       .then((r) => setActiveYear((r.data || []).find((y) => y.isActive) || null))
       .catch(() => setActiveYear(null));
-  }, []);
+  }, [effectiveBranchId]);
 
 
   useEffect(() => {
@@ -132,6 +132,8 @@ export default function StudentRegistrationWizard() {
           parentOccupation: student.familyBackground?.occupation || '',
           emergencyName: noteValue(notes, 'Emergency').replace(/\s*\([^)]*\)\s*$/, ''),
           emergencyPhone: noteValue(notes, 'Emergency').match(/\(([^)]*)\)/)?.[1] || '',
+          emergencyName2: noteValue(notes, 'Emergency2').replace(/\s*\([^)]*\)\s*$/, ''),
+          emergencyPhone2: noteValue(notes, 'Emergency2').match(/\(([^)]*)\)/)?.[1] || '',
           nationalId: noteValue(notes, 'National ID'),
           classId: student.classes?.[0]?.id || student.classes?.[0]?._id || '',
           transport: notes.includes('Transport: Yes'),
@@ -161,10 +163,10 @@ export default function StudentRegistrationWizard() {
       return form.firstName && form.fatherName && form.dateOfBirth && form.gender && form.address;
     }
     if (step.key === 'parent') {
-      return form.parentFirst && form.parentPhone && form.parentOccupation && form.emergencyName && form.emergencyPhone;
+      return form.parentFirst && form.parentPhone && form.parentOccupation;
     }
     if (step.key === 'enrollment') return classes.length === 0 || !!form.classId;
-    if (step.key === 'documents') return docs['National ID / Kebele ID']?.status === 'done' && docs['Student Photo']?.status === 'done';
+    if (step.key === 'documents') return docs['Student Photo']?.status === 'done';
     if (step.key === 'review') return form.consent;
     return true;
   };
@@ -206,6 +208,7 @@ export default function StudentRegistrationWizard() {
             form.nationalId ? `National ID: ${form.nationalId}` : '',
             form.transport ? 'Transport: Yes' : '',
             form.emergencyName ? `Emergency: ${form.emergencyName} (${form.emergencyPhone})` : '',
+            form.emergencyName2 ? `Emergency2: ${form.emergencyName2} (${form.emergencyPhone2})` : '',
             ...Object.entries(docs).filter(([, d]) => d.status === 'done').map(([k, d]) => `${k}: ${d.url}`),
           ].filter(Boolean).join(' • '),
         },
@@ -317,7 +320,7 @@ export default function StudentRegistrationWizard() {
               {step.key === 'student' && 'Enter the legal personal details of the student as they appear on official identity documents.'}
               {step.key === 'parent' && "Provide primary and emergency contact details for the student's legal guardians."}
               {step.key === 'enrollment' && 'Review the active academic year and assign the student to a class.'}
-              {step.key === 'documents' && 'Upload the required student photo and national ID, plus any optional supporting documents.'}
+              {step.key === 'documents' && 'Upload the required student photo. National ID / Kebele ID and other documents are optional but recommended.'}
               {step.key === 'review' && 'Please verify all details before finalizing the registration.'}
             </p>
 
@@ -441,22 +444,45 @@ export default function StudentRegistrationWizard() {
                         <Field label="Occupation"><input className={inputCls} value={form.parentOccupation} onChange={(e) => set('parentOccupation', e.target.value)} placeholder="e.g. Civil Engineer" /></Field>
                       </div>
                       <div className="mt-6 border-t border-slate-200 pt-5">
-                        <h4 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900"><span className="text-rose-500">*</span> Emergency Contact Detail</h4>
+                        <h4 className="mb-4 flex items-center gap-2 text-base font-bold text-slate-900">Emergency Contacts</h4>
+
+                        {/* Emergency Contact 1 */}
+                        <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Contact 1</p>
                         <div className="grid gap-5 sm:grid-cols-2">
-                          <Field label="Full Name (Emergency)"><input className={inputCls} value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} placeholder="Contact Person Name" /></Field>
-<Field label="Emergency Phone Number">
-  <input
-    type="tel"
-    inputMode="numeric"
-    pattern="[0-9]*"
-    className={inputCls}
-    value={form.emergencyPhone}
-    onChange={(e) =>
-      set('emergencyPhone', e.target.value.replace(/\D/g, ''))
-    }
-    placeholder="912345678"
-  />
-</Field>                        </div>
+                          <Field label="Full Name">
+                            <input className={inputCls} value={form.emergencyName} onChange={(e) => set('emergencyName', e.target.value)} placeholder="Contact Person Name" />
+                          </Field>
+                          <Field label="Phone Number">
+                            <input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className={inputCls}
+                              value={form.emergencyPhone}
+                              onChange={(e) => set('emergencyPhone', e.target.value.replace(/\D/g, ''))}
+                              placeholder="912345678"
+                            />
+                          </Field>
+                        </div>
+
+                        {/* Emergency Contact 2 */}
+                        <p className="mt-5 mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Contact 2 <span className="normal-case font-normal text-slate-400">(optional)</span></p>
+                        <div className="grid gap-5 sm:grid-cols-2">
+                          <Field label="Full Name">
+                            <input className={inputCls} value={form.emergencyName2} onChange={(e) => set('emergencyName2', e.target.value)} placeholder="Contact Person Name" />
+                          </Field>
+                          <Field label="Phone Number">
+                            <input
+                              type="tel"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              className={inputCls}
+                              value={form.emergencyPhone2}
+                              onChange={(e) => set('emergencyPhone2', e.target.value.replace(/\D/g, ''))}
+                              placeholder="912345678"
+                            />
+                          </Field>
+                        </div>
                       </div>
                     </Card>
                   )}
@@ -520,7 +546,7 @@ export default function StudentRegistrationWizard() {
                       {[
                         { name: 'Birth Certificate', required: false },
                         { name: 'School Transcript', required: false },
-                        { name: 'National ID / Kebele ID', required: true },
+                        { name: 'National ID / Kebele ID', required: false },
                         { name: 'Student Photo', required: true },
                       ].map(({ name: doc, required }) => {
                         const state = docs[doc];
@@ -564,7 +590,7 @@ export default function StudentRegistrationWizard() {
                         );
                       })}
                       <div className="lg:col-span-2 rounded-xl border border-slate-200 bg-white p-4 text-xs text-slate-500">
-                        <span className="font-bold text-slate-700">{Object.values(docs).filter((d) => d.status === 'done').length}/4 uploaded.</span> Student photo and national ID are required. Birth certificate and school transcript are optional.
+                        <span className="font-bold text-slate-700">{Object.values(docs).filter((d) => d.status === 'done').length}/4 uploaded.</span> Student photo is required. National ID / Kebele ID, birth certificate, and school transcript are optional but recommended.
                       </div>
                     </div>
                   )}
@@ -579,7 +605,8 @@ export default function StudentRegistrationWizard() {
                       <ReviewCard title="Parent / Guardian Information" onEdit={() => setStepIdx(1)} rows={[
                         ['Primary Guardian', parentName || '—'], ['Relationship', form.parentRelationship || '—'],
                         ['Phone', form.parentPhone || '—'], ['Email', form.parentEmail || '—'],
-                        ['Emergency Contact', form.emergencyName ? `${form.emergencyName} (${form.emergencyPhone})` : '—'],
+                        ['Emergency Contact 1', form.emergencyName ? `${form.emergencyName} (${form.emergencyPhone})` : '—'],
+                        ['Emergency Contact 2', form.emergencyName2 ? `${form.emergencyName2} (${form.emergencyPhone2})` : '—'],
                       ]} />
                       <ReviewCard title="Enrollment Details" onEdit={() => setStepIdx(2)} rows={[
                         ['Academic Year', activeYear?.year || '—'],

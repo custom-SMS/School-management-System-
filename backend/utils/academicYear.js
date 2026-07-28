@@ -97,4 +97,18 @@ async function getActiveAcademicYear(options = {}) {
   }
 }
 
-module.exports = { isRegistrationOpen, getActiveAcademicYear };
+/**
+ * Resolve the academic year a request is scoped to.
+ * - If the middleware already attached a selectedAcademicYear (SuperAdmin historical
+ *   view via X-Super-Admin-Year-View-Id header), return it directly.
+ * - Otherwise fall back to the active academic year.
+ *
+ * Use this in every controller that needs to scope data to a year, so that
+ * switching years in the SuperAdmin navbar is automatically honoured.
+ */
+async function resolveYearFromRequest(req) {
+  if (req.selectedAcademicYear) return req.selectedAcademicYear;
+  return getActiveAcademicYear({});
+}
+
+module.exports = { isRegistrationOpen, getActiveAcademicYear, resolveYearFromRequest };
