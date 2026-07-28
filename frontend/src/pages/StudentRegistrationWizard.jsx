@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from '../api/axios';
 import { toast } from 'react-toastify';
+import { useBranch } from '../hooks/useBranch';
 
 const STEPS = [
   { key: 'student', label: 'Student Info', icon: <path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v2h18v-2c0-3.5-4-6-9-6z" /> },
@@ -39,6 +40,9 @@ const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-4 py-3 t
 export default function StudentRegistrationWizard() {
   const navigate = useNavigate();
   const { id: studentId } = useParams();
+  const { selectedBranchId } = useBranch();
+  const effectiveBranchId = localStorage.getItem('branchId') || selectedBranchId || '';
+
   const isEditMode = Boolean(studentId);
   const [stepIdx, setStepIdx] = useState(0);
   const [form, setForm] = useState(blank);
@@ -76,29 +80,24 @@ export default function StudentRegistrationWizard() {
   useEffect(() => {
     axios.get('/students/grade-fee').then((r) => setGradeFees(r.data || [])).catch(() => {});
 
-    // Branch scoping fix: backend uses X-Branch-Id / X-Level-Id to populate req.branchFilter/req.levelFilter
-    // for BranchAdmin/Teacher. Ensure these headers are sent so the class dropdown is filtered.
-    const branchId = localStorage.getItem('branchId');
     const levelId = localStorage.getItem('levelId');
 
     axios.get('/students/classes', {
       headers: {
-        ...(branchId ? { 'x-branch-id': branchId } : {}),
+        ...(effectiveBranchId ? { 'x-branch-id': effectiveBranchId } : {}),
         ...(levelId ? { 'x-level-id': levelId } : {}),
       },
     })
       .then((r) => {
         const all = r.data || [];
-        // Server already scopes by branch, but also keep the UI safe by filtering
-        // out any class that has a different branchId.
-        setClasses(all.filter((c) => c.feeConfigured !== false && (!c.branchId || c.branchId === localStorage.getItem('branchId'))));
+        setClasses(all.filter((c) => c.feeConfigured !== false && (!effectiveBranchId || !c.branchId || c.branchId === effectiveBranchId)));
       })
       .catch(() => setClasses([]));
 
     axios.get('/academic-years')
       .then((r) => setActiveYear((r.data || []).find((y) => y.isActive) || null))
       .catch(() => setActiveYear(null));
-  }, []);
+  }, [effectiveBranchId]);
 
 
   useEffect(() => {
@@ -161,10 +160,10 @@ export default function StudentRegistrationWizard() {
       return form.firstName && form.fatherName && form.dateOfBirth && form.gender && form.address;
     }
     if (step.key === 'parent') {
-      return form.parentFirst && form.parentPhone && form.parentOccupation && form.emergencyName && form.emergencyPhone;
+      return form.parentFirst && form.parentPhone && form.parentOccupation;
     }
     if (step.key === 'enrollment') return classes.length === 0 || !!form.classId;
-    if (step.key === 'documents') return docs['National ID / Kebele ID']?.status === 'done' && docs['Student Photo']?.status === 'done';
+    if (step.key === 'documents') return docs['Student Photo']?.status === 'done';
     if (step.key === 'review') return form.consent;
     return true;
   };

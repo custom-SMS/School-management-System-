@@ -50,7 +50,7 @@ const buildLimiter = (ratelimit, identifier) => async (req, res, next) => {
 
     if (!success) {
       return res.status(429).json({
-        message: 'Too many login or request attempts. Please slow down and try again in a few minutes.',
+        message: 'Too many login or request attempts. Please try again in a few minutes.',
         retryAfter: new Date(reset).toISOString(),
       });
     }

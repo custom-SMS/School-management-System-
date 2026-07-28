@@ -1449,6 +1449,29 @@ const createClass = async (req, res) => {
       });
     }
 
+    // Stream is only valid for Grade 11 and Grade 12
+    const STREAM_GRADES = ['Grade 11', 'Grade 12'];
+    const ALLOWED_STREAMS = ['Social', 'Natural'];
+
+    if (stream) {
+      if (!STREAM_GRADES.includes(normalizedName)) {
+        return res.status(400).json({
+          message: `Stream is only applicable for Grade 11 and Grade 12. "${normalizedName}" cannot have a stream.`
+        });
+      }
+      if (!ALLOWED_STREAMS.includes(stream)) {
+        return res.status(400).json({
+          message: `Invalid stream "${stream}". Allowed streams are: ${ALLOWED_STREAMS.join(', ')}.`
+        });
+      }
+    }
+
+    if (STREAM_GRADES.includes(normalizedName) && !stream) {
+      return res.status(400).json({
+        message: `A stream is required for ${normalizedName}. Please specify "Social" or "Natural".`
+      });
+    }
+
     const branchId = req.branchFilter?.branchId || null;
 
     // Get the active academic year
@@ -1468,9 +1491,9 @@ const createClass = async (req, res) => {
           equals: normalizedName,
           mode: 'insensitive'
         },
+        academicYearId: activeYear.id,
         stream: stream || null,
         ...(req.branchFilter || {})
-     
       }
     });
 
@@ -1518,7 +1541,7 @@ const createClass = async (req, res) => {
     // Clear all classroom-related cache keys
     try {
       const branchFilter = req.branchFilter || {};
-      await delKey(classesKey(branchFilter));
+      await delKey(classesKey(branchFilter, activeYear.id));
       await delKey(classroomOptionsKey(branchFilter, req.user?.role, req.user?._id));
       console.log('[Cache Cleared] Classroom cache keys cleared after class creation');
     } catch (cacheError) {
@@ -1533,14 +1556,20 @@ const createClass = async (req, res) => {
 
 const getClasses = async (req, res) => {
   try {
+    const targetYear = await getSelectedYear(req);
+    const targetYearId = targetYear?.id;
+
     if (!shouldBypassCache(req)) {
-      const cacheKey = classesKey(req.branchFilter || {});
+      const cacheKey = classesKey(req.branchFilter || {}, targetYearId);
       const cached = await getCachedJson(cacheKey);
       if (cached) return res.status(200).json(cached);
     }
 
-    // Strict branch isolation - only show classes belonging to the user's branch
-    const branchFilterClause = req.branchFilter || {};
+    // Strict branch isolation + academic year isolation
+    const branchFilterClause = {
+      ...(req.branchFilter || {}),
+      ...(targetYearId ? { academicYearId: targetYearId } : {}),
+    };
 
     const classes = await prisma.class.findMany({
       where: branchFilterClause,
@@ -1600,7 +1629,7 @@ const getClasses = async (req, res) => {
     }));
 
     if (!shouldBypassCache(req)) {
-      const cacheKey = classesKey(req.branchFilter || {});
+      const cacheKey = classesKey(req.branchFilter || {}, targetYearId);
       await setCachedJson(cacheKey, responseClasses, 60);
     }
 
@@ -1717,6 +1746,15 @@ const deleteClass = async (req, res) => {
 
     const { logActivity } = require('../middleware/auditLogger');
     await logActivity(req.user._id, 'Delete Class', id, `Deleted class: ${existingClass.name}`);
+
+    // Clear classroom cache so the list refreshes immediately
+    try {
+      const branchFilter = req.branchFilter || {};
+      await delKey(classesKey(branchFilter, existingClass.academicYearId));
+      await delKey(classroomOptionsKey(branchFilter, req.user?.role, req.user?._id));
+    } catch (cacheError) {
+      console.error('[Cache Error] Failed to clear classroom cache after delete:', cacheError);
+    }
 
     res.status(200).json({ message: 'Class deleted successfully.' });
   } catch (error) {

@@ -364,7 +364,7 @@ model Class {
   timetables    Timetable[]
   classSubjects ClassSubject[]
 
-  @@unique([branchId, name, academicYearId])
+  @@unique([branchId, name, stream, academicYearId])
   @@index([academicYearId])
   @@index([branchId, academicYearId])
   @@index([teacherId, academicYearId])
