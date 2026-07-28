@@ -1,7 +1,7 @@
 const prisma = require('../prisma');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
-const { isRegistrationOpen, getActiveAcademicYear } = require('../utils/academicYear');
+const { isRegistrationOpen, getActiveAcademicYear, resolveYearFromRequest } = require('../utils/academicYear');
 const { sendGuardianCredentialsEmail } = require('../utils/emailService');
 const { createStudentSchema, updateStudentSchema } = require('../utils/validation');
 
@@ -724,8 +724,15 @@ const getStudents = async (req, res) => {
       });
       if (!teacher) return res.status(404).json({ message: 'Teacher profile not found' });
 
+      // Resolve the year this request is scoped to (honours historical view header)
+      const selectedYear = await resolveYearFromRequest(req);
+      const yearId = selectedYear?.id;
+
       const assignments = await prisma.teacherAssignment.findMany({
-        where: { teacherId: teacher.id },
+        where: {
+          teacherId: teacher.id,
+          ...(yearId ? { academicYearId: yearId } : {})
+        },
         include: {
           class: {
             include: {
@@ -748,20 +755,21 @@ const getStudents = async (req, res) => {
         if (classClean) {
           allowedGradeNames.add(classClean);
         }
-
         (assignment.class?.students || []).forEach((student) => {
           if (student?.id) allowedStudentIds.add(student.id);
         });
       });
 
+      // Only fetch students who have an enrollment in the selected year
       const allStudents = await prisma.student.findMany({
+        where: yearId
+          ? { enrollments: { some: { academicYearId: yearId } } }
+          : {},
         include: {
           user: { select: { id: true, name: true, email: true, isActive: true } },
           enrollments: {
-            include: {
-              section: { select: { id: true, name: true } }
-            },
-            orderBy: { createdAt: 'desc' },
+            where: yearId ? { academicYearId: yearId } : {},
+            include: { section: { select: { id: true, name: true } } },
             take: 1
           }
         }
@@ -769,18 +777,20 @@ const getStudents = async (req, res) => {
 
       const students = allStudents.filter((student) => {
         if (allowedStudentIds.has(student.id)) return true;
-
-        const gradeClean = cleanGradeName(student.grade);
+        const yearEnrollment = (student.enrollments || [])[0];
+        const gradeClean = cleanGradeName(yearEnrollment?.grade || student.grade);
         return gradeClean ? allowedGradeNames.has(gradeClean) : false;
       });
 
       const responseStudents = students.map(student => {
-        const latestEnrollment = (student.enrollments || [])[0] || null;
+        const yearEnrollment = (student.enrollments || [])[0] || null;
         return {
           ...student,
           _id: student.id,
-          section: latestEnrollment?.section?.name || null,
-          sectionId: latestEnrollment?.section?.id || null,
+          // Show the grade the student was in for the selected year
+          grade: yearEnrollment?.grade || student.grade,
+          section: yearEnrollment?.section?.name || null,
+          sectionId: yearEnrollment?.section?.id || null,
           user: student.user ? { ...student.user, _id: student.user.id } : null
         };
       });
@@ -791,9 +801,18 @@ const getStudents = async (req, res) => {
     const { page = 1, limit = 50, grade, search } = req.query;
     const skip = (Number(page) - 1) * Number(limit);
 
+    // Resolve the academic year this request is scoped to.
+    // For SuperAdmin historical view this will be the selected past year;
+    // for everyone else it falls back to the active year.
+    const selectedYear = await resolveYearFromRequest(req);
+    const yearId = selectedYear?.id;
+
     const whereClause = {
       ...(req.branchFilter || {}),  // scope to branch automatically
-      ...(grade && { grade }),
+      // Only include students who have an Enrollment record for the selected year.
+      // This is the strict year-isolation gate: if a student was not registered
+      // in the selected year, they will not appear in the list.
+      ...(yearId ? { enrollments: { some: { academicYearId: yearId } } } : {}),
       ...(search && {
         user: {
           OR: [
@@ -804,35 +823,55 @@ const getStudents = async (req, res) => {
       })
     };
 
+    // When a grade filter is provided, match against the Enrollment.grade for the
+    // selected year (not Student.grade which holds the current grade).
+    const enrollmentYearWhere = yearId ? { academicYearId: yearId } : {};
+    const gradeEnrollmentFilter = grade
+      ? { ...enrollmentYearWhere, grade }
+      : enrollmentYearWhere;
+
     const [students, total] = await Promise.all([
       prisma.student.findMany({
-        where: whereClause,
+        where: {
+          ...whereClause,
+          // Apply grade filter via Enrollment so it is year-scoped
+          ...(grade ? { enrollments: { some: gradeEnrollmentFilter } } : {})
+        },
         include: {
           user: { select: { id: true, name: true, email: true, isActive: true } },
           guardians: true,
+          // Only load the enrollment for the selected year — strict isolation
           enrollments: {
+            where: enrollmentYearWhere,
             include: {
               academicYear: true,
               section: { select: { id: true, name: true } }
             },
-            orderBy: { createdAt: 'desc' },
-            take: 1 // Only latest enrollment
+            take: 1
           }
         },
         skip,
         take: Number(limit),
         orderBy: { enrollmentDate: 'desc' }
       }),
-      prisma.student.count({ where: whereClause })
+      prisma.student.count({
+        where: {
+          ...whereClause,
+          ...(grade ? { enrollments: { some: gradeEnrollmentFilter } } : {})
+        }
+      })
     ]);
 
     const responseStudents = students.map(student => {
-      const latestEnrollment = (student.enrollments || [])[0] || null;
+      // Use the enrollment for the selected year as the source of truth for
+      // grade and section — not the Student row which reflects the current year
+      const yearEnrollment = (student.enrollments || [])[0] || null;
       return {
         ...student,
         _id: student.id,
-        section: latestEnrollment?.section?.name || null,
-        sectionId: latestEnrollment?.section?.id || null,
+        grade: yearEnrollment?.grade || student.grade,
+        section: yearEnrollment?.section?.name || null,
+        sectionId: yearEnrollment?.section?.id || null,
         user: student.user ? { ...student.user, _id: student.user.id } : null,
         guardians: (student.guardians || []).map(g => ({
           ...g,

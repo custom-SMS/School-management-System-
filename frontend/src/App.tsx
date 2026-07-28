@@ -98,7 +98,6 @@ import { AcademicYearProvider } from "./context/AcademicYearContext";
 
 function App() {
   return (
-    <AcademicYearProvider>
     <Router>
       <AcademicYearProvider>
             <ToastContainer 
@@ -793,7 +792,6 @@ function App() {
             </Routes>
       </AcademicYearProvider>
           </Router>
-    </AcademicYearProvider>
   );
 }
 export default App;

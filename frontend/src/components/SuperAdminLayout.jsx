@@ -4,6 +4,7 @@ import axios from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import { useBranch } from '../hooks/useBranch';
+import { useAcademicYear } from '../context/AcademicYearContext';
 import MaintenanceBanner from './MaintenanceBanner';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -127,9 +128,15 @@ const navItems = [
 export default function SuperAdminLayout({ children, pageTitle, headerAction }) {
   const { user, logout } = useAuth();
   const { branding, logoUrl } = useSettings();
-  const { branches, selectedBranch, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
-  const [academicYears, setAcademicYears] = useState([]);
-  const [yearViewId, setYearViewId] = useState(localStorage.getItem('superAdminYearViewId') || '');
+  const { branches, selectedBranchId, canSwitchBranch, switchBranch } = useBranch();
+  const {
+    years: academicYears,
+    activeYear,
+    selectedYear,
+    isViewingHistory,
+    setViewYear,
+    resetViewYear,
+  } = useAcademicYear();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -164,33 +171,16 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
     } catch { /* silent */ }
   };
 
-  useEffect(() => {
-    const fetchYears = async () => {
-      try {
-        const res = await axios.get('/academic-years');
-        const list = res.data || [];
-        setAcademicYears(list);
-        if (!localStorage.getItem('superAdminYearViewId') && list.length > 0) {
-          const active = list.find(y => y.isActive) || list[0];
-          if (active) {
-            localStorage.setItem('superAdminYearViewId', active.id);
-            setYearViewId(active.id);
-          }
-        }
-      } catch (err) {
-        console.error('Failed to load academic years', err);
-      }
-    };
-    if (user?.role === 'SuperAdmin') {
-      fetchYears();
-    }
-  }, [user]);
-
+  // When the select changes: pick the matching year object and call setViewYear.
+  // If the chosen year is the active one, reset back to live view.
   const handleYearViewChange = (e) => {
-    const val = e.target.value;
-    localStorage.setItem('superAdminYearViewId', val);
-    setYearViewId(val);
-    window.location.reload();
+    const chosen = academicYears.find((y) => y.id === e.target.value);
+    if (!chosen) return;
+    if (chosen.id === activeYear?.id) {
+      resetViewYear();
+    } else {
+      setViewYear(chosen);
+    }
   };
 
   useEffect(() => {
@@ -343,21 +333,34 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               </div>
             )}
 
-            {/* Academic Year Filter */}
+            {/* Academic Year Switcher */}
             {academicYears.length > 0 && (
               <div className="hidden md:flex items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">Year</span>
+                <span className={`text-xs font-bold uppercase tracking-wider ${isViewingHistory ? 'text-amber-500' : 'text-[#63889b]'}`}>Year</span>
                 <select
-                  value={yearViewId}
+                  value={selectedYear?.id || activeYear?.id || ''}
                   onChange={handleYearViewChange}
-                  className="bg-white text-xs font-bold text-[#203e4f] px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
+                  className={`text-xs font-bold px-3 py-1.5 rounded-full border focus:outline-none focus:ring-2 shadow-sm transition ${
+                    isViewingHistory
+                      ? 'bg-amber-50 text-amber-800 border-amber-300 focus:ring-amber-400'
+                      : 'bg-white text-[#203e4f] border-[#d2e2eb] focus:ring-[#3b6b82]'
+                  }`}
                 >
                   {academicYears.map((y) => (
                     <option key={y.id} value={y.id}>
-                      {y.year} {y.isActive ? '(Active)' : ''}
+                      {y.year}{y.isActive ? ' ✓ Active' : ''}
                     </option>
                   ))}
                 </select>
+                {isViewingHistory && (
+                  <button
+                    onClick={resetViewYear}
+                    title="Return to current active year"
+                    className="text-xs font-bold text-amber-600 hover:text-amber-800 bg-amber-50 border border-amber-300 px-2 py-1 rounded-full transition"
+                  >
+                    ✕ Exit History
+                  </button>
+                )}
               </div>
             )}
 
@@ -422,6 +425,23 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
             {headerAction && <div className="ml-2 border-l border-[#d8e6ed] pl-2 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
           </div>
         </header>
+
+        {/* Historical View Banner */}
+        {isViewingHistory && (
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border-b border-amber-200 px-4 sm:px-6 lg:px-8 py-2">
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-amber-500 text-base">🕐</span>
+              <span className="font-bold text-amber-800">Historical View:</span>
+              <span className="text-amber-700">You are viewing data for <strong>{selectedYear?.year}</strong>. The live active year is <strong>{activeYear?.year}</strong>. Changes are read-only.</span>
+            </div>
+            <button
+              onClick={resetViewYear}
+              className="shrink-0 text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-full transition"
+            >
+              Return to Live Year
+            </button>
+          </div>
+        )}
 
         {/* Page Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">

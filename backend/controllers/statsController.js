@@ -1,4 +1,5 @@
 const prisma = require('../prisma');
+const { resolveYearFromRequest } = require('../utils/academicYear');
 
 const normalizeClassLabel = (value) => {
   const label = String(value ?? '').trim();
@@ -34,40 +35,58 @@ const getAdminStats = async (req, res) => {
   try {
     const bf = req.branchFilter || {};
 
-    // 1. Total Students — scoped to branch
-    const totalStudents = await prisma.student.count({ where: { ...bf } });
+    // Resolve the year this request is scoped to (honours historical view header).
+    // For SuperAdmin historical view this will be the selected past year;
+    // for everyone else it falls back to the globally active year.
+    const activeYear = await resolveYearFromRequest(req);
+    const yearId = activeYear?.id;
+    const feeYearFilter = yearId ? { academicYearId: yearId } : {};
 
-    // 1.5. Total Subjects — scoped to branch
+    // 1. Total Students — count via Enrollment for strict year isolation
+    const totalStudents = yearId
+      ? await prisma.enrollment.count({
+          where: {
+            academicYearId: yearId,
+            ...(bf.branchId ? { student: { branchId: bf.branchId } } : {})
+          }
+        })
+      : await prisma.student.count({ where: { ...bf } });
+
+    // 1.5. Total Subjects — not year-scoped (subjects are shared across years)
     const totalSubjects = await prisma.subject.count({ where: { ...bf } });
 
-    const studentsByClassRaw = await prisma.student.groupBy({
-      by: ['grade'],
-      where: { ...bf },
-      _count: { _all: true }
-    });
+    // Students by grade — derived from Enrollment for the selected year
+    const studentsByClassRaw = yearId
+      ? await prisma.enrollment.groupBy({
+          by: ['grade'],
+          where: {
+            academicYearId: yearId,
+            ...(bf.branchId ? { student: { branchId: bf.branchId } } : {})
+          },
+          _count: { _all: true }
+        })
+      : await prisma.student.groupBy({
+          by: ['grade'],
+          where: { ...bf },
+          _count: { _all: true }
+        });
 
     const studentsByClass = studentsByClassRaw
       .map((entry) => ({
         className: normalizeClassLabel(entry.grade),
         studentCount: entry._count._all,
-        // Use a unique key combining className + a hash to avoid duplicate key issues
         classId: `${normalizeClassLabel(entry.grade)}-${Math.random().toString(36).slice(2, 6)}`,
       }))
       .sort((left, right) => compareClassLabels(left.className, right.className));
 
-    // 2. Total Revenue — scoped to the active academic year
-    const activeYear = await prisma.academicYear.findFirst({
-      where: { isActive: true }
-    });
-    const feeYearFilter = activeYear ? { academicYearId: activeYear.id } : {};
-
+    // 2. Total Revenue — scoped to the selected academic year
     const revenueStats = await prisma.fee.aggregate({
       where: { paid: true, ...feeYearFilter, student: { ...bf } },
       _sum: { amount: true }
     });
     const totalRevenue = revenueStats._sum.amount || 0;
 
-    // 3. Today's Attendance (Let's count how many present today)
+    // 3. Today's Attendance (real-time — only meaningful for the active year)
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -103,7 +122,7 @@ const getAdminStats = async (req, res) => {
         records: true
       },
       orderBy: { date: 'desc' },
-      take: 500 // Limit to recent 500 attendance sessions
+      take: 500
     });
 
     const classAttendanceMap = new Map();
@@ -133,8 +152,12 @@ const getAdminStats = async (req, res) => {
       };
     });
 
+    // Classes scoped to the selected year
     const classes = await prisma.class.findMany({
-      where: { ...bf },
+      where: {
+        ...bf,
+        ...(yearId ? { academicYearId: yearId } : {})
+      },
       select: { id: true, name: true }
     });
     const classNameById = new Map(
@@ -207,7 +230,9 @@ const getAdminStats = async (req, res) => {
       totalRevenue,
       totalPendingRevenue,
       avgAttendance,
+      // Expose which year the stats are for so the frontend can label it
       activeYear: activeYear ? { id: activeYear.id, year: activeYear.year } : null,
+      isHistoricalView: req.isHistoricalAccess || false,
       attendance: {
         presentCount,
         totalChecked: totalCount,
