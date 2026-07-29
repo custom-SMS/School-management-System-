@@ -445,46 +445,35 @@ export default function ReportCards() {
     return 1;
   };
 
-  const handleDownload = () => {
-    if (!card) return;
-    printReportCard({
-      reportCard: { ...card, academicYear: activeYear },
-      grades,
-      branding,
-      logoUrl,
-      passMark: Number(grading?.passMark || 50),
-      gpaEnabled: Boolean(grading?.gpaEnabled),
-      classSize: getStudentClassSize(card),
-      gradingComponents,
-    });
+  const handleDownload = async () => {
+    if (!selectedStudent || !selectedYear) return;
+    try {
+      toast.info('Loading dynamic landscape report card…');
+      const res = await axios.get(`/report-cards/full/${selectedStudent}/${selectedYear}`);
+      printReportCard({ reportCardData: res.data });
+    } catch (err) {
+      toast.error('Failed to fetch full report card.');
+    }
   };
 
   const handlePrintSingleClassCard = async (rc) => {
     if (!rc.studentId || !selectedYear) return;
-    
+
     // Open window synchronously to bypass mobile popup blockers
     const win = window.open('', '_blank', 'width=800,height=700,scrollbars=yes');
     if (!win) {
       showToast('Popup blocked. Please allow popups and try again.', 'error');
       return;
     }
-    win.document.write('<h2>Loading Report Card...</h2><p>Please wait while we fetch the latest grades.</p>');
-    
+    win.document.write('<h2>Loading Report Card...</h2><p>Please wait while we fetch the latest report card.</p>');
+
     try {
-      const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
-      const res = await axios.get(`/report-cards/${rc.studentId}/${selectedYear}${params}`);
+      const res = await axios.get(`/report-cards/full/${rc.studentId}/${selectedYear}`);
       if (res.data) {
         win.document.body.innerHTML = ''; // Clear loading text
         printReportCard({
-          reportCard: { ...res.data.reportCard, academicYear: activeYear },
-          grades: res.data.grades || [],
-          branding,
-          logoUrl,
-          passMark: Number(grading?.passMark || 50),
-          gpaEnabled: Boolean(grading?.gpaEnabled),
-          classSize: classCards.length || getStudentClassSize(rc),
+          reportCardData: res.data,
           preOpenedWindow: win,
-          gradingComponents,
         });
       } else {
         win.close();
@@ -539,26 +528,25 @@ export default function ReportCards() {
 
       {/* Historical Read-Only Banner */}
       {isArchivedYear && (
-        <div className={`mb-5 rounded-2xl border px-5 py-4 ${
-          historicalEditEnabled
+        <div className={`mb-5 rounded-2xl border px-5 py-4 ${historicalEditEnabled
             ? 'border-amber-300 bg-amber-50'
             : 'border-slate-300 bg-slate-100'
-        }`}>
+          }`}>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800">
               {historicalEditEnabled
-                ? <svg className="h-4 w-4 text-amber-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-                : <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z"/></svg>
+                ? <svg className="h-4 w-4 text-amber-300" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" /></svg>
+                : <svg className="h-4 w-4 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1s3.1 1.39 3.1 3.1v2z" /></svg>
               }
             </div>
             <div className="flex-1 min-w-0">
-              <p className={`font-bold text-sm ${ historicalEditEnabled ? 'text-amber-800' : 'text-slate-700' }`}>
+              <p className={`font-bold text-sm ${historicalEditEnabled ? 'text-amber-800' : 'text-slate-700'}`}>
                 {historicalEditEnabled
                   ? `⚠️  Historical Editing Enabled — ${activeYear?.year}`
                   : `🔒  Viewing: ${activeYear?.year} — Read Only`
                 }
               </p>
-              <p className={`text-xs mt-0.5 ${ historicalEditEnabled ? 'text-amber-700' : 'text-slate-500' }`}>
+              <p className={`text-xs mt-0.5 ${historicalEditEnabled ? 'text-amber-700' : 'text-slate-500'}`}>
                 {historicalEditEnabled
                   ? `Reason: "${historicalReason}" — Every change is being permanently logged.`
                   : 'This is an archived academic year. All records are read-only.'}
@@ -635,17 +623,15 @@ export default function ReportCards() {
                     key={s.id}
                     type="button"
                     onClick={() => setSelectedSemesterId(s.id)}
-                    className={`relative flex-1 rounded-xl border px-4 py-3 text-sm font-bold transition ${
-                      selectedSemesterId === s.id
+                    className={`relative flex-1 rounded-xl border px-4 py-3 text-sm font-bold transition ${selectedSemesterId === s.id
                         ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
                         : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
-                    }`}
+                      }`}
                   >
                     {s.name}
                     {s.isActive && (
-                      <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${
-                        selectedSemesterId === s.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
-                      }`}>ACTIVE</span>
+                      <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${selectedSemesterId === s.id ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-700'
+                        }`}>ACTIVE</span>
                     )}
                   </button>
                 ))}
@@ -782,7 +768,7 @@ export default function ReportCards() {
                 onClick={() => { setSelectedStudent(''); setStudentSearch(''); setStudentPickerOpen(false); }}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500 transition hover:border-slate-400 hover:text-slate-800"
               >
-                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
                 Clear selection
               </button>
             )}
@@ -823,10 +809,10 @@ export default function ReportCards() {
                 className="flex w-full items-center gap-3 rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 px-4 py-4 text-left transition hover:border-slate-400 hover:bg-white"
               >
                 <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-slate-200 text-slate-400">
-                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z"/></svg>
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-5.33 0-8 2.67-8 4v1h16v-1c0-1.33-2.67-4-8-4z" /></svg>
                 </span>
                 <span className="text-sm font-semibold text-slate-500">Click to select a student…</span>
-                <svg className="ml-auto h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z"/></svg>
+                <svg className="ml-auto h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor"><path d="M7 10l5 5 5-5z" /></svg>
               </button>
             )}
 
@@ -849,7 +835,7 @@ export default function ReportCards() {
                     />
                     {studentSearch && (
                       <button type="button" onClick={() => setStudentSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700">
-                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+                        <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
                       </button>
                     )}
                   </div>
@@ -860,15 +846,15 @@ export default function ReportCards() {
                     const q = studentSearch.toLowerCase().trim();
                     const filtered = q
                       ? sortedStudents.filter(s =>
-                          getStudentDisplayName(s).toLowerCase().includes(q) ||
-                          (s.studentId || '').toLowerCase().includes(q) ||
-                          (s.grade || '').toLowerCase().includes(q) ||
-                          (s.stream || '').toLowerCase().includes(q)
-                        )
+                        getStudentDisplayName(s).toLowerCase().includes(q) ||
+                        (s.studentId || '').toLowerCase().includes(q) ||
+                        (s.grade || '').toLowerCase().includes(q) ||
+                        (s.stream || '').toLowerCase().includes(q)
+                      )
                       : sortedStudents;
                     if (filtered.length === 0) return (
                       <div className="flex flex-col items-center py-10 text-slate-400">
-                        <svg className="mb-2 h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5a6 6 0 1 0 0 12A6 6 0 0 0 11 5zm7.07 12.66 3.54 3.53-1.41 1.41-3.54-3.53A8 8 0 1 1 18.07 17.66z"/></svg>
+                        <svg className="mb-2 h-8 w-8" viewBox="0 0 24 24" fill="currentColor"><path d="M11 5a6 6 0 1 0 0 12A6 6 0 0 0 11 5zm7.07 12.66 3.54 3.53-1.41 1.41-3.54-3.53A8 8 0 1 1 18.07 17.66z" /></svg>
                         <span className="text-sm font-semibold">No students match "{studentSearch}"</span>
                       </div>
                     );
@@ -882,13 +868,11 @@ export default function ReportCards() {
                           key={sid}
                           type="button"
                           onClick={() => { handleStudentChange(sid); setStudentPickerOpen(false); setStudentSearch(''); }}
-                          className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${
-                            isSelected ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
-                          }`}
+                          className={`flex w-full items-center gap-3 px-4 py-3 text-left transition ${isSelected ? 'bg-slate-900 text-white' : 'hover:bg-slate-50'
+                            }`}
                         >
-                          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${
-                            isSelected ? 'bg-white/20 text-white' : 'bg-slate-900 text-white'
-                          }`}>
+                          <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-900 text-white'
+                            }`}>
                             {initials}
                           </span>
                           <div className="min-w-0 flex-1">
@@ -896,14 +880,13 @@ export default function ReportCards() {
                             <div className={`text-xs ${isSelected ? 'text-white/70' : 'text-slate-400'}`}>{s.studentId || ''}</div>
                           </div>
                           {(s.grade || s.stream) && (
-                            <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${
-                              isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
-                            }`}>
+                            <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-bold ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'
+                              }`}>
                               {s.grade}{s.stream ? ` · ${s.stream}` : ''}
                             </span>
                           )}
                           {isSelected && (
-                            <svg className="h-4 w-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            <svg className="h-4 w-4 shrink-0 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
                           )}
                         </button>
                       );

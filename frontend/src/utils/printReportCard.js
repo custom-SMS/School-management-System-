@@ -278,15 +278,40 @@ export function printReportCard({
     font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-  }
 </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <script>
+    function downloadPDF() {
+      const element = document.querySelector('.page-container');
+      const opt = {
+        margin: [4, 6, 4, 6],
+        filename: 'ReportCard_${studentId.replace(/[^a-zA-Z0-9]/g, '_')}.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+      };
+      const btn = document.querySelector('.btn-download');
+      btn.innerText = 'Downloading PDF...';
+      btn.disabled = true;
+      html2pdf().set(opt).from(element).save().then(() => {
+        btn.innerText = '📥 Download PDF';
+        btn.disabled = false;
+      }).catch(err => {
+        alert('Failed to generate PDF. Opening browser print/save dialog instead.');
+        window.print();
+        btn.innerText = '📥 Download PDF';
+        btn.disabled = false;
+      });
+    }
+  </script>
 </head>
 <body>
 
 <div class="toolbar">
-  <button class="btn-print" onclick="window.print()">Print / Export PDF</button>
+  <button class="btn-download" onclick="downloadPDF()" style="background:#16a34a;color:#fff;border:none;padding:8px 18px;border-radius:6px;font-size:13px;font-weight:700;cursor:pointer;">📥 Download PDF</button>
+  <button class="btn-print" onclick="window.print()">🖨️ Print Hardcopy</button>
   <button class="btn-close" onclick="window.close()">Close Window</button>
-  <span style="font-size:12px;color:#64748b;">(Select Landscape orientation in print dialog)</span>
+  <span style="font-size:12px;color:#64748b;margin-left:8px;">(Select Landscape orientation when printing)</span>
 </div>
 
 <div class="page-container">

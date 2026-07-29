@@ -298,25 +298,48 @@ const getReportCard = async (req, res) => {
     }
 
     let reportCard;
-    if (semesterId) {
-      reportCard = await prisma.reportCard.findUnique({
-        where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
-        include: {
-          student: { include: { user: { select: { name: true, email: true } } } },
-          academicYear: true,
-          semester: true,
-        },
-      });
-    } else {
-      // Legacy fallback — find any report card for student+year
-      reportCard = await prisma.reportCard.findFirst({
-        where: { studentId, academicYearId },
-        include: {
-          student: { include: { user: { select: { name: true, email: true } } } },
-          academicYear: true,
-          semester: true,
-        },
-      });
+    try {
+      if (semesterId) {
+        reportCard = await prisma.reportCard.findUnique({
+          where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
+          include: {
+            student: { include: { user: { select: { name: true, email: true } } } },
+            academicYear: true,
+            semester: true,
+          },
+        });
+      } else {
+        reportCard = await prisma.reportCard.findFirst({
+          where: { studentId, academicYearId },
+          include: {
+            student: { include: { user: { select: { name: true, email: true } } } },
+            academicYear: true,
+            semester: true,
+          },
+        });
+      }
+    } catch {
+      const selectObj = {
+        id: true, studentId: true, academicYearId: true, semesterId: true,
+        grade: true, attendancePercentage: true, attendancePresent: true,
+        attendanceAbsent: true, attendanceLate: true, attendanceTotal: true,
+        averageScore: true, combinedAverage: true, rank: true, status: true,
+        teacherComments: true, homeroomRemarks: true, workflowStatus: true,
+        published: true, conductGrade: true, promotionStatus: true,
+        student: { include: { user: { select: { name: true, email: true } } } },
+        academicYear: true, semester: true,
+      };
+      if (semesterId) {
+        reportCard = await prisma.reportCard.findUnique({
+          where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
+          select: selectObj,
+        });
+      } else {
+        reportCard = await prisma.reportCard.findFirst({
+          where: { studentId, academicYearId },
+          select: selectObj,
+        });
+      }
     }
 
     if (!reportCard) return res.status(404).json({ message: 'Compiled report card not found for this student and academic year.' });
@@ -1191,6 +1214,14 @@ const getDynamicReportCard = async (req, res) => {
       }
     });
 
+    // Merge any subjects found in approvedGrades that aren't in the class subjects list
+    approvedGrades.forEach(g => {
+      const gName = g.subjectRef?.name || g.subject;
+      if (gName && !subjects.some(s => s.name?.toLowerCase() === gName.toLowerCase() || s.id === g.subjectId)) {
+        subjects.push({ id: g.subjectId || gName, name: gName, department: '' });
+      }
+    });
+
     // Build subject rows with S1, S2, and Annual Average
     let sem1TotalSum = 0;
     let sem1Count = 0;
@@ -1198,13 +1229,15 @@ const getDynamicReportCard = async (req, res) => {
     let sem2Count = 0;
 
     const subjectRows = subjects.map(subj => {
+      // Find S1 grade: check exact semester match or fall back to any approved grade if only 1 semester exists
       const gSem1 = approvedGrades.find(g =>
         (g.subjectId === subj.id || g.subject?.toLowerCase() === subj.name?.toLowerCase()) &&
-        (g.semesterId === sem1?.id || g.semester?.order === 1)
+        (g.semesterId === sem1?.id || g.semester?.order === 1 || !g.semesterId)
       );
 
       const gSem2 = approvedGrades.find(g =>
         (g.subjectId === subj.id || g.subject?.toLowerCase() === subj.name?.toLowerCase()) &&
+        g.id !== gSem1?.id &&
         (g.semesterId === sem2?.id || g.semester?.order === 2)
       );
 
@@ -1223,10 +1256,6 @@ const getDynamicReportCard = async (req, res) => {
       let annualAverage = null;
       if (sem1Score !== null && sem2Score !== null) {
         annualAverage = Number(((sem1Score + sem2Score) / 2).toFixed(2));
-      } else if (sem1Score !== null) {
-        annualAverage = Number(sem1Score.toFixed(2));
-      } else if (sem2Score !== null) {
-        annualAverage = Number(sem2Score.toFixed(2));
       }
 
       return {
@@ -1244,20 +1273,34 @@ const getDynamicReportCard = async (req, res) => {
     let annualOverallAvg = null;
     if (sem1OverallAvg !== null && sem2OverallAvg !== null) {
       annualOverallAvg = Number(((sem1OverallAvg + sem2OverallAvg) / 2).toFixed(2));
-    } else if (sem1OverallAvg !== null) {
-      annualOverallAvg = sem1OverallAvg;
-    } else if (sem2OverallAvg !== null) {
-      annualOverallAvg = sem2OverallAvg;
     }
 
-    // Fetch existing report card metadata
-    const reportCard = await prisma.reportCard.findFirst({
-      where: { studentId, academicYearId },
-      include: {
-        academicYear: true,
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    // Fetch existing report card metadata with safe fallback
+    let reportCard = null;
+    try {
+      reportCard = await prisma.reportCard.findFirst({
+        where: { studentId, academicYearId },
+        include: {
+          academicYear: true,
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    } catch {
+      reportCard = await prisma.reportCard.findFirst({
+        where: { studentId, academicYearId },
+        select: {
+          id: true,
+          conductGrade: true,
+          promotionStatus: true,
+          workflowStatus: true,
+          published: true,
+          homeroomRemarks: true,
+          teacherComments: true,
+          academicYear: true,
+        },
+        orderBy: { createdAt: 'desc' }
+      });
+    }
 
     let promotedToClass = null;
     if (reportCard?.promotedToClassId) {
@@ -1384,9 +1427,10 @@ const updateDynamicReportCard = async (req, res) => {
       }
     }
 
-    // Check if report card exists
+    // Check if report card exists (select safe fields to avoid schema mismatch)
     const existing = await prisma.reportCard.findFirst({
-      where: { studentId, academicYearId }
+      where: { studentId, academicYearId },
+      select: { id: true }
     });
 
     const updateData = {};

@@ -214,38 +214,19 @@ export default function Gradebook() {
   const hasMarkErrors = Object.values(markErrors).some(Boolean);
 
   const handleSave = async () => {
-
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
     if (hasMarkErrors) return toast.error('Some marks exceed the allowed maximum. Please fix the highlighted fields before saving.');
     setSaving(true);
 
     try {
-
-      // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
-
+      // Send raw marks directly (backend expects score between 0 and maxScore/weight for each component)
       const gradesData = rows.map((r) => {
-
         const marks = {};
-
         components.forEach((c) => {
-
-          const raw = Number(r.marks[c.field]) || 0;
-
-          const weight = Number(c.weight);
-
-          // Convert raw score to percentage
-
-          const pct = weight === 0 ? 0 : (raw / weight) * 100;
-
-          marks[c.field] = Number(pct.toFixed(2));
-
+          marks[c.field] = Number(r.marks[c.field]) || 0;
         });
-
         return { student: r.student._id, marks };
-
       });
-
-
 
       await axios.post('/classroom/grades', {
         classId: selectedClass._id,
@@ -256,54 +237,27 @@ export default function Gradebook() {
       });
 
       toast.success('Grades saved as draft.');
-
     } catch (e) {
-
       toast.error(e.response?.data?.message || 'Failed to save grades');
-
     } finally {
-
       setSaving(false);
-
     }
-
   };
 
-
-
   const handlePublish = async () => {
-
     if (!selectedClass || !rows.length) return toast.error('Select a class with students first.');
     if (hasMarkErrors) return toast.error('Some marks exceed the allowed maximum. Please fix the highlighted fields before publishing.');
     setPublishing(true);
 
     try {
-
-      // Convert raw scores to percentages before sending to backend (backend expects 0-100 values per component)
-
+      // Send raw marks directly (backend expects score between 0 and maxScore/weight for each component)
       const gradesData = rows.map((r) => {
-
         const marks = {};
-
         components.forEach((c) => {
-
-          const raw = Number(r.marks[c.field]) || 0;
-
-          const weight = Number(c.weight);
-
-          // Convert raw score to percentage
-
-          const pct = weight === 0 ? 0 : (raw / weight) * 100;
-
-          marks[c.field] = Number(pct.toFixed(2));
-
+          marks[c.field] = Number(r.marks[c.field]) || 0;
         });
-
         return { student: r.student._id, marks };
-
       });
-
-
 
       await axios.post('/classroom/grades', {
         classId: selectedClass._id,

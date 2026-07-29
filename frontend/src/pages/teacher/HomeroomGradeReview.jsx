@@ -5,10 +5,26 @@ import TeacherLayout from '../../components/TeacherLayout';
 import { toast } from 'react-toastify';
 import { useBranch } from '../../hooks/useBranch';
 import { printReportCard } from '../../utils/printReportCard';
+import {
+  useActiveYearQuery,
+  useGradingStructureQuery,
+  useClassListQuery,
+  useTeacherClassSummaryQuery,
+  useHomeroomDataQuery,
+  useInvalidateHomeroomData,
+} from '../../queries/homeroomQueries';
+
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CONDUCT_OPTIONS = ['Excellent', 'Good', 'Satisfactory', 'Needs Improvement'];
 const PROMOTION_OPTIONS = ['Pending', 'Promoted', 'Conditional Promotion', 'Not Promoted'];
+const DEFAULT_COMPONENTS = [
+  { name: 'Quiz', weight: 10 },
+  { name: 'Assignment', weight: 20 },
+  { name: 'Midterm', weight: 30 },
+  { name: 'Final', weight: 40 },
+];
+
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const gradeStatusBadge = (status) => {
@@ -287,146 +303,60 @@ export default function HomeroomGradeReview() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const classId = params.get('classId');
-  const sectionId = params.get('sectionId');
   const { activeSemester } = useBranch();
 
-  const [loading, setLoading] = useState(true);
-  const [activeYear, setActiveYear] = useState(null);
-  const [activeClass, setActiveClass] = useState(null);
-  const [studentMap, setStudentMap] = useState({});
-  const [studentOrder, setStudentOrder] = useState([]);
+  // ─── React Query: all data fetched in parallel, cached ─────────────────────
+  const { data: activeYear } = useActiveYearQuery();
+  const { data: gradingComponents = DEFAULT_COMPONENTS } = useGradingStructureQuery();
+  const { data: classList = [] } = useClassListQuery();
+  const { data: activeClass } = useTeacherClassSummaryQuery(classId);
+  const {
+    data: homeroomData,
+    isLoading: homeroomLoading,
+    isError: homeroomError,
+    error: homeroomErr,
+  } = useHomeroomDataQuery(classId, activeYear?.id, activeSemester?.id);
+  const invalidateHomeroom = useInvalidateHomeroomData();
+
+  const loading = homeroomLoading;
+  const studentOrder = homeroomData?.studentOrder || [];
+  const studentMapFetched = homeroomData?.studentMap || {};
+
+  // ─── Local edit state ──────────────────────────────────────────────────────
   const [edits, setEdits] = useState({});
   const [savingStudentId, setSavingStudentId] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // Grading structure — same source as SuperAdmin Settings
-  const DEFAULT_COMPONENTS = [
-    { name: 'Quiz', weight: 10 },
-    { name: 'Assignment', weight: 20 },
-    { name: 'Midterm', weight: 30 },
-    { name: 'Final', weight: 40 },
-  ];
-  const [gradingComponents, setGradingComponents] = useState(DEFAULT_COMPONENTS);
+  // Sync edits whenever fresh data arrives (e.g. after save/refetch)
+  const [lastDataKey, setLastDataKey] = useState('');
+  useEffect(() => {
+    const key = studentOrder.join(',');
+    if (!key || key === lastDataKey) return;
+    setLastDataKey(key);
+    const initial = {};
+    studentOrder.forEach((sid) => {
+      const rc = studentMapFetched[sid]?.rc;
+      initial[sid] = {
+        conductGrade: rc?.conductGrade || '',
+        promotionStatus: rc?.promotionStatus || 'Pending',
+        promotedToClassId: rc?.promotedToClassId || '',
+        promotedToGrade: rc?.promotedToGrade || (rc?.promotedToClass?.name || ''),
+        semester1Comment: rc?.semester1Comment || rc?.teacherComments || '',
+        semester2Comment: rc?.semester2Comment || rc?.homeroomRemarks || '',
+        overallComment: rc?.overallComment || '',
+      };
+    });
+    setEdits(initial);
+  }, [studentOrder, studentMapFetched, lastDataKey]);
 
-  // Raw score is now stored directly, no conversion needed
-  // e.g. rawToDisplay(8, 10) → '8'  |  rawToDisplay(9, 10) → '9'
+  // Merge edits on top of fetched studentMap for display
+  const studentMap = useMemo(() => studentMapFetched, [studentMapFetched]);
+
+  // Raw score helper
   const pctToRaw = (raw, weight) => {
     if (raw == null || weight == null || Number(weight) === 0) return '—';
     return raw % 1 === 0 ? String(raw) : raw.toFixed(2);
   };
-
-  const [classList, setClassList] = useState([]);
-
-  // ─── Load ─────────────────────────────────────────────────────────────────
-  const load = useCallback(async () => {
-    if (!classId) return;
-    setLoading(true);
-    try {
-      const yrsRes = await axios.get('/academic-years');
-      const ay = (yrsRes.data || []).find((y) => y.isActive) || (yrsRes.data || [])[0] || null;
-      setActiveYear(ay);
-
-      // Fetch classes list for Promoted To Class dropdown
-      try {
-        const clsRes = await axios.get('/classroom/classes');
-        setClassList(clsRes.data || []);
-      } catch { /* ignore */ }
-
-      // Fetch grading structure from SuperAdmin Settings
-      try {
-        const gradingRes = await axios.get('/classroom/grading-structure');
-        if (gradingRes.data?.components?.length) {
-          setGradingComponents(gradingRes.data.components);
-        }
-      } catch { /* use defaults */ }
-
-      const statsRes = await axios.get('/stats/teacher/me');
-      const found = (statsRes.data?.classSummaries || []).find((c) => c.classId === classId);
-      setActiveClass(found || null);
-
-      // 403 guard — enforced by backend
-      const semParam = activeSemester?.id ? `?semesterId=${activeSemester.id}` : '';
-      let gradesList = [];
-      try {
-        const gradesRes = await axios.get(`/classroom/grades/submitted/${classId}${semParam}`);
-        gradesList = gradesRes.data || [];
-      } catch (err) {
-        if (err.response?.status === 403) {
-          toast.error('Access denied: you are not the homeroom teacher for this class.');
-          navigate('/teacher/homeroom');
-          return;
-        }
-        throw err;
-      }
-
-      // Fetch all students via sections
-      const seen = new Set();
-      const allStudents = [];
-      const sectionsRes = await axios.get(`/classroom/sections/${classId}`);
-      for (const sec of sectionsRes.data || []) {
-        try {
-          const studRes = await axios.get(`/classroom/sections/detail/${sec.id}/students`);
-          (studRes.data?.enrollments || []).forEach((e) => {
-            if (e.student && !seen.has(e.student.id)) {
-              seen.add(e.student.id);
-              allStudents.push(e.student);
-            }
-          });
-        } catch { /* ignore per-section errors */ }
-      }
-      gradesList.forEach((g) => {
-        if (g.student && !seen.has(g.student.id)) {
-          seen.add(g.student.id);
-          allStudents.push(g.student);
-        }
-      });
-
-      // Fetch existing report cards
-      let rcList = [];
-      if (ay) {
-        try {
-          const rcRes = await axios.get(`/report-cards/class/${classId}/${ay.id}${semParam}`);
-          rcList = rcRes.data || [];
-        } catch { /* not fatal */ }
-      }
-
-      allStudents.sort((a, b) => (a.user?.name || '').localeCompare(b.user?.name || ''));
-
-      const map = {};
-      allStudents.forEach((student) => {
-        const rc = rcList.find((r) => r.studentId === student.id) || null;
-        map[student.id] = { student, grades: [], rc };
-      });
-      gradesList.forEach((grade) => {
-        const sid = grade.student?.id;
-        if (sid && map[sid]) map[sid].grades.push(grade);
-      });
-
-      const initialEdits = {};
-      allStudents.forEach((student) => {
-        const rc = map[student.id]?.rc;
-        initialEdits[student.id] = {
-          conductGrade: rc?.conductGrade || '',
-          promotionStatus: rc?.promotionStatus || 'Pending',
-          promotedToClassId: rc?.promotedToClassId || '',
-          promotedToGrade: rc?.promotedToGrade || (rc?.promotedToClass?.name || ''),
-          semester1Comment: rc?.semester1Comment || rc?.teacherComments || '',
-          semester2Comment: rc?.semester2Comment || rc?.homeroomRemarks || '',
-          overallComment: rc?.overallComment || '',
-        };
-      });
-
-      setStudentMap(map);
-      setStudentOrder(allStudents.map((s) => s.id));
-      setEdits(initialEdits);
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load class data.');
-    } finally {
-      setLoading(false);
-    }
-  }, [classId, activeSemester, navigate]);
-
-  useEffect(() => { load(); }, [load]);
 
   // ─── Handlers ─────────────────────────────────────────────────────────────
   const setStudentEdit = useCallback((studentId, field, value) => {
@@ -501,13 +431,14 @@ export default function HomeroomGradeReview() {
           : `Report card review saved for ${student?.user?.name || 'student'}.`
       );
 
-      load();
+      // Invalidate cache so next open gets fresh data, but don't block UI
+      invalidateHomeroom(classId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save student review.');
     } finally {
       setSavingStudentId(null);
     }
-  }, [studentMap, edits, activeYear, activeSemester, load]);
+  }, [studentMap, edits, activeYear, activeSemester, classId, invalidateHomeroom]);
 
   const handleSubmitToAdmin = async () => {
     const rcIds = studentOrder.map((sid) => studentMap[sid]?.rc?.id).filter(Boolean);
@@ -528,7 +459,7 @@ export default function HomeroomGradeReview() {
     try {
       await axios.post('/report-cards/submit-to-admin', { reportCardIds: rcIds });
       toast.success(`${rcIds.length} student review(s) submitted to Branch Admin.`);
-      load();
+      invalidateHomeroom(classId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to submit to Branch Admin.');
     } finally {
@@ -620,6 +551,10 @@ export default function HomeroomGradeReview() {
         <div className="flex items-center justify-center py-20 text-slate-400">
           <div className="mr-3 h-6 w-6 animate-spin rounded-full border-2 border-slate-200 border-t-slate-600" />
           Loading…
+        </div>
+      ) : homeroomError ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center text-red-700">
+          {homeroomErr?.response?.data?.message || 'Failed to load class data.'}
         </div>
       ) : studentOrder.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-12 text-center text-slate-400">
