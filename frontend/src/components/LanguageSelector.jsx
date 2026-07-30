@@ -190,12 +190,12 @@ export default function LanguageSelector({ className = '' }) {
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+        className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-slate-200 bg-white px-2 sm:px-3 py-1.5 text-xs font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
         title="Select Language"
       >
         <CurrentFlag />
-        <span className="truncate max-w-[90px]">{currentLang.label}</span>
-        <svg className="h-3.5 w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <span className="truncate max-w-[50px] min-[400px]:max-w-[70px] sm:max-w-[90px]">{currentLang.label}</span>
+        <svg className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
         </svg>
       </button>

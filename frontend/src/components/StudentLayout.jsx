@@ -118,7 +118,7 @@ export default function StudentLayout({ children, searchPlaceholder }) {
     <div className="flex min-h-screen bg-[#e7eff3] font-sans text-[#203e4f]">
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -218,27 +218,28 @@ export default function StudentLayout({ children, searchPlaceholder }) {
       <main className="flex min-w-0 flex-1 flex-col bg-[#e7eff3]">
         <MaintenanceBanner />
 
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs">
-          <div className="flex min-w-0 items-center gap-3">
+        {/* Responsive Top Header Bar */}
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-3 sm:px-6 lg:px-8 shadow-xs gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
-              className="text-[#203e4f] hover:text-black lg:hidden"
+              className="p-1.5 rounded-lg text-[#203e4f] hover:bg-white/60 lg:hidden shrink-0"
               onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
             >
               <MenuIcon />
             </button>
-            <h1 className="truncate text-lg sm:text-2xl font-extrabold text-[#203e4f] tracking-tight">
+            <h1 className="truncate text-sm min-[380px]:text-base sm:text-xl lg:text-2xl font-extrabold text-[#203e4f] tracking-tight">
               {branding?.institutionNameEn || 'Student Portal'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5 min-[400px]:gap-2 sm:gap-4 shrink-0">
             {/* Search Pill Input */}
-            <div className="relative hidden items-center sm:flex w-48 lg:w-64">
+            <div className="relative hidden items-center sm:flex w-36 md:w-48 lg:w-64">
               <input
                 type="text"
                 placeholder={searchPlaceholder}
-                className="w-full bg-white text-sm text-[#203e4f] placeholder-[#8caab8] px-4 py-2 pl-4 pr-9 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
+                className="w-full bg-white text-xs sm:text-sm text-[#203e4f] placeholder-[#8caab8] px-3 sm:px-4 py-1.5 sm:py-2 pl-3 sm:pl-4 pr-8 sm:pr-9 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition"
               />
               <span className="absolute right-3">
                 <SearchIcon />
@@ -253,6 +254,7 @@ export default function StudentLayout({ children, searchPlaceholder }) {
               <button
                 className="relative p-2 bg-white rounded-full border border-[#d2e2eb] text-[#3b6b82] hover:bg-slate-50 transition shadow-sm"
                 onClick={() => setNotificationsOpen((o) => !o)}
+                aria-label="Notifications"
               >
                 <BellIcon />
                 {unreadCount > 0 && (
@@ -263,7 +265,7 @@ export default function StudentLayout({ children, searchPlaceholder }) {
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-3 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-[#203e4f]">{t('notifications')}</span>
                     {unreadCount > 0 && (

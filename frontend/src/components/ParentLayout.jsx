@@ -116,7 +116,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
     <div className="flex min-h-screen bg-[#e7eff3] font-sans text-[#203e4f]">
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden" onClick={() => setMobileOpen(false)} />
       )}
 
       {/* Sidebar */}
@@ -216,29 +216,30 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
       <main className="flex min-w-0 flex-1 flex-col bg-[#e7eff3]">
         <MaintenanceBanner />
 
-        {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs">
-          <div className="flex min-w-0 items-center gap-3">
+        {/* Responsive Top Header Bar */}
+        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-3 sm:px-6 lg:px-8 shadow-xs gap-2">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
-              className="text-[#203e4f] hover:text-black lg:hidden"
+              className="p-1.5 rounded-lg text-[#203e4f] hover:bg-white/60 lg:hidden shrink-0"
               onClick={() => setMobileOpen(true)}
+              aria-label="Open menu"
             >
               <MenuIcon />
             </button>
-            <h1 className="truncate text-lg sm:text-2xl font-extrabold text-[#203e4f] tracking-tight">
+            <h1 className="truncate text-sm min-[380px]:text-base sm:text-xl lg:text-2xl font-extrabold text-[#203e4f] tracking-tight">
               {branding?.institutionNameEn || 'Parent Portal'}
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-1.5 min-[400px]:gap-2 sm:gap-4 shrink-0">
             {/* Child Switcher Dropdown */}
             {kids.length > 0 && (
-              <div className="flex items-center gap-2">
-                <span className="hidden text-xs font-bold uppercase tracking-wider text-[#63889b] sm:inline">Viewing</span>
+              <div className="flex items-center gap-1 sm:gap-2">
+                <span className="hidden text-xs font-bold uppercase tracking-wider text-[#63889b] md:inline">Viewing</span>
                 <select
                   value={childId || ''}
                   onChange={(e) => onSelectChild?.(e.target.value)}
-                  className="bg-white text-xs font-bold text-[#203e4f] px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition max-w-[140px] sm:max-w-xs truncate"
+                  className="bg-white text-xs font-bold text-[#203e4f] px-2 sm:px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition max-w-[100px] min-[380px]:max-w-[130px] sm:max-w-xs truncate"
                 >
                   {kids.map((k) => {
                     const id = k.profile?._id || k.profile?.id;
@@ -260,6 +261,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
               <button
                 className="relative p-2 bg-white rounded-full border border-[#d2e2eb] text-[#3b6b82] hover:bg-slate-50 transition shadow-sm"
                 onClick={() => setNotificationsOpen((o) => !o)}
+                aria-label="Notifications"
               >
                 <BellIcon />
                 {unreadCount > 0 && (
@@ -270,7 +272,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
               </button>
 
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-3 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-[#203e4f]">{t('notifications')}</span>
                     {unreadCount > 0 && (
