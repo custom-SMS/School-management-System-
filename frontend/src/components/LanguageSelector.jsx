@@ -16,24 +16,155 @@ const UKFlag = () => (
 );
 
 const EthiopiaFlag = () => (
-  <svg className="w-5 h-3.5 rounded-[2px] shadow-xs object-cover flex-shrink-0 border border-slate-200" viewBox="0 0 600 400">
-    <rect width="600" height="133.3" fill="#009A44"/>
-    <rect y="133.3" width="600" height="133.3" fill="#FED100"/>
-    <rect y="266.6" width="600" height="134" fill="#E4002B"/>
-    <circle cx="300" cy="200" r="70" fill="#0033A0"/>
-    <polygon points="300,142 316,190 367,190 325,220 341,268 300,238 259,268 275,220 233,190 284,190" fill="none" stroke="#FED100" strokeWidth="7" />
-    <line x1="300" y1="142" x2="300" y2="200" stroke="#FED100" strokeWidth="4"/>
-    <line x1="367" y1="190" x2="300" y2="200" stroke="#FED100" strokeWidth="4"/>
-    <line x1="341" y1="268" x2="300" y2="200" stroke="#FED100" strokeWidth="4"/>
-    <line x1="259" y1="268" x2="300" y2="200" stroke="#FED100" strokeWidth="4"/>
-    <line x1="233" y1="190" x2="300" y2="200" stroke="#FED100" strokeWidth="4"/>
+  <svg
+    className="w-5 h-3.5 rounded-[2px] border border-slate-200 shadow-xs object-cover flex-shrink-0"
+    viewBox="0 0 600 400"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Green */}
+    <rect width="600" height="133.333" fill="#078930" />
+
+    {/* Yellow */}
+    <rect y="133.333" width="600" height="133.333" fill="#FCDD09" />
+
+    {/* Red */}
+    <rect y="266.666" width="600" height="133.334" fill="#DA121A" />
+
+    {/* Blue Disc */}
+    <circle cx="300" cy="200" r="72" fill="#0F47AF" />
+
+    {/* Pentagram */}
+    <g
+      fill="none"
+      stroke="#FCDD09"
+      strokeWidth="6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {/* Outer Star */}
+      <polygon points="
+        300,136
+        337.6,251.7
+        239.2,180.3
+        360.8,180.3
+        262.4,251.7
+      "/>
+
+      {/* Connecting Lines */}
+      <line x1="300" y1="136" x2="300" y2="200"/>
+      <line x1="360.8" y1="180.3" x2="300" y2="200"/>
+      <line x1="337.6" y1="251.7" x2="300" y2="200"/>
+      <line x1="262.4" y1="251.7" x2="300" y2="200"/>
+      <line x1="239.2" y1="180.3" x2="300" y2="200"/>
+    </g>
   </svg>
 );
+
+const OromoFlag = () => (
+  <svg
+    className="w-5 h-3.5 rounded-[2px] border border-slate-200 shadow-xs flex-shrink-0"
+    viewBox="0 0 600 400"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    {/* Background */}
+    <rect width="600" height="133.33" fill="#D50000" />
+    <rect y="133.33" width="600" height="133.34" fill="#FFFFFF" />
+    <rect y="266.67" width="600" height="133.33" fill="#000000" />
+
+    {/* Tree */}
+    <g transform="translate(300 205)">
+      {/* Trunk */}
+      <path
+        d="M-18 120
+           C-10 80 -8 40 -5 0
+           L5 0
+           C8 40 10 80 18 120
+           Z"
+        fill="#B7B37A"
+        stroke="#111"
+        strokeWidth="2"
+      />
+
+      {/* Canopy */}
+      <path
+        d="
+          M-90 0
+          C-105 -20 -95 -45 -75 -55
+          C-65 -80 -35 -90 -10 -88
+          C10 -100 45 -95 65 -75
+          C90 -75 110 -55 108 -28
+          C120 -5 108 18 88 28
+          C70 45 40 42 20 35
+          C5 45 -15 45 -35 35
+          C-55 45 -82 38 -95 18
+          C-112 10 -115 -10 -90 0
+          Z"
+        fill="#0A6B2D"
+        stroke="#111"
+        strokeWidth="3"
+      />
+
+      {/* Branches */}
+      <path
+        d="M0 0 C-15 -15 -30 -30 -45 -38"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M0 0 C15 -15 30 -30 45 -38"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M0 0 C0 -25 0 -50 0 -70"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+
+      {/* Stylized canopy details */}
+      <path
+        d="M-60 -35 C-50 -20 -55 -5 -70 10"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M-20 -65 C-35 -45 -25 -20 -8 -5"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M35 -65 C20 -45 30 -20 48 -2"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+      <path
+        d="M75 -25 C60 -5 62 10 80 25"
+        fill="none"
+        stroke="#111"
+        strokeWidth="3"
+        strokeLinecap="round"
+      />
+    </g>
+  </svg>
+);
+
 
 const LANGUAGES = [
   { code: 'en', label: 'English', FlagComponent: UKFlag },
   { code: 'am', label: 'አማርኛ', FlagComponent: EthiopiaFlag },
-  { code: 'om', label: 'Afaan Oromoo', FlagComponent: EthiopiaFlag },
+  { code: 'om', label: 'Afaan Oromoo', FlagComponent: OromoFlag },
 ];
 
 export default function LanguageSelector({ className = '' }) {
