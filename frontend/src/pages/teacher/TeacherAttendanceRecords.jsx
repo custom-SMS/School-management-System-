@@ -251,7 +251,12 @@ export default function TeacherAttendanceRecords() {
         </div>
 
         {loadingClasses || loadingRegister ? (
-          <div className="py-12 text-center text-sm text-slate-400">Loading attendance register...</div>
+          <div className="animate-pulse space-y-3 p-4">
+            <div className="h-10 w-full rounded-lg bg-slate-100" />
+            {[1, 2, 3, 4, 5].map((i) => (
+              <div key={i} className="h-12 w-full rounded-lg bg-slate-50" />
+            ))}
+          </div>
         ) : error ? (
           <div className="py-12 text-center">
             <p className="font-semibold text-rose-600">{error}</p>

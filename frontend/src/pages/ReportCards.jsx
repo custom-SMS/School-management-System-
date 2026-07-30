@@ -160,20 +160,18 @@ export default function ReportCards() {
     classesData.forEach(klass => {
       if (klass.sections && klass.sections.length > 0) {
         klass.sections.forEach(section => {
-          // Include sections - filter by academic year if selectedYear is set
-          if (!selectedYear || section.academicYearId === selectedYear) {
-            flattenedClasses.push({
-              ...klass,
-              _id: section._id || section.id,
-              id: section._id || section.id,
-              displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} — ${section.name}`,
-              isSection: true,
-              sectionId: section._id || section.id,
-              sectionName: section.name,
-              academicYearId: section.academicYearId,
-              originalClassId: klass._id || klass.id
-            });
-          }
+          // Always include all returned sections — backend already filters by year
+          flattenedClasses.push({
+            ...klass,
+            _id: section._id || section.id,
+            id: section._id || section.id,
+            displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} — ${section.name}`,
+            isSection: true,
+            sectionId: section._id || section.id,
+            sectionName: section.name,
+            academicYearId: section.academicYearId,
+            originalClassId: klass._id || klass.id
+          });
         });
       }
       // Always include the class itself as an option
@@ -188,13 +186,14 @@ export default function ReportCards() {
     const uniqueClasses = [];
     const seenIds = new Set();
     flattenedClasses.forEach(c => {
-      if (!seenIds.has(c._id)) {
-        seenIds.add(c._id);
+      const cid = c._id || c.id;
+      if (cid && !seenIds.has(cid)) {
+        seenIds.add(cid);
         uniqueClasses.push(c);
       }
     });
     setClasses(uniqueClasses);
-    if (uniqueClasses.length > 0 && !selectedClassId) setSelectedClassId(uniqueClasses[0]._id);
+    if (uniqueClasses.length > 0) setSelectedClassId(prev => prev || uniqueClasses[0]._id || uniqueClasses[0].id);
   };
 
   // Auto-select active semester when year or activeSemester changes
@@ -211,8 +210,9 @@ export default function ReportCards() {
     }
   }, [yearSemesters, activeSemester]);
 
-  // Reprocess classes when selected year changes to filter sections by academic year
+  // Re-fetch classes whenever the selected year changes (also handles initial load)
   useEffect(() => {
+    if (!selectedYear) return;
     axios.get('/classroom/classes').then((r) => {
       const classesData = r.data || [];
       processClassesData(classesData);
@@ -235,11 +235,7 @@ export default function ReportCards() {
       setStudents(Array.isArray(payload) ? payload : (payload?.students || []));
     }).catch(console.error);
 
-    // Load classes for pipeline view with section information
-    axios.get('/classroom/classes').then((r) => {
-      const classesData = r.data || [];
-      processClassesData(classesData);
-    }).catch(() => { });
+    // Classes are loaded by the selectedYear-dependent useEffect below
 
     // Load grading structure configured in SuperAdmin Settings
     axios.get('/classroom/grading-structure')

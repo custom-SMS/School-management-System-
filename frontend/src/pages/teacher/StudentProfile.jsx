@@ -74,22 +74,30 @@ export default function StudentProfile() {
     }
   };
 
-  if (loading) {
-    return <TeacherLayout><div className="py-20 text-center text-slate-400">Loading profile…</div></TeacherLayout>;
-  }
-
-  if (!student) {
-    return (
-      <TeacherLayout>
+  return (
+    <TeacherLayout searchPlaceholder="Search student profile...">
+      {loading ? (
+        <div className="animate-pulse space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="h-16 w-16 rounded-full bg-slate-200" />
+            <div className="space-y-2">
+              <div className="h-6 w-48 rounded bg-slate-200" />
+              <div className="h-4 w-32 rounded bg-slate-100" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-4">
+            <div className="h-20 rounded-2xl bg-slate-100" />
+            <div className="h-20 rounded-2xl bg-slate-100" />
+            <div className="h-20 rounded-2xl bg-slate-100" />
+            <div className="h-20 rounded-2xl bg-slate-100" />
+          </div>
+        </div>
+      ) : !student ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-16 text-center text-slate-400">
           Student not found in your assigned roster. <Link to="/teacher/students" className="font-semibold text-slate-700 underline">Back to directory</Link>
         </div>
-      </TeacherLayout>
-    );
-  }
-
-  return (
-    <TeacherLayout searchPlaceholder="Search student by name or ID...">
+      ) : (
+        <>
       {/* Back */}
       <div className="mb-4">
         <Link to="/teacher/students" className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">
@@ -282,6 +290,8 @@ export default function StudentProfile() {
           </button>
         </section>
       </div>
+        </>
+      )}
     </TeacherLayout>
   );
 }

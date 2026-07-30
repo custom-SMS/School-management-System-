@@ -66,7 +66,21 @@ export default function AssignedClasses() {
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading classes…</div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
+            <div key={i} className="animate-pulse rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between">
+                <div className="h-4 w-28 rounded bg-slate-200" />
+                <div className="h-6 w-16 rounded-full bg-slate-100" />
+              </div>
+              <div className="mt-4 h-6 w-36 rounded bg-slate-200" />
+              <div className="mt-6 flex justify-between border-t border-slate-100 pt-4">
+                <div className="h-8 w-24 rounded-lg bg-slate-100" />
+                <div className="h-8 w-24 rounded-lg bg-slate-100" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
           <p className="font-semibold text-rose-700">Could not load class data.</p>
