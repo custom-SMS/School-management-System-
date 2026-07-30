@@ -233,6 +233,41 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
           <p className="text-[10px] font-bold uppercase tracking-widest text-[#9bbcc9] mt-0.5 text-center">
             Super Admin Console
           </p>
+
+          {/* Mobile Sidebar Controls for Branch & Academic Year */}
+          <div className="w-full mt-3 pt-3 border-t border-white/10 space-y-2 lg:hidden">
+            {canSwitchBranch && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#9bbcc9]">Branch</span>
+                <select
+                  value={selectedBranchId || ''}
+                  onChange={(e) => switchBranch(e.target.value)}
+                  className="bg-[#1a3443] text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 focus:outline-none max-w-[140px] truncate"
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id || b._id} value={b.id || b._id}>{b.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {academicYears.length > 0 && (
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-[#9bbcc9]">Academic Year</span>
+                <select
+                  value={selectedYear?.id || activeYear?.id || ''}
+                  onChange={handleYearViewChange}
+                  className="bg-[#1a3443] text-white text-xs font-bold px-2.5 py-1 rounded-lg border border-white/20 focus:outline-none max-w-[140px] truncate"
+                >
+                  {academicYears.map((y) => (
+                    <option key={y.id} value={y.id}>
+                      {y.year}{y.isActive ? ' ✓' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Navigation */}
@@ -315,15 +350,15 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
             </h1>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            {/* Branch Switcher Select */}
+          <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+            {/* Branch Switcher — desktop only; sidebar handles mobile */}
             {canSwitchBranch && (
-              <div className="flex items-center gap-2">
+              <div className="hidden md:flex items-center gap-1 sm:gap-2">
                 <span className="hidden text-xs font-bold uppercase tracking-wider text-[#63889b] sm:inline">Branch</span>
                 <select
                   value={selectedBranchId || ''}
                   onChange={(e) => switchBranch(e.target.value)}
-                  className="bg-white text-xs font-bold text-[#203e4f] px-3 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition max-w-[140px] sm:max-w-xs truncate"
+                  className="bg-white text-xs font-bold text-[#203e4f] px-2.5 py-1.5 rounded-full border border-[#d2e2eb] focus:outline-none focus:ring-2 focus:ring-[#3b6b82] shadow-sm transition max-w-[110px] sm:max-w-xs truncate"
                 >
                   <option value="">All Branches</option>
                   {branches.map((b) => (
@@ -333,14 +368,14 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               </div>
             )}
 
-            {/* Academic Year Switcher */}
+            {/* Academic Year Switcher — desktop only; sidebar handles mobile */}
             {academicYears.length > 0 && (
-              <div className="hidden md:flex items-center gap-2">
-                <span className={`text-xs font-bold uppercase tracking-wider ${isViewingHistory ? 'text-amber-500' : 'text-[#63889b]'}`}>Year</span>
+              <div className="hidden md:flex items-center gap-1 sm:gap-2">
+                <span className={`hidden sm:inline text-xs font-bold uppercase tracking-wider ${isViewingHistory ? 'text-amber-500' : 'text-[#63889b]'}`}>Year</span>
                 <select
                   value={selectedYear?.id || activeYear?.id || ''}
                   onChange={handleYearViewChange}
-                  className={`text-xs font-bold px-3 py-1.5 rounded-full border focus:outline-none focus:ring-2 shadow-sm transition ${
+                  className={`text-xs font-bold px-2.5 py-1.5 rounded-full border focus:outline-none focus:ring-2 shadow-sm transition max-w-[110px] sm:max-w-xs truncate ${
                     isViewingHistory
                       ? 'bg-amber-50 text-amber-800 border-amber-300 focus:ring-amber-400'
                       : 'bg-white text-[#203e4f] border-[#d2e2eb] focus:ring-[#3b6b82]'
@@ -356,7 +391,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
                   <button
                     onClick={resetViewYear}
                     title="Return to current active year"
-                    className="text-xs font-bold text-amber-600 hover:text-amber-800 bg-amber-50 border border-amber-300 px-2 py-1 rounded-full transition"
+                    className="text-[11px] sm:text-xs font-bold text-amber-600 hover:text-amber-800 bg-amber-50 border border-amber-300 px-2 py-1 rounded-full transition whitespace-nowrap"
                   >
                     ✕ Exit History
                   </button>

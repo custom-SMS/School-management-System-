@@ -109,12 +109,14 @@ const seedSemesters = async (req, res) => {
 
 /**
  * PATCH /api/semesters/:id/active
- * Set a semester as globally active. Deactivates ALL other semesters first.
+ * Set a semester as globally active (or deactivate it if isActive is false).
  * SuperAdmin only.
  */
 const setActiveSemester = async (req, res) => {
   try {
     const { id } = req.params;
+    // Extract isActive flag from body (defaults to true for activate)
+    const isActive = req.body?.isActive !== undefined ? Boolean(req.body.isActive) : true;
 
     const target = await prisma.semester.findUnique({
       where: { id },
@@ -122,18 +124,25 @@ const setActiveSemester = async (req, res) => {
     });
     if (!target) return res.status(404).json({ message: 'Semester not found.' });
 
-    await prisma.$transaction(async (tx) => {
-      // Deactivate ALL semesters globally
-      await tx.semester.updateMany({ data: { isActive: false } });
-      // Activate the target
-      await tx.semester.update({ where: { id }, data: { isActive: true } });
-    });
+    if (isActive) {
+      await prisma.$transaction(async (tx) => {
+        // Deactivate ALL semesters globally
+        await tx.semester.updateMany({ data: { isActive: false } });
+        // Activate the target
+        await tx.semester.update({ where: { id }, data: { isActive: true } });
+      });
+    } else {
+      // Deactivate target semester
+      await prisma.semester.update({ where: { id }, data: { isActive: false } });
+    }
 
     await logActivity(
       req.user._id,
-      'Set Active Semester',
+      isActive ? 'Set Active Semester' : 'Deactivate Semester',
       id,
-      `Set globally active semester to "${target.name}" (${target.academicYear.year})`
+      isActive
+        ? `Set globally active semester to "${target.name}" (${target.academicYear.year})`
+        : `Deactivated active semester "${target.name}" (${target.academicYear.year})`
     );
 
     const updated = await prisma.semester.findUnique({
@@ -142,7 +151,9 @@ const setActiveSemester = async (req, res) => {
     });
 
     res.status(200).json({
-      message: `"${target.name}" (${target.academicYear.year}) is now the active semester.`,
+      message: isActive
+        ? `"${target.name}" (${target.academicYear.year}) is now the active semester.`
+        : `"${target.name}" (${target.academicYear.year}) is no longer active.`,
       semester: updated,
     });
   } catch (error) {

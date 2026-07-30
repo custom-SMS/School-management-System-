@@ -48,6 +48,7 @@ export default function AcademicYears() {
   // Year-end operations
   const [archiving, setArchiving] = useState(false);
   const [promoting, setPromoting] = useState(false);
+  const [promoteTargetYearId, setPromoteTargetYearId] = useState('');
 
   const fetchYears = async () => {
     try {
@@ -214,29 +215,42 @@ export default function AcademicYears() {
 
   // ── Semester actions ────────────────────────────────────────────────────────
 
-  const handleSetActiveSemester = async (semester, yearLabel) => {
-    if (!isSuper) { toast.error('Only SuperAdmin can switch the active semester.'); return; }
-    if (semester.isActive) return; // already active
+  const handleToggleActiveSemester = async (semester, yearLabel) => {
+    if (!isSuper) { toast.error('Only SuperAdmin can manage the active semester.'); return; }
 
-    const result = await showConfirmDialog({
-      title: 'Switch active semester?',
-      text: `Set "${semester.name}" (${yearLabel}) as the globally active semester? This affects grades, report cards, and timetables for all branches.`,
-      confirmButtonText: 'Yes, switch',
-    });
+    const isDeactivating = Boolean(semester.isActive);
+    const result = isDeactivating
+      ? await showDangerConfirmDialog({
+          title: 'Unset Active Semester?',
+          text: `Deactivate "${semester.name}" (${yearLabel})? No semester will be globally active.`,
+          confirmButtonText: 'Yes, unset active',
+          confirmButtonColor: '#be123c',
+        })
+      : await showConfirmDialog({
+          title: 'Switch active semester?',
+          text: `Set "${semester.name}" (${yearLabel}) as the globally active semester? This affects grades, report cards, and timetables for all branches.`,
+          confirmButtonText: 'Yes, set active',
+          confirmButtonColor: '#047857',
+        });
+
     if (!result.isConfirmed) return;
 
     setActionId(semester.id);
     try {
-      const outcome = await switchSemester(semester.id);
+      const outcome = await switchSemester(semester.id, !isDeactivating);
       if (outcome.ok) {
-        toast.success(`"${semester.name}" (${yearLabel}) is now the active semester.`);
+        toast.success(
+          isDeactivating
+            ? `"${semester.name}" (${yearLabel}) is no longer active.`
+            : `"${semester.name}" (${yearLabel}) is now the active semester.`
+        );
         await refetchSemester();
         fetchYears();
       } else {
         toast.error(outcome.message);
       }
     } catch {
-      toast.error('Failed to switch active semester.');
+      toast.error('Failed to update active semester.');
     } finally {
       setActionId(null);
     }
@@ -419,9 +433,9 @@ export default function AcademicYears() {
                 </button>
                 <div className="flex items-center gap-1">
                   <select
-                    id="promoteTarget"
+                    value={promoteTargetYearId}
+                    onChange={(e) => setPromoteTargetYearId(e.target.value)}
                     className="text-xs border border-slate-300 rounded px-2 py-1.5 bg-white w-36 shadow-sm outline-none focus:ring-1 focus:ring-blue-500"
-                    defaultValue=""
                   >
                     <option value="" disabled>Select Target Year...</option>
                     {years.filter(y => y.id !== activeYear.id).map(y => (
@@ -429,10 +443,7 @@ export default function AcademicYears() {
                     ))}
                   </select>
                   <button
-                    onClick={() => {
-                      const tgt = document.getElementById('promoteTarget').value;
-                      handleBulkPromote(activeYear, tgt);
-                    }}
+                    onClick={() => handleBulkPromote(activeYear, promoteTargetYearId)}
                     disabled={promoting}
                     className="text-xs font-bold bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1.5 rounded transition disabled:opacity-50 shadow-sm"
                   >
@@ -586,17 +597,22 @@ export default function AcademicYears() {
                               >
                                 Edit Dates
                               </button>
-                              {isSuper && !isGloballyActive && (
+                              {isSuper && (
                                 <button
                                   disabled={actionId === sem.id}
-                                  onClick={() => handleSetActiveSemester(sem, y.year)}
-                                  className="text-xs font-bold text-violet-700 hover:text-violet-900 bg-violet-50 border border-violet-200 px-2.5 py-1.5 rounded-lg transition disabled:opacity-40"
+                                  onClick={() => handleToggleActiveSemester(sem, y.year)}
+                                  className={`text-xs font-bold px-2.5 py-1.5 rounded-lg transition disabled:opacity-40 ${
+                                    isGloballyActive
+                                      ? 'text-rose-700 hover:text-rose-900 bg-rose-50 border border-rose-200'
+                                      : 'text-violet-700 hover:text-violet-900 bg-violet-50 border border-violet-200'
+                                  }`}
                                 >
-                                  {actionId === sem.id ? '…' : 'Set Active'}
+                                  {actionId === sem.id
+                                    ? '…'
+                                    : isGloballyActive
+                                    ? 'Unset Active'
+                                    : 'Set Active'}
                                 </button>
-                              )}
-                              {isGloballyActive && (
-                                <span className="text-xs font-bold text-violet-600">Active Semester</span>
                               )}
                             </div>
                           </div>
