@@ -165,8 +165,26 @@ const getNextAvailableStudentId = async () => {
   return `STU/${String(counter.seq).padStart(4, '0')}/${etYearLast2}`;
 };
 
-const generateParentId = async () => {
-  const count = await prisma.parent.count();
+const generateParentId = async (tx = prisma) => {
+  const last = await tx.parent.findFirst({
+    where: { parentId: { startsWith: 'PAR/' } },
+    orderBy: { createdAt: 'desc' },
+    select: { parentId: true },
+  });
+
+  let nextNum = 1;
+  if (last && last.parentId) {
+    const parts = last.parentId.split('/');
+    if (parts.length >= 2) {
+      const parsed = parseInt(parts[1], 10);
+      if (!isNaN(parsed)) nextNum = parsed + 1;
+    }
+  }
+
+  if (nextNum === 1) {
+    const count = await tx.parent.count();
+    nextNum = count + 1;
+  }
 
   const now = new Date();
   const gregYear = now.getFullYear();
@@ -174,10 +192,9 @@ const generateParentId = async () => {
 
   // Ethiopian year approximation
   const etYear = month >= 9 ? gregYear - 7 : gregYear - 8;
-
   const etYearLast2 = etYear.toString().slice(-2);
 
-  return `PAR/${(count + 1).toString().padStart(4, '0')}/${etYearLast2}`;
+  return `PAR/${nextNum.toString().padStart(4, '0')}/${etYearLast2}`;
 };
 
 const generatePassword = () => crypto.randomBytes(4).toString('hex');
@@ -355,21 +372,31 @@ const upsertGuardianProfile = async ({ contact, student, studentName }) => {
       include: { children: true }
     });
   } else {
-    parentProfile = await prisma.parent.create({
-      data: {
-        userId: user.id,
-        parentId: await generateParentId(),
-        fullName: contact.fullName || `${studentName}'s Guardian`,
-        email: email || null,
-        phone: contact.phone || null,
-        relationship: contact.relationship || 'Guardian',
-        address: contact.address || null,
-        children: {
-          connect: { id: student.id }
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      try {
+        parentProfile = await prisma.parent.create({
+          data: {
+            userId: user.id,
+            parentId: await generateParentId(),
+            fullName: contact.fullName || `${studentName}'s Guardian`,
+            email: email || null,
+            phone: contact.phone || null,
+            relationship: contact.relationship || 'Guardian',
+            address: contact.address || null,
+            children: {
+              connect: { id: student.id }
+            }
+          },
+          include: { children: true }
+        });
+        break;
+      } catch (pErr) {
+        if (pErr.code === 'P2002' && pErr.meta?.target?.includes?.('parentId') && attempt < 5) {
+          continue;
         }
-      },
-      include: { children: true }
-    });
+        throw pErr;
+      }
+    }
   }
 
   const currentGuardianContacts = Array.isArray(student.guardianContacts) ? student.guardianContacts : [];

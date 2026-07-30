@@ -142,13 +142,15 @@ const registerEmployee = async (req, res) => {
       return res.status(400).json({ message: 'Invalid role for employee' });
     }
 
-    // Email logic (reusing teacher email template for all staff if email provided)
+    // Email logic: fire in background so HTTP response returns instantly without waiting for SMTP server
     if (email) {
-      try {
-        await sendTeacherCredentialsEmail(email, name, generatedSystemId, plainPassword);
-      } catch (e) {
-        console.error('Failed to send credentials email:', e);
-      }
+      sendTeacherCredentialsEmail(email, name, generatedSystemId, plainPassword)
+        .then((result) => {
+          console.log(`[employeeController] Credentials email sent to ${email}, id: ${result?.id || 'n/a'}`);
+        })
+        .catch((e) => {
+          console.error('[employeeController] Failed to send credentials email:', e?.message || e);
+        });
     }
 
     res.status(201).json({
