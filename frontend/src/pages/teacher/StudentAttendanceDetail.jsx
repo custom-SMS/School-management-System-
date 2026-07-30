@@ -74,21 +74,29 @@ export default function StudentAttendanceDetail() {
     }
   };
 
-  if (loading) {
-    return <TeacherLayout><div className="py-20 text-center text-slate-400">Loading…</div></TeacherLayout>;
-  }
-  if (!student) {
-    return (
-      <TeacherLayout>
+  return (
+    <TeacherLayout searchPlaceholder="Search student attendance...">
+      {loading ? (
+        <div className="animate-pulse space-y-6">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-full bg-slate-200" />
+            <div className="space-y-2">
+              <div className="h-6 w-48 rounded bg-slate-200" />
+              <div className="h-4 w-32 rounded bg-slate-100" />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="h-24 rounded-2xl bg-slate-100" />
+            <div className="h-24 rounded-2xl bg-slate-100" />
+            <div className="h-24 rounded-2xl bg-slate-100" />
+          </div>
+        </div>
+      ) : !student ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-16 text-center text-slate-400">
           Student not found. <Link to="/teacher/students" className="font-semibold text-slate-700 underline">Back to directory</Link>
         </div>
-      </TeacherLayout>
-    );
-  }
-
-  return (
-    <TeacherLayout searchPlaceholder="Search students...">
+      ) : (
+        <>
       {/* Breadcrumb */}
       <div className="mb-4 flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-slate-400">
@@ -198,6 +206,8 @@ export default function StudentAttendanceDetail() {
           </div>
         </section>
       </div>
+        </>
+      )}
     </TeacherLayout>
   );
 }

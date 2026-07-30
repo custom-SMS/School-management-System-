@@ -49,7 +49,18 @@ export default function TeacherTimetable() {
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         {loading ? (
-          <div className="py-20 text-center text-slate-400">Loading timetable…</div>
+          <div className="animate-pulse space-y-4 p-4">
+            <div className="h-10 w-full rounded-lg bg-slate-100" />
+            <div className="grid grid-cols-5 gap-3">
+              {[1, 2, 3, 4, 5].map((col) => (
+                <div key={col} className="space-y-3">
+                  <div className="h-16 rounded-xl bg-slate-100" />
+                  <div className="h-16 rounded-xl bg-slate-100" />
+                  <div className="h-16 rounded-xl bg-slate-100" />
+                </div>
+              ))}
+            </div>
+          </div>
         ) : error ? (
           <div className="py-16 text-center">
             <p className="font-semibold text-rose-600">Could not load timetable data.</p>

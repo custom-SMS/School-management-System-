@@ -153,7 +153,16 @@ export default function AssignedStudents() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {loading ? (
-                <tr><td colSpan="5" className="py-10 text-center text-slate-400">Loading students…</td></tr>
+                [1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="px-4 py-3"><div className="h-8 w-8 rounded-full bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-32 rounded bg-slate-200" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-slate-100" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-24 rounded bg-slate-100" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-28 rounded bg-slate-100" /></td>
+                    <td className="px-4 py-3"><div className="h-4 w-20 rounded bg-slate-100" /></td>
+                  </tr>
+                ))
               ) : error ? (
                 <tr><td colSpan="5" className="py-10 text-center">
                   <p className="font-semibold text-rose-600">Could not load student data.</p>
