@@ -248,7 +248,7 @@ const translations = {
     viewStatement: 'የክፍያ መግለጫ ተመልከት →',
 
     // Dashboard Cards & Titles
-    helloGuardian: 'ሰላም፥ የ{name} ወላጅ!',
+    helloGuardian: 'ሰላም፥ የ ተማሪ ወላጅ!',
     snapshotSub: 'የትምህርታዊ እድገት፣ የመገኘት እና የክፍያ ሂሳብ አጠቃላይ እይታ።',
     loadingChild: 'የተማሪ መረጃ በመጫን ላይ...',
     couldNotLoad: 'የተማሪ መረጃ መጫን አልተቻለም።',
@@ -465,7 +465,7 @@ const translations = {
     viewStatement: 'Bayyanaa Kafaltii Ilaali →',
 
     // Dashboard Cards & Titles
-    helloGuardian: 'Akkam, guddisaa {name}!',
+    helloGuardian: 'Akkam, guddisaa barataa/ttuu!',
     snapshotSub: 'Cuunfaa guddina barnootaa, hirmannaa fi herrega kafaltii.',
     loadingChild: "Galmee daa'imaa fe'amaa jira...",
     couldNotLoad: "Odoo daa'imaa fe'uu hin danda'amne.",
