@@ -38,16 +38,16 @@ export function useBranch() {
     dispatch(setSelectedBranch(branchId));
   };
 
-  const switchSemester = async (semesterId) => {
+  const switchSemester = async (semesterId, isActive = true) => {
     try {
-      const res = await api.post('/semesters/active', { semesterId });
+      const res = await api.patch(`/semesters/${semesterId}/active`, { isActive });
       // Invalidate both the list and the active semester cache
       await queryClient.invalidateQueries({ queryKey: ['semesters'] });
       return { ok: true, data: res.data };
     } catch (err) {
       return { 
         ok: false, 
-        message: err.response?.data?.message || 'Failed to switch active semester' 
+        message: err.response?.data?.message || 'Failed to update active semester' 
       };
     }
   };

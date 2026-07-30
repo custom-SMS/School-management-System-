@@ -474,6 +474,8 @@ const registerStudent = async (req, res) => {
       return res.status(400).json({ message: 'Email already exists' });
     }
 
+    const isSuperAdmin = req.user?.role === 'SuperAdmin' || (Array.isArray(req.user?.roles) && req.user.roles.includes('SuperAdmin'));
+
     // The class chosen from the dropdown is the source of truth. Resolve it now
     // and derive the grade from it; fall back to any grade sent in the body only
     // when no class was selected.
@@ -481,11 +483,14 @@ const registerStudent = async (req, res) => {
       if (!selectedClass) {
         return res.status(400).json({ message: 'Selected class was not found.' });
       }
-      // Branch isolation: class must belong to the same branch as the registration context.
-      if (resolvedBranchId && selectedClass.branchId !== resolvedBranchId) {
+      // Branch isolation: Branch Admins are locked to their own branch.
+      // SuperAdmins manage all branches and can register students into any class.
+      if (!isSuperAdmin && resolvedBranchId && selectedClass.branchId !== resolvedBranchId) {
         return res.status(403).json({ message: 'Access denied. Selected class does not belong to your branch.' });
       }
     }
+
+    const studentBranchId = selectedClass?.branchId || req.body.branchId || resolvedBranchId || null;
 
     const grade = selectedClass
       ? deriveGradeFromClassName(selectedClass.name)
@@ -553,7 +558,7 @@ const registerStudent = async (req, res) => {
           studentId: studentId,
           grade,
           stream,
-          branchId: resolvedBranchId,
+          branchId: studentBranchId,
           personalDetails: resolvedPersonalDetails,
           familyBackground: resolvedFamilyBackground,
           guardianContacts: []
@@ -568,7 +573,7 @@ const registerStudent = async (req, res) => {
             studentId: fallbackStudentId,
             grade,
             stream,
-            branchId: resolvedBranchId,
+            branchId: studentBranchId,
             personalDetails: resolvedPersonalDetails,
             familyBackground: resolvedFamilyBackground,
             guardianContacts: []
@@ -1488,7 +1493,7 @@ const deleteStudent = async (req, res) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+    if (req.user?.role !== 'SuperAdmin' && req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
       if (student.branchId !== req.branchFilter.branchId) {
         return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
       }
@@ -1635,7 +1640,7 @@ const promoteStudent = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
 
-    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+    if (req.user?.role !== 'SuperAdmin' && req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
       if (student.branchId !== req.branchFilter.branchId) {
         return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
       }
@@ -1692,7 +1697,7 @@ const repeatStudent = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
 
-    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+    if (req.user?.role !== 'SuperAdmin' && req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
       if (student.branchId !== req.branchFilter.branchId) {
         return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
       }
@@ -1744,7 +1749,7 @@ const setStudentStatus = async (req, res) => {
     });
     if (!student) return res.status(404).json({ message: 'Student not found.' });
 
-    if (req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
+    if (req.user?.role !== 'SuperAdmin' && req.branchFilter && req.branchFilter.branchId && req.branchFilter.branchId !== '__none__') {
       if (student.branchId !== req.branchFilter.branchId) {
         return res.status(403).json({ message: 'Access denied. Student does not belong to your branch.' });
       }

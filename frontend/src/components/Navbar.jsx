@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { getRoleLabel } from '../constants/accessControl';
 import { useAuth } from '../hooks/useAuth';
+import AcademicYearSwitcher from './AcademicYearSwitcher';
 
 export default function Navbar({ actionsDisabled = false, onAction = () => { } } = {}) {
   const { user, logout } = useAuth();
@@ -264,6 +265,7 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
           </div>
 
           <div className="relative flex items-center gap-3">
+            <AcademicYearSwitcher />
             {/* Desktop Notification Bell */}
             <div className="relative" ref={notifMenuRef}>
               <button
@@ -384,6 +386,10 @@ export default function Navbar({ actionsDisabled = false, onAction = () => { } }
         >
           <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/80">
             Signed in as <span className="font-semibold text-white">{user.name}</span> • {getRoleLabel(user.role, user.scopeType)}
+          </div>
+
+          <div className="px-2 py-1">
+            <AcademicYearSwitcher />
           </div>
 
           {navItems.map((item) => renderNavLink(item, mobileLinkClass, closeMobileMenu))}

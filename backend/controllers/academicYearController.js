@@ -391,10 +391,25 @@ const promoteStudentsBulk = async (req, res) => {
     if (!sourceYear) return res.status(404).json({ message: 'Source academic year not found.' });
     if (!targetYear) return res.status(404).json({ message: 'Target academic year not found.' });
 
-    const enrollments = await prisma.enrollment.findMany({
-      where: { academicYearId: sourceAcademicYearId, status: 'Enrolled' },
+    let enrollments = await prisma.enrollment.findMany({
+      where: {
+        academicYearId: sourceAcademicYearId,
+        status: { in: ['Enrolled', 'Active', 'Promoted', 'enrolled', 'active'] }
+      },
       include: { student: { select: { id: true, grade: true, studentId: true } } }
     });
+
+    // Fallback: If no explicit enrollment records found for source year, fetch active students
+    if (enrollments.length === 0) {
+      const activeStudents = await prisma.student.findMany({
+        where: { user: { isActive: true } },
+        select: { id: true, grade: true, studentId: true }
+      });
+      enrollments = activeStudents.map((s) => ({
+        student: s,
+        grade: s.grade,
+      }));
+    }
 
     const gradeOrder = [
       'Kindergarten', 'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5',

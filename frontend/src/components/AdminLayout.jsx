@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import axios from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
+
 import MaintenanceBanner from './MaintenanceBanner';
 
 // ── Icons ──────────────────────────────────────────────────────────────────
@@ -217,6 +218,7 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#9bbcc9] mt-0.5 text-center">
             Branch Admin
           </p>
+
         </div>
 
         {/* Navigation */}
