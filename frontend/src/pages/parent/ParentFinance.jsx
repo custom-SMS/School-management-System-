@@ -4,14 +4,16 @@ import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
 import axios from '../../api/axios';
 import { toast } from 'react-toastify';
+import { useLanguage } from '../../context/LanguageContext';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function ParentFinance() {
   const navigate = useNavigate();
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
+  const { t } = useLanguage();
   const fees = selectedChild?.fees || [];
-  const name = selectedChild?.profile?.user?.name || 'Child';
+  const name = selectedChild?.profile?.user?.name || t('child');
 
   const totals = useMemo(() => {
     let billed = 0, paid = 0, due = 0;
@@ -38,10 +40,10 @@ export default function ParentFinance() {
   };
 
   const statusPill = (f) => {
-    if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
-    if (f.latestPayment?.status === 'Pending') return <span className="rounded-md bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">VERIFYING</span>;
+    if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{t('fullyPaid')}</span>;
+    if (f.latestPayment?.status === 'Pending') return <span className="rounded-md bg-sky-50 px-2.5 py-1 text-xs font-bold text-sky-700">{t('verifying')}</span>;
     const overdue = f.dueDate && new Date(f.dueDate) < new Date();
-    return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
+    return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? t('due') : t('pending')}</span>;
   };
 
   const handleDownloadReceipt = (paymentId) => {
@@ -68,48 +70,47 @@ export default function ParentFinance() {
     <ParentLayout kids={children} childId={childId} onSelectChild={setChildId}>
       <div className="mb-6">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">Fee Statement</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">{t('feeStatement')}</h1>
           <p className="text-sm text-slate-500">{name} · {selectedChild?.profile?.grade || ''} · ID {selectedChild?.profile?.studentId || '—'}</p>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading…</div>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">{t('loadingChild')}</div>
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
-          <p className="font-semibold text-rose-700">Could not load fee data.</p>
-          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh the page or try again later.</p>
+          <p className="font-semibold text-rose-700">{t('couldNotLoad')}</p>
         </div>
       ) : !selectedChild ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">No children are linked to this account.</div>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">{t('noChildrenLinked')}</div>
       ) : (
         <>
           {/* Top cards */}
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Balance Due</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('totalBalanceDue')}</div>
               <div className="mt-1 text-3xl font-black text-slate-900">{etb(totals.due)} <span className="text-base font-bold text-slate-400">ETB</span></div>
-              {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ Payment outstanding</div>}
+              {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ {t('paymentOutstanding')}</div>}
               <button
                 onClick={handlePayNow}
                 disabled={totals.due === 0}
                 className="mt-4 w-full rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-50 disabled:opacity-40"
               >
-                Pay Now
+                {t('payNow')}
               </button>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Annual Progress</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('annualProgress')}</div>
               <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-2xl font-black text-slate-900">{totals.pct}%</div>
-              <div className="mt-3 text-xs text-slate-400">{etb(totals.paid)} ETB of {etb(totals.billed)} ETB</div>
+              <div className="mt-3 text-xs text-slate-400">{etb(totals.paid)} ETB {t('of')} {etb(totals.billed)} ETB</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Financial Summary</div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('financialSummary')}</div>
               <div className="mt-4 space-y-3 text-sm">
-                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Fully Paid</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
-                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Verifying</span><span className="rounded-md bg-sky-50 px-2.5 py-0.5 font-bold text-sky-700">{String(verifyingCount).padStart(2, '0')}</span></div>
-                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Pending Payment</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
-                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Total Billed</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
+                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('fullyPaid')}</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
+                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('verifying')}</span><span className="rounded-md bg-sky-50 px-2.5 py-0.5 font-bold text-sky-700">{String(verifyingCount).padStart(2, '0')}</span></div>
+                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('pendingPayment')}</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
+                <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('totalBilled')}</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
               </div>
             </div>
           </div>
@@ -117,7 +118,7 @@ export default function ParentFinance() {
           <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Categories */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-xl font-bold text-slate-900">Fee Categories Breakdown</h2>
+              <h2 className="mb-4 text-xl font-bold text-slate-900">{t('feeCategoriesBreakdown')}</h2>
               <div className="divide-y divide-slate-100">
                 {fees.map((f, i) => (
                   <div key={f._id || i} className="flex items-center justify-between gap-3 py-4">
@@ -136,21 +137,21 @@ export default function ParentFinance() {
                     </div>
                   </div>
                 ))}
-                {fees.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No fee records yet.</p>}
+                {fees.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('noFeeRecords')}</p>}
               </div>
             </section>
 
             {/* Transactions (paid fees) */}
             <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <h2 className="mb-4 text-xl font-bold text-slate-900">Recent Transactions</h2>
+              <h2 className="mb-4 text-xl font-bold text-slate-900">{t('recentTransactions')}</h2>
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                      <th className="py-3 pr-4 font-semibold">Date</th>
-                      <th className="py-3 pr-4 font-semibold">Description</th>
-                      <th className="py-3 pr-4 text-right font-semibold">Amount</th>
-                      <th className="py-3 pl-4 text-right font-semibold">Receipt</th>
+                      <th className="py-3 pr-4 font-semibold">{t('date')}</th>
+                      <th className="py-3 pr-4 font-semibold">{t('description')}</th>
+                      <th className="py-3 pr-4 text-right font-semibold">{t('amount')}</th>
+                      <th className="py-3 pl-4 text-right font-semibold">{t('receipt')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -162,15 +163,15 @@ export default function ParentFinance() {
                         <td className="py-3 pl-4 text-right">
                           {f.latestPayment?.status === 'Verified' ? (
                             <button onClick={() => handleDownloadReceipt(f.latestPayment.id)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200">
-                              Download
+                              {t('download')}
                             </button>
                           ) : f.latestPayment?.status === 'Pending' ? (
-                            <span className="text-xs text-slate-400">Verifying</span>
+                            <span className="text-xs text-slate-400">{t('verifying')}</span>
                           ) : <span className="text-xs text-slate-400">—</span>}
                         </td>
                       </tr>
                     ))}
-                    {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="4" className="py-8 text-center text-slate-400">No payments recorded yet.</td></tr>}
+                    {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="4" className="py-8 text-center text-slate-400">{t('noPaymentsRecorded')}</td></tr>}
                   </tbody>
                 </table>
               </div>

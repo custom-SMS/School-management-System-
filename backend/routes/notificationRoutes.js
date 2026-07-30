@@ -27,7 +27,7 @@ const { verifyToken, checkRole } = require('../middleware/authMiddleware');
  *       200:
  *         description: List of notifications
  */
-router.get('/', verifyToken, setCacheResource('notifications'), globalCacheMiddleware, getNotifications);
+router.get('/', verifyToken, getNotifications);
 
 /**
  * @swagger
@@ -42,7 +42,7 @@ router.get('/', verifyToken, setCacheResource('notifications'), globalCacheMiddl
  *       200:
  *         description: List of all notifications
  */
-router.get('/all', verifyToken, checkRole(['SuperAdmin']), setCacheResource('notifications'), globalCacheMiddleware, getAllNotifications);
+router.get('/all', verifyToken, checkRole(['Admin', 'SuperAdmin']), getAllNotifications);
 
 /**
  * @swagger
@@ -68,7 +68,7 @@ router.get('/all', verifyToken, checkRole(['SuperAdmin']), setCacheResource('not
  *       201:
  *         description: Notification broadcasted
  */
-router.post('/broadcast', verifyToken, checkRole(['SuperAdmin']), invalidateResource('notifications'), broadcastNotification);
+router.post('/broadcast', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('notifications'), broadcastNotification);
 
 /**
  * @swagger

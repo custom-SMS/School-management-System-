@@ -151,20 +151,22 @@ const sendParentNotifications = async (req, res) => {
 
     const title = rawTitle || 'Message from school';
     const senderLabel = await getSenderLabel(req.user._id, req.user.role);
-    const studentLabel = students.length > 1
-      ? `Students: ${students.map((student) => student.user?.name || 'Student').join(', ')}`
-      : `Student: ${students[0].user?.name || 'Student'}`;
-    const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
-
     const recipientList = Array.from(recipients.values());
 
     await prisma.notification.createMany({
-      data: recipientList.map((recipient) => ({
-        userId: recipient.userId,
-        title,
-        message: notificationMessage,
-        type: 'ParentMessage'
-      }))
+      data: recipientList.map((recipient) => {
+        const studentNamesArr = Array.from(recipient.studentNames);
+        const childLabel = studentNamesArr.length > 0 ? `Re: ${studentNamesArr.join(', ')}` : '';
+        const notificationMessage = childLabel
+          ? `From: ${senderLabel}\n${childLabel}\n${rawMessage}`
+          : `From: ${senderLabel}\n${rawMessage}`;
+        return {
+          userId: recipient.userId,
+          title,
+          message: notificationMessage,
+          type: 'ParentMessage'
+        };
+      })
     });
 
     const emailResults = await Promise.allSettled(
@@ -277,12 +279,19 @@ const sendStudentNotifications = async (req, res) => {
 
     const title = rawTitle || 'Message from school';
     const senderLabel = await getSenderLabel(req.user._id, req.user.role);
-    const studentLabel = students.length > 1 ? `Students: ${students.map((s) => s.user?.id || s.id).join(', ')}` : `Student: ${students[0].user?.id || students[0].id}`;
-    const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
+    const notificationMessage = `From: ${senderLabel}\n${rawMessage}`;
 
-    await prisma.notification.createMany({ data: students.map((s) => ({ userId: s.user?.id || null, title, message: notificationMessage, type: 'StudentMessage' })).filter(d => d.userId) });
+    const studentRecipients = students.filter((s) => s.user?.id);
+    await prisma.notification.createMany({
+      data: studentRecipients.map((s) => ({
+        userId: s.user.id,
+        title,
+        message: notificationMessage,
+        type: 'StudentMessage'
+      }))
+    });
 
-    res.status(201).json({ message: `Notification sent to ${students.length} student account${students.length === 1 ? '' : 's'}.`, recipients: students.length });
+    res.status(201).json({ message: `Notification sent to ${studentRecipients.length} student account${studentRecipients.length === 1 ? '' : 's'}.`, recipients: studentRecipients.length });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -346,24 +355,45 @@ const sendBothNotifications = async (req, res) => {
       if (unauthorized) return res.status(403).json({ message: 'You can only notify students assigned to you.' });
     }
 
-    const recipients = new Map();
-    students.forEach((student) => {
-      // student user
-      if (student.user?.id) recipients.set(student.user.id, { userId: student.user.id, type: 'Student' });
-      // parents
-      (student.guardians || []).forEach((g) => { if (g.user?.id) recipients.set(g.user.id, { userId: g.user.id, type: 'Parent' }); });
-    });
-
-    if (recipients.size === 0) return res.status(404).json({ message: 'No recipient user accounts found.' });
-
     const title = rawTitle || 'Message from school';
     const senderLabel = await getSenderLabel(req.user._id, req.user.role);
-    const studentLabel = students.length > 1 ? `Students: ${students.map((s) => s.user?.name || 'Student').join(', ')}` : `Student: ${students[0].user?.name || 'Student'}`;
-    const notificationMessage = `From: ${senderLabel}\n${studentLabel}\n${rawMessage}`;
 
-    await prisma.notification.createMany({ data: Array.from(recipients.values()).map((r) => ({ userId: r.userId, title, message: notificationMessage, type: 'Combined' })) });
+    const notificationData = [];
+    const processedUsers = new Set();
 
-    res.status(201).json({ message: `Notification sent to ${recipients.size} user(s).`, recipients: recipients.size });
+    students.forEach((student) => {
+      const studentName = student.user?.name || 'Student';
+
+      // 1. Notify Student user account
+      if (student.user?.id && !processedUsers.has(student.user.id)) {
+        processedUsers.add(student.user.id);
+        notificationData.push({
+          userId: student.user.id,
+          title,
+          message: `From: ${senderLabel}\n${rawMessage}`,
+          type: 'StudentMessage'
+        });
+      }
+
+      // 2. Notify Parent user account(s)
+      (student.guardians || []).forEach((g) => {
+        if (g.user?.id && !processedUsers.has(g.user.id)) {
+          processedUsers.add(g.user.id);
+          notificationData.push({
+            userId: g.user.id,
+            title,
+            message: `From: ${senderLabel}\nRe: ${studentName}\n${rawMessage}`,
+            type: 'ParentMessage'
+          });
+        }
+      });
+    });
+
+    if (notificationData.length === 0) return res.status(404).json({ message: 'No recipient user accounts found.' });
+
+    await prisma.notification.createMany({ data: notificationData });
+
+    res.status(201).json({ message: `Notification sent to ${notificationData.length} user(s).`, recipients: notificationData.length });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -378,21 +408,37 @@ const getTeachersForStudent = async (req, res) => {
     // Active academic year filter
     const activeYear = await prisma.academicYear.findFirst({ where: { isActive: true } });
 
-    // Find student enrollments to determine their current class/section
     const student = await prisma.student.findUnique({
       where: { id: studentId },
       include: {
+        classes: {
+          include: {
+            teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+            classSubjects: {
+              include: {
+                teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+                subject: { select: { name: true } }
+              }
+            }
+          }
+        },
         enrollments: {
           where: activeYear ? { academicYearId: activeYear.id } : {},
           include: {
-            class: {
-              include: {
-                teacher: { include: { user: { select: { id: true, name: true, email: true } } } }
-              }
-            },
             section: {
               include: {
-                homeroomTeacher: { include: { user: { select: { id: true, name: true, email: true } } } }
+                homeroomTeacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+                class: {
+                  include: {
+                    teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+                    classSubjects: {
+                      include: {
+                        teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+                        subject: { select: { name: true } }
+                      }
+                    }
+                  }
+                }
               }
             }
           }
@@ -403,44 +449,96 @@ const getTeachersForStudent = async (req, res) => {
     const teacherMap = new Map();
 
     if (student) {
-      for (const enrollment of student.enrollments || []) {
-        const classId = enrollment.classId;
+      const classIds = new Set();
 
-        // 1. Homeroom teacher of the section
+      // 1. Direct student classes
+      for (const cls of student.classes || []) {
+        if (cls.id) classIds.add(cls.id);
+
+        if (cls.teacher && cls.teacher.user) {
+          teacherMap.set(cls.teacher.id, {
+            id: cls.teacher.id,
+            user: cls.teacher.user,
+            role: 'Class Teacher'
+          });
+        }
+
+        for (const cs of cls.classSubjects || []) {
+          if (cs.teacher && cs.teacher.user) {
+            const existing = teacherMap.get(cs.teacher.id);
+            const subjectLabel = cs.subject?.name ? `Subject (${cs.subject.name})` : 'Subject Teacher';
+            teacherMap.set(cs.teacher.id, {
+              id: cs.teacher.id,
+              user: cs.teacher.user,
+              role: existing ? (existing.role.includes(subjectLabel) ? existing.role : `${existing.role}, ${subjectLabel}`) : subjectLabel
+            });
+          }
+        }
+      }
+
+      // 2. Student enrollments -> section & section.class
+      for (const enrollment of student.enrollments || []) {
         if (enrollment.section?.homeroomTeacher) {
           const ht = enrollment.section.homeroomTeacher;
-          if (ht.id && ht.user) teacherMap.set(ht.id, { id: ht.id, user: ht.user, role: 'Homeroom Teacher' });
+          if (ht.id && ht.user) {
+            const existing = teacherMap.get(ht.id);
+            teacherMap.set(ht.id, {
+              id: ht.id,
+              user: ht.user,
+              role: existing ? (existing.role.includes('Homeroom Teacher') ? existing.role : `${existing.role}, Homeroom Teacher`) : 'Homeroom Teacher'
+            });
+          }
         }
 
-        // 2. Class teacher
-        if (enrollment.class?.teacher) {
-          const ct = enrollment.class.teacher;
-          if (ct.id && ct.user) teacherMap.set(ct.id, { id: ct.id, user: ct.user, role: 'Class Teacher' });
-        }
+        const secClass = enrollment.section?.class;
+        if (secClass) {
+          if (secClass.id) classIds.add(secClass.id);
 
-        // 3. Teacher assignments for this class
-        if (classId) {
-          const classAssignments = await prisma.teacherAssignment.findMany({
-            where: {
-              classId,
-              ...(activeYear ? { academicYearId: activeYear.id } : {})
-            },
-            include: {
-              teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
-              subject: { select: { name: true } }
-            }
-          });
+          if (secClass.teacher && secClass.teacher.user) {
+            const existing = teacherMap.get(secClass.teacher.id);
+            teacherMap.set(secClass.teacher.id, {
+              id: secClass.teacher.id,
+              user: secClass.teacher.user,
+              role: existing ? (existing.role.includes('Class Teacher') ? existing.role : `${existing.role}, Class Teacher`) : 'Class Teacher'
+            });
+          }
 
-          for (const a of classAssignments) {
-            if (a.teacher && a.teacher.user) {
-              const existing = teacherMap.get(a.teacher.id);
-              const subjectInfo = a.subject?.name ? `Subject (${a.subject.name})` : 'Subject Teacher';
-              teacherMap.set(a.teacher.id, {
-                id: a.teacher.id,
-                user: a.teacher.user,
-                role: existing ? `${existing.role}, ${subjectInfo}` : subjectInfo
+          for (const cs of secClass.classSubjects || []) {
+            if (cs.teacher && cs.teacher.user) {
+              const existing = teacherMap.get(cs.teacher.id);
+              const subjectLabel = cs.subject?.name ? `Subject (${cs.subject.name})` : 'Subject Teacher';
+              teacherMap.set(cs.teacher.id, {
+                id: cs.teacher.id,
+                user: cs.teacher.user,
+                role: existing ? (existing.role.includes(subjectLabel) ? existing.role : `${existing.role}, ${subjectLabel}`) : subjectLabel
               });
             }
+          }
+        }
+      }
+
+      // 3. Teacher assignments for resolved class IDs
+      if (classIds.size > 0) {
+        const classAssignments = await prisma.teacherAssignment.findMany({
+          where: {
+            classId: { in: Array.from(classIds) },
+            ...(activeYear ? { academicYearId: activeYear.id } : {})
+          },
+          include: {
+            teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+            subject: { select: { name: true } }
+          }
+        });
+
+        for (const a of classAssignments) {
+          if (a.teacher && a.teacher.user) {
+            const existing = teacherMap.get(a.teacher.id);
+            const subjectLabel = a.subject?.name ? `Subject (${a.subject.name})` : 'Subject Teacher';
+            teacherMap.set(a.teacher.id, {
+              id: a.teacher.id,
+              user: a.teacher.user,
+              role: existing ? (existing.role.includes(subjectLabel) ? existing.role : `${existing.role}, ${subjectLabel}`) : subjectLabel
+            });
           }
         }
       }
@@ -453,13 +551,44 @@ const getTeachersForStudent = async (req, res) => {
         ...(activeYear ? { academicYearId: activeYear.id } : {})
       },
       include: {
-        teacher: { include: { user: { select: { id: true, name: true, email: true } } } }
+        teacher: { include: { user: { select: { id: true, name: true, email: true } } } },
+        subject: { select: { name: true } }
       }
     });
 
     for (const a of directAssignments) {
-      if (a.teacher && a.teacher.user && !teacherMap.has(a.teacher.id)) {
-        teacherMap.set(a.teacher.id, { id: a.teacher.id, user: a.teacher.user, role: 'Assigned Teacher' });
+      if (a.teacher && a.teacher.user) {
+        const existing = teacherMap.get(a.teacher.id);
+        const subjectLabel = a.subject?.name ? `Assigned (${a.subject.name})` : 'Assigned Teacher';
+        teacherMap.set(a.teacher.id, {
+          id: a.teacher.id,
+          user: a.teacher.user,
+          role: existing ? (existing.role.includes(subjectLabel) ? existing.role : `${existing.role}, ${subjectLabel}`) : subjectLabel
+        });
+      }
+    }
+
+    // 5. Fallback: If no specific teacher assignments exist yet, fetch all active teachers in school/branch so parent is never blocked
+    if (teacherMap.size === 0) {
+      const fallbackTeachers = await prisma.teacher.findMany({
+        where: {
+          user: { isActive: true },
+          ...(student?.branchId ? { branchId: student.branchId } : {})
+        },
+        include: {
+          user: { select: { id: true, name: true, email: true } }
+        },
+        take: 30
+      });
+
+      for (const t of fallbackTeachers) {
+        if (t.id && t.user) {
+          teacherMap.set(t.id, {
+            id: t.id,
+            user: t.user,
+            role: 'School Teacher'
+          });
+        }
       }
     }
 
@@ -498,9 +627,17 @@ const sendParentToTeachers = async (req, res) => {
 
     if (!targetTeacherIds.length) return res.status(404).json({ message: 'No teachers found for the selected student.' });
 
-    // Fetch teacher user ids
-    const teachers = await prisma.teacher.findMany({ where: { id: { in: targetTeacherIds } }, include: { user: { select: { id: true } } } });
-    const recipients = teachers.map(t => t.user?.id).filter(Boolean);
+    // Fetch teacher user ids by matching either teacher.id OR teacher.userId
+    const teachers = await prisma.teacher.findMany({
+      where: {
+        OR: [
+          { id: { in: targetTeacherIds } },
+          { userId: { in: targetTeacherIds } }
+        ]
+      },
+      include: { user: { select: { id: true } } }
+    });
+    const recipients = Array.from(new Set(teachers.map(t => t.user?.id).filter(Boolean)));
     if (!recipients.length) return res.status(404).json({ message: 'No teacher user accounts available.' });
 
     const title = rawTitle || 'Parent Message';
@@ -566,16 +703,31 @@ const BROADCAST_AUDIENCES = ['all', 'Admin', 'Cashier', 'Teacher', 'Student', 'P
 const broadcastNotification = async (req, res) => {
   try {
     const title = String(req.body.title || '').trim();
-    const message = String(req.body.message || '').trim();
+    const rawMessage = String(req.body.message || '').trim();
     const audience = String(req.body.audience || 'all').trim();
 
     if (!title) return res.status(400).json({ message: 'Title is required.' });
-    if (!message) return res.status(400).json({ message: 'Message is required.' });
+    if (!rawMessage) return res.status(400).json({ message: 'Message is required.' });
     if (!BROADCAST_AUDIENCES.includes(audience)) {
       return res.status(400).json({ message: 'Invalid audience.' });
     }
 
-    const where = audience === 'all' ? { isActive: true } : { role: audience, isActive: true };
+    const senderLabel = await getSenderLabel(req.user._id, req.user.role);
+    const notificationMessage = `From: ${senderLabel}\n${rawMessage}`;
+
+    const adminBranchId = req.user.role === 'Admin' ? (req.user.branchId || req.branchFilter?.branchId) : null;
+    const where = {
+      isActive: true,
+      ...(audience !== 'all' ? { role: audience } : {}),
+      ...(adminBranchId ? {
+        OR: [
+          { studentProfile: { branchId: adminBranchId } },
+          { teacherProfile: { branchId: adminBranchId } },
+          { parentProfile: { children: { some: { branchId: adminBranchId } } } },
+          { userScope: { some: { branchId: adminBranchId } } }
+        ]
+      } : {})
+    };
     const recipients = await prisma.user.findMany({ where, select: { id: true } });
 
     if (recipients.length === 0) {
@@ -586,7 +738,7 @@ const broadcastNotification = async (req, res) => {
       data: recipients.map((u) => ({
         userId: u.id,
         title,
-        message,
+        message: notificationMessage,
         type: 'Broadcast',
       })),
     });
@@ -608,21 +760,34 @@ const broadcastNotification = async (req, res) => {
   }
 };
 
-// System-wide notification feed for SuperAdmin oversight.
+// System-wide or Branch notification feed.
 const getAllNotifications = async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = Math.min(100, parseInt(req.query.limit, 10) || 8);
     const skip = (page - 1) * limit;
 
+    const adminBranchId = req.user.role === 'Admin' ? (req.user.branchId || req.branchFilter?.branchId) : null;
+    const where = adminBranchId ? {
+      user: {
+        OR: [
+          { studentProfile: { branchId: adminBranchId } },
+          { teacherProfile: { branchId: adminBranchId } },
+          { parentProfile: { children: { some: { branchId: adminBranchId } } } },
+          { userScope: { some: { branchId: adminBranchId } } }
+        ]
+      }
+    } : {};
+
     const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
         include: { user: { select: { id: true, name: true, email: true, role: true } } },
       }),
-      prisma.notification.count(),
+      prisma.notification.count({ where }),
     ]);
 
     res.status(200).json({
@@ -637,29 +802,16 @@ const getAllNotifications = async (req, res) => {
 };
 
 // Retrieve notifications for current user (auto-marks unread as read, filters out notifications > 12h old)
+// Retrieve notifications for current user
 const getNotifications = async (req, res) => {
   try {
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-
     const notifications = await prisma.notification.findMany({
       where: {
         userId: req.user._id,
-        createdAt: { gte: twelveHoursAgo }
       },
       orderBy: { createdAt: 'desc' },
       take: 50
     });
-
-    // Automatically mark fetched unread notifications as read so badge disappears once viewed
-    const unreadIds = notifications.filter(n => !n.read).map(n => n.id);
-    if (unreadIds.length > 0) {
-      await prisma.notification.updateMany({
-        where: { id: { in: unreadIds } },
-        data: { read: true }
-      });
-      // Return updated list so badge updates immediately
-      notifications.forEach(n => { n.read = true; });
-    }
 
     res.status(200).json(notifications);
   } catch (error) {

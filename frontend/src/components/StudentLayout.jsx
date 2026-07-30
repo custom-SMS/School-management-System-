@@ -4,6 +4,8 @@ import axios from '../api/axios';
 import { useAuth } from '../hooks/useAuth';
 import { useSettings } from '../hooks/useSettings';
 import MaintenanceBanner from './MaintenanceBanner';
+import { useLanguage } from '../context/LanguageContext';
+import LanguageSelector from './LanguageSelector';
 
 const DashboardIcon = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -52,15 +54,16 @@ const CloseIcon = () => (
   </svg>
 );
 
-const navItems = [
-  { to: '/student/dashboard', label: 'Dashboard', icon: <DashboardIcon /> },
-  { to: '/student/attendance', label: 'Attendance', icon: <CalendarIcon /> },
-  { to: '/student/academics', label: 'Academics', icon: <AcademicsIcon /> },
-  { to: '/student/finance', label: 'Finance', icon: <FinanceIcon /> },
-];
-
-export default function StudentLayout({ children, searchPlaceholder = 'Search...' }) {
+export default function StudentLayout({ children, searchPlaceholder }) {
   const { user, logout } = useAuth();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { to: '/student/dashboard', label: t('dashboard'), icon: <DashboardIcon /> },
+    { to: '/student/attendance', label: t('attendance'), icon: <CalendarIcon /> },
+    { to: '/student/academics', label: t('academics'), icon: <AcademicsIcon /> },
+    { to: '/student/finance', label: t('finance'), icon: <FinanceIcon /> },
+  ];
   const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = useSettings();
   const navigate = useNavigate();
   const notificationsRef = useRef(null);
@@ -242,6 +245,9 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search...
               </span>
             </div>
 
+            {/* Language Switcher */}
+            <LanguageSelector />
+
             {/* Notification Bell */}
             <div className="relative" ref={notificationsRef}>
               <button
@@ -259,9 +265,9 @@ export default function StudentLayout({ children, searchPlaceholder = 'Search...
               {notificationsOpen && (
                 <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
-                    <span className="text-sm font-black text-[#203e4f]">Notifications</span>
+                    <span className="text-sm font-black text-[#203e4f]">{t('notifications')}</span>
                     {unreadCount > 0 && (
-                      <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">Mark all read</button>
+                      <button type="button" onClick={markAllAsRead} className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition">{t('markAllRead')}</button>
                     )}
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">

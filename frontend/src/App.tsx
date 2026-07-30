@@ -50,6 +50,8 @@ import AcademicReports from "./pages/admin/AcademicReports";
 import ReportView from "./pages/admin/ReportView";
 import Registrar from "./pages/Registrar";
 import SmsCommunication from "./pages/admin/SmsCommunication";
+import AdminNotifications from "./pages/admin/AdminNotifications";
+import InAppCommunication from "./pages/admin/InAppCommunication";
 
 // Finance (Cashier)
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
@@ -451,6 +453,22 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
                     <Registrar />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/notifications"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <AdminNotifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/in-app-communication"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <InAppCommunication />
                   </ProtectedRoute>
                 }
               />

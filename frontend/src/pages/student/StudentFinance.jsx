@@ -4,12 +4,14 @@ import StudentLayout from '../../components/StudentLayout';
 import { toast } from 'react-toastify';
 import { useStudentFinanceQuery } from '../../queries/studentPortalQueries';
 import axios from '../../api/axios';
+import { useLanguage } from '../../context/LanguageContext';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function StudentFinance() {
   const navigate = useNavigate();
   const { data, isLoading: loading, isError: error, refetch: load } = useStudentFinanceQuery();
+  const { t } = useLanguage();
 
   const fees = data?.fees || [];
   const profile = data?.profile || null;
@@ -38,11 +40,11 @@ export default function StudentFinance() {
   };
 
   const statusPill = (f) => {
-    if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">FULLY PAID</span>;
-    if (f.status === 'Pending Verification') return <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">VERIFYING</span>;
-    if (f.status === 'Rejected') return <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">REJECTED</span>;
+    if (f.paid) return <span className="rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{t('fullyPaidBadge')}</span>;
+    if (f.status === 'Pending Verification') return <span className="rounded-md bg-blue-50 px-2.5 py-1 text-xs font-bold text-blue-700">{t('verifyingBadge')}</span>;
+    if (f.status === 'Rejected') return <span className="rounded-md bg-rose-50 px-2.5 py-1 text-xs font-bold text-rose-700">{t('rejectedBadge')}</span>;
     const overdue = f.dueDate && new Date(f.dueDate) < new Date();
-    return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? 'OVERDUE' : 'PENDING'}</span>;
+    return <span className={`rounded-md px-2.5 py-1 text-xs font-bold ${overdue ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>{overdue ? t('overdueBadge') : t('pendingBadge')}</span>;
   };
 
   const handleDownloadReceipt = (paymentId) => {
@@ -59,7 +61,7 @@ export default function StudentFinance() {
       link.click();
       link.remove();
       
-      toast.success('Downloading receipt...');
+      toast.success(t('downloadLabel') + '...');
     } catch (err) {
       toast.error(`Failed to initiate download: ${err.message}`);
     }
@@ -69,7 +71,7 @@ export default function StudentFinance() {
     <StudentLayout searchPlaceholder="Search transactions...">
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-900">Student Fee Status</h1>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900">{t('studentFeeStatus')}</h1>
           <p className="text-sm text-slate-500">{profile?.profile?.user?.name || 'Student'} · {profile?.grade || ''} · ID: {profile?.studentId || '—'}</p>
         </div>
       </div>
@@ -77,43 +79,43 @@ export default function StudentFinance() {
       {loading ? (
         <div className="mt-6 flex flex-col items-center py-20 text-slate-400">
           <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
-          Loading fee data…
+          {t('loadingFeeData')}
         </div>
       ) : error ? (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center">
           <svg className="mx-auto mb-3 h-10 w-10 text-rose-400" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-5h2v2h-2zm0-8h2v6h-2z" /></svg>
-          <p className="text-lg font-bold text-rose-700">Could not load fee data</p>
-          <p className="mt-1 text-sm text-rose-500">The server may be unavailable or you may be offline.</p>
-          <button onClick={load} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">Retry</button>
+          <p className="text-lg font-bold text-rose-700">{t('couldNotLoadFees')}</p>
+          <p className="mt-1 text-sm text-rose-500">{t('serverUnavailable')}</p>
+          <button onClick={load} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">{t('retry')}</button>
         </div>
       ) : (<>
       {/* Top cards */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Balance Due</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('totalBalanceDueLabel')}</div>
           <div className="mt-1 text-3xl font-black text-slate-900">{etb(totals.due)} <span className="text-base font-bold text-slate-400">ETB</span></div>
-          {totals.verifying > 0 && <div className="mt-2 text-sm font-semibold text-blue-600">ℹ {etb(totals.verifying)} ETB under verification</div>}
-          {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ Payment outstanding</div>}
+          {totals.verifying > 0 && <div className="mt-2 text-sm font-semibold text-blue-600">ℹ {etb(totals.verifying)} {t('underVerification')}</div>}
+          {totals.due > 0 && <div className="mt-2 text-sm font-semibold text-rose-600">⚠ {t('paymentOutstandingLabel')}</div>}
           <button
             onClick={handlePayNow}
             disabled={totals.due === 0}
             className="mt-4 w-full rounded-xl border border-slate-300 py-2.5 text-sm font-bold text-slate-900 transition hover:bg-slate-50 disabled:opacity-40"
           >
-            Pay Now
+            {t('payNowBtn')}
           </button>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Annual Progress</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('annualProgressLabel')}</div>
           <div className="mx-auto mt-3 flex h-28 w-28 items-center justify-center rounded-full border-8 border-slate-900 text-2xl font-black text-slate-900">{totals.pct}%</div>
-          <div className="mt-3 text-xs text-slate-400">{etb(totals.paid)} ETB of {etb(totals.billed)} ETB</div>
+          <div className="mt-3 text-xs text-slate-400">{etb(totals.paid)} ETB {t('ofLabel')} {etb(totals.billed)} ETB</div>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Financial Summary</div>
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('financialSummaryLabel')}</div>
           <div className="mt-4 space-y-3 text-sm">
-            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Fully Paid</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
-            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Verifying</span><span className="rounded-md bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700">{String(verifyingCount).padStart(2, '0')}</span></div>
-            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Pending Payment</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
-            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">Total Billed</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
+            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('fullyPaidLabel')}</span><span className="rounded-md bg-slate-100 px-2.5 py-0.5 font-bold text-slate-900">{String(paidCount).padStart(2, '0')}</span></div>
+            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('verifyingLabel')}</span><span className="rounded-md bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700">{String(verifyingCount).padStart(2, '0')}</span></div>
+            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('pendingPaymentLabel')}</span><span className="rounded-md bg-rose-50 px-2.5 py-0.5 font-bold text-rose-700">{String(pendingCount).padStart(2, '0')}</span></div>
+            <div className="flex items-center justify-between"><span className="font-semibold text-slate-600">{t('totalBilledLabel')}</span><span className="font-bold text-slate-900">ETB {etb(totals.billed)}</span></div>
           </div>
         </div>
       </div>
@@ -121,7 +123,7 @@ export default function StudentFinance() {
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Categories */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-bold text-slate-900">Fee Categories Breakdown</h2>
+          <h2 className="mb-4 text-xl font-bold text-slate-900">{t('feeCategoriesLabel')}</h2>
           <div className="divide-y divide-slate-100">
             {fees.map((f, i) => (
               <div key={f._id || i} className="flex items-center justify-between gap-3 py-4">
@@ -131,7 +133,7 @@ export default function StudentFinance() {
                   </span>
                   <div>
                     <div className="font-bold text-slate-900">{f.description || 'Tuition'}</div>
-                    <div className="text-xs text-slate-400">{f.month ? `${f.month} ` : ''}{f.dueDate ? `· Due ${new Date(f.dueDate).toLocaleDateString()}` : ''}</div>
+                    <div className="text-xs text-slate-400">{f.month ? `${f.month} ` : ''}{f.dueDate ? `· ${t('dueLabel')} ${new Date(f.dueDate).toLocaleDateString()}` : ''}</div>
                   </div>
                 </div>
                 <div className="text-right">
@@ -140,21 +142,21 @@ export default function StudentFinance() {
                 </div>
               </div>
             ))}
-            {fees.length === 0 && <p className="py-8 text-center text-sm text-slate-400">No fee records yet.</p>}
+            {fees.length === 0 && <p className="py-8 text-center text-sm text-slate-400">{t('noFeeRecordsLabel')}</p>}
           </div>
         </section>
 
         {/* Transactions (paid fees) */}
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h2 className="mb-4 text-xl font-bold text-slate-900">Recent Transactions</h2>
+          <h2 className="mb-4 text-xl font-bold text-slate-900">{t('recentTransactionsLabel')}</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                  <th className="py-3 pr-4 font-semibold">Date</th>
-                  <th className="py-3 pr-4 font-semibold">Description</th>
-                  <th className="py-3 pr-4 text-right font-semibold">Amount</th>
-                  <th className="py-3 pl-4 text-right font-semibold">Receipt</th>
+                  <th className="py-3 pr-4 font-semibold">{t('dateLabel')}</th>
+                  <th className="py-3 pr-4 font-semibold">{t('descriptionLabel')}</th>
+                  <th className="py-3 pr-4 text-right font-semibold">{t('amountLabel')}</th>
+                  <th className="py-3 pl-4 text-right font-semibold">{t('receiptLabel')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -166,15 +168,15 @@ export default function StudentFinance() {
                     <td className="py-3 pl-4 text-right">
                       {f.latestPayment?.status === 'Verified' ? (
                         <button onClick={() => handleDownloadReceipt(f.latestPayment.id)} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700 transition hover:bg-slate-200">
-                          Download
+                          {t('downloadLabel')}
                         </button>
                       ) : f.latestPayment?.status === 'Pending' ? (
-                        <span className="text-xs text-slate-400">Verifying</span>
+                        <span className="text-xs text-slate-400">{t('verifyingLabel')}</span>
                       ) : <span className="text-xs text-slate-400">—</span>}
                     </td>
                   </tr>
                 ))}
-                {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="4" className="py-8 text-center text-slate-400">No payments recorded yet.</td></tr>}
+                {fees.filter((f) => f.paid).length === 0 && <tr><td colSpan="4" className="py-8 text-center text-slate-400">{t('noPaymentsLabel')}</td></tr>}
               </tbody>
             </table>
           </div>

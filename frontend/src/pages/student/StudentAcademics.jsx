@@ -4,24 +4,26 @@ import axios from '../../api/axios';
 import StudentLayout from '../../components/StudentLayout';
 import { useBranch } from '../../hooks/useBranch';
 import { useStudentAcademicsQuery } from '../../queries/studentPortalQueries';
+import { useLanguage } from '../../context/LanguageContext';
 
 const letterFor = (p) => (p >= 90 ? 'A+' : p >= 85 ? 'A' : p >= 80 ? 'A-' : p >= 75 ? 'B+' : p >= 70 ? 'B' : p >= 60 ? 'C' : 'D');
 
-function FetchError({ onRetry }) {
+function FetchError({ onRetry, t }) {
   return (
     <div className="mt-10 rounded-2xl border border-rose-200 bg-rose-50 p-10 text-center">
       <svg className="mx-auto mb-3 h-10 w-10 text-rose-400" viewBox="0 0 24 24" fill="currentColor">
         <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 0-16 8 8 0 0 1 0 16zm-1-5h2v2h-2zm0-8h2v6h-2z" />
       </svg>
-      <p className="text-lg font-bold text-rose-700">Could not load academic data</p>
-      <p className="mt-1 text-sm text-rose-500">The server may be unavailable or you may be offline.</p>
-      <button onClick={onRetry} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">Retry</button>
+      <p className="text-lg font-bold text-rose-700">{t('couldNotLoadAcademics')}</p>
+      <p className="mt-1 text-sm text-rose-500">{t('serverUnavailable')}</p>
+      <button onClick={onRetry} className="mt-4 rounded-xl bg-rose-600 px-5 py-2 text-sm font-bold text-white transition hover:bg-rose-700">{t('retry')}</button>
     </div>
   );
 }
 
 export default function StudentAcademics() {
   const { activeSemester } = useBranch();
+  const { t } = useLanguage();
   const [semesters, setSemesters] = useState([]);
   const [selectedSemId, setSelectedSemId] = useState('');
 
@@ -93,7 +95,7 @@ export default function StudentAcademics() {
       <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-slate-900 flex items-center gap-2">
-            Academic Performance
+            {t('academicPerformance')}
             {selectedSem && (
               <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">
                 {selectedSem.name}
@@ -101,9 +103,8 @@ export default function StudentAcademics() {
             )}
           </h1>
           <p className="text-sm text-slate-500">
-            Student ID: {stats?.studentId || '—'} · {stats?.grade || ''}{stats?.stream ? ` (${stats.stream})` : ''}
+            {t('studentId')}: {stats?.studentId || '—'} · {stats?.grade || ''}{stats?.stream ? ` (${stats.stream})` : ''}
             {(() => {
-              // Try several possible locations for the student's section/stream
               const section = stats?.section
                 || stats?.profile?.section
                 || (Array.isArray(stats?.profile?.classes) && stats.profile.classes[0]?.name)
@@ -120,10 +121,10 @@ export default function StudentAcademics() {
       {loading ? (
         <div className="mt-10 flex flex-col items-center py-20 text-slate-400">
           <div className="mb-3 h-8 w-8 animate-spin rounded-full border-4 border-slate-200 border-t-slate-600" />
-          Loading academic data…
+          {t('loadingAcademicData')}
         </div>
       ) : error ? (
-        <FetchError onRetry={load} />
+        <FetchError onRetry={load} t={t} />
       ) : (
         <>
           {/* Semester Tabs/Pills Toggle */}
@@ -153,9 +154,9 @@ export default function StudentAcademics() {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h2 className="text-xl font-bold text-slate-900">{selectedSem.name} Coming Soon</h2>
+              <h2 className="text-xl font-bold text-slate-900">{selectedSem.name} {t('comingSoon')}</h2>
               <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto">
-                This semester has not officially opened yet. Academic records and subject results will be available once the term begins and grades are published.
+                {t('semesterNotOpened')}
               </p>
             </div>
           ) : (
@@ -164,17 +165,17 @@ export default function StudentAcademics() {
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                 <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
                   <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-white/80 text-2xl font-black">{avgPct != null ? Math.round(avgPct) + '%' : '—'}</div>
-                  <div className="mt-3 text-center text-lg font-bold">Target Goal</div>
-                  <div className="text-center text-xs text-slate-400">Term performance average</div>
+                  <div className="mt-3 text-center text-lg font-bold">{t('targetGoal')}</div>
+                  <div className="text-center text-xs text-slate-400">{t('termPerformanceAvg')}</div>
                 </div>
               </div>
 
               {/* Subject list (clickable) */}
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-bold text-slate-900">Enrolled Subjects</h2>
+                <h2 className="mb-4 text-xl font-bold text-slate-900">{t('enrolledSubjects')}</h2>
                 <div className="space-y-2">
                   {subjectList.length === 0 ? (
-                    <p className="py-8 text-center text-sm text-slate-400">No enrolled subjects yet.</p>
+                    <p className="py-8 text-center text-sm text-slate-400">{t('noEnrolledSubjects')}</p>
                   ) : (
                     subjectList.map((sub) => (
                       <Link key={sub.id} to={`/student/academics/${encodeURIComponent(String(sub.id))}`} className="block rounded-xl border border-slate-100 p-4 hover:bg-slate-50">
@@ -183,14 +184,14 @@ export default function StudentAcademics() {
                             <div className="font-bold text-slate-900">{sub.name}</div>
                             <div className="text-xs text-slate-400">
                               {sub.courseCode ? `${sub.courseCode} · ` : ''}
-                              {sub.percentage != null ? `${Number(sub.percentage).toFixed(1)}%` : 'Click to view detailed results'}
+                              {sub.percentage != null ? `${Number(sub.percentage).toFixed(1)}%` : t('clickViewResults')}
                             </div>
                           </div>
                           <div className="text-right">
                             {sub.totalMarks != null && (
                               <div className="text-sm font-bold text-slate-900">{Number(sub.totalMarks).toFixed(1)}</div>
                             )}
-                            <div className="text-xs font-semibold text-slate-500">View</div>
+                            <div className="text-xs font-semibold text-slate-500">{t('viewSubject')}</div>
                           </div>
                         </div>
                       </Link>
@@ -201,18 +202,18 @@ export default function StudentAcademics() {
 
               {/* Upcoming (from timetable) */}
               <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="mb-4 text-xl font-bold text-slate-900">This Week's Classes</h2>
+                <h2 className="mb-4 text-xl font-bold text-slate-900">{t('thisWeeksClasses')}</h2>
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   {timetable.slice(0, 6).map((s, i) => (
                     <div key={s.id || i} className="flex items-center justify-between rounded-xl border border-slate-100 p-3">
                       <div>
                         <div className="font-bold text-slate-900">{s.subject?.name || s.class?.name}</div>
-                        <div className="text-xs text-slate-400">{s.dayOfWeek} · {s.startTime}–{s.endTime}{s.room ? ` · Room ${s.room}` : ''}</div>
+                        <div className="text-xs text-slate-400">{s.dayOfWeek} · {s.startTime}–{s.endTime}{s.room ? ` · ${t('room')} ${s.room}` : ''}</div>
                       </div>
                       <span className="text-xs font-semibold text-slate-400">{s.class?.name}</span>
                     </div>
                   ))}
-                  {timetable.length === 0 && <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">No timetable published yet.</p>}
+                  {timetable.length === 0 && <p className="py-6 text-center text-sm text-slate-400 sm:col-span-2">{t('noTimetable')}</p>}
                 </div>
               </section>
             </>

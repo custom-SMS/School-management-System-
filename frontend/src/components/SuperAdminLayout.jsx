@@ -184,8 +184,11 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
   };
 
   useEffect(() => {
+    if (!user) return undefined;
     fetchNotifications();
-  }, []);
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [user]);
 
   const initials = (user?.name || 'SA').split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 

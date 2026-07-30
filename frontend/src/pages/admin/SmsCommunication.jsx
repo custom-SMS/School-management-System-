@@ -72,7 +72,7 @@ export default function SmsCommunication() {
     [filteredStudents, currentPage]
   );
 
-  const pageIds = pagedStudents.map((s) => s.id); // The backend uses id (string uuid) for student
+  const pageIds = pagedStudents.map((s) => s.id);
   const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 
   const toggleSelectAllOnPage = () => {
@@ -146,7 +146,7 @@ export default function SmsCommunication() {
   return (
     <AdminLayout pageTitle="SMS Communication">
       <div className="mb-4 flex items-center gap-2 text-sm text-gray-500">
-        <span className="cursor-pointer hover:text-gray-900">Communications</span>
+        <span className="cursor-pointer hover:text-gray-900 font-medium">Communications</span>
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/></svg>
         <span className="font-semibold text-gray-900">Parent SMS</span>
       </div>

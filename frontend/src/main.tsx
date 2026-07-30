@@ -9,6 +9,7 @@ import { Provider } from 'react-redux';
 import { store } from './store';
 import { initAuthFromStorage } from './hooks/useAuth';
 import { MaintenanceProvider } from './context/MaintenanceContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { registerSW } from 'virtual:pwa-register';
 
 // Register PWA service worker
@@ -31,7 +32,9 @@ ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
         <MaintenanceProvider>
-          <App />
+          <LanguageProvider>
+            <App />
+          </LanguageProvider>
         </MaintenanceProvider>
       </QueryClientProvider>
     </Provider>

@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react';
 import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
 import axios from '../../api/axios';
+import { useLanguage } from '../../context/LanguageContext';
 
 const etb = (n) => new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n || 0));
 
 export default function ParentDashboard() {
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
+  const { t } = useLanguage();
   const [gradingSettings, setGradingSettings] = useState({ gpaEnabled: false, passMark: 50 });
 
   useEffect(() => {
@@ -32,30 +34,29 @@ export default function ParentDashboard() {
       <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-[#203e4f] tracking-tight">
-            Hello, {name.split(' ')[0]}'s guardian !
+            {t('helloGuardian', { name: name.split(' ')[0] })}
           </h1>
           <p className="text-xs sm:text-sm font-medium text-[#63889b] mt-0.5">
-            A snapshot of {name}'s academic progress, attendance, and account balance.
+            {t('snapshotSub')}
           </p>
         </div>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-[#d8e6ed] bg-white py-16 text-center text-[#63889b]">Loading child records…</div>
+        <div className="rounded-2xl border border-[#d8e6ed] bg-white py-16 text-center text-[#63889b]">{t('loadingChild')}</div>
       ) : error ? (
         <div className="rounded-2xl border border-red-200 bg-[#fdf3f2] p-8 text-center text-[#c53929]">
-          <p className="font-bold text-base">Could not load child data.</p>
-          <p className="mt-1 text-xs">The server may be offline. Please refresh or try again later.</p>
+          <p className="font-bold text-base">{t('couldNotLoad')}</p>
         </div>
       ) : !selectedChild ? (
         <div className="rounded-2xl border border-dashed border-[#d8e6ed] bg-white py-16 text-center text-[#63889b]">
-          No children are linked to this account.
+          {t('noChildrenLinked')}
         </div>
       ) : (
         <>
           {/* Over View Cards Section */}
           <section className="bg-white/60 backdrop-blur-md p-4 rounded-2xl border border-[#d6e4ec] shadow-xs mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-[#63889b] mb-3 px-1">Overview</h2>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-[#63889b] mb-3 px-1">{t('overview')}</h2>
             
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               
@@ -68,7 +69,7 @@ export default function ParentDashboard() {
                     </svg>
                   </div>
                   <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">
-                    {gradingSettings.gpaEnabled ? 'GPA' : 'Average Grade'}
+                    {gradingSettings.gpaEnabled ? t('gpa') : t('averageGrade')}
                   </span>
                 </div>
                 <div className="text-3xl font-extrabold text-[#203e4f]">
@@ -76,7 +77,7 @@ export default function ParentDashboard() {
                 </div>
                 {!gradingSettings.gpaEnabled && (
                   <div className={`mt-1 text-xs font-bold ${passStatus === 'Pass' ? 'text-[#2d7a64]' : 'text-[#c53929]'}`}>
-                    Status: {passStatus}
+                    {t('passStatus')}: {passStatus === 'Pass' ? t('pass') : t('fail')}
                   </div>
                 )}
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#edf3f6]">
@@ -92,10 +93,10 @@ export default function ParentDashboard() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">Attendance</span>
+                  <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">{t('attendanceRate')}</span>
                 </div>
                 <div className="text-3xl font-extrabold text-[#203e4f]">{attendanceRate}%</div>
-                <div className="mt-1 text-xs font-medium text-[#66889a]">{present}/{attendance.length} sessions present</div>
+                <div className="mt-1 text-xs font-medium text-[#66889a]">{present}/{attendance.length} {t('sessionsPresent')}</div>
               </div>
 
               {/* Card 3: Balance Due (Highlighted if > 0) */}
@@ -107,14 +108,14 @@ export default function ParentDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
-                    <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">Balance Due</span>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#63889b]">{t('balanceDue')}</span>
                   </div>
                 </div>
                 <div className={`text-2xl font-extrabold ${balance > 0 ? 'text-[#c53929]' : 'text-[#2d7a64]'}`}>
                   ETB {etb(balance)}
                 </div>
                 <Link to="/parent/finance" className="mt-2 inline-block text-xs font-bold text-[#3b6b82] hover:underline">
-                  View statement →
+                  {t('viewStatement')}
                 </Link>
               </div>
 
@@ -127,8 +128,8 @@ export default function ParentDashboard() {
             {/* Recent Grades Section */}
             <section className="rounded-2xl border border-[#d8e6ed] bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-[#203e4f]">Recent Grades</h2>
-                <Link to="/parent/academics" className="text-xs font-bold text-[#3b6b82] hover:underline">View all</Link>
+                <h2 className="text-base font-bold text-[#203e4f]">{t('recentGrades')}</h2>
+                <Link to="/parent/academics" className="text-xs font-bold text-[#3b6b82] hover:underline">{t('viewAll')}</Link>
               </div>
               <div className="divide-y divide-[#edf3f6]">
                 {grades.slice(0, 5).map((g) => (
@@ -137,27 +138,28 @@ export default function ParentDashboard() {
                     <span className="text-xs font-extrabold text-[#3b6b82]">{Number(g.percentage).toFixed(0)}%</span>
                   </div>
                 ))}
-                {grades.length === 0 && <p className="py-8 text-center text-xs text-[#66889a]">No grades published yet.</p>}
+                {grades.length === 0 && <p className="py-8 text-center text-xs text-[#66889a]">{t('noGrades')}</p>}
               </div>
             </section>
 
             {/* Recent Attendance Section */}
             <section className="rounded-2xl border border-[#d8e6ed] bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-base font-bold text-[#203e4f]">Recent Attendance</h2>
-                <Link to="/parent/attendance" className="text-xs font-bold text-[#3b6b82] hover:underline">View all</Link>
+                <h2 className="text-base font-bold text-[#203e4f]">{t('recentAttendance')}</h2>
+                <Link to="/parent/attendance" className="text-xs font-bold text-[#3b6b82] hover:underline">{t('viewAll')}</Link>
               </div>
               <div className="divide-y divide-[#edf3f6]">
                 {attendance.slice(0, 6).map((a, i) => {
                   const tone = a.status === 'Present' ? 'text-[#2d7a64] bg-[#dcf5eb]' : a.status === 'Late' ? 'text-amber-700 bg-amber-50' : 'text-[#c53929] bg-[#fdf3f2]';
+                  const statusLabel = a.status === 'Present' ? t('present') : a.status === 'Late' ? t('late') : t('absent');
                   return (
                     <div key={i} className="flex items-center justify-between py-3">
                       <span className="text-xs font-semibold text-[#547587]">{new Date(a.date).toLocaleDateString()}</span>
-                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${tone}`}>{a.status}</span>
+                      <span className={`text-[11px] font-bold px-2.5 py-0.5 rounded-full ${tone}`}>{statusLabel}</span>
                     </div>
                   );
                 })}
-                {attendance.length === 0 && <p className="py-8 text-center text-xs text-[#66889a]">No attendance records yet.</p>}
+                {attendance.length === 0 && <p className="py-8 text-center text-xs text-[#66889a]">{t('noAttendance')}</p>}
               </div>
             </section>
 

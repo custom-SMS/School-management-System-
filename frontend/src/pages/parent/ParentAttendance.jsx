@@ -1,17 +1,19 @@
 import { useMemo } from 'react';
 import ParentLayout from '../../components/ParentLayout';
 import { useParentChildren } from '../../hooks/useParentChildren';
+import { useLanguage } from '../../context/LanguageContext';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 export default function ParentAttendance() {
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
+  const { t } = useLanguage();
   const attendance = selectedChild?.attendance || [];
   const present = attendance.filter((a) => a.status === 'Present').length;
   const absent = attendance.filter((a) => a.status === 'Absent').length;
   const late = attendance.filter((a) => a.status === 'Late').length;
   const rate = attendance.length ? Math.round((present / attendance.length) * 100) : 0;
-  const name = selectedChild?.profile?.user?.name || 'Child';
+  const name = selectedChild?.profile?.user?.name || t('child');
 
   const statusByDate = useMemo(() => {
     const map = {};
@@ -44,16 +46,15 @@ export default function ParentAttendance() {
   return (
     <ParentLayout kids={children} childId={childId} onSelectChild={setChildId}>
       <div className="mb-6">
-        <h1 className="text-3xl font-black tracking-tight text-slate-900">Attendance Record</h1>
-        <p className="text-sm text-slate-500">{name} · last {attendance.length} sessions</p>
+        <h1 className="text-3xl font-black tracking-tight text-slate-900">{t('attendanceRecord')}</h1>
+        <p className="text-sm text-slate-500">{name} · {t('lastSessions', { count: attendance.length })}</p>
       </div>
 
       {loading ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">Loading…</div>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-white py-16 text-center text-slate-400">{t('loadingChild')}</div>
       ) : error ? (
         <div className="rounded-2xl border border-rose-200 bg-rose-50 py-10 text-center">
-          <p className="font-semibold text-rose-700">Could not load attendance data.</p>
-          <p className="mt-1 text-sm text-rose-500">The server may be unavailable. Please refresh the page or try again later.</p>
+          <p className="font-semibold text-rose-700">{t('couldNotLoad')}</p>
         </div>
       ) : (
         <>
@@ -61,22 +62,22 @@ export default function ParentAttendance() {
             {/* Left: stats + warning */}
             <div className="space-y-6">
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Overall Attendance Rate</div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">{t('overallAttendanceRate')}</div>
                 <div className="mt-1 text-4xl font-black text-slate-900">{rate}%</div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
                   <div className={`h-full rounded-full ${rate >= 85 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${rate}%` }} />
                 </div>
                 <div className="mt-5 grid grid-cols-3 gap-3 text-center">
                   <div>
-                    <div className="text-xs font-semibold uppercase text-slate-400">Present</div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">{t('present')}</div>
                     <div className="text-lg font-black text-slate-900">{present}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold uppercase text-slate-400">Absent</div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">{t('absent')}</div>
                     <div className="text-lg font-black text-rose-600">{absent}</div>
                   </div>
                   <div>
-                    <div className="text-xs font-semibold uppercase text-slate-400">Late</div>
+                    <div className="text-xs font-semibold uppercase text-slate-400">{t('late')}</div>
                     <div className="text-lg font-black text-amber-600">{late}</div>
                   </div>
                 </div>
@@ -84,16 +85,16 @@ export default function ParentAttendance() {
 
               {rate < 90 && attendance.length > 0 && (
                 <div className="rounded-2xl border border-rose-200 bg-rose-50 p-5">
-                  <div className="flex items-center gap-2 font-bold text-rose-700"><span>⚠</span> Low Attendance Alert</div>
-                  <p className="mt-1 text-sm text-rose-600">{name}'s attendance has dropped below the 90% institutional threshold. Please review recent absences.</p>
+                  <div className="flex items-center gap-2 font-bold text-rose-700"><span>⚠</span> {t('lowAttendanceAlert')}</div>
+                  <p className="mt-1 text-sm text-rose-600">{t('lowAttendanceMsg', { name })}</p>
                 </div>
               )}
 
               <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-                <div className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">Summary</div>
+                <div className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-400">{t('summary')}</div>
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-600">Total Sessions</span>
+                    <span className="font-semibold text-slate-600">{t('totalSessions')}</span>
                     <span className="font-bold text-slate-900">{attendance.length}</span>
                   </div>
                 </div>
@@ -105,9 +106,9 @@ export default function ParentAttendance() {
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-lg font-bold text-slate-900">{today.toLocaleString('en-US', { month: 'long' })} {year}</h2>
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-400">
-                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-emerald-400" /> Present</span>
-                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-rose-400" /> Absent</span>
-                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-amber-400" /> Late</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-emerald-400" /> {t('present')}</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-rose-400" /> {t('absent')}</span>
+                  <span className="flex items-center gap-1"><span className="h-3 w-3 rounded-full bg-amber-400" /> {t('late')}</span>
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-2">
@@ -128,26 +129,27 @@ export default function ParentAttendance() {
           </div>
 
           <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-lg font-bold text-slate-900">Session History</h2>
+            <h2 className="mb-4 text-lg font-bold text-slate-900">{t('sessionHistory')}</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-400">
-                    <th className="py-3 pr-4 font-semibold">Date</th>
-                    <th className="py-3 pr-4 font-semibold">Status</th>
+                    <th className="py-3 pr-4 font-semibold">{t('date')}</th>
+                    <th className="py-3 pr-4 font-semibold">{t('statusHeader')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {attendance.map((a, i) => {
                     const toneBadge = a.status === 'Present' ? 'bg-emerald-50 text-emerald-700' : a.status === 'Late' ? 'bg-amber-50 text-amber-700' : 'bg-rose-50 text-rose-700';
+                    const statusLabel = a.status === 'Present' ? t('present') : a.status === 'Absent' ? t('absent') : a.status === 'Late' ? t('late') : a.status === 'Permission' ? t('permission') : a.status;
                     return (
                       <tr key={i} className="text-slate-700">
                         <td className="py-3 pr-4">{new Date(a.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}</td>
-                        <td className="py-3 pr-4"><span className={`rounded-md px-2.5 py-1 text-xs font-bold ${toneBadge}`}>{a.status}</span></td>
+                        <td className="py-3 pr-4"><span className={`rounded-md px-2.5 py-1 text-xs font-bold ${toneBadge}`}>{statusLabel}</span></td>
                       </tr>
                     );
                   })}
-                  {attendance.length === 0 && <tr><td colSpan="2" className="py-8 text-center text-slate-400">No attendance records yet.</td></tr>}
+                  {attendance.length === 0 && <tr><td colSpan="2" className="py-8 text-center text-slate-400">{t('noAttendanceRecords')}</td></tr>}
                 </tbody>
               </table>
             </div>

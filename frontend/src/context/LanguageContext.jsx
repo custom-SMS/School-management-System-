@@ -1,0 +1,692 @@
+import React, { createContext, useContext, useState } from 'react';
+
+const translations = {
+  en: {
+    // Navigation
+    overview: 'Overview',
+    dashboard: 'Dashboard',
+    notifications: 'Notifications',
+    academics: 'Academics',
+    attendance: 'Attendance',
+    finance: 'Finance',
+    logout: 'Logout',
+    parentPortal: 'Parent Portal',
+    studentPortal: 'Student Portal',
+
+    // Language selector
+    language: 'Language',
+    english: 'English',
+    amharic: 'አማርኛ',
+    oromiffa: 'Afaan Oromoo',
+
+    // Actions & Headers
+    selectChild: 'Select Child',
+    markAllRead: 'Mark all read',
+    noNotifications: 'No notifications yet.',
+    searchPlaceholder: 'Search...',
+    welcomeBack: 'Welcome back',
+    recentActivity: 'Recent Activity',
+    viewDetails: 'View Details',
+    viewAll: 'View all',
+    viewStatement: 'View statement →',
+
+    // Dashboard Cards & Titles
+    helloGuardian: "Hello, {name}'s guardian!",
+    snapshotSub: "A snapshot of academic progress, attendance, and account balance.",
+    loadingChild: 'Loading child records…',
+    couldNotLoad: 'Could not load child data.',
+    noChildrenLinked: 'No children are linked to this account.',
+    gpa: 'GPA',
+    averageGrade: 'Average Grade',
+    passStatus: 'Status',
+    pass: 'Pass',
+    fail: 'Fail',
+    attendanceRate: 'Attendance',
+    sessionsPresent: 'sessions present',
+    balanceDue: 'Balance Due',
+    recentGrades: 'Recent Grades',
+    recentAttendance: 'Recent Attendance',
+    noGrades: 'No grades published yet.',
+    noAttendance: 'No attendance records yet.',
+
+    // Notifications Page
+    messageTeachers: 'Message Teachers',
+    messageTeachersSub: 'Send a private message to the teachers assigned to your child.',
+    loadingChildrenInfo: 'Loading children information…',
+    child: 'Child',
+    noLinkedChildren: 'No linked children',
+    messageSubjectTitle: 'Message Subject / Title',
+    typeMessageHere: 'Type your message here...',
+    sendToTeachers: 'Send to Teacher(s)',
+    assignedTeachers: 'Assigned Teachers',
+    loadingAssignedTeachers: 'Loading assigned teachers…',
+    noTeachersFound: 'No teachers found for this child.',
+
+    // Attendance Page
+    attendanceRecord: 'Attendance Record',
+    lastSessions: 'last {count} sessions',
+    overallAttendanceRate: 'Overall Attendance Rate',
+    lowAttendanceAlert: 'Low Attendance Alert',
+    lowAttendanceMsg: "{name}'s attendance has dropped below the 90% institutional threshold. Please review recent absences.",
+    summary: 'Summary',
+    totalSessions: 'Total Sessions',
+
+    // Finance Page
+    feeStatement: 'Fee Statement',
+    totalBalanceDue: 'Total Balance Due',
+    paymentOutstanding: 'Payment outstanding',
+    payNow: 'Pay Now',
+    annualProgress: 'Annual Progress',
+    financialSummary: 'Financial Summary',
+    fullyPaid: 'Fully Paid',
+    verifying: 'Verifying',
+    pendingPayment: 'Pending Payment',
+    totalBilled: 'Total Billed',
+    feeCategoriesBreakdown: 'Fee Categories Breakdown',
+    noFeeRecords: 'No fee records yet.',
+    recentTransactions: 'Recent Transactions',
+    date: 'Date',
+    description: 'Description',
+    receipt: 'Receipt',
+    download: 'Download',
+    noPaymentsRecorded: 'No payments recorded yet.',
+
+    // Attendance Statuses
+    present: 'Present',
+    absent: 'Absent',
+    late: 'Late',
+    permission: 'Permission',
+
+    // Attendance Table
+    sessionHistory: 'Session History',
+    statusHeader: 'Status',
+    noAttendanceRecords: 'No attendance records yet.',
+    of: 'of',
+
+    // Terms
+    student: 'Student',
+    parent: 'Parent',
+    grade: 'Grade',
+    section: 'Section',
+    teacher: 'Teacher',
+    subject: 'Subject',
+    status: 'Status',
+    total: 'Total',
+    paid: 'Paid',
+    pending: 'Pending',
+    unpaid: 'Unpaid',
+    due: 'Due',
+    amount: 'Amount',
+
+    // Messaging & Communication
+    sendMessageToTeacher: 'Send Message to Teacher',
+    composeMessage: 'Compose Message',
+    recipientTeacher: 'Select Teacher',
+    title: 'Title',
+    message: 'Message',
+    send: 'Send',
+    cancel: 'Cancel',
+    sending: 'Sending...',
+
+    // System
+    schoolManagement: 'School Management System',
+
+    // Student Academics
+    academicPerformance: 'Academic Performance',
+    studentId: 'Student ID',
+    loadingAcademicData: 'Loading academic data…',
+    couldNotLoadAcademics: 'Could not load academic data',
+    serverUnavailable: 'The server may be unavailable or you may be offline.',
+    retry: 'Retry',
+    comingSoon: 'Coming Soon',
+    semesterNotOpened: 'This semester has not officially opened yet. Academic records and subject results will be available once the term begins and grades are published.',
+    targetGoal: 'Target Goal',
+    termPerformanceAvg: 'Term performance average',
+    enrolledSubjects: 'Enrolled Subjects',
+    noEnrolledSubjects: 'No enrolled subjects yet.',
+    clickViewResults: 'Click to view detailed results',
+    viewSubject: 'View',
+    thisWeeksClasses: "This Week's Classes",
+    noTimetable: 'No timetable published yet.',
+    room: 'Room',
+
+    // Student Attendance
+    studentAttendanceRecord: 'Student Attendance Record',
+    trackAttendance: 'Track your presence, absences, and patterns.',
+    loadingAttendanceData: 'Loading attendance data…',
+    couldNotLoadAttendance: 'Could not load attendance data',
+    overallAttendanceRateLabel: 'Overall Attendance Rate',
+    recorded: 'Recorded',
+    lowAttendanceAlertStudent: 'Low Attendance Alert',
+    lowAttendanceMsgStudent: 'Your attendance has dropped below the 85% institutional threshold. Please review immediate actions.',
+    recentAbsences: 'Recent Absences & Late Arrivals',
+    noPerfectRecord: '✅ No recent absences — perfect record!',
+
+    // Student Finance
+    studentFeeStatus: 'Student Fee Status',
+    loadingFeeData: 'Loading fee data…',
+    couldNotLoadFees: 'Could not load fee data',
+    totalBalanceDueLabel: 'Total Balance Due',
+    underVerification: 'ETB under verification',
+    paymentOutstandingLabel: 'Payment outstanding',
+    payNowBtn: 'Pay Now',
+    annualProgressLabel: 'Annual Progress',
+    financialSummaryLabel: 'Financial Summary',
+    fullyPaidLabel: 'Fully Paid',
+    verifyingLabel: 'Verifying',
+    pendingPaymentLabel: 'Pending Payment',
+    totalBilledLabel: 'Total Billed',
+    feeCategoriesLabel: 'Fee Categories Breakdown',
+    dueLabel: 'Due',
+    noFeeRecordsLabel: 'No fee records yet.',
+    recentTransactionsLabel: 'Recent Transactions',
+    dateLabel: 'Date',
+    descriptionLabel: 'Description',
+    amountLabel: 'Amount',
+    receiptLabel: 'Receipt',
+    downloadLabel: 'Download',
+    noPaymentsLabel: 'No payments recorded yet.',
+    fullyPaidBadge: 'FULLY PAID',
+    verifyingBadge: 'VERIFYING',
+    rejectedBadge: 'REJECTED',
+    overdueBadge: 'OVERDUE',
+    pendingBadge: 'PENDING',
+    ofLabel: 'of',
+
+    // Student Dashboard
+    helloStudent: 'Hello, {name}!',
+    readyToStudy: "Ready to tackle your studies? You're doing great!",
+    viewAcademics: 'View Academics →',
+    loadingDashboard: 'Loading your student dashboard…',
+    couldNotLoadDashboard: 'Could not load dashboard data',
+    todaysSchedule: "Today's Schedule",
+    fullTimetable: 'Full Timetable',
+    upNext: 'Up Next',
+    period: 'Period',
+    noClassesToday: 'No classes scheduled for {day}.',
+    currentGpa: 'Current GPA',
+    basedOnSubjects: 'Based on {count} subject{plural}',
+    averageScore: 'Average Score',
+    passMarkLabel: 'Pass mark: {mark}%',
+    statusLabel: 'Status: {status}',
+    pendingGrades: 'Available when all assessments are graded',
+    excellentConsistency: 'Excellent consistency',
+    keepItUp: 'Keep it up',
+    recentGradesLabel: 'Recent Grades',
+    noGradesYet: 'No grades published yet.',
+    attendanceHistory: 'Attendance History',
+    viewFullHistory: 'View Full History',
+    noAttendanceRecordsAvail: 'No attendance records available.',
+  },
+  am: {
+    // Navigation
+    overview: 'አጠቃላይ እይታ',
+    dashboard: 'ዳሽቦርድ',
+    notifications: 'ማስታወቂያዎች',
+    academics: 'ትምህርት',
+    attendance: 'የክፍል መገኘት',
+    finance: 'ፋይናንስ',
+    logout: 'ውጣ',
+    parentPortal: 'የወላጅ ፖርታል',
+    studentPortal: 'የተማሪ ፖርታል',
+
+    // Language selector
+    language: 'ቋንቋ',
+    english: 'English',
+    amharic: 'አማርኛ',
+    oromiffa: 'Afaan Oromoo',
+
+    // Actions & Headers
+    selectChild: 'ልጅ ይምረጡ',
+    markAllRead: 'ሁሉንም እንደተነበበ አድርግ',
+    noNotifications: 'ምንም ማስታወቂያ የለም።',
+    searchPlaceholder: 'ፈልግ...',
+    welcomeBack: 'እንኳን ደህና መጡ',
+    recentActivity: 'የቅርብ ጊዜ እንቅስቃሴ',
+    viewDetails: 'ዝርዝር ተመልከት',
+    viewAll: 'ሁሉንም ተመልከት',
+    viewStatement: 'የክፍያ መግለጫ ተመልከት →',
+
+    // Dashboard Cards & Titles
+    helloGuardian: 'ሰላም፥ የ{name} ወላጅ!',
+    snapshotSub: 'የትምህርታዊ እድገት፣ የመገኘት እና የክፍያ ሂሳብ አጠቃላይ እይታ።',
+    loadingChild: 'የተማሪ መረጃ በመጫን ላይ...',
+    couldNotLoad: 'የተማሪ መረጃ መጫን አልተቻለም።',
+    noChildrenLinked: 'ከዚህ መለያ ጋር የተያያዘ ተማሪ የለም።',
+    gpa: 'GPA',
+    averageGrade: 'አማካይ ውጤት',
+    passStatus: 'ሁኔታ',
+    pass: 'አልፏል',
+    fail: 'ወደቋል',
+    attendanceRate: 'የክፍል መገኘት',
+    sessionsPresent: 'የተገኘበት ቀን',
+    balanceDue: 'የሚፈለግ ክፍያ',
+    recentGrades: 'የቅርብ ጊዜ ውጤቶች',
+    recentAttendance: 'የቅርብ ጊዜ መገኘት',
+    noGrades: 'ምንም ውጤት አልተለቀቀም።',
+    noAttendance: 'ምንም የመገኘት መዝገብ የለም።',
+
+    // Notifications Page
+    messageTeachers: 'ለመምህራን መልእክት ላክ',
+    messageTeachersSub: 'ለልጅዎ የተመደቡትን መምህራን በግል ያነጋግሩ።',
+    loadingChildrenInfo: 'የተማሪዎችን መረጃ በመጫን ላይ...',
+    child: 'ልጅ',
+    noLinkedChildren: 'የተያያዘ ተማሪ የለም',
+    messageSubjectTitle: 'የመልእክቱ ርዕስ',
+    typeMessageHere: 'መልእክትዎን እዚህ ይጻፉ...',
+    sendToTeachers: 'ለመምህራን ላክ',
+    assignedTeachers: 'የተመደቡ መምህራን',
+    loadingAssignedTeachers: 'የተመደቡ መምህራንን በመጫን ላይ...',
+    noTeachersFound: 'ለዚህ ተማሪ የተመደቡ መምህራን አልተገኙም።',
+
+    // Attendance Page
+    attendanceRecord: 'የክፍል መገኘት መዝገብ',
+    lastSessions: 'ያለፉት {count} ክፍለ ጊዜያት',
+    overallAttendanceRate: 'አጠቃላይ የመገኘት መጠን',
+    lowAttendanceAlert: 'ዝቅተኛ የመገኘት ማስጠንቀቂያ',
+    lowAttendanceMsg: 'የ{name} መገኘት ከ 90% በታች ዝቅ ብሏል። እባክዎን የቅርብ ጊዜ ቀሪዎችን ይመልከቱ።',
+    summary: 'ማጠቃለያ',
+    totalSessions: 'ጠቅላላ ክፍለ ጊዜያት',
+
+    // Finance Page
+    feeStatement: 'የክፍያ መግለጫ',
+    totalBalanceDue: 'ጠቅላላ የሚፈለግ ክፍያ',
+    paymentOutstanding: 'ያልተከፈለ ሂሳብ አለ',
+    payNow: 'አሁኑኑ ክፈል',
+    annualProgress: 'ዓመታዊ እድገት',
+    financialSummary: 'የፋይናንስ ማጠቃለያ',
+    fullyPaid: 'ሙሉ በሙሉ ተከፍሏል',
+    verifying: 'በማረጋገጥ ላይ',
+    pendingPayment: 'በመጠባበቅ ላይ',
+    totalBilled: 'ጠቅላላ የተጠየቀ ሂሳብ',
+    feeCategoriesBreakdown: 'የክፍያ ዓይነቶች ዝርዝር',
+    noFeeRecords: 'ምንም የክፍያ መዝገብ የለም።',
+    recentTransactions: 'የቅርብ ጊዜ ክፍያዎች',
+    date: 'ቀን',
+    description: 'መግለጫ',
+    receipt: 'ደረሰኝ',
+    download: 'አውርድ',
+    noPaymentsRecorded: 'ምንም የተመዘገበ ክፍያ የለም።',
+
+    // Attendance Statuses
+    present: 'ተገኝቷል',
+    absent: 'አልተገኘም',
+    late: 'ዘግይቷል',
+    permission: 'ፈቃድ',
+
+    // Attendance Table
+    sessionHistory: 'የክፍለ ጊዜ ታሪክ',
+    statusHeader: 'ሁኔታ',
+    noAttendanceRecords: 'ምንም የመገኘት መዝገብ የለም።',
+    of: 'ከ',
+
+    // Terms
+    student: 'ተማሪ',
+    parent: 'ወላጅ',
+    grade: 'ክፍል',
+    section: 'ሴክሽን',
+    teacher: 'መምህር',
+    subject: 'ትምህርት ዓይነት',
+    status: 'ሁኔታ',
+    total: 'ጠቅላላ',
+    paid: 'ተከፍሏል',
+    pending: 'በመጠባበቅ ላይ',
+    unpaid: 'ያልተከፈለ',
+    due: 'የሚከፈልበት ጊዜ',
+    amount: 'መጠን',
+
+    // Messaging & Communication
+    sendMessageToTeacher: 'ለ መምህር መልእክት ላክ',
+    composeMessage: 'መልእክት ጻፍ',
+    recipientTeacher: 'መምህር ይምረጡ',
+    title: 'ርዕስ',
+    message: 'መልእክት',
+    send: 'ላክ',
+    cancel: 'ሰርዝ',
+    sending: 'በመላክ ላይ...',
+
+    // System
+    schoolManagement: 'የትምህርት ቤት አስተዳደር ሥርዓት',
+
+    // Student Academics
+    academicPerformance: 'የትምህርት አፈጻጸም',
+    studentId: 'የተማሪ መታወቂያ',
+    loadingAcademicData: 'የትምህርት መረጃ በመጫን ላይ...',
+    couldNotLoadAcademics: 'የትምህርት መረጃ መጫን አልተቻለም',
+    serverUnavailable: 'አገልጋዩ የማይገኝ ሊሆን ይችላል ወይም ከኢንተርኔት ተቋርጠዋል።',
+    retry: 'እንደገና ሞክር',
+    comingSoon: 'በቅርቡ ይቀርባል',
+    semesterNotOpened: 'ይህ ሴሚስተር ገና በይፋ አልተከፈተም። የትምህርት መዝገቦች እና ውጤቶች ቀኑ ሲደርስ ይቀርባሉ።',
+    targetGoal: 'ዒላማ',
+    termPerformanceAvg: 'የሴሚስተር አማካይ አፈጻጸም',
+    enrolledSubjects: 'የተመዘገቡ ትምህርቶች',
+    noEnrolledSubjects: 'ምንም የተመዘገቡ ትምህርቶች የሉም።',
+    clickViewResults: 'ዝርዝር ውጤቶችን ለማየት ጠቅ ያድርጉ',
+    viewSubject: 'ተመልከት',
+    thisWeeksClasses: 'የዚህ ሳምንት ክፍሎች',
+    noTimetable: 'ምንም የሰዓት ሰሌዳ አልተለቀቀም።',
+    room: 'ክፍል ቁጥር',
+
+    // Student Attendance
+    studentAttendanceRecord: 'የተማሪ የክፍል መገኘት መዝገብ',
+    trackAttendance: 'መገኘትዎን፣ ቀሪዎችን እና ዘይቤዎችን ይከታተሉ።',
+    loadingAttendanceData: 'የመገኘት መረጃ በመጫን ላይ...',
+    couldNotLoadAttendance: 'የመገኘት መረጃ መጫን አልተቻለም',
+    overallAttendanceRateLabel: 'አጠቃላይ የመገኘት መጠን',
+    recorded: 'የተመዘገበ',
+    lowAttendanceAlertStudent: 'ዝቅተኛ የመገኘት ማስጠንቀቂያ',
+    lowAttendanceMsgStudent: 'የመገኘት መጠንዎ ከ 85% ተቋማዊ ወሰን በታች ዝቅ ብሏል። እባክዎን ወዲያውኑ ሊወሰዱ የሚችሉ እርምጃዎችን ይፈትሹ።',
+    recentAbsences: 'የቅርብ ጊዜ ቀሪዎች እና ዘግይቶ ደራሾች',
+    noPerfectRecord: '✅ ምንም የቅርብ ጊዜ ቀሪ የለም — ፍጹም መዝገብ!',
+
+    // Student Finance
+    studentFeeStatus: 'የተማሪ ክፍያ ሁኔታ',
+    loadingFeeData: 'የክፍያ መረጃ በመጫን ላይ...',
+    couldNotLoadFees: 'የክፍያ መረጃ መጫን አልተቻለም',
+    totalBalanceDueLabel: 'ጠቅላላ የሚፈለግ ክፍያ',
+    underVerification: 'ETB በማረጋገጥ ላይ',
+    paymentOutstandingLabel: 'ያልተከፈለ ሂሳብ አለ',
+    payNowBtn: 'አሁኑኑ ክፈል',
+    annualProgressLabel: 'ዓመታዊ እድገት',
+    financialSummaryLabel: 'የፋይናንስ ማጠቃለያ',
+    fullyPaidLabel: 'ሙሉ በሙሉ ተከፍሏል',
+    verifyingLabel: 'በማረጋገጥ ላይ',
+    pendingPaymentLabel: 'በመጠባበቅ ላይ',
+    totalBilledLabel: 'ጠቅላላ የተጠየቀ ሂሳብ',
+    feeCategoriesLabel: 'የክፍያ ዓይነቶች ዝርዝር',
+    dueLabel: 'የሚከፈልበት ጊዜ',
+    noFeeRecordsLabel: 'ምንም የክፍያ መዝገብ የለም።',
+    recentTransactionsLabel: 'የቅርብ ጊዜ ክፍያዎች',
+    dateLabel: 'ቀን',
+    descriptionLabel: 'መግለጫ',
+    amountLabel: 'መጠን',
+    receiptLabel: 'ደረሰኝ',
+    downloadLabel: 'አውርድ',
+    noPaymentsLabel: 'ምንም የተመዘገበ ክፍያ የለም።',
+    fullyPaidBadge: 'ሙሉ ክፍያ',
+    verifyingBadge: 'በማረጋገጥ',
+    rejectedBadge: 'ተቀባይነት አላገኘም',
+    overdueBadge: 'ጊዜው አልፏል',
+    pendingBadge: 'በመጠባበቅ',
+    ofLabel: 'ከ',
+
+    // Student Dashboard
+    helloStudent: 'ሰላም፥ ተማሪ!',
+    readyToStudy: 'ለትምህርትዎ ተዘጋጅተዋል? በጣም ጥሩ እየሰሩ ነው!',
+    viewAcademics: 'ትምህርት ተመልከት →',
+    loadingDashboard: 'የተማሪ ዳሽቦርድ በመጫን ላይ…',
+    couldNotLoadDashboard: 'የዳሽቦርድ መረጃ መጫን አልተቻለም',
+    todaysSchedule: 'የዛሬው የሰዓት ሰሌዳ',
+    fullTimetable: 'ሙሉ የሰዓት ሰሌዳ',
+    upNext: 'ቀጣይ',
+    period: 'ክፍለ ጊዜ',
+    noClassesToday: 'ለ{day} የተመደቡ ክፍሎች የሉም።',
+    currentGpa: 'የአሁኑ GPA',
+    basedOnSubjects: 'በ {count} ትምህርት ዓይነቶች ላይ የተመሰረተ',
+    averageScore: 'አማካይ ውጤት',
+    passMarkLabel: 'ማለፊያ ነጥብ: {mark}%',
+    statusLabel: 'ሁኔታ: {status}',
+    pendingGrades: 'ሁሉም ምዘናዎች ሲታረሙ የሚገኝ',
+    excellentConsistency: 'ምቅ ጥንካሬ',
+    keepItUp: 'በርታ',
+    recentGradesLabel: 'የቅርብ ጊዜ ውጤቶች',
+    noGradesYet: 'ምንም ውጤት አልተለቀቀም።',
+    attendanceHistory: 'የመገኘት ታሪክ',
+    viewFullHistory: 'ሙሉ ታሪክ ተመልከት',
+    noAttendanceRecordsAvail: 'ምንም የመገኘት መዝገብ የለም።',
+  },
+  om: {
+    // Navigation
+    overview: 'Ilaalcha Guutuu',
+    dashboard: 'Daashibooridii',
+    notifications: 'Beeksisa',
+    academics: 'Barnoota',
+    attendance: 'Hirmannaa',
+    finance: 'Fayinaansii',
+    logout: "Ba'i",
+    parentPortal: 'Poortaalii Warraa',
+    studentPortal: 'Poortaalii Barataa',
+
+    // Language selector
+    language: 'Afaan',
+    english: 'English',
+    amharic: 'አማርኛ',
+    oromiffa: 'Afaan Oromoo',
+
+    // Actions & Headers
+    selectChild: "Daa'ima Filadhu",
+    markAllRead: 'Hunda dubbisamaa godhi',
+    noNotifications: 'Hanga ammaatti beeksisni hin jiru.',
+    searchPlaceholder: 'Barbaadi...',
+    welcomeBack: 'Baga nagaaan dhuftan',
+    recentActivity: 'Sochii Dhiyeenyaa',
+    viewDetails: 'Tarreeffama Ilaali',
+    viewAll: 'Hunda Ilaali',
+    viewStatement: 'Bayyanaa Kafaltii Ilaali →',
+
+    // Dashboard Cards & Titles
+    helloGuardian: 'Akkam, guddisaa {name}!',
+    snapshotSub: 'Cuunfaa guddina barnootaa, hirmannaa fi herrega kafaltii.',
+    loadingChild: "Galmee daa'imaa fe'amaa jira...",
+    couldNotLoad: "Odoo daa'imaa fe'uu hin danda'amne.",
+    noChildrenLinked: "Madaallii kanaan daa'imman walqabatan hin jiran.",
+    gpa: 'GPA',
+    averageGrade: 'Qabxii Giduu-Galeessaa',
+    passStatus: 'Haala',
+    pass: 'Darbeera',
+    fail: 'Kufee Jira',
+    attendanceRate: 'Hirmannaa',
+    sessionsPresent: 'guyyoota hirmaate',
+    balanceDue: 'Kafaltii Eegamu',
+    recentGrades: 'Qabxilee Dhiyeenyaa',
+    recentAttendance: 'Hirmannaa Dhiyeenyaa',
+    noGrades: 'Qabxiin hin maxxansamne.',
+    noAttendance: 'Galmeen hirmannaa hin jiru.',
+
+    // Notifications Page
+    messageTeachers: 'Barsiisotaaf Ergaa Ergii',
+    messageTeachersSub: "Barsiisota daa'ima keessaniif ramadamaniif ergaa dhuunfaa ergai.",
+    loadingChildrenInfo: "Odeeffannoo daa'immanii fe'amaa jira...",
+    child: "Daa'ima",
+    noLinkedChildren: "Daa'imman walqabatan hin jiran",
+    messageSubjectTitle: 'Mata Duree Ergaa',
+    typeMessageHere: 'Ergaa keessan asitti barreessaa...',
+    sendToTeachers: 'Barsiisotaaf Ergi',
+    assignedTeachers: 'Barsiisota Ramadaman',
+    loadingAssignedTeachers: "Barsiisota ramadaman fe'amaa jira...",
+    noTeachersFound: "Daa'ima kanaaf barsiisonni hin argamne.",
+
+    // Attendance Page
+    attendanceRecord: 'Galmee Hirmannaa',
+    lastSessions: 'tursa {count} dhumaa',
+    overallAttendanceRate: 'Hanga Hirmannaa Waligalaa',
+    lowAttendanceAlert: 'Akeekkachiisa Hirmannaa Gadaanaa',
+    lowAttendanceMsg: 'Hirmannaan {name} hardsaa %90 gadi bu\'eera. Maaloo boqonnaa dhiyeenyaa ilaalaa.',
+    summary: 'Cuunfaa',
+    totalSessions: 'Idattuu Waliigalaa',
+
+    // Finance Page
+    feeStatement: 'Bayyanaa Kafaltii',
+    totalBalanceDue: 'Waliigala Kafaltii Eegamu',
+    paymentOutstanding: 'Kafaltii hafetu jira',
+    payNow: 'Amma Kafali',
+    annualProgress: 'Guddina Waggaa',
+    financialSummary: 'Cuunfaa Fayinaansii',
+    fullyPaid: 'Guutummaatti Kafalameera',
+    verifying: "Mirkanaa'aa jira",
+    pendingPayment: 'Kafaltii Eegamaa',
+    totalBilled: 'Waliigala Gaafatame',
+    feeCategoriesBreakdown: 'Tarreeffama Gosa Kafaltii',
+    noFeeRecords: 'Galmeen kafaltii hin jiru.',
+    recentTransactions: 'Kafaltiiwwan Dhiyeenyaa',
+    date: 'Guyyaa',
+    description: 'Ibsa',
+    receipt: 'Ragaa Kafaltii',
+    download: 'Buusi',
+    noPaymentsRecorded: 'Galmeen kafaltii hin jiru.',
+
+    // Attendance Statuses
+    present: 'Argameera',
+    absent: 'Hafee Jira',
+    late: 'Tureera',
+    permission: 'Eeyyama',
+
+    // Attendance Table
+    sessionHistory: 'Seenaa Tursa',
+    statusHeader: 'Haala',
+    noAttendanceRecords: 'Galmeen hirmannaa hin jiru.',
+    of: 'keessaa',
+
+    // Terms
+    student: 'Barataa',
+    parent: 'Warra',
+    grade: 'Kutaa',
+    section: 'Kutaa',
+    teacher: 'Barsiisaa',
+    subject: 'Gosa Barnootaa',
+    status: 'Haala',
+    total: "Ida'ama",
+    paid: 'Kafalameera',
+    pending: 'Eegamaa jira',
+    unpaid: 'Hin kafalamne',
+    due: 'Guyyaa Kafaltii',
+    amount: 'Hamma',
+
+    // Messaging & Communication
+    sendMessageToTeacher: 'Barsiisaaf Ergaa Ergii',
+    composeMessage: 'Ergaa Barreessi',
+    recipientTeacher: 'Barsiisaa Filadhu',
+    title: 'Mata Duree',
+    message: 'Ergaa',
+    send: 'Ergi',
+    cancel: 'Haqi',
+    sending: 'Ergamaa jira...',
+
+    // System
+    schoolManagement: 'Sirna Bulchiinsa Barnootaa',
+
+    // Student Academics
+    academicPerformance: 'Guddina Barnoota',
+    studentId: 'ID Barataa',
+    loadingAcademicData: "Odeeffannoo barnootaa fe'amaa jira...",
+    couldNotLoadAcademics: 'Odeeffannoo barnootaa fe\'uu hin danda\'amne',
+    serverUnavailable: 'Sarviisni argamuu dhabuu danda\'a ykn interneta cita\'e jira.',
+    retry: 'Irra deebi\'i yaali',
+    comingSoon: 'Dhufu irratti jira',
+    semesterNotOpened: 'Kutaan barnootaa kun hanga ammaatti banamuun hin beekamne. Galmeen barnootaa fi bu\'aan booda ni argama.',
+    targetGoal: 'Galma',
+    termPerformanceAvg: 'Giddu-galeessa Raawwii Tursa',
+    enrolledSubjects: 'Gosa Barnootaa Galmeeffame',
+    noEnrolledSubjects: 'Gosa barnootaa galmeeffame hin jiru.',
+    clickViewResults: 'Bu\'aa guutuuf cuqaasi',
+    viewSubject: 'Ilaali',
+    thisWeeksClasses: 'Kutaalee Torban Kanaa',
+    noTimetable: 'Karoora yeroo hin maxxansamne.',
+    room: 'Kutaa',
+
+    // Student Attendance
+    studentAttendanceRecord: 'Galmee Hirmannaa Barataa',
+    trackAttendance: 'Hirmannaa, boqonnaa fi fakkaataa kee hordofi.',
+    loadingAttendanceData: "Odeeffannoo hirmannaa fe'amaa jira...",
+    couldNotLoadAttendance: 'Odeeffannoo hirmannaa fe\'uu hin danda\'amne',
+    overallAttendanceRateLabel: 'Hanga Hirmannaa Waligalaa',
+    recorded: 'Galmaa\'ame',
+    lowAttendanceAlertStudent: 'Akeekkachiisa Hirmannaa Gadaanaa',
+    lowAttendanceMsgStudent: 'Hirmannaan kee %85 gadi bu\'eera. Maaloo tarkaanfii hatattamaa fudhachuu ilaalaa.',
+    recentAbsences: 'Boqonnaa Dhiyeenyaa fi Taa\'umsaa Boodatti',
+    noPerfectRecord: '✅ Boqonnaan dhiyeenyaa hin jiru — galmee dhuunfaa!',
+
+    // Student Finance
+    studentFeeStatus: 'Haala Kafaltii Barataa',
+    loadingFeeData: "Odeeffannoo kafaltii fe'amaa jira...",
+    couldNotLoadFees: 'Odeeffannoo kafaltii fe\'uu hin danda\'amne',
+    totalBalanceDueLabel: 'Waliigala Kafaltii Eegamu',
+    underVerification: 'ETB mirkanaa\'aa jira',
+    paymentOutstandingLabel: 'Kafaltii hafetu jira',
+    payNowBtn: 'Amma Kafali',
+    annualProgressLabel: 'Guddina Waggaa',
+    financialSummaryLabel: 'Cuunfaa Fayinaansii',
+    fullyPaidLabel: 'Guutummaatti Kafalameera',
+    verifyingLabel: "Mirkanaa'aa jira",
+    pendingPaymentLabel: 'Kafaltii Eegamaa',
+    totalBilledLabel: 'Waliigala Gaafatame',
+    feeCategoriesLabel: 'Tarreeffama Gosa Kafaltii',
+    dueLabel: 'Guyyaa Kafaltii',
+    noFeeRecordsLabel: 'Galmeen kafaltii hin jiru.',
+    recentTransactionsLabel: 'Kafaltiiwwan Dhiyeenyaa',
+    dateLabel: 'Guyyaa',
+    descriptionLabel: 'Ibsa',
+    amountLabel: 'Hamma',
+    receiptLabel: 'Ragaa Kafaltii',
+    downloadLabel: 'Buusi',
+    noPaymentsLabel: 'Galmeen kafaltii hin jiru.',
+    fullyPaidBadge: 'GUUTUMMAATTI KAFALAME',
+    verifyingBadge: "MIRKANAA'AA JIRA",
+    rejectedBadge: 'DIDE',
+    overdueBadge: 'YEROON DARBEE',
+    pendingBadge: 'EEGAMAA',
+    ofLabel: 'keessaa',
+    // Student Dashboard
+    helloStudent: 'Akkam, Barataa/ttuu!',
+    readyToStudy: 'Barnoota kee hojjechuuf qophaa\'aa? Baay\'ee gaariitti deemaa!',
+    viewAcademics: 'Barnoota Ilaali →',
+    loadingDashboard: "Dabtaroo barataa fe'amaa jira...",
+    couldNotLoadDashboard: 'Odeeffannoo dabtaroo fe\'uu hin danda\'amne',
+    todaysSchedule: 'Karoora Har\'aa',
+    fullTimetable: 'Karoora Guutuu',
+    upNext: 'Itti Aanee',
+    period: 'Yeroo',
+    noClassesToday: 'Kutaaleen {day} irratti qindaa\'aman hin jiran.',
+    currentGpa: 'GPA Ammaa',
+    basedOnSubjects: 'Gosa barnootaa {count} irratti hundaa\'e',
+    averageScore: 'Qabxii Giduu-Galeessaa',
+    passMarkLabel: 'Qabxii darbuuf: {mark}%',
+    statusLabel: 'Haala: {status}',
+    pendingGrades: 'Madaalinni hundi yoo galmaa\'e ni argama',
+    excellentConsistency: 'Hirmannaa baay\'ee gaarii',
+    keepItUp: 'Itti fufi',
+    recentGradesLabel: 'Qabxilee Dhiyeenyaa',
+    viewAll: 'Hunda Ilaali',
+    noGradesYet: 'Qabxiin hin maxxansamne.',
+    attendanceHistory: 'Seenaa Hirmannaa',
+    viewFullHistory: 'Seenaa Guutuu Ilaali',
+    noAttendanceRecordsAvail: 'Galmeen hirmannaa hin argamne.',
+  }
+};
+
+const LanguageContext = createContext();
+
+export function LanguageProvider({ children }) {
+  const [lang, setLangState] = useState(() => {
+    return localStorage.getItem('app_language') || 'en';
+  });
+
+  const setLang = (newLang) => {
+    if (translations[newLang]) {
+      setLangState(newLang);
+      localStorage.setItem('app_language', newLang);
+    }
+  };
+
+  const t = (key, params = {}) => {
+    let str = translations[lang]?.[key] || translations.en[key] || key;
+    Object.keys(params).forEach((p) => {
+      str = str.replace(`{${p}}`, params[p]);
+    });
+    return str;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ lang, setLang, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+}
+
+export function useLanguage() {
+  const context = useContext(LanguageContext);
+  if (!context) {
+    return { lang: 'en', setLang: () => {}, t: (k, p) => k };
+  }
+  return context;
+}
