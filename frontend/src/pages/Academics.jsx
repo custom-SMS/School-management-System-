@@ -87,10 +87,12 @@ export default function Academics() {
 
   const fetchBranches = async () => {
     try {
-      const res = await axios.get('/branches');
-      const branchList = res.data || [];
+      const res = await axios.get('/branches/branches');
+      const branchList = Array.isArray(res.data) ? res.data : (res.data?.branches || []);
       setBranches(branchList);
-      if (branchList.length > 0 && !selectedBranchId) {
+      if (!canSelectBranch && activeBranchId) {
+        setSelectedBranchId(activeBranchId);
+      } else if (branchList.length > 0 && !selectedBranchId) {
         setSelectedBranchId(branchList[0].id);
       }
     } catch (err) {

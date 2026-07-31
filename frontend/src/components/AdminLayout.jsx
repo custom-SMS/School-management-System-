@@ -125,6 +125,7 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
   const [mobileOpen, setMobileOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
+  const safeNotifications = Array.isArray(notifications) ? notifications : [];
 
   const handleLogout = async () => {
     await logout();
@@ -134,7 +135,8 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
   const fetchNotifications = async () => {
     try {
       const res = await axios.get('/notifications');
-      setNotifications(res.data || []);
+      const data = res.data;
+      setNotifications(Array.isArray(data) ? data : (data?.notifications || data?.data || []));
     } catch { /* silent */ }
   };
 
@@ -158,14 +160,14 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
   const markAsRead = async (id) => {
     try {
       await axios.patch(`/notifications/${id}/read`);
-      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      setNotifications((prev) => (Array.isArray(prev) ? prev : []).map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch { /* silent */ }
   };
 
   const markAllAsRead = async () => {
     try {
       await axios.patch('/notifications/read-all');
-      setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+      setNotifications((prev) => (Array.isArray(prev) ? prev : []).map((n) => ({ ...n, read: true })));
     } catch { /* silent */ }
   };
 
@@ -175,7 +177,7 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
     .slice(0, 2)
     .join('')
     .toUpperCase();
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const unreadCount = safeNotifications.filter((n) => !n.read).length;
 
   const filteredNavItems = navItems.filter((item) =>
     !item.permission || permissions.includes('*') || permissions.includes(item.permission)
@@ -342,8 +344,8 @@ export default function AdminLayout({ children, pageTitle = 'Dashboard', searchP
                     )}
                   </div>
                   <div className="max-h-72 space-y-2 overflow-y-auto">
-                    {notifications.length > 0 ? (
-                      notifications.map((n) => (
+                    {safeNotifications.length > 0 ? (
+                      safeNotifications.map((n) => (
                         <button
                           type="button"
                           key={n.id}

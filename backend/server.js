@@ -78,7 +78,7 @@ prisma.$connect()
 // Routes
 
 app.use('/api/auth', require('./routes/authRoutes'));
-app.use('/api', require('./routes/branchRoutes'));
+app.use('/api/branches', require('./routes/branchRoutes'));
 app.use('/api/fees', require('./routes/feeRoutes'));
 app.use('/api/classroom', require('./routes/classroomRoutes'));
 app.use('/api/assignments', require('./routes/assignmentRoutes'));

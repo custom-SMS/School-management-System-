@@ -22,13 +22,14 @@ export function useBranch() {
   const user = useAppSelector((state) => state.auth.user);
 
   // Fetch branches list
-  const { data: branches = [] } = useBranchesQuery(!!user);
+  const { data: rawBranches = [] } = useBranchesQuery(!!user);
+  const branches = Array.isArray(rawBranches) ? rawBranches : (rawBranches?.branches || []);
 
   // Fetch active semester
   const { data: activeSemester = null, refetch: refetchSemester } = useActiveSemesterQuery(!!user);
 
   // Resolve selectedBranch object
-  const selectedBranch = branches.find((b) => b.id === selectedBranchId) || null;
+  const selectedBranch = branches.find((b) => b?.id === selectedBranchId) || null;
 
   // Determine branch selection permissions
   const isSuper = user?.role === 'SuperAdmin';
