@@ -136,6 +136,11 @@ export default function EmployeeManagement() {
   const [filterRole, setFilterRole] = useState('');
   const { selectedBranchId } = useBranch();
   
+  const [page, setPage] = useState(1);
+  const [limit] = useState(15);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
   const [showModal, setShowModal] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState(null);
   const [credentials, setCredentials] = useState(null);
@@ -145,11 +150,29 @@ export default function EmployeeManagement() {
     try {
       setLoading(true);
       const [empRes, branchRes] = await Promise.all([
-        axios.get('/employees'),
+        axios.get('/employees', {
+          params: {
+            paginate: true,
+            page,
+            limit,
+            search,
+            role: filterRole,
+            branchId: selectedBranchId || undefined,
+          }
+        }),
         axios.get('/branches/branches')
       ]);
-      setEmployees(empRes.data);
-      setBranches(branchRes.data);
+
+      if (empRes.data && empRes.data.employees) {
+        setEmployees(empRes.data.employees);
+        setTotal(empRes.data.total || 0);
+        setTotalPages(empRes.data.totalPages || 1);
+      } else {
+        setEmployees(Array.isArray(empRes.data) ? empRes.data : []);
+        setTotal(Array.isArray(empRes.data) ? empRes.data.length : 0);
+        setTotalPages(1);
+      }
+      setBranches(branchRes.data || []);
     } catch (err) {
       toast.error('Failed to load employees data');
     } finally {
@@ -157,7 +180,19 @@ export default function EmployeeManagement() {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+  }, [page, search, filterRole, selectedBranchId]);
+
+  const handleSearchChange = (e) => {
+    setSearch(e.target.value);
+    setPage(1);
+  };
+
+  const handleRoleFilterChange = (e) => {
+    setFilterRole(e.target.value);
+    setPage(1);
+  };
 
   const handleSave = async (data) => {
     try {
@@ -201,14 +236,6 @@ export default function EmployeeManagement() {
     }
   };
 
-  const filtered = employees.filter(e => {
-    const matchSearch = e.name.toLowerCase().includes(search.toLowerCase()) || 
-                        (e.email && e.email.toLowerCase().includes(search.toLowerCase()));
-    const matchRole = filterRole ? e.role === filterRole : true;
-    const matchBranch = selectedBranchId ? e.branchId === selectedBranchId : true;
-    return matchSearch && matchRole && matchBranch;
-  });
-
   return (
     <SuperAdminLayout pageTitle="Employee Management">
       {showModal && (
@@ -241,10 +268,10 @@ export default function EmployeeManagement() {
           type="text"
           placeholder="Search employees..."
           value={search}
-          onChange={e => setSearch(e.target.value)}
+          onChange={handleSearchChange}
           className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
         />
-        <select value={filterRole} onChange={e => setFilterRole(e.target.value)}
+        <select value={filterRole} onChange={handleRoleFilterChange}
           className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
           <option value="">All Roles</option>
           {ROLES.map(r => <option key={r} value={r}>{getRoleLabel(r)}</option>)}
@@ -266,9 +293,9 @@ export default function EmployeeManagement() {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {loading ? (
                 <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-400 font-medium">Loading employees...</td></tr>
-              ) : filtered.length === 0 ? (
+              ) : employees.length === 0 ? (
                 <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-400 font-medium">No employees found.</td></tr>
-              ) : filtered.map(emp => (
+              ) : employees.map(emp => (
                 <tr key={emp.id} className="hover:bg-slate-50 transition">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
@@ -324,6 +351,64 @@ export default function EmployeeManagement() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {!loading && totalPages > 1 && (
+          <div className="flex items-center justify-between px-6 py-4 border-t border-slate-200 bg-slate-50">
+            <div className="text-xs text-slate-500 font-medium">
+              Page <span className="font-bold text-slate-800">{page}</span> of{' '}
+              <span className="font-bold text-slate-800">{totalPages}</span> (Total{' '}
+              <span className="font-bold text-slate-800">{total}</span> employees)
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Previous
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                .reduce((acc, p, idx, arr) => {
+                  if (idx > 0 && p - arr[idx - 1] > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((item, index) =>
+                  item === '...' ? (
+                    <span key={`dots-${index}`} className="px-2 py-1.5 text-xs text-slate-400 font-bold">
+                      …
+                    </span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setPage(item)}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                        page === item
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages}
+                className="px-3 py-1.5 text-xs font-bold rounded-lg border border-slate-200 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </SuperAdminLayout>
   );

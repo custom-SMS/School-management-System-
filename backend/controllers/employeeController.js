@@ -18,27 +18,69 @@ const generateTeacherId = async (tx = prisma) => {
 
 const getEmployees = async (req, res) => {
   try {
-    const users = await prisma.user.findMany({
-      where: { role: { in: ['Teacher', 'Admin', 'Cashier'] } },
-      include: {
-        teacherProfile: true,
-        userScope: {
-          include: { branch: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const isPaginated = req.query.paginate === 'true' || req.query.page !== undefined || req.query.limit !== undefined;
 
-    const response = users.map(u => {
+    const pageNum = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(req.query.limit, 10) || 15);
+    const search = req.query.search?.trim();
+    const filterRole = req.query.role?.trim();
+    const branchId = req.query.branchId?.trim();
+
+    const baseWhere = {
+      role: filterRole ? filterRole : { in: ['Teacher', 'Admin', 'Cashier'] }
+    };
+
+    const whereConditions = [baseWhere];
+
+    if (search) {
+      whereConditions.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } }
+        ]
+      });
+    }
+
+    if (branchId) {
+      whereConditions.push({
+        OR: [
+          { teacherProfile: { branchId } },
+          { userScope: { some: { branchId } } }
+        ]
+      });
+    }
+
+    const where = whereConditions.length > 1 ? { AND: whereConditions } : baseWhere;
+
+    const [total, users] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({
+        where,
+        include: {
+          teacherProfile: {
+            include: { branch: true }
+          },
+          userScope: {
+            include: { branch: true }
+          }
+        },
+        skip: isPaginated ? (pageNum - 1) * limitNum : undefined,
+        take: isPaginated ? limitNum : undefined,
+        orderBy: { createdAt: 'desc' }
+      })
+    ]);
+
+    const formattedEmployees = users.map(u => {
       let department = '';
       let branch = null;
-      let branchId = null;
+      let bId = null;
 
       if (u.role === 'Teacher' && u.teacherProfile) {
         department = u.teacherProfile.department || u.teacherProfile.subject;
-        branchId = u.teacherProfile.branchId;
+        bId = u.teacherProfile.branchId;
+        branch = u.teacherProfile.branch;
       } else if (u.userScope && u.userScope.length > 0) {
-        branchId = u.userScope[0].branchId;
+        bId = u.userScope[0].branchId;
         branch = u.userScope[0].branch;
       }
 
@@ -46,12 +88,22 @@ const getEmployees = async (req, res) => {
         ...u,
         _id: u.id, // For frontend compatibility
         department,
-        branchId,
+        branchId: bId,
         branchName: branch?.name || null
       };
     });
 
-    res.json(response);
+    if (isPaginated) {
+      return res.json({
+        employees: formattedEmployees,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        totalPages: Math.ceil(total / limitNum) || 1
+      });
+    }
+
+    res.json(formattedEmployees);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -204,19 +256,19 @@ const updateEmployee = async (req, res) => {
             ...(subject !== undefined ? { subject } : {}),
             ...(qualification !== undefined ? { qualification } : {}),
             ...(department !== undefined ? { department } : {}),
-            ...(branchId !== undefined ? { branchId } : {})
+            ...(branchId !== undefined ? { branchId: branchId || null } : {})
           }
         });
       } else if (['Admin', 'Cashier'].includes(existingUser.role)) {
         if (existingUser.userScope && existingUser.userScope.length > 0) {
           await tx.userScope.update({
             where: { id: existingUser.userScope[0].id },
-            data: { ...(branchId !== undefined ? { branchId } : {}) }
+            data: { ...(branchId !== undefined ? { branchId: branchId || null } : {}) }
           });
         } else if (branchId) {
           let scopeType = existingUser.role === 'Cashier' ? 'Cashier' : 'BranchAdmin';
           await tx.userScope.create({
-             data: { userId: id, scopeType, branchId }
+             data: { userId: id, scopeType, branchId: branchId || null }
           });
         }
       }
