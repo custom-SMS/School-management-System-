@@ -496,17 +496,14 @@ if (!result) return;
       <div className="mb-6">
         <h2 className="text-2xl font-bold text-gray-900">Subject Management</h2>
         <p className="max-w-2xl text-sm text-gray-500">
-          Configure and maintain the school's curriculum. Manage credit hours, elective status, and grade-level
-          distributions across the academic program.
+          Configure and maintain the branch's curriculum. Manage subject assignments and grade-level distributions.
         </p>
       </div>
 
-      <div className="mb-8 grid grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="mb-8 grid grid-cols-2 gap-4">
         {[
-          { label: 'Total Subjects', value: subjects.length, color: 'text-gray-900' },
+          { label: 'Total Subjects', value: displayedSubjects.length, color: 'text-gray-900' },
           { label: 'Mandatory', value: mandatoryCount, color: 'text-green-600' },
-          { label: 'Electives', value: electiveCount, color: 'text-orange-600' },
-          { label: 'Avg Credit Hours', value: '4.2', color: 'text-gray-600' }
         ].map((card) => (
           <div key={card.label} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
             <div className="mb-1 text-xs font-semibold uppercase tracking-wider text-gray-500">{card.label}</div>
