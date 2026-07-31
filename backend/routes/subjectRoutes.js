@@ -53,7 +53,7 @@ router.get('/', verifyToken, injectBranchFilter, setCacheResource('classrooms'),
  *       201:
  *         description: Subject created
  */
-router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), createSubject);
+router.post('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), createSubject);
 
 /**
  * @swagger

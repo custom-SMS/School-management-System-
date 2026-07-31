@@ -63,8 +63,10 @@ app.get('/api-docs.json', (req, res) => {
 prisma.$connect()
   .then(() => console.log('PostgreSQL database connected via Prisma'))
   .catch(err => {
-    console.error('Prisma connection error:', err);
-    process.exit(1); // Exit if DB connection fails to make sure server doesn't run in bad state
+    console.error('Prisma connection error:', err.message || err);
+    if (process.env.NODE_ENV !== 'test' && require.main === module) {
+      process.exit(1); // Exit if DB connection fails when running standalone
+    }
   });
 
 // Global Redis cache for GET JSON responses (branch + role based)

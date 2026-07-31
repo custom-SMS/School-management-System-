@@ -67,6 +67,29 @@ const getAssignmentOptions = async (req, res) => {
       }
     });
 
+    const unassignedClassesWithoutSections = await prisma.class.findMany({
+      where: {
+        teacherId: null,
+        sections: { none: {} },
+        ...(req.branchFilter || {})
+      },
+      select: { id: true, name: true, stream: true }
+    });
+
+    const mappedUnassignedClasses = unassignedClassesWithoutSections.map(c => ({
+      id: c.id,
+      _id: c.id,
+      name: '',
+      classId: c.id,
+      class: c,
+      label: `${c.name}${c.stream ? ` (${c.stream})` : ''}`.trim()
+    }));
+
+    const mergedUnassignedHomerooms = [
+      ...unassignedSections,
+      ...mappedUnassignedClasses
+    ];
+
     const unassignedClassSubjects = await prisma.classSubject.findMany({
       where: {
         teacherId: null,
@@ -84,7 +107,7 @@ const getAssignmentOptions = async (req, res) => {
       specificClasses,
       subjects,
       sections: mappedSections,
-      unassignedSections,
+      unassignedSections: mergedUnassignedHomerooms,
       unassignedClassSubjects
     });
   } catch (error) {
@@ -283,9 +306,57 @@ const createAssignment = async (req, res) => {
         }
       }
     }
+
+    if (assignmentType === 'SubjectTeacher' && !confirmOverride) {
+      for (const selectedClass of resolvedClasses) {
+        const existingSubjectAssignment = await prisma.teacherAssignment.findFirst({
+          where: {
+            classId: selectedClass.id,
+            subjectId,
+            assignmentType: 'SubjectTeacher',
+            teacherId: { not: teacherId }
+          },
+          include: {
+            teacher: { include: { user: { select: { name: true } } } },
+            subject: { select: { name: true } }
+          }
+        });
+
+        if (existingSubjectAssignment) {
+          const previousTeacherName = existingSubjectAssignment.teacher?.user?.name || existingSubjectAssignment.teacher?.teacherId || 'Unknown';
+          const newTeacher = await prisma.teacher.findUnique({
+            where: { id: teacherId },
+            include: { user: { select: { name: true } } }
+          });
+          const newTeacherName = newTeacher?.user?.name || newTeacher?.teacherId || 'Unknown';
+          const subjName = existingSubjectAssignment.subject?.name || 'this subject';
+
+          return res.status(409).json({
+            message: `${subjName} in this class is already assigned to ${previousTeacherName}. Assigning ${newTeacherName} will replace them. Do you want to proceed?`,
+            requiresConfirmation: true,
+            previousTeacher: previousTeacherName,
+            newTeacher: newTeacherName
+          });
+        }
+      }
+    }
+
     const assignments = [];
     for (const selectedClass of resolvedClasses) {
       const selectedClassId = selectedClass.id;
+
+      if (assignmentType === 'SubjectTeacher') {
+        // Clear any previous teacher assigned to the same subject in this class
+        await prisma.teacherAssignment.deleteMany({
+          where: {
+            classId: selectedClassId,
+            subjectId,
+            assignmentType: 'SubjectTeacher',
+            teacherId: { not: teacherId }
+          }
+        });
+      }
+
       let assignment = await prisma.teacherAssignment.findFirst({
         where: { teacherId, classId: selectedClassId, subjectId, assignmentType }
       });
@@ -320,6 +391,24 @@ const createAssignment = async (req, res) => {
           await prisma.class.update({
             where: { id: selectedClassId },
             data: { teacher: { connect: { id: teacherId } } }
+          });
+        }
+      } else if (assignmentType === 'SubjectTeacher' && selectedClassId && subjectId) {
+        const existingClassSubject = await prisma.classSubject.findFirst({
+          where: { classId: selectedClassId, subjectId }
+        });
+        if (existingClassSubject) {
+          await prisma.classSubject.update({
+            where: { id: existingClassSubject.id },
+            data: { teacherId }
+          });
+        } else {
+          await prisma.classSubject.create({
+            data: {
+              classId: selectedClassId,
+              subjectId,
+              teacherId
+            }
           });
         }
       }

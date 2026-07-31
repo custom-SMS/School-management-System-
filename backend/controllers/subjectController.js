@@ -4,7 +4,7 @@ const { logActivity } = require('../middleware/auditLogger');
 // Create a subject
 const createSubject = async (req, res) => {
   try {
-    const { name, department, gradesOffered = [] } = req.body;
+    const { name, department, gradesOffered = [], branchId: bodyBranchId } = req.body;
     if (!name) {
       return res.status(400).json({ message: 'Subject name is required.' });
     }
@@ -13,25 +13,42 @@ const createSubject = async (req, res) => {
       ? [...new Set(gradesOffered.map((grade) => String(grade).trim()).filter(Boolean))]
       : [];
 
-    // Get branchId from filter (can be null for SuperAdmin creating global subjects)
-    let branchId = req.branchFilter?.branchId || null;
+    // Get branchId from body, filter, header, or user scope
+    let branchId = bodyBranchId || req.branchFilter?.branchId || req.headers['x-branch-id'] || req.user?.branchId || null;
 
-    // If branchId is provided, validate that the branch exists
-    // If branch doesn't exist, set branchId to null and proceed (for global subjects)
-    if (branchId) {
-      const branch = await prisma.branch.findUnique({
-        where: { id: branchId }
+    if (!branchId && req.user?.id) {
+      const userScope = await prisma.userScope.findFirst({
+        where: { userId: req.user.id, branchId: { not: null } }
       });
-      if (!branch) {
-        console.warn('Branch not found, creating subject without branch association:', branchId);
-        branchId = null; // Set to null to proceed without branch association
+      if (userScope?.branchId) {
+        branchId = userScope.branchId;
       }
     }
 
-    // Check for duplicate subject name within the same branch (or globally if no branch)
+    // Fallback: If no branchId is resolved, use default active branch
+    if (!branchId) {
+      const defaultBranch = await prisma.branch.findFirst({ where: { isActive: true } });
+      if (defaultBranch) {
+        branchId = defaultBranch.id;
+      }
+    }
+
+    if (!branchId) {
+      return res.status(400).json({ message: 'A valid branch is required to create a subject.' });
+    }
+
+    // Validate that the branch exists
+    const branch = await prisma.branch.findUnique({
+      where: { id: branchId }
+    });
+    if (!branch) {
+      return res.status(404).json({ message: 'Specified branch not found.' });
+    }
+
+    // Check for duplicate subject name within the same branch
     const existing = await prisma.subject.findFirst({
       where: {
-        name,
+        name: { equals: name, mode: 'insensitive' },
         branchId
       }
     });
@@ -78,20 +95,30 @@ const createSubject = async (req, res) => {
 // Get all subjects
 const getSubjects = async (req, res) => {
   try {
-    const branchFilter = req.branchFilter || {};
-    console.log('Fetching subjects with filter:', branchFilter);
+    const { branchId: queryBranchId } = req.query;
+    let branchFilter = req.branchFilter || {};
 
-    // Get subjects for the branch AND subjects without branch association (global subjects)
+    if (queryBranchId) {
+      branchFilter = { branchId: queryBranchId };
+    }
+
+    const whereClause = Object.keys(branchFilter).length > 0
+      ? {
+          OR: [
+            branchFilter,
+            { branchId: null }
+          ]
+        }
+      : {};
+
     const subjects = await prisma.subject.findMany({
-      where: {
-        OR: [
-          branchFilter,
-          { branchId: null }
-        ]
+      where: whereClause,
+      include: {
+        branch: { select: { id: true, name: true, code: true } }
       },
       orderBy: { name: 'asc' }
     });
-    console.log('Found subjects:', subjects.length);
+
     res.status(200).json(subjects);
   } catch (error) {
     console.error('Error fetching subjects:', error);

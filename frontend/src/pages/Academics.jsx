@@ -8,6 +8,9 @@ export default function Academics() {
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
+  const [filterBranchId, setFilterBranchId] = useState('');
   const [loadingClasses, setLoadingClasses] = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(true);
   const [loadingTeachers, setLoadingTeachers] = useState(true);
@@ -36,6 +39,11 @@ export default function Academics() {
   // Modal
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('subject');
+
+  const displayedSubjects = useMemo(() => {
+    if (!filterBranchId) return subjects;
+    return subjects.filter((s) => s.branchId === filterBranchId || s.branchId === null);
+  }, [subjects, filterBranchId]);
 
   const fetchSubjects = async () => {
     setLoadingSubjects(true);
@@ -73,10 +81,24 @@ export default function Academics() {
     }
   };
 
+  const fetchBranches = async () => {
+    try {
+      const res = await axios.get('/branches');
+      const branchList = res.data || [];
+      setBranches(branchList);
+      if (branchList.length > 0 && !selectedBranchId) {
+        setSelectedBranchId(branchList[0].id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchSubjects();
     fetchClasses();
     fetchTeachers();
+    fetchBranches();
   }, []);
 
   const gradeOptions = useMemo(() => {
@@ -112,14 +134,16 @@ export default function Academics() {
         await axios.put(`/subjects/${editingSubjectId}`, {
           name: subjectName,
           department: subjectDept || undefined,
-          gradesOffered: selectedGrades
+          gradesOffered: selectedGrades,
+          branchId: selectedBranchId || undefined
         });
         toast.success(`Subject "${subjectName}" updated.`);
       } else {
         await axios.post('/subjects', {
           name: subjectName,
           department: subjectDept || undefined,
-          gradesOffered: selectedGrades
+          gradesOffered: selectedGrades,
+          branchId: selectedBranchId || undefined
         });
         toast.success(`Subject "${subjectName}" created.`);
       }
@@ -192,11 +216,11 @@ if (!result) return;
     return acc;
   }, {});
 
-  const mandatoryCount = subjects.filter((s) => !s.isElective).length;
-  const electiveCount = subjects.filter((s) => s.isElective).length;
+  const mandatoryCount = displayedSubjects.filter((s) => !s.isElective).length;
+  const electiveCount = displayedSubjects.filter((s) => s.isElective).length;
 
   // Group subjects by grade
-  const subjectsByGrade = subjects.reduce((acc, subject) => {
+  const subjectsByGrade = displayedSubjects.reduce((acc, subject) => {
     (subject.gradesOffered || []).forEach((grade) => {
       if (!acc[grade]) acc[grade] = [];
       acc[grade].push(subject);
@@ -205,7 +229,7 @@ if (!result) return;
   }, {});
 
   // Subjects without grades assigned
-  const unassignedSubjects = subjects.filter((s) => !s.gradesOffered || s.gradesOffered.length === 0);
+  const unassignedSubjects = displayedSubjects.filter((s) => !s.gradesOffered || s.gradesOffered.length === 0);
 
   const openModal = (mode) => {
     setModalMode(mode);
@@ -213,6 +237,9 @@ if (!result) return;
     setSubjectName('');
     setSubjectDept('');
     setSelectedGrades([]);
+    if (branches.length > 0 && !selectedBranchId) {
+      setSelectedBranchId(branches[0].id);
+    }
     setShowModal(true);
   };
 
@@ -221,6 +248,9 @@ if (!result) return;
     setSubjectName(subject.name);
     setSubjectDept(subject.department || '');
     setSelectedGrades(subject.gradesOffered || []);
+    if (subject.branchId) {
+      setSelectedBranchId(subject.branchId);
+    }
     setModalMode('subject');
     setShowModal(true);
   };
@@ -255,6 +285,23 @@ if (!result) return;
 
             {modalMode === 'subject' && (
               <form onSubmit={handleCreateSubject} className="space-y-4">
+                {branches.length > 1 && (
+                  <div>
+                    <label className="mb-1 block text-sm font-semibold text-gray-700">Target Branch</label>
+                    <select
+                      value={selectedBranchId}
+                      onChange={(e) => setSelectedBranchId(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none"
+                    >
+                      {branches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} ({b.code})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-gray-700">Subject Name</label>
                   <input
@@ -460,19 +507,51 @@ if (!result) return;
 
       {/* All Subjects List */}
       <div className="mb-8">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="h-6 w-1 rounded-full bg-black"></div>
-          <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
-          <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
-            {subjects.length} Total
-          </span>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-6 w-1 rounded-full bg-black"></div>
+            <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
+            <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
+              {displayedSubjects.length} Total
+            </span>
+          </div>
+
+          {branches.length > 1 && (
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-gray-500">Filter Branch:</label>
+              <select
+                value={filterBranchId}
+                onChange={(e) => setFilterBranchId(e.target.value)}
+                className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold focus:border-black focus:outline-none bg-white"
+              >
+                <option value="">All Branches</option>
+                {branches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name} ({b.code})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {subjects.map((s) => (
+          {displayedSubjects.map((s) => (
             <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
               <div className="mb-3 flex items-start justify-between">
                 <div>
-                  <div className="font-bold text-gray-900">{s.name}</div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-gray-900">{s.name}</span>
+                    {s.branch ? (
+                      <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
+                        {s.branch.name}
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold text-gray-500">
+                        Global
+                      </span>
+                    )}
+                  </div>
                   <div className="text-xs text-gray-500">{s.department || 'General'}</div>
                   {s.gradesOffered && s.gradesOffered.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1">

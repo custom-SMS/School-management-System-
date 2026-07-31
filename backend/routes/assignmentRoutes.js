@@ -114,6 +114,6 @@ router.delete('/homeroom/:classId', verifyToken, checkRole(['Admin', 'SuperAdmin
  */
 router.get('/', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, setCacheResource('classrooms'), globalCacheMiddleware, getAllAssignments);
 
-router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), invalidateResource('classrooms'), deleteAssignment);
+router.delete('/:id', verifyToken, checkRole(['Admin', 'SuperAdmin']), injectBranchFilter, invalidateResource('classrooms'), deleteAssignment);
 
 module.exports = router;
