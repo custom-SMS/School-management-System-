@@ -131,7 +131,17 @@ const deleteSubject = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const whereClause = { id, ...(req.branchFilter || {}) };
+    const branchFilter = req.branchFilter || {};
+    const whereClause = Object.keys(branchFilter).length > 0
+      ? {
+          id,
+          OR: [
+            branchFilter,
+            { branchId: null }
+          ]
+        }
+      : { id };
+
     const subject = await prisma.subject.findFirst({
       where: whereClause
     });
@@ -155,9 +165,19 @@ const deleteSubject = async (req, res) => {
 const updateSubject = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, department, gradesOffered = [] } = req.body;
+    const { name, department, gradesOffered = [], branchId: bodyBranchId } = req.body;
 
-    const whereClause = { id, ...(req.branchFilter || {}) };
+    const branchFilter = req.branchFilter || {};
+    const whereClause = Object.keys(branchFilter).length > 0
+      ? {
+          id,
+          OR: [
+            branchFilter,
+            { branchId: null }
+          ]
+        }
+      : { id };
+
     const subject = await prisma.subject.findFirst({
       where: whereClause
     });
@@ -174,7 +194,7 @@ const updateSubject = async (req, res) => {
       const existing = await prisma.subject.findFirst({
         where: {
           name,
-          branchId: subject.branchId,
+          branchId: bodyBranchId !== undefined ? bodyBranchId : subject.branchId,
           id: { not: id }
         }
       });
@@ -185,8 +205,9 @@ const updateSubject = async (req, res) => {
 
     // Check if subject already exists for any of the selected grades within the same branch
     if (normalizedGrades.length > 0) {
+      const targetBranchId = bodyBranchId !== undefined ? bodyBranchId : subject.branchId;
       const allSubjects = await prisma.subject.findMany({
-        where: { branchId: subject.branchId, id: { not: id } }
+        where: { branchId: targetBranchId, id: { not: id } }
       });
       for (const grade of normalizedGrades) {
         const duplicateForGrade = allSubjects.find(s =>
@@ -206,7 +227,8 @@ const updateSubject = async (req, res) => {
       data: {
         name: name !== undefined ? name : subject.name,
         department: department !== undefined ? department : subject.department,
-        gradesOffered: gradesOffered !== undefined ? normalizedGrades : subject.gradesOffered
+        gradesOffered: gradesOffered !== undefined ? normalizedGrades : subject.gradesOffered,
+        branchId: bodyBranchId !== undefined ? bodyBranchId : subject.branchId
       }
     });
 

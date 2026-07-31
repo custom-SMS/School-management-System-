@@ -3,8 +3,12 @@ import axios from '../api/axios';
 import { toast } from 'react-toastify';
 import AdminLayout from '../components/AdminLayout';
 import { showConfirmDialog } from '../utils/sweetAlert';
+import { useAuth } from '../hooks/useAuth';
 
 export default function Academics() {
+  const { isSuper, isSchoolAdmin, activeBranchId } = useAuth();
+  const canSelectBranch = isSuper || isSchoolAdmin;
+
   const [subjects, setSubjects] = useState([]);
   const [classes, setClasses] = useState([]);
   const [teachers, setTeachers] = useState([]);
@@ -237,7 +241,9 @@ if (!result) return;
     setSubjectName('');
     setSubjectDept('');
     setSelectedGrades([]);
-    if (branches.length > 0 && !selectedBranchId) {
+    if (!canSelectBranch && activeBranchId) {
+      setSelectedBranchId(activeBranchId);
+    } else if (branches.length > 0 && !selectedBranchId) {
       setSelectedBranchId(branches[0].id);
     }
     setShowModal(true);
@@ -250,6 +256,8 @@ if (!result) return;
     setSelectedGrades(subject.gradesOffered || []);
     if (subject.branchId) {
       setSelectedBranchId(subject.branchId);
+    } else if (!canSelectBranch && activeBranchId) {
+      setSelectedBranchId(activeBranchId);
     }
     setModalMode('subject');
     setShowModal(true);
@@ -285,7 +293,7 @@ if (!result) return;
 
             {modalMode === 'subject' && (
               <form onSubmit={handleCreateSubject} className="space-y-4">
-                {branches.length > 1 && (
+                {canSelectBranch && branches.length > 1 && (
                   <div>
                     <label className="mb-1 block text-sm font-semibold text-gray-700">Target Branch</label>
                     <select
@@ -516,7 +524,7 @@ if (!result) return;
             </span>
           </div>
 
-          {branches.length > 1 && (
+          {canSelectBranch && branches.length > 1 && (
             <div className="flex items-center gap-2">
               <label className="text-xs font-semibold text-gray-500">Filter Branch:</label>
               <select

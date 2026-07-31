@@ -90,16 +90,59 @@ const getAssignmentOptions = async (req, res) => {
       ...mappedUnassignedClasses
     ];
 
-    const unassignedClassSubjects = await prisma.classSubject.findMany({
+    // Dynamically calculate unassigned class subjects (classes & offered subjects missing a teacher assignment)
+    const activeSubjectAssignments = await prisma.teacherAssignment.findMany({
       where: {
-        teacherId: null,
+        assignmentType: 'SubjectTeacher',
         class: { ...(req.branchFilter || {}) }
       },
-      include: {
-        class: { select: { id: true, name: true, stream: true } },
-        subject: { select: { id: true, name: true, department: true, gradesOffered: true } }
-      }
+      select: { classId: true, subjectId: true }
     });
+
+    const assignedSet = new Set(
+      activeSubjectAssignments.map(a => `${a.classId}_${a.subjectId}`)
+    );
+
+    const assignedClassSubjects = await prisma.classSubject.findMany({
+      where: {
+        teacherId: { not: null },
+        class: { ...(req.branchFilter || {}) }
+      },
+      select: { classId: true, subjectId: true }
+    });
+    assignedClassSubjects.forEach(cs => assignedSet.add(`${cs.classId}_${cs.subjectId}`));
+
+    const normalizeGradeString = (str) => {
+      const match = String(str || '').match(/\d+/);
+      return match ? `Grade ${match[0]}` : String(str || '').trim();
+    };
+
+    const dynamicUnassignedClassSubjects = [];
+
+    for (const cls of classes) {
+      const clsGradeNormalized = normalizeGradeString(cls.name);
+
+      for (const subj of subjects) {
+        const key = `${cls.id}_${subj.id}`;
+        if (assignedSet.has(key)) continue;
+
+        const grades = Array.isArray(subj.gradesOffered) ? subj.gradesOffered : [];
+        const isOfferedForGrade = grades.length === 0 || grades.some(g => {
+          const normG = normalizeGradeString(g);
+          return normG === clsGradeNormalized || cls.name.toLowerCase().includes(String(g).toLowerCase());
+        });
+
+        if (isOfferedForGrade) {
+          dynamicUnassignedClassSubjects.push({
+            id: key,
+            classId: cls.id,
+            subjectId: subj.id,
+            class: { id: cls.id, name: cls.name, stream: cls.stream },
+            subject: { id: subj.id, name: subj.name, department: subj.department, gradesOffered: subj.gradesOffered }
+          });
+        }
+      }
+    }
 
     res.json({
       teachers: mappedTeachers,
@@ -108,7 +151,7 @@ const getAssignmentOptions = async (req, res) => {
       subjects,
       sections: mappedSections,
       unassignedSections: mergedUnassignedHomerooms,
-      unassignedClassSubjects
+      unassignedClassSubjects: dynamicUnassignedClassSubjects
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
