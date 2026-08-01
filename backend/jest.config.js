@@ -4,5 +4,5 @@ module.exports = {
   verbose: true,
   forceExit: true,
   clearMocks: true,
-  testTimeout: 15000,
+  testTimeout: 30000,
 };

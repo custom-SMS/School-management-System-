@@ -20,6 +20,7 @@ const {
 const { verifyToken, verifyTokenOptional, checkRole, checkPermission, injectBranchFilter } = require('../middleware/authMiddleware');
 const { sensitiveLimiter } = require('../middleware/rateLimiter');
 const { globalCacheMiddleware } = require('../middleware/globalCacheMiddleware');
+const { invalidateResource } = require('../middleware/cacheMiddleware');
 /**
  * @swagger
  * tags:
@@ -197,8 +198,8 @@ router.get('/classes', verifyToken, checkPermission('student_registration'), inj
  */
 router.get('/:id', verifyToken, checkPermission('student_registration'),injectBranchFilter,
 globalCacheMiddleware, getStudents);
-router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, updateStudent);
-router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, sensitiveLimiter, deleteStudent);
+router.put('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, invalidateResource('students'), sensitiveLimiter, updateStudent);
+router.delete('/:id', verifyToken, checkPermission('student_registration'), injectBranchFilter, invalidateResource('students'), sensitiveLimiter, deleteStudent);
 
 // Promotion & Status routes
 /**

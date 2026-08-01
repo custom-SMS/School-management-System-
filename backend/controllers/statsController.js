@@ -33,7 +33,10 @@ const compareClassLabels = (left, right) => {
 // @access  Private (Admin)
 const getAdminStats = async (req, res) => {
   try {
-    const bf = req.branchFilter || {};
+    const targetBranchId = req.branchFilter?.branchId || 
+      (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null) ||
+      (req.headers['x-branch-id'] && req.headers['x-branch-id'] !== 'all' ? req.headers['x-branch-id'] : null);
+    const bf = targetBranchId ? { branchId: targetBranchId } : {};
 
     // Resolve the year this request is scoped to (honours historical view header).
     // For SuperAdmin historical view this will be the selected past year;
@@ -181,6 +184,21 @@ const getAdminStats = async (req, res) => {
     });
 
     const feeSummaryMap = new Map();
+    // Pre-populate with all grades present in the branch so every grade is visible
+    (studentsByClass || []).forEach((c) => {
+      const className = normalizeClassLabel(c.className);
+      if (className && !feeSummaryMap.has(className)) {
+        feeSummaryMap.set(className, {
+          className,
+          totalAmount: 0,
+          paidAmount: 0,
+          pendingAmount: 0,
+          paidCount: 0,
+          pendingCount: 0,
+        });
+      }
+    });
+
     let totalPendingRevenue = 0;
 
     feeRecords.forEach((fee) => {

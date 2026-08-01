@@ -108,9 +108,12 @@ const getDefaulters = async (req, res) => {
   try {
     const { month } = req.params;
 
+    const targetBranchId = req.branchFilter?.branchId || (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null);
+    const branchWhere = targetBranchId ? { branchId: targetBranchId } : {};
+
     // Find all students
     const allStudents = await prisma.student.findMany({
-      where: { ...(req.branchFilter || {}) },
+      where: branchWhere,
       include: {
         user: {
           select: { id: true, name: true, email: true }
@@ -288,11 +291,14 @@ const createFeeStructure = async (req, res) => {
 const getFeeStructures = async (req, res) => {
   try {
     const academicYearId = req.selectedAcademicYear?.id || req.activeYear?.id;
-    const { branchId } = req.query;
+    const targetBranchId = req.branchFilter?.branchId || (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null);
     
     const where = academicYearId ? { academicYearId } : {};
-    if (branchId) {
-      where.branchId = branchId;
+    if (targetBranchId) {
+      where.OR = [
+        { branchId: targetBranchId },
+        { branchId: null }
+      ];
     }
     
     const structures = await prisma.feeStructure.findMany({
@@ -300,7 +306,22 @@ const getFeeStructures = async (req, res) => {
       orderBy: { grade: 'asc' }
     });
     // Map tuitionFee to amount for the frontend
-    const mapped = structures.map(s => ({ ...s, amount: s.tuitionFee }));
+    let mapped = structures.map(s => ({ ...s, amount: s.tuitionFee }));
+
+    // If scoped to a specific branch, deduplicate grades (branch-specific overrides global)
+    if (targetBranchId) {
+      const gradeMap = new Map();
+      // First pass: add global fee structures
+      mapped.filter(s => !s.branchId).forEach(s => {
+        gradeMap.set(normalizeGradeKey(s.grade), s);
+      });
+      // Second pass: override with branch-specific fee structures
+      mapped.filter(s => s.branchId === targetBranchId).forEach(s => {
+        gradeMap.set(normalizeGradeKey(s.grade), s);
+      });
+      mapped = Array.from(gradeMap.values());
+    }
+
     res.status(200).json(mapped);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -337,20 +358,33 @@ const generateMonthlyFees = async (req, res) => {
       where: { isActive: true }
     });
 
-    // Filter fee structures by branch if specified
+    // Filter fee structures by branch if specified (include global fee structures as fallback)
     const feeStructureWhere = { academicYearId: activeYear?.id };
-    if (branchId) {
-      feeStructureWhere.branchId = branchId;
+    if (branchId && branchId !== 'all') {
+      feeStructureWhere.OR = [
+        { branchId },
+        { branchId: null }
+      ];
     }
 
     const feeStructures = await prisma.feeStructure.findMany({
       where: feeStructureWhere
     });
-    const feeByGrade = new Map(feeStructures.map((fs) => [normalizeGradeKey(fs.grade), fs.tuitionFee]));
+
+    // Build map prioritizing branch-specific fee structure over global fee structure
+    const feeByGrade = new Map();
+    // First set global fees
+    feeStructures.filter(fs => !fs.branchId).forEach(fs => {
+      feeByGrade.set(normalizeGradeKey(fs.grade), fs.tuitionFee);
+    });
+    // Override with branch-specific fees if present
+    feeStructures.filter(fs => fs.branchId === branchId).forEach(fs => {
+      feeByGrade.set(normalizeGradeKey(fs.grade), fs.tuitionFee);
+    });
 
     // Fetch students - filter by branch if branchId is specified
     const studentWhere = { ...(req.branchFilter || {}) };
-    if (branchId) {
+    if (branchId && branchId !== 'all') {
       studentWhere.branchId = branchId;
     }
 
@@ -696,8 +730,9 @@ const getOutstandingFees = async (req, res) => {
         : {}),
     };
 
-    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
-      where.student = { ...(where.student || {}), ...req.branchFilter };
+    const targetBranchId = req.branchFilter?.branchId || (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null);
+    if (targetBranchId) {
+      where.student = { ...(where.student || {}), branchId: targetBranchId };
     }
 
     if (q) {
@@ -844,8 +879,9 @@ const getCashierPayments = async (req, res) => {
 
     const where = {};
 
-    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
-      where.fee = { student: { ...req.branchFilter } };
+    const targetBranchId = req.branchFilter?.branchId || (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null);
+    if (targetBranchId) {
+      where.fee = { student: { branchId: targetBranchId } };
     }
 
     if (status && ['Pending', 'Verified', 'Rejected'].includes(status)) {

@@ -176,7 +176,7 @@ router.delete('/structures/:id', verifyToken, checkRole(['SuperAdmin']), sensiti
  *       200:
  *         description: List of fee structures
  */
-router.get('/structures', verifyToken, setCacheResource('fees'), globalCacheMiddleware, getFeeStructures);
+router.get('/structures', verifyToken, injectBranchFilter, setCacheResource('fees'), globalCacheMiddleware, getFeeStructures);
 
 // Generate monthly tuition invoices
 

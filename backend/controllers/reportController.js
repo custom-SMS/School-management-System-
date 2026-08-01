@@ -267,8 +267,12 @@ const getEnrollmentReport = async (req, res) => {
 const getFinancialReport = async (req, res) => {
   try {
     const where = {};
-    if (req.branchFilter && Object.keys(req.branchFilter).length > 0) {
-      where.student = { ...(req.branchFilter || {}) };
+    const targetBranchId = req.branchFilter?.branchId || 
+      (req.query.branchId && req.query.branchId !== 'all' ? req.query.branchId : null) ||
+      (req.headers['x-branch-id'] && req.headers['x-branch-id'] !== 'all' ? req.headers['x-branch-id'] : null);
+      
+    if (targetBranchId) {
+      where.student = { branchId: targetBranchId };
     }
     if (req.academicYearFilter && Object.keys(req.academicYearFilter).length > 0) {
       Object.assign(where, req.academicYearFilter);

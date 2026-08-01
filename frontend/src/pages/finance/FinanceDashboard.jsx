@@ -56,8 +56,8 @@ export default function FinanceDashboard() {
   const activeYear = stats?.activeYear?.year || null;
   const periodLabel = activeYear ? `Academic Year ${activeYear}` : 'All Time';
 
-  const revenueByGrade = (stats?.feeSummaryByClass ?? []).filter((g) => Number(g.paidAmount) > 0);
-  const maxGradeRevenue = Math.max(1, ...revenueByGrade.map((g) => Number(g.paidAmount || 0)));
+  const revenueByGrade = stats?.feeSummaryByClass ?? [];
+  const maxGradeRevenue = Math.max(1, ...revenueByGrade.map((g) => Math.max(Number(g.paidAmount || 0), Number(g.pendingAmount || 0))));
 
   return (
     <CashierLayout searchPlaceholder="Search students, receipts...">

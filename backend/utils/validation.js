@@ -112,11 +112,13 @@ const updateStudentSchema = z.object({
   email: emailSchema.optional(),
   grade: gradeSchema.optional(),
   stream: z.string().max(50).optional(),
+  classId: z.string().uuid().optional(),
   branchId: z.string().uuid().optional(),
   levelId: z.string().uuid().optional(),
   personalDetails: z.any().optional(),
   familyBackground: z.any().optional(),
   guardianContacts: z.any().optional(),
+  guardians: z.array(z.any()).optional(),
 });
 
 // Parent schemas
