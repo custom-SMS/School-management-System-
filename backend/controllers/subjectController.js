@@ -95,14 +95,14 @@ const createSubject = async (req, res) => {
 // Get all subjects
 const getSubjects = async (req, res) => {
   try {
-    const { branchId: queryBranchId } = req.query;
+    const { branchId: queryBranchId, page, limit, search } = req.query;
     let branchFilter = req.branchFilter || {};
 
     if (queryBranchId) {
       branchFilter = { branchId: queryBranchId };
     }
 
-    const whereClause = Object.keys(branchFilter).length > 0
+    const baseWhere = Object.keys(branchFilter).length > 0
       ? {
           OR: [
             branchFilter,
@@ -110,6 +110,55 @@ const getSubjects = async (req, res) => {
           ]
         }
       : {};
+
+    let whereClause = baseWhere;
+
+    if (search && search.trim()) {
+      const searchTerms = search.trim();
+      const searchCondition = {
+        OR: [
+          { name: { contains: searchTerms, mode: 'insensitive' } },
+          { department: { contains: searchTerms, mode: 'insensitive' } }
+        ]
+      };
+      if (Object.keys(baseWhere).length > 0) {
+        whereClause = {
+          AND: [
+            baseWhere,
+            searchCondition
+          ]
+        };
+      } else {
+        whereClause = searchCondition;
+      }
+    }
+
+    if (page || limit) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.max(1, parseInt(limit, 10) || 10);
+      const skip = (pageNum - 1) * limitNum;
+
+      const [subjects, total] = await Promise.all([
+        prisma.subject.findMany({
+          where: whereClause,
+          include: {
+            branch: { select: { id: true, name: true, code: true } }
+          },
+          orderBy: { name: 'asc' },
+          skip,
+          take: limitNum
+        }),
+        prisma.subject.count({ where: whereClause })
+      ]);
+
+      return res.status(200).json({
+        subjects,
+        total,
+        page: pageNum,
+        totalPages: Math.ceil(total / limitNum) || 1,
+        limit: limitNum
+      });
+    }
 
     const subjects = await prisma.subject.findMany({
       where: whereClause,

@@ -44,6 +44,16 @@ export default function Academics() {
   const [showModal, setShowModal] = useState(false);
   const [modalMode, setModalMode] = useState('subject');
 
+  // Subject list search & pagination
+  const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+  const [subjectCurrentPage, setSubjectCurrentPage] = useState(1);
+  const [subjectPageSize, setSubjectPageSize] = useState(6);
+
+  // Grade-assigned subjects filtering & pagination
+  const [selectedGradeFilter, setSelectedGradeFilter] = useState('All');
+  const [gradeSubjectPage, setGradeSubjectPage] = useState(1);
+  const [gradeSubjectPageSize, setGradeSubjectPageSize] = useState(6);
+
   const displayedSubjects = useMemo(() => {
     if (!filterBranchId) return subjects;
     return subjects.filter((s) => s.branchId === filterBranchId || s.branchId === null);
@@ -53,7 +63,8 @@ export default function Academics() {
     setLoadingSubjects(true);
     try {
       const res = await axios.get('/subjects');
-      setSubjects(res.data || []);
+      const data = Array.isArray(res.data) ? res.data : (res.data?.subjects || []);
+      setSubjects(data);
     } catch (err) {
       console.error(err);
     } finally {
@@ -64,7 +75,7 @@ export default function Academics() {
   const fetchClasses = async () => {
     setLoadingClasses(true);
     try {
-      const res = await axios.get('/classroom/classes');
+      const res = await axios.get('/classroom/classes?lean=true');
       setClasses(res.data || []);
     } catch (err) {
       console.error(err);
@@ -225,14 +236,69 @@ if (!result) return;
   const mandatoryCount = displayedSubjects.filter((s) => !s.isElective).length;
   const electiveCount = displayedSubjects.filter((s) => s.isElective).length;
 
+  // Filter subjects for All Subjects tab
+  const filteredSubjects = useMemo(() => {
+    if (!subjectSearchQuery.trim()) return displayedSubjects;
+    const query = subjectSearchQuery.toLowerCase().trim();
+    return displayedSubjects.filter(
+      (s) =>
+        s.name?.toLowerCase().includes(query) ||
+        s.department?.toLowerCase().includes(query) ||
+        s.gradesOffered?.some((g) => g.toLowerCase().includes(query)) ||
+        s.branch?.name?.toLowerCase().includes(query)
+    );
+  }, [displayedSubjects, subjectSearchQuery]);
+
+  const totalSubjectPages = Math.ceil(filteredSubjects.length / subjectPageSize) || 1;
+  const safeSubjectPage = Math.min(subjectCurrentPage, totalSubjectPages);
+  const subjectStartIndex = (safeSubjectPage - 1) * subjectPageSize;
+  const subjectEndIndex = Math.min(subjectStartIndex + subjectPageSize, filteredSubjects.length);
+  const paginatedSubjects = useMemo(() => {
+    return filteredSubjects.slice(subjectStartIndex, subjectEndIndex);
+  }, [filteredSubjects, subjectStartIndex, subjectEndIndex]);
+
   // Group subjects by grade
-  const subjectsByGrade = displayedSubjects.reduce((acc, subject) => {
-    (subject.gradesOffered || []).forEach((grade) => {
-      if (!acc[grade]) acc[grade] = [];
-      acc[grade].push(subject);
+  const subjectsByGrade = useMemo(() => {
+    return displayedSubjects.reduce((acc, subject) => {
+      (subject.gradesOffered || []).forEach((grade) => {
+        if (!acc[grade]) acc[grade] = [];
+        acc[grade].push(subject);
+      });
+      return acc;
+    }, {});
+  }, [displayedSubjects]);
+
+  const allGradeKeys = useMemo(() => {
+    return Object.keys(subjectsByGrade).sort((a, b) => {
+      const aNum = Number(a.match(/\d+/)?.[0] || 0);
+      const bNum = Number(b.match(/\d+/)?.[0] || 0);
+      if (aNum !== bNum) return aNum - bNum;
+      return a.localeCompare(b);
     });
-    return acc;
-  }, {});
+  }, [subjectsByGrade]);
+
+  const filteredSubjectsByGrade = useMemo(() => {
+    const entries = Object.entries(subjectsByGrade);
+    if (selectedGradeFilter !== 'All') {
+      return entries.filter(([grade]) => grade === selectedGradeFilter);
+    }
+    return entries;
+  }, [subjectsByGrade, selectedGradeFilter]);
+
+  const totalGradeEntries = filteredSubjectsByGrade.length;
+  const totalGradePages = Math.ceil(totalGradeEntries / gradeSubjectPageSize) || 1;
+  const safeGradePage = Math.min(gradeSubjectPage, totalGradePages);
+  const gradeStartIndex = (safeGradePage - 1) * gradeSubjectPageSize;
+  const gradeEndIndex = Math.min(gradeStartIndex + gradeSubjectPageSize, totalGradeEntries);
+  const paginatedGradeEntries = useMemo(() => {
+    return filteredSubjectsByGrade
+      .sort((a, b) => {
+        const aNum = Number(a[0].match(/\d+/)?.[0] || 0);
+        const bNum = Number(b[0].match(/\d+/)?.[0] || 0);
+        return aNum - bNum;
+      })
+      .slice(gradeStartIndex, gradeEndIndex);
+  }, [filteredSubjectsByGrade, gradeStartIndex, gradeEndIndex]);
 
   // Subjects without grades assigned
   const unassignedSubjects = displayedSubjects.filter((s) => !s.gradesOffered || s.gradesOffered.length === 0);
@@ -519,137 +585,303 @@ if (!result) return;
             <div className="h-6 w-1 rounded-full bg-black"></div>
             <h3 className="text-xl font-bold text-gray-900">All Subjects</h3>
             <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
-              {displayedSubjects.length} Total
+              {filteredSubjects.length} {filteredSubjects.length === 1 ? 'Subject' : 'Subjects'}
             </span>
           </div>
 
-          {canSelectBranch && branches.length > 1 && (
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-gray-500">Filter Branch:</label>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Input */}
+            <div className="relative min-w-[200px]">
+              <input
+                type="text"
+                placeholder="Search subject or dept…"
+                value={subjectSearchQuery}
+                onChange={(e) => {
+                  setSubjectSearchQuery(e.target.value);
+                  setSubjectCurrentPage(1);
+                }}
+                className="w-full rounded-lg border border-gray-300 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-black focus:ring-1 focus:ring-black"
+              />
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                🔍
+              </span>
+              {subjectSearchQuery && (
+                <button
+                  onClick={() => {
+                    setSubjectSearchQuery('');
+                    setSubjectCurrentPage(1);
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-400 hover:text-gray-700"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
+
+            {/* Page Size Selector */}
+            <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500">
+              <span>Show:</span>
               <select
-                value={filterBranchId}
-                onChange={(e) => setFilterBranchId(e.target.value)}
+                value={subjectPageSize}
+                onChange={(e) => {
+                  setSubjectPageSize(Number(e.target.value));
+                  setSubjectCurrentPage(1);
+                }}
+                className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs outline-none focus:border-black"
+              >
+                <option value={6}>6</option>
+                <option value={12}>12</option>
+                <option value={24}>24</option>
+                <option value={48}>48</option>
+              </select>
+            </div>
+
+            {canSelectBranch && branches.length > 1 && (
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-gray-500">Filter Branch:</label>
+                <select
+                  value={filterBranchId}
+                  onChange={(e) => {
+                    setFilterBranchId(e.target.value);
+                    setSubjectCurrentPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold focus:border-black focus:outline-none bg-white"
+                >
+                  <option value="">All Branches</option>
+                  {branches.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name} ({b.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {paginatedSubjects.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-gray-200 bg-white py-12 text-center text-sm text-gray-400">
+            {subjectSearchQuery ? `No subjects found matching "${subjectSearchQuery}".` : 'No subjects available.'}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {paginatedSubjects.map((s) => (
+              <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition">
+                <div className="mb-3 flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-gray-900">{s.name}</span>
+                      {s.branch ? (
+                        <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
+                          {s.branch.name}
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold text-gray-500">
+                          Global
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+                    {s.gradesOffered && s.gradesOffered.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {s.gradesOffered.map((grade) => (
+                          <span key={grade} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
+                            {grade}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600 transition">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
+                    </svg>
+                  </button>
+                  <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600 transition">
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Pagination Bar for All Subjects */}
+        {filteredSubjects.length > 0 && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs font-medium text-gray-500">
+            <div>
+              Showing <span className="font-bold text-gray-900">{subjectStartIndex + 1}</span> to{' '}
+              <span className="font-bold text-gray-900">{subjectEndIndex}</span> of{' '}
+              <span className="font-bold text-gray-900">{filteredSubjects.length}</span> subjects
+            </div>
+
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSubjectCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={safeSubjectPage === 1}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+              >
+                Previous
+              </button>
+
+              <span className="px-2 font-bold text-gray-800">
+                Page {safeSubjectPage} of {totalSubjectPages}
+              </span>
+
+              <button
+                onClick={() => setSubjectCurrentPage((p) => Math.min(p + 1, totalSubjectPages))}
+                disabled={safeSubjectPage === totalSubjectPages}
+                className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Assigned Subjects by Grade */}
+      {Object.keys(subjectsByGrade).length > 0 && (
+        <div className="mb-8">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1 rounded-full bg-black"></div>
+              <h3 className="text-xl font-bold text-gray-900">Assigned Subjects by Grade</h3>
+            </div>
+
+            {/* Grade Filter Tabs */}
+            <div className="flex flex-wrap items-center gap-2">
+              <label className="text-xs font-semibold text-gray-500">Filter Grade:</label>
+              <select
+                value={selectedGradeFilter}
+                onChange={(e) => {
+                  setSelectedGradeFilter(e.target.value);
+                  setGradeSubjectPage(1);
+                }}
                 className="rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-semibold focus:border-black focus:outline-none bg-white"
               >
-                <option value="">All Branches</option>
-                {branches.map((b) => (
-                  <option key={b.id} value={b.id}>
-                    {b.name} ({b.code})
+                <option value="All">All Grades</option>
+                {allGradeKeys.map((grade) => (
+                  <option key={grade} value={grade}>
+                    {grade}
                   </option>
                 ))}
               </select>
-            </div>
-          )}
-        </div>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {displayedSubjects.map((s) => (
-            <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-              <div className="mb-3 flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-gray-900">{s.name}</span>
-                    {s.branch ? (
-                      <span className="rounded-full bg-purple-50 px-2.5 py-0.5 text-[10px] font-bold text-purple-700">
-                        {s.branch.name}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-[10px] font-bold text-gray-500">
-                        Global
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-xs text-gray-500">{s.department || 'General'}</div>
-                  {s.gradesOffered && s.gradesOffered.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {s.gradesOffered.map((grade) => (
-                        <span key={grade} className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold text-blue-600">
-                          {grade}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              {/* Page Size Selector for Grade-Assigned Subjects */}
+              <div className="flex items-center gap-1 text-xs font-medium text-gray-500 ml-2">
+                <span>Show:</span>
+                <select
+                  value={gradeSubjectPageSize}
+                  onChange={(e) => {
+                    setGradeSubjectPageSize(Number(e.target.value));
+                    setGradeSubjectPage(1);
+                  }}
+                  className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs outline-none focus:border-black"
+                >
+                  <option value={3}>3 Grades</option>
+                  <option value={6}>6 Grades</option>
+                  <option value={12}>12 Grades</option>
+                </select>
               </div>
+            </div>
+          </div>
 
-              <div className="flex justify-end gap-3">
-                <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                    />
-                  </svg>
-                </button>
-                <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth="2"
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
+          {paginatedGradeEntries.map(([grade, gradeSubjects]) => (
+            <div key={grade} className="mb-6 rounded-xl border border-gray-100 bg-gray-50/50 p-4">
+              <div className="mb-3 flex items-center gap-3">
+                <div className="h-5 w-1 rounded-full bg-blue-600"></div>
+                <h4 className="text-lg font-bold text-gray-900">{grade}</h4>
+                <span className="rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-bold text-blue-700">
+                  {gradeSubjects.length} {gradeSubjects.length === 1 ? 'Subject' : 'Subjects'}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {gradeSubjects.map((s) => (
+                  <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm hover:shadow-md transition">
+                    <div className="mb-3 flex items-start justify-between">
+                      <div>
+                        <div className="font-bold text-gray-900">{s.name}</div>
+                        <div className="text-xs text-gray-500">{s.department || 'General'}</div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                      <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                          />
+                        </svg>
+                      </button>
+                      <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600 transition">
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           ))}
+
+          {/* Pagination Bar for Assigned Subjects by Grade */}
+          {totalGradeEntries > 0 && (
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs font-medium text-gray-500">
+              <div>
+                Showing <span className="font-bold text-gray-900">{gradeStartIndex + 1}</span> to{' '}
+                <span className="font-bold text-gray-900">{gradeEndIndex}</span> of{' '}
+                <span className="font-bold text-gray-900">{totalGradeEntries}</span> grade sections
+              </div>
+
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setGradeSubjectPage((p) => Math.max(p - 1, 1))}
+                  disabled={safeGradePage === 1}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                >
+                  Previous
+                </button>
+
+                <span className="px-2 font-bold text-gray-800">
+                  Page {safeGradePage} of {totalGradePages}
+                </span>
+
+                <button
+                  onClick={() => setGradeSubjectPage((p) => Math.min(p + 1, totalGradePages))}
+                  disabled={safeGradePage === totalGradePages}
+                  className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-
-      {Object.keys(subjectsByGrade).length > 0 && (
-        Object.entries(subjectsByGrade).sort((a, b) => {
-          const aNum = Number(a[0].match(/\d+/)?.[0] || 0);
-          const bNum = Number(b[0].match(/\d+/)?.[0] || 0);
-          return aNum - bNum;
-        }).map(([grade, gradeSubjects]) => (
-          <div key={grade} className="mb-8">
-            <div className="mb-4 flex items-center gap-3">
-              <div className="h-6 w-1 rounded-full bg-black"></div>
-              <h3 className="text-xl font-bold text-gray-900">{grade}</h3>
-              <span className="rounded-full bg-gray-100 px-3 py-0.5 text-xs font-bold text-gray-600">
-                {gradeSubjects.length} Subjects
-              </span>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
-              {gradeSubjects.map((s) => (
-                <div key={s.id} className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-                  <div className="mb-3 flex items-start justify-between">
-                    <div>
-                      <div className="font-bold text-gray-900">{s.name}</div>
-                      <div className="text-xs text-gray-500">{s.department || 'General'}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-end gap-3">
-                    <button onClick={() => openEditSubjectModal(s)} className="text-gray-400 hover:text-blue-600">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                        />
-                      </svg>
-                    </button>
-                    <button onClick={() => handleDeleteSubject(s.id, s.name)} className="text-gray-400 hover:text-red-600">
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="2"
-                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))
       )}
 
       {Object.entries(groupedByGrade).length > 0 && (

@@ -17,6 +17,14 @@ export default function Assignments() {
   const [loadingAssignments, setLoadingAssignments] = useState(true);
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [deletingId, setDeletingId] = useState(null);
+  const [unassignedHomeroomsSearch, setUnassignedHomeroomsSearch] = useState('');
+  const [unassignedHomeroomsPage, setUnassignedHomeroomsPage] = useState(1);
+  const [unassignedHomeroomsPageSize, setUnassignedHomeroomsPageSize] = useState(8);
+
+  const [unassignedSubjectsSearch, setUnassignedSubjectsSearch] = useState('');
+  const [unassignedSubjectsPage, setUnassignedSubjectsPage] = useState(1);
+  const [unassignedSubjectsPageSize, setUnassignedSubjectsPageSize] = useState(8);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -572,45 +580,139 @@ export default function Assignments() {
               <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
                 🎉 Great news! All class sections have a Homeroom Teacher assigned.
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-amber-50/50 text-xs uppercase tracking-wider text-amber-900">
-                      <th className="px-4 py-3 font-semibold">Class Name</th>
-                      <th className="px-4 py-3 font-semibold">Section</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 text-right font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {unassignedSections.map((sec) => (
-                      <tr key={sec._id || sec.id} className="hover:bg-amber-50/30 transition">
-                        <td className="px-4 py-3.5 font-bold text-gray-900">
-                          {sec.class?.name || '—'} {sec.class?.stream ? `(${sec.class.stream})` : ''}
-                        </td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-700">
-                          {sec.name || 'Default Section'}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
-                            Unassigned Homeroom
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            onClick={() => handleQuickAssignHomeroom(sec)}
-                            className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
-                          >
-                            Assign Teacher
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : (() => {
+              const filteredHomerooms = unassignedSections.filter((sec) => {
+                if (!unassignedHomeroomsSearch.trim()) return true;
+                const query = unassignedHomeroomsSearch.toLowerCase().trim();
+                const className = (sec.class?.name || '').toLowerCase();
+                const stream = (sec.class?.stream || '').toLowerCase();
+                const sectionName = (sec.name || '').toLowerCase();
+                return className.includes(query) || stream.includes(query) || sectionName.includes(query);
+              });
+
+              const totalPages = Math.ceil(filteredHomerooms.length / unassignedHomeroomsPageSize) || 1;
+              const safePage = Math.min(unassignedHomeroomsPage, totalPages);
+              const startIndex = (safePage - 1) * unassignedHomeroomsPageSize;
+              const endIndex = Math.min(startIndex + unassignedHomeroomsPageSize, filteredHomerooms.length);
+              const paginatedHomerooms = filteredHomerooms.slice(startIndex, endIndex);
+
+              return (
+                <>
+                  {/* Search and Filters Bar */}
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-100 bg-amber-50/30 p-3">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="Search class or section…"
+                        value={unassignedHomeroomsSearch}
+                        onChange={(e) => {
+                          setUnassignedHomeroomsSearch(e.target.value);
+                          setUnassignedHomeroomsPage(1);
+                        }}
+                        className="w-full rounded-lg border border-amber-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-amber-500"
+                      />
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                        🔍
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs font-medium text-amber-900">
+                      <span>Show:</span>
+                      <select
+                        value={unassignedHomeroomsPageSize}
+                        onChange={(e) => {
+                          setUnassignedHomeroomsPageSize(Number(e.target.value));
+                          setUnassignedHomeroomsPage(1);
+                        }}
+                        className="rounded-lg border border-amber-200 bg-white px-2 py-1 outline-none text-xs"
+                      >
+                        <option value={5}>5</option>
+                        <option value={8}>8</option>
+                        <option value={15}>15</option>
+                        <option value={25}>25</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {paginatedHomerooms.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-amber-200 py-12 text-center text-sm text-gray-400">
+                      No unassigned homerooms match your search filter.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-amber-50/50 text-xs uppercase tracking-wider text-amber-900">
+                            <th className="px-4 py-3 font-semibold">Class Name</th>
+                            <th className="px-4 py-3 font-semibold">Section</th>
+                            <th className="px-4 py-3 font-semibold">Status</th>
+                            <th className="px-4 py-3 text-right font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {paginatedHomerooms.map((sec) => (
+                            <tr key={sec._id || sec.id} className="hover:bg-amber-50/30 transition">
+                              <td className="px-4 py-3.5 font-bold text-gray-900">
+                                {sec.class?.name || '—'} {sec.class?.stream ? `(${sec.class.stream})` : ''}
+                              </td>
+                              <td className="px-4 py-3.5 font-semibold text-gray-700">
+                                {sec.name || 'Default Section'}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-bold text-amber-800">
+                                  Unassigned Homeroom
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <button
+                                  onClick={() => handleQuickAssignHomeroom(sec)}
+                                  className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
+                                >
+                                  Assign Teacher
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Pagination Bar */}
+                  {filteredHomerooms.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs font-medium text-gray-500">
+                      <div>
+                        Showing <span className="font-bold text-gray-900">{startIndex + 1}</span> to{' '}
+                        <span className="font-bold text-gray-900">{endIndex}</span> of{' '}
+                        <span className="font-bold text-gray-900">{filteredHomerooms.length}</span> unassigned homerooms
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setUnassignedHomeroomsPage((p) => Math.max(p - 1, 1))}
+                          disabled={safePage === 1}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                        >
+                          Previous
+                        </button>
+
+                        <span className="px-2 font-bold text-gray-800">
+                          Page {safePage} of {totalPages}
+                        </span>
+
+                        <button
+                          onClick={() => setUnassignedHomeroomsPage((p) => Math.min(p + 1, totalPages))}
+                          disabled={safePage === totalPages}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
 
@@ -627,45 +729,140 @@ export default function Assignments() {
               <div className="rounded-lg border border-dashed border-green-200 bg-green-50/50 py-12 text-center text-sm font-semibold text-green-700">
                 🎉 Great news! All class subjects have a Subject Teacher assigned.
               </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-rose-50/50 text-xs uppercase tracking-wider text-rose-900">
-                      <th className="px-4 py-3 font-semibold">Class Name</th>
-                      <th className="px-4 py-3 font-semibold">Subject</th>
-                      <th className="px-4 py-3 font-semibold">Status</th>
-                      <th className="px-4 py-3 text-right font-semibold">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {unassignedClassSubjects.map((cs) => (
-                      <tr key={cs.id || `${cs.classId}_${cs.subjectId}`} className="hover:bg-rose-50/30 transition">
-                        <td className="px-4 py-3.5 font-bold text-gray-900">
-                          {cs.class?.name || '—'} {cs.class?.stream ? `(${cs.class.stream})` : ''}
-                        </td>
-                        <td className="px-4 py-3.5 font-semibold text-gray-700">
-                          {cs.subject?.name || '—'} {cs.subject?.code ? `(${cs.subject.code})` : ''}
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
-                            Unassigned Subject
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5 text-right">
-                          <button
-                            onClick={() => handleQuickAssignSubject(cs)}
-                            className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
-                          >
-                            Assign Teacher
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            ) : (() => {
+              const filteredUnassignedSubjects = unassignedClassSubjects.filter((cs) => {
+                if (!unassignedSubjectsSearch.trim()) return true;
+                const query = unassignedSubjectsSearch.toLowerCase().trim();
+                const className = (cs.class?.name || '').toLowerCase();
+                const stream = (cs.class?.stream || '').toLowerCase();
+                const subjectName = (cs.subject?.name || '').toLowerCase();
+                const subjectCode = (cs.subject?.code || '').toLowerCase();
+                return className.includes(query) || stream.includes(query) || subjectName.includes(query) || subjectCode.includes(query);
+              });
+
+              const totalPages = Math.ceil(filteredUnassignedSubjects.length / unassignedSubjectsPageSize) || 1;
+              const safePage = Math.min(unassignedSubjectsPage, totalPages);
+              const startIndex = (safePage - 1) * unassignedSubjectsPageSize;
+              const endIndex = Math.min(startIndex + unassignedSubjectsPageSize, filteredUnassignedSubjects.length);
+              const paginatedUnassignedSubjects = filteredUnassignedSubjects.slice(startIndex, endIndex);
+
+              return (
+                <>
+                  {/* Search and Filters Bar */}
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-rose-100 bg-rose-50/30 p-3">
+                    <div className="relative flex-1 min-w-[200px]">
+                      <input
+                        type="text"
+                        placeholder="Search class or subject…"
+                        value={unassignedSubjectsSearch}
+                        onChange={(e) => {
+                          setUnassignedSubjectsSearch(e.target.value);
+                          setUnassignedSubjectsPage(1);
+                        }}
+                        className="w-full rounded-lg border border-rose-200 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-rose-500"
+                      />
+                      <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                        🔍
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-xs font-medium text-rose-900">
+                      <span>Show:</span>
+                      <select
+                        value={unassignedSubjectsPageSize}
+                        onChange={(e) => {
+                          setUnassignedSubjectsPageSize(Number(e.target.value));
+                          setUnassignedSubjectsPage(1);
+                        }}
+                        className="rounded-lg border border-rose-200 bg-white px-2 py-1 outline-none text-xs"
+                      >
+                        <option value={5}>5</option>
+                        <option value={8}>8</option>
+                        <option value={15}>15</option>
+                        <option value={25}>25</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {paginatedUnassignedSubjects.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-rose-200 py-12 text-center text-sm text-gray-400">
+                      No unassigned subjects match your search filter.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-200 bg-rose-50/50 text-xs uppercase tracking-wider text-rose-900">
+                            <th className="px-4 py-3 font-semibold">Class Name</th>
+                            <th className="px-4 py-3 font-semibold">Subject</th>
+                            <th className="px-4 py-3 font-semibold">Status</th>
+                            <th className="px-4 py-3 text-right font-semibold">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {paginatedUnassignedSubjects.map((cs) => (
+                            <tr key={cs.id || `${cs.classId}_${cs.subjectId}`} className="hover:bg-rose-50/30 transition">
+                              <td className="px-4 py-3.5 font-bold text-gray-900">
+                                {cs.class?.name || '—'} {cs.class?.stream ? `(${cs.class.stream})` : ''}
+                              </td>
+                              <td className="px-4 py-3.5 font-semibold text-gray-700">
+                                {cs.subject?.name || '—'} {cs.subject?.code ? `(${cs.subject.code})` : ''}
+                              </td>
+                              <td className="px-4 py-3.5">
+                                <span className="inline-flex rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-bold text-rose-800">
+                                  Unassigned Subject
+                                </span>
+                              </td>
+                              <td className="px-4 py-3.5 text-right">
+                                <button
+                                  onClick={() => handleQuickAssignSubject(cs)}
+                                  className="rounded-lg bg-black px-3 py-1.5 text-xs font-bold text-white transition hover:bg-gray-800"
+                                >
+                                  Assign Teacher
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
+                  {/* Pagination Bar */}
+                  {filteredUnassignedSubjects.length > 0 && (
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-100 pt-4 text-xs font-medium text-gray-500">
+                      <div>
+                        Showing <span className="font-bold text-gray-900">{startIndex + 1}</span> to{' '}
+                        <span className="font-bold text-gray-900">{endIndex}</span> of{' '}
+                        <span className="font-bold text-gray-900">{filteredUnassignedSubjects.length}</span> unassigned subjects
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => setUnassignedSubjectsPage((p) => Math.max(p - 1, 1))}
+                          disabled={safePage === 1}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                        >
+                          Previous
+                        </button>
+
+                        <span className="px-2 font-bold text-gray-800">
+                          Page {safePage} of {totalPages}
+                        </span>
+
+                        <button
+                          onClick={() => setUnassignedSubjectsPage((p) => Math.min(p + 1, totalPages))}
+                          disabled={safePage === totalPages}
+                          className="rounded-lg border border-gray-200 px-3 py-1.5 hover:bg-gray-50 disabled:opacity-40 font-semibold transition"
+                        >
+                          Next
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

@@ -1559,6 +1559,23 @@ const getClasses = async (req, res) => {
     const targetYear = await getSelectedYear(req);
     const targetYearId = targetYear?.id;
 
+    // ── Lean mode ────────────────────────────────────────────────────────────
+    // When ?lean=true, skip the expensive per-class resolveClassHomeroomTeacherId
+    // queries (N×3 extra DB calls) and return only the fields needed for dropdowns
+    // and simple listings: id, _id, name, stream, academicYearId.
+    if (req.query.lean === 'true') {
+      const branchFilterClause = {
+        ...(req.branchFilter || {}),
+        ...(targetYearId ? { academicYearId: targetYearId } : {}),
+      };
+      const classes = await prisma.class.findMany({
+        where: branchFilterClause,
+        select: { id: true, name: true, stream: true, academicYearId: true },
+        orderBy: { name: 'asc' },
+      });
+      return res.status(200).json(classes.map((c) => ({ ...c, _id: c.id })));
+    }
+
     if (!shouldBypassCache(req)) {
       const cacheKey = classesKey(req.branchFilter || {}, targetYearId);
       const cached = await getCachedJson(cacheKey);

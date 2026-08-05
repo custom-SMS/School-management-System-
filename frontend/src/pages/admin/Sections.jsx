@@ -72,7 +72,7 @@ export default function Sections() {
 
   useEffect(() => {
 
-    axios.get('/classroom/classes')
+    axios.get('/classroom/classes?lean=true')
 
       .then((res) => setClasses(res.data || []))
 
@@ -252,7 +252,7 @@ export default function Sections() {
 
 
 
-      await axios.post('/classroom/sections', {
+      const res = await axios.post('/classroom/sections', {
 
         name: sectionToCreate,
 
@@ -262,13 +262,24 @@ export default function Sections() {
 
 
 
+      // ── Optimistic update ──────────────────────────────────────────────────
+      // Immediately append the new section from the server response so the
+      // table updates without waiting for a second GET request.
+      const newSection = res.data || { id: Date.now().toString(), name: sectionToCreate, createdAt: new Date().toISOString() };
+      setSections((prev) => {
+        const updated = [...prev, newSection];
+        setNextSuggestedSection(getNextSectionLetter(updated));
+        return updated;
+      });
+
       toast.success(`Section "${sectionToCreate}" created.`);
 
       setSectionName('');
 
       setShowModal(false);
 
-      await fetchSections(selectedClassId);
+      // Background sync to pull any server-side fields (id, timestamps, etc.)
+      fetchSections(selectedClassId);
 
     } catch (err) {
 
@@ -436,9 +447,18 @@ export default function Sections() {
 
       await axios.delete(`/classroom/sections/detail/${sectionId}`);
 
+      // ── Optimistic update ──────────────────────────────────────────────────
+      // Remove the deleted section from local state immediately.
+      setSections((prev) => {
+        const updated = prev.filter((s) => s.id !== sectionId);
+        setNextSuggestedSection(getNextSectionLetter(updated));
+        return updated;
+      });
+
       toast.success('Section deleted successfully.');
 
-      await fetchSections(selectedClassId);
+      // Background sync
+      fetchSections(selectedClassId);
 
     } catch (err) {
 

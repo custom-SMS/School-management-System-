@@ -214,7 +214,7 @@ describe('Concurrency Tests', () => {
       // At least one registration should succeed (proves the endpoint works)
       expect(successCount).toBeGreaterThanOrEqual(1);
       // Should complete in reasonable time regardless
-      expect(totalTime).toBeLessThan(30000); // Under 30 seconds
-    }, 30000);
+      expect(totalTime).toBeLessThan(60000); // Under 60 seconds (registration involves DB writes + email per student)
+    }, 60000); // Increased from 30s — concurrent registrations include async email sending
   });
 });
