@@ -708,7 +708,7 @@ export default function ReportCards() {
                       {rc.student?.user?.name || '—'}
                       <div className="text-xs font-normal text-slate-400">{rc.student?.studentId}</div>
                     </td>
-                    <td className="px-4 py-3 text-center font-bold">{rc.averageScore}%</td>
+                    <td className="px-4 py-3 text-center font-bold">{rc.averageScore != null ? `${rc.averageScore}%` : 'Incomplete'}</td>
                     <td className="px-4 py-3 text-center">{rc.rank ? `${rc.rank}/${classCards.length}` : '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <div>{rc.attendancePercentage}%</div>
@@ -915,7 +915,7 @@ export default function ReportCards() {
               {/* KPI strip */}
               <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
                 {[
-                  { label: 'Average', value: `${Math.round(card.averageScore)}%` },
+                  { label: 'Average', value: card.averageScore != null ? `${Math.round(card.averageScore)}%` : 'Incomplete' },
                   { label: 'Rank', value: card.rank ? `${card.rank}/${getStudentClassSize(card)}` : '—' },
                   { label: 'Attendance', value: `${Math.round(card.attendancePercentage)}%` },
                   { label: 'Result', value: card.status || 'Pending' },

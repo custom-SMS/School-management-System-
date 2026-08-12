@@ -230,7 +230,7 @@ export default function HomeroomReportCards() {
               <div className="grid grid-cols-2 gap-3 px-5 py-4 sm:grid-cols-4">
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Avg Score</div>
-                  <div className="mt-1 text-lg font-black text-slate-900">{rc.averageScore}%</div>
+                  <div className="mt-1 text-lg font-black text-slate-900">{rc.averageScore != null ? `${rc.averageScore}%` : 'Incomplete'}</div>
                 </div>
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Attendance</div>
@@ -241,7 +241,7 @@ export default function HomeroomReportCards() {
                 </div>
                 <div>
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Status</div>
-                  <div className={`mt-1 text-sm font-bold ${rc.status === 'Pass' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                  <div className={`mt-1 text-sm font-bold ${rc.status === 'Pass' ? 'text-emerald-700' : rc.status === 'Incomplete' ? 'text-amber-600' : 'text-rose-600'}`}>
                     {rc.status}
                   </div>
                 </div>

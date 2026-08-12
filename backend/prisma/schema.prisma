@@ -660,7 +660,7 @@ model ReportCard {
   attendanceAbsent     Int          @default(0)
   attendanceLate       Int          @default(0)
   attendanceTotal      Int          @default(0)
-  averageScore         Float
+  averageScore         Float?
   combinedAverage      Float?       // Semester 2 only: (sem1 + sem2) / 2
   rank                 Int?
   status               String       @default("Pending")
@@ -692,7 +692,7 @@ model ReportCardHistory {
   reportCardId    String
   reportCard      ReportCard @relation(fields: [reportCardId], references: [id], onDelete: Cascade)
   version         Int
-  averageScore    Float
+  averageScore    Float?
   rank            Int?
   status          String
   conductGrade    String?

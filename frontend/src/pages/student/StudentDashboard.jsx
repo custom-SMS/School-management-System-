@@ -57,12 +57,12 @@ export default function StudentDashboard() {
   const grades = stats?.grades || [];
   const attendanceRate = stats?.attendanceRate ?? 0;
 
-  const allComplete = subjects.length > 0 && subjects.every((s) => s.latestPercentage != null && s.assessmentsCount === 4);
+  const allComplete = subjects.length > 0 && subjects.every((s) => s.latestPercentage != null && Number.isFinite(Number(s.latestPercentage)));
   const avgPct = allComplete
     ? subjects.reduce((sum, s) => sum + Number(s.latestPercentage), 0) / subjects.length
     : null;
   const gpa = avgPct != null ? (avgPct / 100 * 4).toFixed(2) : null;
-  const passStatus = avgPct != null ? (avgPct >= gradingSettings.passMark ? t('pass') : t('fail')) : null;
+  const passStatus = avgPct != null ? (avgPct >= gradingSettings.passMark ? t('pass') : t('fail')) : 'Incomplete';
 
   const todayName = dayNames[new Date().getDay()] || 'Monday';
   const todaySlots = timetable.filter((s) => s.dayOfWeek === todayName).sort((a, b) => String(a.startTime).localeCompare(String(b.startTime)));

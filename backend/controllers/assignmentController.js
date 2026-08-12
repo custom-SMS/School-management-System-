@@ -524,8 +524,22 @@ const getMyAssignments = async (req, res) => {
     const responseAssignments = assignments.map(assignment => {
       const cls = assignment.class;
       let students = [];
+      let formattedSections = [];
 
       if (cls) {
+        // Map student to section metadata
+        const studentToSection = new Map();
+        (cls.sections || []).forEach(section => {
+          (section.enrollments || []).forEach(e => {
+            if (e.student) {
+              studentToSection.set(e.student.id, {
+                sectionId: section.id,
+                sectionName: section.name
+              });
+            }
+          });
+        });
+
         // Prefer students from section enrollments; fall back to direct M2M
         const enrolledStudents = (cls.sections || [])
           .flatMap(section => (section.enrollments || []).map(e => e.student).filter(Boolean));
@@ -536,12 +550,23 @@ const getMyAssignments = async (req, res) => {
         const seen = new Set();
         students = source
           .filter(s => s && !seen.has(s.id) && seen.add(s.id))
-          .map(student => ({
-            ...student,
-            _id: student.id,
-            user: student.user ? { ...student.user, _id: student.user.id } : null,
-            guardians: student.guardians || []
-          }));
+          .map(student => {
+            const sec = studentToSection.get(student.id);
+            return {
+              ...student,
+              _id: student.id,
+              sectionId: sec?.sectionId || student.sectionId || null,
+              sectionName: sec?.sectionName || student.sectionName || null,
+              user: student.user ? { ...student.user, _id: student.user.id } : null,
+              guardians: student.guardians || []
+            };
+          });
+
+        formattedSections = (cls.sections || []).map(s => ({
+          _id: s.id,
+          id: s.id,
+          name: s.name
+        }));
       }
 
       return {
@@ -552,6 +577,7 @@ const getMyAssignments = async (req, res) => {
           ...cls,
           _id: cls.id,
           subject: assignment.subject?.name || cls.subject || 'General',
+          sections: formattedSections,
           students
         } : null
       };

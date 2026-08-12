@@ -6,7 +6,9 @@ import { useParentChildren } from '../../hooks/useParentChildren';
 export default function ParentAcademics() {
   const { children, childId, setChildId, selectedChild, loading, error } = useParentChildren();
   const grades = selectedChild?.grades || [];
-  const avg = grades.length ? (grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(1) : '0.0';
+  const assignedCount = selectedChild?.assignedSubjectsCount || selectedChild?.subjects?.length || grades.length;
+  const allComplete = grades.length > 0 && grades.length >= assignedCount && grades.every(g => g.percentage != null && Number.isFinite(Number(g.percentage)));
+  const avg = allComplete ? (grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(1) : 'Incomplete';
   const name = selectedChild?.profile?.user?.name || 'Child';
 
   return (
@@ -28,7 +30,7 @@ export default function ParentAcademics() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-xs font-semibold uppercase text-slate-400">Average Score</div>
-              <div className="mt-1 text-3xl font-black text-slate-900">{avg}%</div>
+              <div className="mt-1 text-3xl font-black text-slate-900">{avg}{avg !== 'Incomplete' ? '%' : ''}</div>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="text-xs font-semibold uppercase text-slate-400">Subjects Graded</div>

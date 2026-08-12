@@ -1849,27 +1849,6 @@ const getStudentHistory = async (req, res) => {
     const history = await Promise.all(enrollments.map(async (enrollment) => {
       const yearId = enrollment.academicYearId;
 
-      // Grades for this year
-      const grades = await prisma.grade.findMany({
-        where: { studentId: id, academicYearId: yearId },
-        select: { percentage: true, subject: true, semesterId: true }
-      });
-      const avgScore = grades.length
-        ? Number((grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length).toFixed(2))
-        : null;
-
-      // Attendance for this year
-      const attendanceRecords = await prisma.attendanceRecord.findMany({
-        where: {
-          studentId: id,
-          attendance: { academicYearId: yearId }
-        },
-        select: { status: true }
-      });
-      const totalAtt = attendanceRecords.length;
-      const presentAtt = attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
-      const attendanceRate = totalAtt ? Number(((presentAtt / totalAtt) * 100).toFixed(2)) : null;
-
       // Report cards for this year
       const reportCards = await prisma.reportCard.findMany({
         where: { studentId: id, academicYearId: yearId },
@@ -1883,6 +1862,21 @@ const getStudentHistory = async (req, res) => {
           promotionStatus: true
         }
       });
+
+      const publishedCompleteCard = reportCards.find(rc => rc.averageScore != null && rc.status !== 'Incomplete');
+      const avgScore = publishedCompleteCard ? publishedCompleteCard.averageScore : null;
+
+      // Attendance for this year
+      const attendanceRecords = await prisma.attendanceRecord.findMany({
+        where: {
+          studentId: id,
+          attendance: { academicYearId: yearId }
+        },
+        select: { status: true }
+      });
+      const totalAtt = attendanceRecords.length;
+      const presentAtt = attendanceRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
+      const attendanceRate = totalAtt ? Number(((presentAtt / totalAtt) * 100).toFixed(2)) : null;
 
       return {
         academicYear: enrollment.academicYear,

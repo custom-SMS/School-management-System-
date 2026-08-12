@@ -26,7 +26,7 @@ export function printReportCard({
   const sem1Comment = reportCardData?.reportCard?.semester1Comment || rc?.semester1Comment || rc?.teacherComments || '';
   const sem2Comment = reportCardData?.reportCard?.semester2Comment || rc?.semester2Comment || rc?.homeroomRemarks || '';
   const overallComment = reportCardData?.reportCard?.overallComment || rc?.overallComment || '';
-  const conductGrade = reportCardData?.reportCard?.conductGrade || rc?.conductGrade || 'A';
+  const conductGrade = reportCardData?.reportCard?.conductGrade || rc?.conductGrade || '—';
   const promotionStatus = reportCardData?.reportCard?.promotionStatus || rc?.promotionStatus || 'Pending';
   const promotedTo = reportCardData?.reportCard?.promotedToGrade || rc?.promotedToGrade || rc?.promotedToClass?.name || '__________';
 
@@ -71,9 +71,13 @@ export function printReportCard({
       }).join('')
     : `<tr><td colspan="4" style="padding:16px;text-align:center;color:#94a3b8;font-style:italic;">No subject scores available</td></tr>`;
 
-  const overallSem1Display = sem1OverallAvg !== null ? `${sem1OverallAvg}%` : '—';
-  const overallSem2Display = sem2OverallAvg !== null ? `${sem2OverallAvg}%` : '—';
-  const overallAnnualDisplay = annualOverallAvg !== null ? `${annualOverallAvg}%` : '—';
+  const sem1Status = reportCardData?.summary?.sem1Status || (sem1OverallAvg !== null ? 'Pass' : 'Incomplete');
+  const sem2Status = reportCardData?.summary?.sem2Status || (sem2OverallAvg !== null ? 'Pass' : 'Incomplete');
+  const annualStatus = reportCardData?.summary?.annualStatus || (annualOverallAvg !== null ? 'Pass' : 'Incomplete');
+
+  const overallSem1Display = sem1OverallAvg !== null ? `${sem1OverallAvg}%` : (sem1Status === 'Incomplete' ? 'Incomplete' : '—');
+  const overallSem2Display = sem2OverallAvg !== null ? `${sem2OverallAvg}%` : (sem2Status === 'Incomplete' ? 'Incomplete' : '—');
+  const overallAnnualDisplay = annualOverallAvg !== null ? `${annualOverallAvg}%` : (annualStatus === 'Incomplete' ? 'Incomplete' : '—');
 
   const logoHtml = logoUrl
     ? `<img src="${logoUrl}" style="height:60px;width:60px;object-fit:contain;border-radius:50%;" />`
@@ -278,6 +282,7 @@ export function printReportCard({
     font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
+  }
 </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script>

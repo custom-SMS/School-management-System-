@@ -19,6 +19,7 @@ export default function Gradebook() {
   const [classes, setClasses] = useState([]);
 
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState('all');
 
   const [rows, setRows] = useState([]);
   const [markErrors, setMarkErrors] = useState({});
@@ -34,8 +35,6 @@ export default function Gradebook() {
     { name: 'Midterm', weight: 30 }, { name: 'Final', weight: 40 },
   ] });
 
-
-
   const components = useMemo(() =>
     gradingConfig.components.map(c => ({ field: c.name, label: c.name, weight: c.weight })),
     [gradingConfig]
@@ -46,9 +45,26 @@ export default function Gradebook() {
     [components],
   );
 
-
-
   const selectedClass = useMemo(() => classes.find((k) => k._id === selectedClassId) || null, [classes, selectedClassId]);
+
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return [];
+    if (selectedClass.sections && selectedClass.sections.length > 0) {
+      return selectedClass.sections;
+    }
+    const secMap = new Map();
+    (selectedClass.students || []).forEach((s) => {
+      if (s.sectionId && s.sectionName) {
+        secMap.set(s.sectionId, { _id: s.sectionId, id: s.sectionId, name: s.sectionName });
+      }
+    });
+    return Array.from(secMap.values());
+  }, [selectedClass]);
+
+  const displayRows = useMemo(() => {
+    if (selectedSectionId === 'all') return rows;
+    return rows.filter((r) => r.student.sectionId === selectedSectionId || r.student.sectionName === selectedSectionId);
+  }, [rows, selectedSectionId]);
 
 
 
@@ -344,7 +360,7 @@ export default function Gradebook() {
 
           <label className="text-xs font-semibold uppercase text-slate-400">Class</label>
 
-          <select value={selectedClassId} onChange={(e) => setSelectedClassId(e.target.value)} className="mt-1 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">
+          <select value={selectedClassId} onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSectionId('all'); }} className="mt-1 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none">
 
             <option value="">Select class</option>
 
@@ -353,6 +369,22 @@ export default function Gradebook() {
           </select>
 
         </div>
+
+        {availableSections.length > 0 && (
+          <div>
+            <label className="text-xs font-semibold uppercase text-slate-400">Section</label>
+            <select
+              value={selectedSectionId}
+              onChange={(e) => setSelectedSectionId(e.target.value)}
+              className="mt-1 block rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 outline-none"
+            >
+              <option value="all">All Sections</option>
+              {availableSections.map((sec) => (
+                <option key={sec._id || sec.id} value={sec._id || sec.id}>{sec.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
 
@@ -410,13 +442,13 @@ export default function Gradebook() {
 
                   <tr><td colSpan={components.length + 2} className="py-10 text-center text-sm font-semibold text-rose-500">Failed to load gradebook data.</td></tr>
 
-                ) : rows.length === 0 ? (
+                ) : displayRows.length === 0 ? (
 
-                  <tr><td colSpan={components.length + 2} className="py-10 text-center text-slate-400">Select a class to load its roster.</td></tr>
+                  <tr><td colSpan={components.length + 2} className="py-10 text-center text-slate-400">{rows.length === 0 ? 'Select a class to load its roster.' : 'No students in this section.'}</td></tr>
 
                 ) : (
 
-                  rows.map((row) => {
+                  displayRows.map((row) => {
 
                     const total = calcTotal(row.marks);
 

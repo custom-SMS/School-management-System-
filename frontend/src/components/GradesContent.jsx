@@ -65,6 +65,7 @@ export default function GradesContent({ canEdit = false }) {
   // ── class list view ──────────────────────────────────────────────────────
   const [classes, setClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState('all');
   const [classRows, setClassRows] = useState([]);
   const [loadingClasses, setLoadingClasses] = useState(false);
   const [loadingClassGrades, setLoadingClassGrades] = useState(false);
@@ -78,6 +79,20 @@ export default function GradesContent({ canEdit = false }) {
     () => classes.find((c) => c._id === selectedClassId) || null,
     [classes, selectedClassId],
   );
+
+  const availableSections = useMemo(() => {
+    if (!selectedClass) return [];
+    if (selectedClass.sections && selectedClass.sections.length > 0) {
+      return selectedClass.sections;
+    }
+    const secMap = new Map();
+    (selectedClass.students || []).forEach((s) => {
+      if (s.sectionId && s.sectionName) {
+        secMap.set(s.sectionId, { _id: s.sectionId, id: s.sectionId, name: s.sectionName });
+      }
+    });
+    return Array.from(secMap.values());
+  }, [selectedClass]);
 
   const user = useAppSelector((state) => state.auth.user);
 
@@ -221,13 +236,17 @@ export default function GradesContent({ canEdit = false }) {
   }, [selectedClass]);
 
   const filteredClassRows = useMemo(() => {
+    let list = classRows;
+    if (selectedSectionId !== 'all') {
+      list = list.filter((r) => r.student.sectionId === selectedSectionId || r.student.sectionName === selectedSectionId);
+    }
     const q = classSearch.trim().toLowerCase();
-    if (!q) return classRows;
-    return classRows.filter((r) =>
+    if (!q) return list;
+    return list.filter((r) =>
       (r.student.user?.name || '').toLowerCase().includes(q) ||
       (r.student.studentId || '').toLowerCase().includes(q),
     );
-  }, [classRows, classSearch]);
+  }, [classRows, selectedSectionId, classSearch]);
 
   const startEditRow = (row) => {
     setEditingRowId(row.student._id);
@@ -524,7 +543,7 @@ export default function GradesContent({ canEdit = false }) {
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Class</label>
           <select
             value={selectedClassId}
-            onChange={(e) => { setSelectedClassId(e.target.value); setClassSearch(''); }}
+            onChange={(e) => { setSelectedClassId(e.target.value); setSelectedSectionId('all'); setClassSearch(''); }}
             disabled={loadingClasses}
             className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
           >
@@ -534,6 +553,21 @@ export default function GradesContent({ canEdit = false }) {
             ))}
           </select>
         </div>
+        {availableSections.length > 0 && (
+          <div>
+            <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Section</label>
+            <select
+              value={selectedSectionId}
+              onChange={(e) => setSelectedSectionId(e.target.value)}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:ring-4 focus:ring-slate-900/5"
+            >
+              <option value="all">All Sections</option>
+              {availableSections.map((sec) => (
+                <option key={sec._id || sec.id} value={sec._id || sec.id}>{sec.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Search</label>
           <input

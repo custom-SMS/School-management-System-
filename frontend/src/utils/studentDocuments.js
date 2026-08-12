@@ -32,11 +32,13 @@ const csvCell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
 
 export const buildAcademicSummary = (stats, gradingSettings = { gpaEnabled: false, passMark: 50 }) => {
   const grades = stats?.grades || [];
-  const average = grades.length
+  const assignedCount = stats?.assignedSubjectsCount || stats?.subjects?.length || grades.length;
+  const allComplete = grades.length > 0 && grades.length >= assignedCount && grades.every(g => g.percentage != null && Number.isFinite(Number(g.percentage)));
+  const average = allComplete
     ? grades.reduce((sum, grade) => sum + Number(grade.percentage || 0), 0) / grades.length
-    : 0;
-  const gpa = (average / 100 * 4).toFixed(2);
-  const passStatus = average >= gradingSettings.passMark ? 'Pass' : 'Fail';
+    : null;
+  const gpa = average != null ? (average / 100 * 4).toFixed(2) : '—';
+  const passStatus = average != null ? (average >= gradingSettings.passMark ? 'Pass' : 'Fail') : 'Incomplete';
 
   return {
     studentName: stats?.profile?.user?.name || 'Student',
@@ -64,7 +66,7 @@ export const downloadTranscriptCsv = (stats, gradingSettings = { gpaEnabled: fal
   }
   
   rows.push(
-    ['Average Score', `${summary.average.toFixed(2)}%`],
+    ['Average Score', summary.average != null ? `${summary.average.toFixed(2)}%` : 'Incomplete'],
     ['Status', summary.passStatus],
     ['Pass Mark', `${gradingSettings.passMark}%`],
     [],
@@ -100,7 +102,7 @@ export const downloadStudentReportPdf = (stats, gradingSettings = { gpaEnabled: 
   }
   
   lines.push(
-    `Average Score: ${summary.average.toFixed(2)}%`,
+    `Average Score: ${summary.average != null ? `${summary.average.toFixed(2)}%` : 'Incomplete'}`,
     `Status: ${summary.passStatus}`,
     `Pass Mark: ${gradingSettings.passMark}%`,
     `Attendance Rate: ${summary.attendanceRate}%`,

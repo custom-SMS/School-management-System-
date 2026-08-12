@@ -55,18 +55,16 @@ export default function StudentAcademics() {
 
   const avgPct = (() => {
     if (subjects.length) {
-      const vals = subjects
-        .map((s) => s.latestPercentage)
-        .filter((p) => p != null && Number.isFinite(Number(p)));
-      return vals.length ? vals.reduce((sum, v) => sum + Number(v), 0) / vals.length : null;
+      const allGraded = subjects.every((s) => s.latestPercentage != null && Number.isFinite(Number(s.latestPercentage)));
+      if (!allGraded) return null;
+      const total = subjects.reduce((sum, s) => sum + Number(s.latestPercentage), 0);
+      return total / subjects.length;
     }
-    const vals = grades.map((g) => {
-      const raw = g.percentage;
-      if (raw == null || (typeof raw === 'string' && String(raw).trim() === '')) return NaN;
-      const n = Number(raw);
-      return Number.isFinite(n) ? n : NaN;
-    }).filter((n) => !Number.isNaN(n));
-    return vals.length ? vals.reduce((s, v) => s + v, 0) / vals.length : null;
+    if (!grades.length) return null;
+    const allGraded = grades.every((g) => g.percentage != null && Number.isFinite(Number(g.percentage)));
+    if (!allGraded) return null;
+    const total = grades.reduce((sum, g) => sum + Number(g.percentage), 0);
+    return total / grades.length;
   })();
 
   const subjectList = subjects.length
@@ -164,7 +162,7 @@ export default function StudentAcademics() {
               {/* Top cards */}
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-1">
                 <div className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
-                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-white/80 text-2xl font-black">{avgPct != null ? Math.round(avgPct) + '%' : '—'}</div>
+                  <div className="mx-auto flex h-24 w-24 items-center justify-center rounded-full border-8 border-white/80 text-xl font-black">{avgPct != null ? Math.round(avgPct) + '%' : 'Incomplete'}</div>
                   <div className="mt-3 text-center text-lg font-bold">{t('targetGoal')}</div>
                   <div className="text-center text-xs text-slate-400">{t('termPerformanceAvg')}</div>
                 </div>

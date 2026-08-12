@@ -20,9 +20,11 @@ export default function ParentDashboard() {
   const fees = selectedChild?.fees || [];
   const attendance = selectedChild?.attendance || [];
 
-  const avgGrade = grades.length ? Math.round(grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length) : 0;
-  const gpa = (avgGrade / 100 * 4).toFixed(2);
-  const passStatus = avgGrade >= gradingSettings.passMark ? 'Pass' : 'Fail';
+  const assignedCount = selectedChild?.assignedSubjectsCount || selectedChild?.subjects?.length || grades.length;
+  const allComplete = grades.length > 0 && grades.length >= assignedCount && grades.every(g => g.percentage != null && Number.isFinite(Number(g.percentage)));
+  const avgGrade = allComplete ? Math.round(grades.reduce((s, g) => s + Number(g.percentage || 0), 0) / grades.length) : null;
+  const gpa = avgGrade != null ? (avgGrade / 100 * 4).toFixed(2) : null;
+  const passStatus = avgGrade != null ? (avgGrade >= gradingSettings.passMark ? 'Pass' : 'Fail') : 'Incomplete';
   const present = attendance.filter((a) => a.status === 'Present').length;
   const attendanceRate = attendance.length ? Math.round((present / attendance.length) * 100) : 0;
   const balance = fees.filter((f) => !f.paid && f.latestPayment?.status !== 'Pending').reduce((s, f) => s + Number(f.amount || 0), 0);
@@ -73,15 +75,15 @@ export default function ParentDashboard() {
                   </span>
                 </div>
                 <div className="text-3xl font-extrabold text-[#203e4f]">
-                  {gradingSettings.gpaEnabled ? gpa : `${avgGrade}%`}
+                  {avgGrade != null ? (gradingSettings.gpaEnabled ? gpa : `${avgGrade}%`) : 'Incomplete'}
                 </div>
                 {!gradingSettings.gpaEnabled && (
-                  <div className={`mt-1 text-xs font-bold ${passStatus === 'Pass' ? 'text-[#2d7a64]' : 'text-[#c53929]'}`}>
-                    {t('passStatus')}: {passStatus === 'Pass' ? t('pass') : t('fail')}
+                  <div className={`mt-1 text-xs font-bold ${passStatus === 'Pass' ? 'text-[#2d7a64]' : passStatus === 'Incomplete' ? 'text-[#63889b]' : 'text-[#c53929]'}`}>
+                    {t('passStatus')}: {passStatus === 'Pass' ? t('pass') : passStatus === 'Incomplete' ? 'Incomplete' : t('fail')}
                   </div>
                 )}
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#edf3f6]">
-                  <div className="h-full rounded-full bg-[#3b6b82]" style={{ width: `${avgGrade}%` }} />
+                  <div className="h-full rounded-full bg-[#3b6b82]" style={{ width: `${avgGrade || 0}%` }} />
                 </div>
               </div>
 

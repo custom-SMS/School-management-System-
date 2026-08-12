@@ -32,6 +32,106 @@ const resolveActiveSemesterId = async () => {
   return active?.id || null;
 };
 
+/**
+ * Helper function to determine assigned subjects and grade completeness for a list of enrollments.
+ * Returns a map: studentId -> { totalAssignedCount, isComplete, totalSum, studentGrades }
+ */
+const resolveStudentGradeCompleteness = async (academicYearId, semesterId, studentIds, enrollments) => {
+  const classIds = [...new Set(enrollments.map(e => e.section?.classId || e.classId).filter(Boolean))];
+  const gradeLevels = [...new Set(enrollments.map(e => e.grade).filter(Boolean))];
+
+  const classSubjects = classIds.length > 0 ? await prisma.classSubject.findMany({
+    where: { classId: { in: classIds } },
+    include: { subject: { select: { id: true, name: true } } }
+  }) : [];
+
+  const classSubjectMap = new Map();
+  classSubjects.forEach(cs => {
+    if (!cs.classId || !cs.subject) return;
+    const list = classSubjectMap.get(cs.classId) || [];
+    list.push(cs.subject.name);
+    classSubjectMap.set(cs.classId, list);
+  });
+
+  const allSubjects = await prisma.subject.findMany({
+    select: { id: true, name: true, gradesOffered: true }
+  });
+
+  const gradeSubjectMap = new Map();
+  gradeLevels.forEach(gLevel => {
+    const cleanG = String(gLevel).replace(/^Grade\s+/i, '').trim();
+    const subjs = allSubjects.filter(s => {
+      const offered = s.gradesOffered || [];
+      return offered.includes(gLevel) || offered.includes(`Grade ${gLevel}`) || offered.includes(cleanG) || offered.includes(`Grade ${cleanG}`);
+    }).map(s => s.name);
+    gradeSubjectMap.set(gLevel, subjs);
+  });
+
+  const approvedGrades = await prisma.grade.findMany({
+    where: {
+      academicYearId,
+      ...(semesterId ? { semesterId } : {}),
+      studentId: { in: studentIds },
+      submissionStatus: 'ApprovedByHomeroom'
+    },
+    include: {
+      subjectRef: { select: { id: true, name: true } }
+    }
+  });
+
+  const studentGradesMap = new Map();
+  approvedGrades.forEach(g => {
+    const sMap = studentGradesMap.get(g.studentId) || new Map();
+    const subjName = g.subjectRef?.name || g.subject;
+    if (subjName) {
+      sMap.set(subjName.toLowerCase(), Number(g.percentage != null ? g.percentage : 0));
+    }
+    studentGradesMap.set(g.studentId, sMap);
+  });
+
+  const resultMap = new Map();
+  enrollments.forEach(enrollment => {
+    const sid = enrollment.studentId;
+    const classId = enrollment.section?.classId || enrollment.classId;
+    const gradeLevel = enrollment.grade;
+
+    let assignedList = [];
+    if (classId && classSubjectMap.has(classId) && classSubjectMap.get(classId).length > 0) {
+      assignedList = classSubjectMap.get(classId);
+    } else if (gradeLevel && gradeSubjectMap.has(gradeLevel) && gradeSubjectMap.get(gradeLevel).length > 0) {
+      assignedList = gradeSubjectMap.get(gradeLevel);
+    }
+
+    const sGrades = studentGradesMap.get(sid) || new Map();
+    const assignedSet = new Set(assignedList.map(s => s.toLowerCase()));
+    sGrades.forEach((val, key) => assignedSet.add(key));
+
+    const totalAssignedCount = assignedSet.size;
+    let isComplete = false;
+    let totalSum = 0;
+
+    if (totalAssignedCount > 0) {
+      let scoredCount = 0;
+      assignedSet.forEach(subjKey => {
+        if (sGrades.has(subjKey)) {
+          scoredCount++;
+          totalSum += sGrades.get(subjKey);
+        }
+      });
+      isComplete = scoredCount === totalAssignedCount;
+    }
+
+    resultMap.set(sid, {
+      totalAssignedCount,
+      isComplete,
+      totalSum,
+      studentGrades: sGrades
+    });
+  });
+
+  return resultMap;
+};
+
 // ─── Compile ─────────────────────────────────────────────────────────────────
 /**
  * Compile (or re-compile) report cards for all enrolled students.
@@ -74,7 +174,10 @@ const compileReportCards = async (req, res) => {
         academicYearId,
         student: { ...(req.branchFilter || {}) },
       },
-      include: { student: { include: { user: { select: { id: true, name: true } } } } },
+      include: {
+        section: { select: { classId: true } },
+        student: { include: { user: { select: { id: true, name: true } } } }
+      },
     });
     if (!enrollments.length) return res.status(400).json({ message: 'No student enrollments found for this academic year.' });
 
@@ -82,79 +185,15 @@ const compileReportCards = async (req, res) => {
     const gradingSettings = parseSettingValue(gradingSetting?.value, {});
     const passMark = Number(gradingSettings.passMark || 50);
 
-    // Fetch grading structure to get component weights
-    const gradingStructure = await prisma.gradingStructure.findFirst({
-      where: { academicYearId, isActive: true },
-    });
-    console.log('Grading structure found:', gradingStructure);
-    const components = gradingStructure?.components || [
-      { name: 'Quiz', weight: 10 },
-      { name: 'Assignment', weight: 20 },
-      { name: 'Midterm', weight: 30 },
-      { name: 'Final', weight: 40 },
-    ];
-    console.log('Components to use:', components);
-
     const studentIds = enrollments.map((e) => e.studentId);
-    console.log('Student IDs for compilation:', studentIds);
-    console.log('Academic Year ID:', academicYearId, 'Semester ID:', semesterId);
 
-    const [grades, attendanceRecords] = await Promise.all([
-      prisma.grade.findMany({
-        where: { 
-          academicYearId, 
-          semesterId, 
-          studentId: { in: studentIds },
-          // Remove submissionStatus filter to include all grades for compilation
-        },
-        select: { studentId: true, classId: true, percentage: true, componentScores: true, maxTotal: true },
-      }),
+    const [completenessMap, attendanceRecords] = await Promise.all([
+      resolveStudentGradeCompleteness(academicYearId, semesterId, studentIds, enrollments),
       prisma.attendanceRecord.findMany({
         where: { studentId: { in: studentIds }, attendance: { academicYearId } },
         include: { attendance: { select: { classId: true } } },
       }),
     ]);
-
-    console.log('Grades found:', grades.length);
-    console.log('Sample grade data:', grades[0]);
-
-    const gradeSummary = new Map();
-    grades.forEach((g) => {
-      const b = gradeSummary.get(g.studentId) || { total: 0, count: 0, classIds: new Set() };
-      
-      // Calculate percentage from componentScores if available, otherwise use stored percentage
-      let percentage = Number(g.percentage || 0);
-      console.log('Grade for student', g.studentId, ':', { percentage: g.percentage, componentScores: g.componentScores });
-      
-      if (g.componentScores && typeof g.componentScores === 'object') {
-        // Calculate percentage from raw scores in componentScores using actual weights
-        const componentEntries = Object.entries(g.componentScores);
-        console.log('Component entries:', componentEntries);
-        console.log('Grading structure components:', components);
-        
-        if (componentEntries.length > 0) {
-          let weightedTotal = 0;
-          let totalWeight = 0;
-          componentEntries.forEach(([name, rawScore]) => {
-            // Find the weight for this component from the grading structure
-            const componentDef = components.find(c => c.name === name);
-            const weight = componentDef?.weight || 10; // Default fallback
-            const score = Number(rawScore) || 0;
-            const percentageForComponent = (score / weight) * 100;
-            console.log(`Component ${name}: raw=${score}, weight=${weight}, pct=${percentageForComponent}`);
-            weightedTotal += percentageForComponent * (weight / 100);
-            totalWeight += weight;
-          });
-          percentage = totalWeight > 0 ? weightedTotal : 0;
-          console.log('Calculated percentage:', percentage);
-        }
-      }
-      
-      b.total += percentage;
-      b.count += 1;
-      if (g.classId) b.classIds.add(g.classId);
-      gradeSummary.set(g.studentId, b);
-    });
 
     const attSummary = new Map();
     attendanceRecords.forEach((r) => {
@@ -185,35 +224,42 @@ const compileReportCards = async (req, res) => {
 
     const compiledData = enrollments.map((enrollment) => {
       const sid = enrollment.studentId;
-      const gs = gradeSummary.get(sid) || { total: 0, count: 0, classIds: new Set() };
+      const info = completenessMap.get(sid) || { isComplete: false, totalSum: 0, totalAssignedCount: 0 };
       const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
-      const avgScore = gs.count > 0 ? gs.total / gs.count : 0;
       const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
-      const classIds = new Set([...gs.classIds, ...as.classIds]);
+      const classId = enrollment.section?.classId || enrollment.classId;
 
-      // Semester 2: compute combined average from sem1Snapshot + sem2 avg
-      const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
-      const combinedAverage = isSemester2 && sem1Snapshot !== null
-        ? Number(((sem1Snapshot + avgScore) / 2).toFixed(2))
-        : null;
+      let avgScore = null;
+      let status = 'Incomplete';
+      let combinedAverage = null;
+
+      if (info.isComplete && info.totalAssignedCount > 0) {
+        avgScore = Number((info.totalSum / info.totalAssignedCount).toFixed(2));
+        status = avgScore >= passMark ? 'Pass' : 'Fail';
+
+        const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
+        if (isSemester2 && sem1Snapshot !== null) {
+          combinedAverage = Number(((sem1Snapshot + avgScore) / 2).toFixed(2));
+        }
+      }
 
       return {
         studentId: sid,
         gradeLevel: normalizeLabel(enrollment.grade),
-        averageScore: Number(avgScore.toFixed(2)),
+        averageScore: avgScore,
         attendancePercentage: Number(attPct.toFixed(2)),
         attendancePresent: as.present,
         attendanceAbsent: as.absent,
         attendanceLate: as.late,
         attendanceTotal: as.total,
-        status: avgScore >= passMark ? 'Pass' : 'Fail',
-        classKey: Array.from(classIds).sort().join(',') || null,
-        sem1Snapshot,
+        status,
+        classKey: classId || enrollment.grade || null,
+        sem1Snapshot: isSemester2 ? (sem1Cards.get(sid) ?? null) : null,
         combinedAverage,
       };
     });
 
-    // Rank within class or grade
+    // Rank within class or grade (only rank students with complete status)
     const rankGroups = {};
     compiledData.forEach((s) => {
       const key = s.classKey ? `class:${s.classKey}` : `grade:${s.gradeLevel}`;
@@ -221,8 +267,10 @@ const compileReportCards = async (req, res) => {
       rankGroups[key].push(s);
     });
     Object.values(rankGroups).forEach((group) => {
-      group.sort((a, b) => b.averageScore - a.averageScore);
-      group.forEach((s, i) => { s.rank = i + 1; });
+      const completed = group.filter(s => s.status !== 'Incomplete' && s.averageScore !== null);
+      completed.sort((a, b) => b.averageScore - a.averageScore);
+      completed.forEach((s, i) => { s.rank = i + 1; });
+      group.filter(s => s.status === 'Incomplete').forEach(s => { s.rank = null; });
     });
 
     await prisma.$transaction(
@@ -821,24 +869,31 @@ const upsertHomeroomReview = async (req, res) => {
     }
 
     // Calculate real averageScore from approved grades for use on first create
-    const approvedGrades = await prisma.grade.findMany({
-      where: {
-        studentId,
-        academicYearId,
-        ...(semesterId ? { semesterId } : {}),
-        submissionStatus: 'ApprovedByHomeroom',
-      },
-      select: { percentage: true },
-    });
-    const computedAvgScore = approvedGrades.length > 0
-      ? Number((approvedGrades.reduce((s, g) => s + Number(g.percentage || 0), 0) / approvedGrades.length).toFixed(2))
-      : 0;
-    console.log(`[upsertHomeroomReview] studentId=${studentId} academicYearId=${academicYearId} semesterId=${semesterId} approvedGrades.length=${approvedGrades.length} percentages=${JSON.stringify(approvedGrades.map(g=>g.percentage))} computedAvgScore=${computedAvgScore}`);
+    const completenessMap = await resolveStudentGradeCompleteness(
+      academicYearId,
+      semesterId,
+      [studentId],
+      [
+        {
+          studentId,
+          academicYearId,
+          grade: gradeLevel,
+          section: { classId: req.body.classId || null }
+        }
+      ]
+    );
+    const info = completenessMap.get(studentId) || { isComplete: false, totalSum: 0, totalAssignedCount: 0 };
 
     const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' } });
     const gradingSettings = parseSettingValue(gradingSetting?.value, {});
     const passMark = Number(gradingSettings.passMark || 50);
-    const computedStatus = computedAvgScore >= passMark ? 'Pass' : 'Fail';
+
+    let computedAvgScore = null;
+    let computedStatus = 'Incomplete';
+    if (info.isComplete && info.totalAssignedCount > 0) {
+      computedAvgScore = Number((info.totalSum / info.totalAssignedCount).toFixed(2));
+      computedStatus = computedAvgScore >= passMark ? 'Pass' : 'Fail';
+    }
 
     const rc = await prisma.reportCard.upsert({
       where: {
@@ -848,9 +903,9 @@ const upsertHomeroomReview = async (req, res) => {
           semesterId: semesterId || null
         }
       },
+      // Only save teacher-entered fields on update — averageScore/status are recalculated
+      // by the compileClassReportCards call that follows immediately after this upsert.
       update: {
-        averageScore: computedAvgScore,
-        status: computedStatus,
         ...updateData,
       },
       create: {
@@ -948,26 +1003,23 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
   const isSemester2 = semester.order === 2;
 
   // ── Ground truth: use Grade records to find class members ─────────────────
-  // Grade records are the most reliable signal — students in this class have grades here.
   const gradeStudentIds = (await prisma.grade.findMany({
     where: { academicYearId, semesterId, classId },
     select: { studentId: true },
     distinct: ['studentId'],
   })).map(g => g.studentId);
 
-  // Also include students enrolled via section → class (even with no grades yet)
   const sectionEnrollments = await prisma.enrollment.findMany({
     where: { academicYearId, section: { classId }, status: 'Enrolled' },
     select: { studentId: true },
   });
 
-  // Merge both — deduplicated
   const allStudentIds = [...new Set([...gradeStudentIds, ...sectionEnrollments.map(e => e.studentId)])];
   if (!allStudentIds.length) return;
 
-  // Fetch full enrollment records for metadata (gradeLevel) only
   const enrollments = await prisma.enrollment.findMany({
     where: { academicYearId, studentId: { in: allStudentIds } },
+    include: { section: { select: { classId: true } } }
   });
 
   const studentIds = allStudentIds;
@@ -976,30 +1028,13 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
   const gradingSettings = parseSettingValue(gradingSetting?.value, {});
   const passMark = Number(gradingSettings.passMark || 50);
 
-  const [grades, attendanceRecords] = await Promise.all([
-    prisma.grade.findMany({
-      where: {
-        academicYearId,
-        semesterId,
-        studentId: { in: studentIds },
-        submissionStatus: 'ApprovedByHomeroom'
-      },
-      select: { studentId: true, classId: true, percentage: true }
-    }),
+  const [completenessMap, attendanceRecords] = await Promise.all([
+    resolveStudentGradeCompleteness(academicYearId, semesterId, studentIds, enrollments),
     prisma.attendanceRecord.findMany({
       where: { studentId: { in: studentIds }, attendance: { academicYearId } },
       include: { attendance: { select: { classId: true } } }
     })
   ]);
-
-  const gradeSummary = new Map();
-  grades.forEach((g) => {
-    const b = gradeSummary.get(g.studentId) || { total: 0, count: 0, classIds: new Set() };
-    b.total += Number(g.percentage || 0);
-    b.count += 1;
-    if (g.classId) b.classIds.add(g.classId);
-    gradeSummary.set(g.studentId, b);
-  });
 
   const attSummary = new Map();
   attendanceRecords.forEach((r) => {
@@ -1027,41 +1062,49 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
     }
   }
 
-  // Build an enrollment lookup map for gradeLevel resolution
   const enrollmentByStudent = {};
   enrollments.forEach(e => { enrollmentByStudent[e.studentId] = e; });
 
   const compiledData = studentIds.map((sid) => {
     const enrollment = enrollmentByStudent[sid];
-    const gs = gradeSummary.get(sid) || { total: 0, count: 0, classIds: new Set() };
+    const info = completenessMap.get(sid) || { isComplete: false, totalSum: 0, totalAssignedCount: 0 };
     const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
-    const avgScore = gs.count > 0 ? gs.total / gs.count : 0;
     const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
-    const classIds = new Set([...gs.classIds, ...as.classIds]);
 
-    const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
-    const combinedAverage = isSemester2 && sem1Snapshot !== null
-      ? Number(((sem1Snapshot + avgScore) / 2).toFixed(2))
-      : null;
+    let avgScore = null;
+    let status = 'Incomplete';
+    let combinedAverage = null;
+
+    if (info.isComplete && info.totalAssignedCount > 0) {
+      avgScore = Number((info.totalSum / info.totalAssignedCount).toFixed(2));
+      status = avgScore >= passMark ? 'Pass' : 'Fail';
+
+      const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
+      if (isSemester2 && sem1Snapshot !== null) {
+        combinedAverage = Number(((sem1Snapshot + avgScore) / 2).toFixed(2));
+      }
+    }
 
     return {
       studentId: sid,
       gradeLevel: normalizeLabel(enrollment?.grade),
-      averageScore: Number(avgScore.toFixed(2)),
+      averageScore: avgScore,
       attendancePercentage: Number(attPct.toFixed(2)),
       attendancePresent: as.present,
       attendanceAbsent: as.absent,
       attendanceLate: as.late,
       attendanceTotal: as.total,
-      status: avgScore >= passMark ? 'Pass' : 'Fail',
-      classKey: Array.from(classIds).sort().join(',') || null,
-      sem1Snapshot,
+      status,
+      classKey: classId || enrollment?.grade || null,
+      sem1Snapshot: isSemester2 ? (sem1Cards.get(sid) ?? null) : null,
       combinedAverage
     };
   });
 
-  compiledData.sort((a, b) => b.averageScore - a.averageScore);
-  compiledData.forEach((s, i) => { s.rank = i + 1; });
+  const completed = compiledData.filter(s => s.status !== 'Incomplete' && s.averageScore !== null);
+  completed.sort((a, b) => b.averageScore - a.averageScore);
+  completed.forEach((s, i) => { s.rank = i + 1; });
+  compiledData.filter(s => s.status === 'Incomplete').forEach(s => { s.rank = null; });
 
   for (const d of compiledData) {
     const existing = await prisma.reportCard.findUnique({
@@ -1268,11 +1311,20 @@ const getDynamicReportCard = async (req, res) => {
       };
     });
 
-    const sem1OverallAvg = sem1Count > 0 ? Number((sem1TotalSum / sem1Count).toFixed(2)) : null;
-    const sem2OverallAvg = sem2Count > 0 ? Number((sem2TotalSum / sem2Count).toFixed(2)) : null;
+    const totalAssignedSubjects = subjects.length;
+    const isSem1Complete = totalAssignedSubjects > 0 && sem1Count === totalAssignedSubjects;
+    const isSem2Complete = totalAssignedSubjects > 0 && sem2Count === totalAssignedSubjects;
+
+    const sem1OverallAvg = isSem1Complete ? Number((sem1TotalSum / totalAssignedSubjects).toFixed(2)) : null;
+    const sem2OverallAvg = isSem2Complete ? Number((sem2TotalSum / totalAssignedSubjects).toFixed(2)) : null;
+    const sem1Status = isSem1Complete ? (sem1OverallAvg >= passMark ? 'Pass' : 'Fail') : 'Incomplete';
+    const sem2Status = isSem2Complete ? (sem2OverallAvg >= passMark ? 'Pass' : 'Fail') : 'Incomplete';
+
     let annualOverallAvg = null;
-    if (sem1OverallAvg !== null && sem2OverallAvg !== null) {
+    let annualStatus = 'Incomplete';
+    if (isSem1Complete && isSem2Complete && sem1OverallAvg !== null && sem2OverallAvg !== null) {
       annualOverallAvg = Number(((sem1OverallAvg + sem2OverallAvg) / 2).toFixed(2));
+      annualStatus = annualOverallAvg >= passMark ? 'Pass' : 'Fail';
     }
 
     // Fetch existing report card metadata with safe fallback
@@ -1344,7 +1396,7 @@ const getDynamicReportCard = async (req, res) => {
         semester1Comment: reportCard?.semester1Comment || reportCard?.teacherComments || '',
         semester2Comment: reportCard?.semester2Comment || reportCard?.homeroomRemarks || '',
         overallComment: reportCard?.overallComment || '',
-        conductGrade: reportCard?.conductGrade || 'A',
+        conductGrade: reportCard?.conductGrade || '',
         promotionStatus: reportCard?.promotionStatus || 'Pending',
         promotedToClassId: reportCard?.promotedToClassId || null,
         promotedToClass,
@@ -1356,7 +1408,11 @@ const getDynamicReportCard = async (req, res) => {
       summary: {
         sem1OverallAvg,
         sem2OverallAvg,
-        annualOverallAvg
+        annualOverallAvg,
+        sem1Status,
+        sem2Status,
+        annualStatus,
+        status: annualStatus !== 'Incomplete' ? annualStatus : (sem1Status !== 'Incomplete' ? sem1Status : 'Incomplete')
       },
       attendance: {
         attendancePercentage,
