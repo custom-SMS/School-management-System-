@@ -29,6 +29,9 @@ export function printReportCard({
   const conductGrade = reportCardData?.reportCard?.conductGrade || rc?.conductGrade || '—';
   const promotionStatus = reportCardData?.reportCard?.promotionStatus || rc?.promotionStatus || 'Pending';
   const promotedTo = reportCardData?.reportCard?.promotedToGrade || rc?.promotedToGrade || rc?.promotedToClass?.name || '__________';
+  const rank = reportCardData?.summary?.rank ?? rc?.rank ?? null;
+  const classSize = reportCardData?.summary?.classSize ?? rc?.classSize ?? null;
+  const rankDisplay = rank ? `${rank}${classSize ? ` / ${classSize}` : ''}` : '—';
 
   // Resolve Subject Rows
   let subjectRows = [];
@@ -340,7 +343,7 @@ export function printReportCard({
   <div class="main-grid">
     <!-- LEFT SIDE: Student Metadata & Marks Table -->
     <div>
-      <div class="student-card">
+      <div class="student-card" style="grid-template-columns: repeat(5, 1fr);">
         <div class="info-item">
           <div class="info-label">Student Name</div>
           <div class="info-value">${studentName}</div>
@@ -356,6 +359,10 @@ export function printReportCard({
         <div class="info-item">
           <div class="info-label">Section</div>
           <div class="info-value">${sectionName}</div>
+        </div>
+        <div class="info-item">
+          <div class="info-label">Class Rank</div>
+          <div class="info-value" style="color:#1e3a5f;font-size:13px;">${rankDisplay}</div>
         </div>
       </div>
 
@@ -412,6 +419,9 @@ export function printReportCard({
         <span style="margin:0 10px;color:#cbd5e1;">|</span>
         <span style="font-weight:700;color:#1e293b;font-size:11px;">Conduct Grade: </span>
         <span style="font-weight:900;color:${primaryColor};font-size:12px;">${conductGrade}</span>
+        <span style="margin:0 10px;color:#cbd5e1;">|</span>
+        <span style="font-weight:700;color:#1e293b;font-size:11px;">Class Rank: </span>
+        <span style="font-weight:900;color:${primaryColor};font-size:12px;">${rankDisplay}</span>
       </div>
       <div>
         <span style="font-weight:700;color:#0f172a;font-size:11px;">Promoted To: </span>

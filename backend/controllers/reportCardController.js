@@ -67,12 +67,15 @@ const resolveStudentGradeCompleteness = async (academicYearId, semesterId, stude
     gradeSubjectMap.set(gLevel, subjs);
   });
 
+  // Include SubmittedToHomeroom grades so that submitted-but-not-yet-approved
+  // grades are counted in averages and ranks. ApprovedByHomeroom is the gold
+  // standard but we don't penalize complete submissions pending approval.
   const approvedGrades = await prisma.grade.findMany({
     where: {
       academicYearId,
       ...(semesterId ? { semesterId } : {}),
       studentId: { in: studentIds },
-      submissionStatus: 'ApprovedByHomeroom'
+      submissionStatus: { in: ['ApprovedByHomeroom', 'Approved', 'SubmittedToHomeroom'] }
     },
     include: {
       subjectRef: { select: { id: true, name: true } }
@@ -103,23 +106,20 @@ const resolveStudentGradeCompleteness = async (academicYearId, semesterId, stude
     }
 
     const sGrades = studentGradesMap.get(sid) || new Map();
-    const assignedSet = new Set(assignedList.map(s => s.toLowerCase()));
-    sGrades.forEach((val, key) => assignedSet.add(key));
 
-    const totalAssignedCount = assignedSet.size;
-    let isComplete = false;
+    // Completeness rule:
+    // A student is "complete" for a semester as soon as they have at least 1 grade
+    // recorded for that semester. The average is calculated from all subjects that
+    // were actually graded — catalog subjects with no grade entry are ignored.
+    // Semesters are separated by the semesterId filter on the grade query above.
     let totalSum = 0;
-
-    if (totalAssignedCount > 0) {
-      let scoredCount = 0;
-      assignedSet.forEach(subjKey => {
-        if (sGrades.has(subjKey)) {
-          scoredCount++;
-          totalSum += sGrades.get(subjKey);
-        }
-      });
-      isComplete = scoredCount === totalAssignedCount;
-    }
+    let scoredCount = 0;
+    sGrades.forEach((score) => {
+      totalSum += score;
+      scoredCount++;
+    });
+    const isComplete = scoredCount > 0;
+    const totalAssignedCount = scoredCount; // use actual graded count for average
 
     resultMap.set(sid, {
       totalAssignedCount,
@@ -132,16 +132,240 @@ const resolveStudentGradeCompleteness = async (academicYearId, semesterId, stude
   return resultMap;
 };
 
-// ─── Compile ─────────────────────────────────────────────────────────────────
-/**
- * Compile (or re-compile) report cards for all enrolled students.
- *
- * Body: { academicYearId, semesterId }
- *
- * If semesterId is omitted, the globally active semester is used.
- * Semester 2 report cards automatically compute a combinedAverage
- * from the stored semester1Snapshot + current semester 2 average.
- */
+const recompileReportCardsForStudents = async (academicYearId, semesterId, targetStudentIds = null) => {
+  if (!semesterId) {
+    semesterId = await resolveActiveSemesterId();
+  }
+  if (!academicYearId || !semesterId) return;
+
+  const semester = await prisma.semester.findUnique({ where: { id: semesterId }, select: { id: true, order: true } });
+  if (!semester) return;
+  const isSemester2 = semester.order === 2;
+
+  const enrollmentsWhere = { academicYearId };
+  if (Array.isArray(targetStudentIds) && targetStudentIds.length > 0) {
+    enrollmentsWhere.studentId = { in: targetStudentIds };
+  }
+
+  const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' }, select: { value: true } });
+  const passMark = Number(parseSettingValue(gradingSetting?.value, {}).passMark || 50);
+
+  // ── Fetch all data in parallel ──────────────────────────────────────────────
+  const gradesWhere = {
+    academicYearId,
+    semesterId,
+    submissionStatus: { in: ['ApprovedByHomeroom', 'Approved', 'SubmittedToHomeroom'] },
+  };
+  if (Array.isArray(targetStudentIds) && targetStudentIds.length > 0) {
+    gradesWhere.studentId = { in: targetStudentIds };
+  }
+
+  const [enrollments, allGrades, attendanceRecords, sem1Reports] = await Promise.all([
+    prisma.enrollment.findMany({
+      where: enrollmentsWhere,
+      select: { studentId: true, grade: true, sectionId: true, section: { select: { id: true, classId: true } } },
+    }),
+    // Fetch subject name per grade for per-student score aggregation
+    prisma.grade.findMany({
+      where: gradesWhere,
+      select: { studentId: true, subject: true, percentage: true },
+    }),
+    // Attendance: grouped in JS, no joins needed
+    prisma.attendanceRecord.findMany({
+      where: {
+        ...(Array.isArray(targetStudentIds) && targetStudentIds.length > 0
+          ? { studentId: { in: targetStudentIds } }
+          : {}),
+        attendance: { academicYearId },
+      },
+      select: { studentId: true, status: true },
+    }),
+    // Sem1 snapshot — only needed for Sem2
+    isSemester2
+      ? prisma.semester.findFirst({ where: { academicYearId, order: 1 }, select: { id: true } }).then(sem1 =>
+          sem1 ? prisma.reportCard.findMany({
+            where: { academicYearId, semesterId: sem1.id, ...(Array.isArray(targetStudentIds) && targetStudentIds.length > 0 ? { studentId: { in: targetStudentIds } } : {}) },
+            select: { studentId: true, averageScore: true },
+          }) : []
+        )
+      : Promise.resolve([]),
+  ]);
+
+  if (!enrollments.length) return;
+
+  // ── Derive the classIds involved, then fetch ClassSubject assignments ────────
+  // ClassSubject is the authoritative source of which subjects are assigned to a class.
+  // We only fetch for the specific classIds involved — not the entire catalog.
+  const involvedClassIds = [...new Set(
+    enrollments.map(e => e.section?.classId).filter(Boolean)
+  )];
+
+  const classSubjectRows = involvedClassIds.length > 0
+    ? await prisma.classSubject.findMany({
+        where: { classId: { in: involvedClassIds } },
+        select: { classId: true, subject: { select: { name: true } } },
+      })
+    : [];
+
+  // classId → Set<subjectName_lowercase> (from formal ClassSubject assignment)
+  const classSubjectSets = new Map();
+  classSubjectRows.forEach(cs => {
+    if (!cs.classId || !cs.subject?.name) return;
+    if (!classSubjectSets.has(cs.classId)) classSubjectSets.set(cs.classId, new Set());
+    classSubjectSets.get(cs.classId).add(cs.subject.name.toLowerCase().trim());
+  });
+
+  // ── Per-student grade map ───────────────────────────────────────────────────
+  // studentId → Map<subjectName_lc, percentage>
+  const studentSubjectGrades = new Map();
+  allGrades.forEach(g => {
+    if (g.percentage == null || !g.subject) return;
+    if (!studentSubjectGrades.has(g.studentId)) studentSubjectGrades.set(g.studentId, new Map());
+    studentSubjectGrades.get(g.studentId).set(g.subject.toLowerCase().trim(), Number(g.percentage));
+  });
+
+  // Attendance per student
+  const attByStudent = new Map();
+  attendanceRecords.forEach(r => {
+    const cur = attByStudent.get(r.studentId) || { total: 0, present: 0, absent: 0, late: 0 };
+    cur.total += 1;
+    if (r.status === 'Present') cur.present += 1;
+    else if (r.status === 'Absent') cur.absent += 1;
+    else if (r.status === 'Late') cur.late += 1;
+    attByStudent.set(r.studentId, cur);
+  });
+
+  // Sem1 snapshot
+  const sem1Map = new Map();
+  sem1Reports.forEach(r => sem1Map.set(r.studentId, r.averageScore));
+
+  // ── Compute per-student data ────────────────────────────────────────────────
+  const compiledData = enrollments.map(enrollment => {
+    const sid = enrollment.studentId;
+    const att = attByStudent.get(sid) || { total: 0, present: 0, absent: 0, late: 0 };
+    const attPct = att.total > 0 ? (att.present / att.total) * 100 : 100;
+    const sectionId = enrollment.sectionId || enrollment.section?.id || null;
+    const classId = enrollment.section?.classId || null;
+
+    let avgScore = null;
+    let status = 'Incomplete';
+    let combinedAverage = null;
+
+    // Assigned subjects = those formally configured in ClassSubject for this class
+    const assignedSubjects = classId ? (classSubjectSets.get(classId) || new Set()) : new Set();
+    const studentGrades = studentSubjectGrades.get(sid) || new Map();
+
+    // Complete = student has a grade for every subject assigned to their class this semester
+    const totalRequired = assignedSubjects.size;
+    let scoredCount = 0;
+    let totalSum = 0;
+
+    if (totalRequired > 0) {
+      assignedSubjects.forEach(subj => {
+        if (studentGrades.has(subj)) {
+          scoredCount++;
+          totalSum += studentGrades.get(subj);
+        }
+      });
+
+      if (scoredCount === totalRequired) {
+        avgScore = Number((totalSum / totalRequired).toFixed(2));
+        status = avgScore >= passMark ? 'Pass' : 'Fail';
+        if (isSemester2) {
+          const s1 = sem1Map.get(sid) ?? null;
+          if (s1 !== null) combinedAverage = Number(((s1 + avgScore) / 2).toFixed(2));
+        }
+      }
+    }
+
+    return {
+      studentId: sid,
+      gradeLevel: normalizeLabel(enrollment.grade),
+      averageScore: avgScore,
+      attendancePercentage: Number(attPct.toFixed(2)),
+      attendancePresent: att.present,
+      attendanceAbsent: att.absent,
+      attendanceLate: att.late,
+      attendanceTotal: att.total,
+      status,
+      sectionId,
+      classKey: classId || enrollment.grade || null,
+      sem1Snapshot: isSemester2 ? (sem1Map.get(sid) ?? null) : null,
+      combinedAverage,
+    };
+  });
+
+  // ── Rank within section group (or class/grade fallback) ───────────────────
+  const rankGroups = {};
+  compiledData.forEach(s => {
+    const key = s.sectionId ? `section:${s.sectionId}` : (s.classKey ? `class:${s.classKey}` : `grade:${s.gradeLevel}`);
+    if (!rankGroups[key]) rankGroups[key] = [];
+    rankGroups[key].push(s);
+  });
+  Object.values(rankGroups).forEach(group => {
+    const done = group.filter(s => s.averageScore !== null).sort((a, b) => b.averageScore - a.averageScore);
+    done.forEach((s, i) => { s.rank = i + 1; });
+    group.filter(s => s.averageScore === null).forEach(s => { s.rank = null; });
+  });
+
+  // ── Write to DB: batch upsert via createMany (skip existing) + updateMany ──
+  // Split into those that already have a record and those that don't.
+  const existing = await prisma.reportCard.findMany({
+    where: { academicYearId, semesterId, studentId: { in: compiledData.map(d => d.studentId) } },
+    select: { studentId: true },
+  });
+  const existingIds = new Set(existing.map(r => r.studentId));
+
+  const toCreate = compiledData.filter(d => !existingIds.has(d.studentId));
+  const toUpdate = compiledData.filter(d => existingIds.has(d.studentId));
+
+  await Promise.all([
+    // Batch insert new records
+    toCreate.length > 0
+      ? prisma.reportCard.createMany({
+          data: toCreate.map(d => ({
+            studentId: d.studentId,
+            academicYearId,
+            semesterId,
+            grade: d.gradeLevel,
+            attendancePercentage: d.attendancePercentage,
+            attendancePresent: d.attendancePresent,
+            attendanceAbsent: d.attendanceAbsent,
+            attendanceLate: d.attendanceLate,
+            attendanceTotal: d.attendanceTotal,
+            averageScore: d.averageScore,
+            rank: d.rank,
+            status: d.status,
+            published: false,
+            workflowStatus: 'Draft',
+            ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+            ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
+          })),
+          skipDuplicates: true,
+        })
+      : Promise.resolve(),
+    // Batch update existing records — one query per student but in parallel
+    ...toUpdate.map(d =>
+      prisma.reportCard.update({
+        where: { studentId_academicYearId_semesterId: { studentId: d.studentId, academicYearId, semesterId } },
+        data: {
+          grade: d.gradeLevel,
+          attendancePercentage: d.attendancePercentage,
+          attendancePresent: d.attendancePresent,
+          attendanceAbsent: d.attendanceAbsent,
+          attendanceLate: d.attendanceLate,
+          attendanceTotal: d.attendanceTotal,
+          averageScore: d.averageScore,
+          rank: d.rank,
+          status: d.status,
+          ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
+          ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
+        },
+      })
+    ),
+  ]);
+};
+
 const compileReportCards = async (req, res) => {
   try {
     const { academicYearId } = req.body;
@@ -167,154 +391,7 @@ const compileReportCards = async (req, res) => {
       return res.status(400).json({ message: 'Semester does not belong to this academic year.' });
     }
 
-    const isSemester2 = semester.order === 2;
-
-    const enrollments = await prisma.enrollment.findMany({
-      where: {
-        academicYearId,
-        student: { ...(req.branchFilter || {}) },
-      },
-      include: {
-        section: { select: { classId: true } },
-        student: { include: { user: { select: { id: true, name: true } } } }
-      },
-    });
-    if (!enrollments.length) return res.status(400).json({ message: 'No student enrollments found for this academic year.' });
-
-    const gradingSetting = await prisma.systemSetting.findUnique({ where: { key: 'grading' } });
-    const gradingSettings = parseSettingValue(gradingSetting?.value, {});
-    const passMark = Number(gradingSettings.passMark || 50);
-
-    const studentIds = enrollments.map((e) => e.studentId);
-
-    const [completenessMap, attendanceRecords] = await Promise.all([
-      resolveStudentGradeCompleteness(academicYearId, semesterId, studentIds, enrollments),
-      prisma.attendanceRecord.findMany({
-        where: { studentId: { in: studentIds }, attendance: { academicYearId } },
-        include: { attendance: { select: { classId: true } } },
-      }),
-    ]);
-
-    const attSummary = new Map();
-    attendanceRecords.forEach((r) => {
-      const b = attSummary.get(r.studentId) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
-      b.total += 1;
-      if (r.status === 'Present') b.present += 1;
-      else if (r.status === 'Absent') b.absent += 1;
-      else if (r.status === 'Late') b.late += 1;
-      if (r.attendance?.classId) b.classIds.add(r.attendance.classId);
-      attSummary.set(r.studentId, b);
-    });
-
-    // If Semester 2, fetch existing Semester 1 report cards to capture sem1Snapshot
-    let sem1Cards = new Map();
-    if (isSemester2) {
-      const sem1 = await prisma.semester.findFirst({
-        where: { academicYearId, order: 1 },
-        select: { id: true },
-      });
-      if (sem1) {
-        const sem1Reports = await prisma.reportCard.findMany({
-          where: { academicYearId, semesterId: sem1.id, studentId: { in: studentIds } },
-          select: { studentId: true, averageScore: true },
-        });
-        sem1Reports.forEach((r) => sem1Cards.set(r.studentId, r.averageScore));
-      }
-    }
-
-    const compiledData = enrollments.map((enrollment) => {
-      const sid = enrollment.studentId;
-      const info = completenessMap.get(sid) || { isComplete: false, totalSum: 0, totalAssignedCount: 0 };
-      const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
-      const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
-      const classId = enrollment.section?.classId || enrollment.classId;
-
-      let avgScore = null;
-      let status = 'Incomplete';
-      let combinedAverage = null;
-
-      if (info.isComplete && info.totalAssignedCount > 0) {
-        avgScore = Number((info.totalSum / info.totalAssignedCount).toFixed(2));
-        status = avgScore >= passMark ? 'Pass' : 'Fail';
-
-        const sem1Snapshot = isSemester2 ? (sem1Cards.get(sid) ?? null) : null;
-        if (isSemester2 && sem1Snapshot !== null) {
-          combinedAverage = Number(((sem1Snapshot + avgScore) / 2).toFixed(2));
-        }
-      }
-
-      return {
-        studentId: sid,
-        gradeLevel: normalizeLabel(enrollment.grade),
-        averageScore: avgScore,
-        attendancePercentage: Number(attPct.toFixed(2)),
-        attendancePresent: as.present,
-        attendanceAbsent: as.absent,
-        attendanceLate: as.late,
-        attendanceTotal: as.total,
-        status,
-        classKey: classId || enrollment.grade || null,
-        sem1Snapshot: isSemester2 ? (sem1Cards.get(sid) ?? null) : null,
-        combinedAverage,
-      };
-    });
-
-    // Rank within class or grade (only rank students with complete status)
-    const rankGroups = {};
-    compiledData.forEach((s) => {
-      const key = s.classKey ? `class:${s.classKey}` : `grade:${s.gradeLevel}`;
-      if (!rankGroups[key]) rankGroups[key] = [];
-      rankGroups[key].push(s);
-    });
-    Object.values(rankGroups).forEach((group) => {
-      const completed = group.filter(s => s.status !== 'Incomplete' && s.averageScore !== null);
-      completed.sort((a, b) => b.averageScore - a.averageScore);
-      completed.forEach((s, i) => { s.rank = i + 1; });
-      group.filter(s => s.status === 'Incomplete').forEach(s => { s.rank = null; });
-    });
-
-    await prisma.$transaction(
-      compiledData.map((d) =>
-        prisma.reportCard.upsert({
-          where: { studentId_academicYearId_semesterId: { studentId: d.studentId, academicYearId, semesterId } },
-          update: {
-            grade: d.gradeLevel,
-            attendancePercentage: d.attendancePercentage,
-            attendancePresent: d.attendancePresent,
-            attendanceAbsent: d.attendanceAbsent,
-            attendanceLate: d.attendanceLate,
-            attendanceTotal: d.attendanceTotal,
-            averageScore: d.averageScore,
-            rank: d.rank,
-            status: d.status,
-            workflowStatus: 'Draft',
-            // NOTE: do NOT overwrite teacher-entered fields on re-compile
-            // promotionStatus, conductGrade, homeroomRemarks, promotedById, promotionDate
-            // are intentionally excluded here so the teacher's values are preserved.
-            ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
-            ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
-          },
-          create: {
-            studentId: d.studentId,
-            academicYearId,
-            semesterId,
-            grade: d.gradeLevel,
-            attendancePercentage: d.attendancePercentage,
-            attendancePresent: d.attendancePresent,
-            attendanceAbsent: d.attendanceAbsent,
-            attendanceLate: d.attendanceLate,
-            attendanceTotal: d.attendanceTotal,
-            averageScore: d.averageScore,
-            rank: d.rank,
-            status: d.status,
-            published: false,
-            workflowStatus: 'Draft',
-            ...(d.sem1Snapshot !== null && { semester1Snapshot: d.sem1Snapshot }),
-            ...(d.combinedAverage !== null && { combinedAverage: d.combinedAverage }),
-          },
-        })
-      )
-    );
+    await recompileReportCardsForStudents(academicYearId, semesterId);
 
     await logActivity(
       req.user._id,
@@ -323,7 +400,7 @@ const compileReportCards = async (req, res) => {
       `Compiled report cards for ${year.year} — ${semester.name}`
     );
     res.status(200).json({
-      message: `Successfully compiled ${semester.name} report cards for ${compiledData.length} students.`,
+      message: `Successfully compiled ${semester.name} report cards.`,
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -345,87 +422,119 @@ const getReportCard = async (req, res) => {
       semesterId = await resolveActiveSemesterId();
     }
 
-    let reportCard;
-    try {
-      if (semesterId) {
-        reportCard = await prisma.reportCard.findUnique({
-          where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
-          include: {
-            student: { include: { user: { select: { name: true, email: true } } } },
-            academicYear: true,
-            semester: true,
-          },
-        });
-      } else {
-        reportCard = await prisma.reportCard.findFirst({
-          where: { studentId, academicYearId },
-          include: {
-            student: { include: { user: { select: { name: true, email: true } } } },
-            academicYear: true,
-            semester: true,
-          },
-        });
-      }
-    } catch {
-      const selectObj = {
-        id: true, studentId: true, academicYearId: true, semesterId: true,
-        grade: true, attendancePercentage: true, attendancePresent: true,
-        attendanceAbsent: true, attendanceLate: true, attendanceTotal: true,
-        averageScore: true, combinedAverage: true, rank: true, status: true,
-        teacherComments: true, homeroomRemarks: true, workflowStatus: true,
-        published: true, conductGrade: true, promotionStatus: true,
-        student: { include: { user: { select: { name: true, email: true } } } },
-        academicYear: true, semester: true,
-      };
-      if (semesterId) {
-        reportCard = await prisma.reportCard.findUnique({
-          where: { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } },
-          select: selectObj,
-        });
-      } else {
-        reportCard = await prisma.reportCard.findFirst({
-          where: { studentId, academicYearId },
-          select: selectObj,
-        });
-      }
-    }
-
-    if (!reportCard) return res.status(404).json({ message: 'Compiled report card not found for this student and academic year.' });
-
     // Students and Parents cannot view report cards — admin only
     if (['Student', 'Parent'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Report cards can only be viewed and printed by Admin. Please contact your school administration.' });
     }
 
+    // For Teacher role: verify authorization (parallel with main fetch below)
+    let teacherAuthPromise = Promise.resolve(true);
     if (req.user.role === 'Teacher') {
-      const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
-      if (!teacherProfile) return res.status(404).json({ message: 'Teacher profile not found.' });
-
-      const teacherClassIds = new Set();
-      const ownedClasses = await prisma.class.findMany({ where: { teacherId: teacherProfile.id }, select: { id: true } });
-      ownedClasses.forEach((k) => teacherClassIds.add(k.id));
-      const assignments = await prisma.teacherAssignment.findMany({ where: { teacherId: teacherProfile.id }, select: { classId: true } });
-      assignments.forEach((a) => { if (a.classId) teacherClassIds.add(a.classId); });
-
-      const studentClassLinks = await prisma.grade.findMany({ where: { studentId, academicYearId }, select: { classId: true } });
-      const isAuthorized = studentClassLinks.some((link) => teacherClassIds.has(link.classId));
-      if (!isAuthorized) return res.status(403).json({ message: 'You are not authorized to view this report card.' });
+      teacherAuthPromise = (async () => {
+        const teacherProfile = await getTeacherProfileByUserId(getActorId(req));
+        if (!teacherProfile) return false;
+        const [ownedClasses, assignments, studentClassLinks] = await Promise.all([
+          prisma.class.findMany({ where: { teacherId: teacherProfile.id }, select: { id: true } }),
+          prisma.teacherAssignment.findMany({ where: { teacherId: teacherProfile.id }, select: { classId: true } }),
+          prisma.grade.findMany({ where: { studentId, academicYearId }, select: { classId: true } }),
+        ]);
+        const teacherClassIds = new Set([
+          ...ownedClasses.map(k => k.id),
+          ...assignments.map(a => a.classId).filter(Boolean),
+        ]);
+        return studentClassLinks.some(link => teacherClassIds.has(link.classId));
+      })();
     }
 
-    // Fetch grades scoped to the semester (or all if no semesterId)
+    // Fetch reportCard + grades in parallel
     const gradesWhere = { studentId, academicYearId };
     if (semesterId) gradesWhere.semesterId = semesterId;
 
-    const grades = await prisma.grade.findMany({
-      where: gradesWhere,
-      include: {
-        class: { select: { id: true, name: true, subject: true, stream: true } },
-        subjectRef: { select: { id: true, name: true } },
-      },
-      orderBy: [{ subject: 'asc' }, { createdAt: 'asc' }],
-    });
+    const rcWhere = semesterId
+      ? { studentId_academicYearId_semesterId: { studentId, academicYearId, semesterId } }
+      : null;
 
-    res.status(200).json({ reportCard, grades });
+    const [reportCard, grades, isAuthorized] = await Promise.all([
+      rcWhere
+        ? prisma.reportCard.findUnique({
+            where: rcWhere,
+            select: {
+              id: true, studentId: true, academicYearId: true, semesterId: true,
+              grade: true, attendancePercentage: true, attendancePresent: true,
+              attendanceAbsent: true, attendanceLate: true, attendanceTotal: true,
+              averageScore: true, combinedAverage: true, rank: true, status: true,
+              teacherComments: true, homeroomRemarks: true, workflowStatus: true,
+              published: true, conductGrade: true, promotionStatus: true,
+              student: { select: { id: true, user: { select: { name: true, email: true } } } },
+              academicYear: { select: { id: true, year: true } },
+              semester: { select: { id: true, name: true, order: true } },
+            },
+          })
+        : prisma.reportCard.findFirst({
+            where: { studentId, academicYearId },
+            select: {
+              id: true, studentId: true, academicYearId: true, semesterId: true,
+              grade: true, attendancePercentage: true, attendancePresent: true,
+              attendanceAbsent: true, attendanceLate: true, attendanceTotal: true,
+              averageScore: true, combinedAverage: true, rank: true, status: true,
+              teacherComments: true, homeroomRemarks: true, workflowStatus: true,
+              published: true, conductGrade: true, promotionStatus: true,
+              student: { select: { id: true, user: { select: { name: true, email: true } } } },
+              academicYear: { select: { id: true, year: true } },
+              semester: { select: { id: true, name: true, order: true } },
+            },
+          }),
+      prisma.grade.findMany({
+        where: gradesWhere,
+        select: {
+          id: true, subject: true, percentage: true, submissionStatus: true,
+          semesterId: true, classId: true,
+          class: { select: { id: true, name: true, subject: true, stream: true } },
+          subjectRef: { select: { id: true, name: true } },
+        },
+        orderBy: [{ subject: 'asc' }, { createdAt: 'asc' }],
+      }),
+      teacherAuthPromise,
+    ]);
+
+    if (!reportCard) return res.status(404).json({ message: 'Compiled report card not found for this student and academic year.' });
+    if (!isAuthorized) return res.status(403).json({ message: 'You are not authorized to view this report card.' });
+
+    // Count peers in the same section (or grade) for section size denominator
+    const studentEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId, academicYearId },
+      select: { sectionId: true, grade: true }
+    });
+    const classSize = semesterId && reportCard.semesterId
+      ? await prisma.reportCard.count({
+          where: {
+            academicYearId,
+            semesterId: reportCard.semesterId,
+            ...(studentEnrollment?.sectionId
+              ? { student: { enrollments: { some: { academicYearId, sectionId: studentEnrollment.sectionId } } } }
+              : { grade: reportCard.grade })
+          }
+        })
+      : null;
+
+    // If the compiled report card has no averageScore, compute a live estimate
+    // from available grades so the KPI strip always shows real data.
+    let enrichedReportCard = { ...reportCard, classSize };
+    if (reportCard.averageScore == null && grades.length > 0) {
+      const scoredGrades = grades.filter(g => g.percentage != null && Number(g.percentage) >= 0);
+      if (scoredGrades.length > 0) {
+        const liveAvg = scoredGrades.reduce((sum, g) => sum + Number(g.percentage), 0) / scoredGrades.length;
+        enrichedReportCard = {
+          ...enrichedReportCard,
+          averageScore: Number(liveAvg.toFixed(2)),
+          combinedAverage: Number(liveAvg.toFixed(2)),
+          status: liveAvg >= 50 ? 'Pass' : 'Fail',
+          _liveCalculated: true,
+        };
+      }
+    }
+
+    res.status(200).json({ reportCard: enrichedReportCard, grades });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -645,10 +754,43 @@ const submitToAdmin = async (req, res) => {
       }
     }
 
+    const targetCards = await prisma.reportCard.findMany({
+      where: { id: { in: reportCardIds } },
+      select: { id: true, studentId: true, academicYearId: true, semesterId: true }
+    });
+
+    const studentIds = [...new Set(targetCards.map(c => c.studentId))];
+    const academicYearId = targetCards[0]?.academicYearId;
+    const semesterId = targetCards[0]?.semesterId;
+    const actorId = getActorId(req);
+
+    // Auto-approve any pending grades for these students when Homeroom Teacher submits report cards to Branch Admin
+    if (studentIds.length > 0 && academicYearId) {
+      const now = new Date();
+      await prisma.grade.updateMany({
+        where: {
+          studentId: { in: studentIds },
+          academicYearId,
+          ...(semesterId ? { semesterId } : {}),
+          submissionStatus: 'SubmittedToHomeroom',
+        },
+        data: {
+          submissionStatus: 'ApprovedByHomeroom',
+          approvedAt: now,
+          ...(actorId ? { approvedById: actorId } : {}),
+        },
+      });
+    }
+
     await prisma.reportCard.updateMany({
       where: { id: { in: reportCardIds } },
       data: { workflowStatus: 'BranchAdminReview' },
     });
+
+    // Instantly recompile report cards for these students so averages/ranks are synced to DB
+    if (studentIds.length > 0 && academicYearId) {
+      await recompileReportCardsForStudents(academicYearId, semesterId, studentIds);
+    }
 
     await logActivity(getActorId(req), 'Submit Report Cards to Admin', reportCardIds.join(','),
       `Submitted ${reportCardIds.length} report card(s) for admin review`);
@@ -1019,7 +1161,7 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
 
   const enrollments = await prisma.enrollment.findMany({
     where: { academicYearId, studentId: { in: allStudentIds } },
-    include: { section: { select: { classId: true } } }
+    select: { studentId: true, grade: true, sectionId: true, section: { select: { id: true, classId: true } } }
   });
 
   const studentIds = allStudentIds;
@@ -1070,6 +1212,7 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
     const info = completenessMap.get(sid) || { isComplete: false, totalSum: 0, totalAssignedCount: 0 };
     const as = attSummary.get(sid) || { total: 0, present: 0, absent: 0, late: 0, classIds: new Set() };
     const attPct = as.total > 0 ? (as.present / as.total) * 100 : 100;
+    const sectionId = enrollment?.sectionId || enrollment?.section?.id || null;
 
     let avgScore = null;
     let status = 'Incomplete';
@@ -1095,16 +1238,24 @@ const compileClassReportCards = async (academicYearId, semesterId, classId, modi
       attendanceLate: as.late,
       attendanceTotal: as.total,
       status,
+      sectionId,
       classKey: classId || enrollment?.grade || null,
       sem1Snapshot: isSemester2 ? (sem1Cards.get(sid) ?? null) : null,
       combinedAverage
     };
   });
 
-  const completed = compiledData.filter(s => s.status !== 'Incomplete' && s.averageScore !== null);
-  completed.sort((a, b) => b.averageScore - a.averageScore);
-  completed.forEach((s, i) => { s.rank = i + 1; });
-  compiledData.filter(s => s.status === 'Incomplete').forEach(s => { s.rank = null; });
+  const rankGroups = {};
+  compiledData.forEach(s => {
+    const key = s.sectionId ? `section:${s.sectionId}` : (s.classKey ? `class:${s.classKey}` : `grade:${s.gradeLevel}`);
+    if (!rankGroups[key]) rankGroups[key] = [];
+    rankGroups[key].push(s);
+  });
+  Object.values(rankGroups).forEach(group => {
+    const done = group.filter(s => s.averageScore !== null).sort((a, b) => b.averageScore - a.averageScore);
+    done.forEach((s, i) => { s.rank = i + 1; });
+    group.filter(s => s.averageScore === null).forEach(s => { s.rank = null; });
+  });
 
   for (const d of compiledData) {
     const existing = await prisma.reportCard.findUnique({
@@ -1244,12 +1395,14 @@ const getDynamicReportCard = async (req, res) => {
     const sem1 = semesters.find(s => s.order === 1) || semesters[0] || null;
     const sem2 = semesters.find(s => s.order === 2) || semesters[1] || null;
 
-    // Fetch all approved grades for this student for the academic year
-    const approvedGrades = await prisma.grade.findMany({
+    // Fetch all usable grades: approved OR submitted-to-homeroom (pending approval).
+    // SubmittedToHomeroom grades have been verified by subject teachers and are
+    // safe to display; they only become "official" after homeroom approval + compile.
+    let approvedGrades = await prisma.grade.findMany({
       where: {
         studentId,
         academicYearId,
-        submissionStatus: 'ApprovedByHomeroom'
+        submissionStatus: { in: ['ApprovedByHomeroom', 'Approved', 'SubmittedToHomeroom'] }
       },
       include: {
         subjectRef: { select: { id: true, name: true } },
@@ -1257,7 +1410,24 @@ const getDynamicReportCard = async (req, res) => {
       }
     });
 
-    // Merge any subjects found in approvedGrades that aren't in the class subjects list
+    // If no approved grades exist yet, fall back to ALL grades so the report card is never blank.
+    // This covers cases where homeroom approval hasn't happened yet but the admin still
+    // wants to see compiled data.
+    let usingFallbackGrades = false;
+    if (approvedGrades.length === 0) {
+      approvedGrades = await prisma.grade.findMany({
+        where: { studentId, academicYearId },
+        include: {
+          subjectRef: { select: { id: true, name: true } },
+          semester: { select: { id: true, order: true, name: true } }
+        }
+      });
+      usingFallbackGrades = true;
+    }
+
+    // Always merge subjects from ALL grade entries (approved or fallback) into the subject list.
+    // This ensures grade entries for subjects not in the catalog (e.g. 'physics' lowercase, 'General')
+    // still appear on the report card with their actual scores.
     approvedGrades.forEach(g => {
       const gName = g.subjectRef?.name || g.subject;
       if (gName && !subjects.some(s => s.name?.toLowerCase() === gName.toLowerCase() || s.id === g.subjectId)) {
@@ -1317,9 +1487,9 @@ const getDynamicReportCard = async (req, res) => {
 
     const sem1OverallAvg = isSem1Complete ? Number((sem1TotalSum / totalAssignedSubjects).toFixed(2)) : null;
     const sem2OverallAvg = isSem2Complete ? Number((sem2TotalSum / totalAssignedSubjects).toFixed(2)) : null;
+    const passMark = 50; // percentage threshold for Pass/Fail
     const sem1Status = isSem1Complete ? (sem1OverallAvg >= passMark ? 'Pass' : 'Fail') : 'Incomplete';
     const sem2Status = isSem2Complete ? (sem2OverallAvg >= passMark ? 'Pass' : 'Fail') : 'Incomplete';
-
     let annualOverallAvg = null;
     let annualStatus = 'Incomplete';
     if (isSem1Complete && isSem2Complete && sem1OverallAvg !== null && sem2OverallAvg !== null) {
@@ -1349,6 +1519,8 @@ const getDynamicReportCard = async (req, res) => {
           homeroomRemarks: true,
           teacherComments: true,
           academicYear: true,
+          grade: true,
+          rank: true
         },
         orderBy: { createdAt: 'desc' }
       });
@@ -1372,14 +1544,36 @@ const getDynamicReportCard = async (req, res) => {
       }
     }
 
-    // Attendance stats
-    const attendanceRecords = await prisma.attendanceRecord.findMany({
-      where: { studentId, attendance: { academicYearId } }
+    // Attendance stats + section-size count — run in parallel
+    const studentEnrollment = await prisma.enrollment.findFirst({
+      where: { studentId, academicYearId },
+      select: { sectionId: true, grade: true }
     });
-    const totalAtt = attendanceRecords.length;
-    const presentAtt = attendanceRecords.filter(r => r.status === 'Present').length;
-    const absentAtt = attendanceRecords.filter(r => r.status === 'Absent').length;
-    const lateAtt = attendanceRecords.filter(r => r.status === 'Late').length;
+
+    const [attendanceRecords, classSizeCount] = await Promise.all([
+      prisma.attendanceRecord.findMany({
+        where: { studentId, attendance: { academicYearId } },
+        select: { status: true },
+      }),
+      reportCard
+        ? prisma.reportCard.count({
+            where: {
+              academicYearId,
+              ...(studentEnrollment?.sectionId
+                ? { student: { enrollments: { some: { academicYearId, sectionId: studentEnrollment.sectionId } } } }
+                : { grade: reportCard.grade })
+            },
+          })
+        : Promise.resolve(null),
+    ]);
+
+    let totalAtt = 0, presentAtt = 0, absentAtt = 0, lateAtt = 0;
+    attendanceRecords.forEach(r => {
+      totalAtt++;
+      if (r.status === 'Present') presentAtt++;
+      else if (r.status === 'Absent') absentAtt++;
+      else if (r.status === 'Late') lateAtt++;
+    });
     const attendancePercentage = totalAtt > 0 ? Number(((presentAtt / totalAtt) * 100).toFixed(2)) : 100;
 
     res.status(200).json({
@@ -1412,7 +1606,9 @@ const getDynamicReportCard = async (req, res) => {
         sem1Status,
         sem2Status,
         annualStatus,
-        status: annualStatus !== 'Incomplete' ? annualStatus : (sem1Status !== 'Incomplete' ? sem1Status : 'Incomplete')
+        status: annualStatus !== 'Incomplete' ? annualStatus : (sem1Status !== 'Incomplete' ? sem1Status : 'Incomplete'),
+        rank: reportCard?.rank ?? null,
+        classSize: classSizeCount,
       },
       attendance: {
         attendancePercentage,
@@ -1420,7 +1616,8 @@ const getDynamicReportCard = async (req, res) => {
         absent: absentAtt,
         late: lateAtt,
         total: totalAtt
-      }
+      },
+      gradesApproved: !usingFallbackGrades
     });
   } catch (error) {
     console.error('getDynamicReportCard error:', error);
@@ -1556,6 +1753,7 @@ const updateDynamicReportCard = async (req, res) => {
 };
 
 module.exports = {
+  recompileReportCardsForStudents,
   compileReportCards,
   getReportCard,
   publishReportCards,

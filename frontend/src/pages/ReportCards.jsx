@@ -28,38 +28,6 @@ function WorkflowBadge({ status }) {
   );
 }
 
-// Simple progress bar showing workflow pipeline
-function WorkflowPipeline({ counts }) {
-  const steps = [
-    { key: 'Draft', label: 'Draft' },
-    { key: 'HomeroomReview', label: 'Homeroom Review' },
-    { key: 'BranchAdminReview', label: 'Branch Admin Review' },
-    { key: 'Published', label: 'Published' },
-  ];
-  const total = Object.values(counts).reduce((s, v) => s + v, 0) || 1;
-  return (
-    <div className="mb-6 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="mb-3 text-sm font-bold text-slate-700">Workflow Pipeline</h3>
-      <div className="flex gap-2">
-        {steps.map((step) => {
-          const n = counts[step.key] || 0;
-          const pct = Math.round((n / total) * 100);
-          const { cls } = WORKFLOW_LABELS[step.key];
-          return (
-            <div key={step.key} className="flex-1 text-center">
-              <div className="mb-1 h-2 w-full overflow-hidden rounded-full bg-slate-100">
-                <div className={`h-2 rounded-full transition-all ${cls.split(' ')[0]}`} style={{ width: `${pct}%`, backgroundColor: undefined }} />
-              </div>
-              <div className={`text-xs font-bold ${cls.split(' ')[1]}`}>{n}</div>
-              <div className="mt-0.5 text-[10px] text-slate-400 leading-tight">{step.label}</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 export default function ReportCards() {
   const { branding, logoUrl, grading } = useSettings();
   const { activeSemester } = useBranch();
@@ -145,8 +113,9 @@ export default function ReportCards() {
   // Class-level report card list for pipeline view
   const [classCards, setClassCards] = useState([]);
   const [loadingClassCards, setLoadingClassCards] = useState(false);
-  const [classes, setClasses] = useState([]);
+  const [rawClasses, setRawClasses] = useState([]);
   const [selectedClassId, setSelectedClassId] = useState('');
+  const [selectedSectionId, setSelectedSectionId] = useState('');
 
   // Semesters available for the chosen year
   const yearSemesters = useMemo(
@@ -154,46 +123,35 @@ export default function ReportCards() {
     [activeYear]
   );
 
-  // Process classes data to flatten sections
+  // Derived current class object and its sections
+  const currentClass = useMemo(() => (
+    rawClasses.find((c) => (c._id || c.id) === selectedClassId) || null
+  ), [rawClasses, selectedClassId]);
+
+  const availableSections = useMemo(() => (
+    currentClass?.sections || []
+  ), [currentClass]);
+
+  // Target ID to fetch class/section report cards
+  const effectiveTargetId = selectedSectionId || selectedClassId;
+
+  // Process classes data into clean deduplicated class entries
   const processClassesData = (classesData) => {
-    const flattenedClasses = [];
-    classesData.forEach(klass => {
-      if (klass.sections && klass.sections.length > 0) {
-        klass.sections.forEach(section => {
-          // Always include all returned sections — backend already filters by year
-          flattenedClasses.push({
-            ...klass,
-            _id: section._id || section.id,
-            id: section._id || section.id,
-            displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} — ${section.name}`,
-            isSection: true,
-            sectionId: section._id || section.id,
-            sectionName: section.name,
-            academicYearId: section.academicYearId,
-            originalClassId: klass._id || klass.id
-          });
-        });
-      }
-      // Always include the class itself as an option
-      flattenedClasses.push({
-        ...klass,
-        displayName: `${klass.name}${klass.stream ? ` (${klass.stream})` : ''} (All Sections)`,
-        isSection: false,
-        academicYearId: klass.academicYearId
-      });
-    });
-    // Remove duplicates based on _id
     const uniqueClasses = [];
     const seenIds = new Set();
-    flattenedClasses.forEach(c => {
+    classesData.forEach((c) => {
       const cid = c._id || c.id;
       if (cid && !seenIds.has(cid)) {
         seenIds.add(cid);
         uniqueClasses.push(c);
       }
     });
-    setClasses(uniqueClasses);
-    if (uniqueClasses.length > 0) setSelectedClassId(prev => prev || uniqueClasses[0]._id || uniqueClasses[0].id);
+    setRawClasses(uniqueClasses);
+    if (uniqueClasses.length > 0) {
+      setSelectedClassId((prev) =>
+        prev && uniqueClasses.some((uc) => (uc._id || uc.id) === prev) ? prev : (uniqueClasses[0]._id || uniqueClasses[0].id)
+      );
+    }
   };
 
   // Auto-select active semester when year or activeSemester changes
@@ -247,12 +205,12 @@ export default function ReportCards() {
       .catch(() => { /* use defaults */ });
   }, []);
 
-  // Load class-level cards when class, year, or semester changes
+  // Load class-level cards when target class/section, year, or semester changes
   useEffect(() => {
-    if (!selectedClassId || !selectedYear) return;
+    if (!effectiveTargetId || !selectedYear) return;
     setLoadingClassCards(true);
     const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
-    axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`)
+    axios.get(`/report-cards/class/${effectiveTargetId}/${selectedYear}${params}`)
       .then((r) => {
         const data = r.data;
         if (Array.isArray(data)) {
@@ -265,19 +223,7 @@ export default function ReportCards() {
       })
       .catch(() => setClassCards([]))
       .finally(() => setLoadingClassCards(false));
-  }, [selectedClassId, selectedYear, selectedSemesterId]);
-
-  const workflowCounts = useMemo(() => {
-    const counts = { Draft: 0, HomeroomReview: 0, BranchAdminReview: 0, Published: 0 };
-    if (Array.isArray(classCards)) {
-      classCards.forEach((rc) => {
-        let key = rc.workflowStatus || 'Draft';
-        if (key === 'AdminReview') key = 'BranchAdminReview';
-        if (counts[key] !== undefined) counts[key]++;
-      });
-    }
-    return counts;
-  }, [classCards]);
+  }, [effectiveTargetId, selectedYear, selectedSemesterId]);
 
   // ── Compile ────────────────────────────────────────────────────────────────
   const handleCompile = async () => {
@@ -300,9 +246,9 @@ export default function ReportCards() {
         semesterId: selectedSemesterId || undefined,
       }, { headers: getHistoricalHeaders() });
       toast.success(res.data?.message || 'Report cards compiled.');
-      if (selectedClassId) {
+      if (effectiveTargetId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
+        const r = await axios.get(`/report-cards/class/${effectiveTargetId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -329,9 +275,9 @@ export default function ReportCards() {
       });
       showToast(res.data?.message || 'Report cards published.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
-      if (selectedClassId) {
+      if (effectiveTargetId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
+        const r = await axios.get(`/report-cards/class/${effectiveTargetId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -358,9 +304,9 @@ export default function ReportCards() {
       });
       showToast('Report cards unpublished.');
       if (preview && selectedStudent) loadPreview(selectedStudent);
-      if (selectedClassId) {
+      if (effectiveTargetId) {
         const params = selectedSemesterId ? `?semesterId=${selectedSemesterId}` : '';
-        const r = await axios.get(`/report-cards/class/${selectedClassId}/${selectedYear}${params}`);
+        const r = await axios.get(`/report-cards/class/${effectiveTargetId}/${selectedYear}${params}`);
         setClassCards(r.data || []);
       }
     } catch (err) {
@@ -525,8 +471,8 @@ export default function ReportCards() {
       {/* Historical Read-Only Banner */}
       {isArchivedYear && (
         <div className={`mb-5 rounded-2xl border px-5 py-4 ${historicalEditEnabled
-            ? 'border-amber-300 bg-amber-50'
-            : 'border-slate-300 bg-slate-100'
+          ? 'border-amber-300 bg-amber-50'
+          : 'border-slate-300 bg-slate-100'
           }`}>
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-800">
@@ -620,8 +566,8 @@ export default function ReportCards() {
                     type="button"
                     onClick={() => setSelectedSemesterId(s.id)}
                     className={`relative flex-1 rounded-xl border px-4 py-3 text-sm font-bold transition ${selectedSemesterId === s.id
-                        ? 'border-slate-900 bg-slate-900 text-white shadow-sm'
-                        : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
+                      ? 'border-indigo-600 bg-black text-white shadow-sm ring-2 ring-indigo-600/20'
+                      : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
                       }`}
                   >
                     {s.name}
@@ -638,7 +584,7 @@ export default function ReportCards() {
           <button
             onClick={handleCompile}
             disabled={!selectedYear || busy === 'compile'}
-            className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5-4.5-4.5 1.41-1.41L13 13.67l6.09-6.08 1.41 1.41L13 16.5z" />
@@ -653,32 +599,52 @@ export default function ReportCards() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h3 className="text-lg font-bold text-slate-900">Class Overview</h3>
-            <p className="text-xs text-slate-400">Select a class to see the report card pipeline</p>
+            <p className="text-xs text-slate-400">Select a grade and section to view the report card pipeline</p>
           </div>
-          {/* Class selector */}
-          <div className="flex items-center gap-2">
-            <svg className="h-4 w-4 shrink-0 text-slate-400" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M4 6h16v2H4V6zm4 5h8v2H8v-2zm2 5h4v2h-4v-2z" />
-            </svg>
-            <select
-              value={selectedClassId}
-              onChange={(e) => setSelectedClassId(e.target.value)}
-              className="min-w-[220px] rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white focus:ring-4 focus:ring-slate-900/5 cursor-pointer"
-            >
-              {classes.length === 0 ? (
-                <option value="">No classes available</option>
-              ) : (
-                classes.map((c) => (
-                  <option key={c._id || c.id} value={c._id || c.id}>
-                    {c.displayName || `${c.name}${c.stream ? ` (${c.stream})` : ''}${c.subject ? ` · ${c.subject}` : ''}`}
+          {/* Class & Section selectors */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Class / Grade Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Grade:</span>
+              <select
+                value={selectedClassId}
+                onChange={(e) => {
+                  setSelectedClassId(e.target.value);
+                  setSelectedSectionId('');
+                }}
+                className="min-w-[150px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-600/20 cursor-pointer"
+              >
+                {rawClasses.length === 0 ? (
+                  <option value="">No classes available</option>
+                ) : (
+                  rawClasses.map((c) => (
+                    <option key={c._id || c.id} value={c._id || c.id}>
+                      {c.name}
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {/* Section Selector */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-slate-400">Section:</span>
+              <select
+                value={selectedSectionId}
+                onChange={(e) => setSelectedSectionId(e.target.value)}
+                disabled={availableSections.length === 0}
+                className="min-w-[140px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-600/20 cursor-pointer disabled:opacity-50"
+              >
+                <option value="">All Sections</option>
+                {availableSections.map((sec) => (
+                  <option key={sec._id || sec.id} value={sec._id || sec.id}>
+                    {sec.name}
                   </option>
-                ))
-              )}
-            </select>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
-
-        <WorkflowPipeline counts={workflowCounts} />
 
         {loadingClassCards ? (
           <div className="flex items-center justify-center py-10 text-slate-400">
@@ -912,11 +878,22 @@ export default function ReportCards() {
 
           {card && (
             <div className="space-y-6">
+              {/* Live-calculated notice */}
+              {card._liveCalculated && (
+                <div className="flex items-center gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5">
+                  <span className="text-base">⚠️</span>
+                  <p className="text-xs font-semibold text-amber-800">
+                    Averages shown are <span className="font-black">live estimates</span> calculated directly from submitted grades.
+                    They will become official once the Homeroom Teacher approves the grades and you click <span className="font-black">Compile Report Cards</span>.
+                  </p>
+                </div>
+              )}
+
               {/* KPI strip */}
               <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6">
                 {[
                   { label: 'Average', value: card.averageScore != null ? `${Math.round(card.averageScore)}%` : 'Incomplete' },
-                  { label: 'Rank', value: card.rank ? `${card.rank}/${getStudentClassSize(card)}` : '—' },
+                  { label: 'Rank', value: card.rank ? `${card.rank}/${card.classSize || getStudentClassSize(card)}` : '—' },
                   { label: 'Attendance', value: `${Math.round(card.attendancePercentage)}%` },
                   { label: 'Result', value: card.status || 'Pending' },
                   { label: 'Promotion', value: card.promotionStatus || 'Pending' },

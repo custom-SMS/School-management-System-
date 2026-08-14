@@ -1130,6 +1130,25 @@ const approveGrades = async (req, res) => {
       now, teacherProfile.id, ...gradeIds
     );
 
+    // Auto-recompile report cards for affected students
+    try {
+      const approvedGrades = await prisma.grade.findMany({
+        where: { id: { in: gradeIds } },
+        select: { studentId: true, academicYearId: true, semesterId: true }
+      });
+      if (approvedGrades.length > 0) {
+        const studentIds = [...new Set(approvedGrades.map(g => g.studentId))];
+        const academicYearId = approvedGrades[0].academicYearId;
+        const semesterId = approvedGrades[0].semesterId;
+        const { recompileReportCardsForStudents } = require('./reportCardController');
+        if (recompileReportCardsForStudents) {
+          await recompileReportCardsForStudents(academicYearId, semesterId, studentIds);
+        }
+      }
+    } catch (recompileErr) {
+      console.error('Failed to auto-recompile report cards on grade approval:', recompileErr);
+    }
+
     const { logActivity } = require('../middleware/auditLogger');
     await logActivity(req.user._id, 'Approve Grades', gradeIds.join(','), `Approved ${gradeIds.length} grades`);
 

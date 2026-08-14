@@ -44,10 +44,11 @@ function shouldCache(req, res) {
   if (req.method !== 'GET') return false;
   if (isBypassed(req)) return false;
 
-  // Avoid caching auth, docs, uploads, etc.
+  // Avoid caching auth, docs, uploads, report cards, etc.
   const path = req.path || '';
   if (path.startsWith('/api/auth')) return false;
   if (path.startsWith('/api/uploads')) return false;
+  if (path.startsWith('/api/report-cards')) return false;
   if (path.startsWith('/api-docs')) return false;
 
   // Now that middleware is placed after auth/branch middleware, we can rely on the presence
