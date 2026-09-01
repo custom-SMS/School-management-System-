@@ -25,7 +25,7 @@ const queryClient = new QueryClient({
 });
 
 describe('Login Page Component', () => {
-  it('renders login form inputs and test account buttons', () => {
+  it('renders login form inputs and submit button', () => {
     const mockLogin = vi.fn();
     vi.mocked(AuthHook.useAuth).mockReturnValue({
       login: mockLogin,
@@ -52,9 +52,10 @@ describe('Login Page Component', () => {
     expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
   });
 
-  it('populates credentials when clicking quick test account chip', () => {
+  it('allows user to enter credentials and submit form', async () => {
+    const mockLogin = vi.fn().mockResolvedValue({ role: 'SuperAdmin' });
     vi.mocked(AuthHook.useAuth).mockReturnValue({
-      login: vi.fn(),
+      login: mockLogin,
       user: null,
       loading: false,
     } as any);
@@ -73,10 +74,14 @@ describe('Login Page Component', () => {
       </QueryClientProvider>
     );
 
-    const superAdminChip = screen.getByRole('button', { name: 'Super Admin' });
-    fireEvent.click(superAdminChip);
+    const identifierInput = screen.getByPlaceholderText('abebe.balcha@school.et');
+    const passwordInput = screen.getByPlaceholderText('••••••••••••');
+    const loginButton = screen.getByRole('button', { name: 'Login' });
 
-    const identifierInput = screen.getByPlaceholderText('abebe.balcha@school.et') as HTMLInputElement;
-    expect(identifierInput.value).toBe('superadmin@school.test');
+    fireEvent.change(identifierInput, { target: { value: 'superadmin@school.com' } });
+    fireEvent.change(passwordInput, { target: { value: 'superadmin' } });
+    fireEvent.click(loginButton);
+
+    expect(mockLogin).toHaveBeenCalledWith('superadmin@school.com', 'superadmin');
   });
 });

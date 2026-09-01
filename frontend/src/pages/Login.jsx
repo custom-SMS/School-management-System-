@@ -14,14 +14,6 @@ export default function Login() {
   const navigate = useNavigate();
   const loginSectionRef = useRef(null);
 
-  const testAccounts = [
-    { label: 'Student', identifier: 'student.b1.grade1.01@school.test', password: 'Test@1234' },
-    { label: 'Teacher', identifier: 'teacher.math1@school.test', password: 'Test@1234' },
-    { label: 'Admin', identifier: 'admin.branch1@school.test', password: 'Test@1234' },
-    { label: 'Super Admin', identifier: 'superadmin@school.test', password: 'Test@1234' },
-    { label: 'Cashier', identifier: 'cashier.branch1@school.test', password: 'Test@1234' },
-    { label: 'Parent', identifier: 'parent.01@school.test', password: 'Test@1234' }
-  ];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -225,26 +217,7 @@ export default function Login() {
               </button>
             </form>
 
-            {/* Test Login Shortcuts */}
-            <div className="border border-[#d8e5ec] bg-[#f8fafc] rounded-2xl p-4 space-y-2.5">
-              <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#6a8b9c]">Quick Test Accounts</span>
-              <div className="flex flex-wrap gap-1.5">
-                {testAccounts.map((account) => (
-                  <button
-                    key={account.label}
-                    type="button"
-                    onClick={() => {
-                      setIdentifier(account.identifier);
-                      setPassword(account.password);
-                      setError('');
-                    }}
-                    className="px-3 py-1 text-xs font-extrabold rounded-full bg-white border border-[#d2e2eb] text-[#203e4f] hover:bg-[#203e4f] hover:text-white transition-all shadow-2xs"
-                  >
-                    {account.label}
-                  </button>
-                ))}
-              </div>
-            </div>
+
           </div>
         </div>
 
