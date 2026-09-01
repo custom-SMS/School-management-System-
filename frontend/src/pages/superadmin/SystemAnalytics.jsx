@@ -90,14 +90,14 @@ export default function SystemAnalytics() {
       )}
 
       {/* Top KPIs */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Students</p>
-          <p className="mt-2 text-3xl font-black text-slate-900">{totalStudents.toLocaleString()}</p>
+          <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">{totalStudents.toLocaleString()}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Total Teachers</p>
-          <p className="mt-2 text-3xl font-black text-slate-900">{totalTeachers.toLocaleString()}</p>
+          <p className="mt-2 text-2xl sm:text-3xl font-black text-slate-900">{totalTeachers.toLocaleString()}</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Active Year</p>

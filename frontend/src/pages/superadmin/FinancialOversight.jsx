@@ -159,9 +159,9 @@ export default function FinancialOversight() {
               <p className="py-6 text-center text-sm text-slate-400">No invoices generated yet.</p>
             ) : (
               feeSummaryByClass.map((g) => (
-                <div key={g.className} className="flex items-center justify-between rounded-lg border border-slate-100 px-4 py-3 hover:bg-slate-50">
+                <div key={g.className} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 rounded-lg border border-slate-100 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-slate-50">
                   <span className="text-sm font-bold text-slate-800">{g.className}</span>
-                  <div className="flex items-center gap-4 text-xs font-semibold">
+                  <div className="flex items-center gap-3 text-xs font-semibold flex-wrap">
                     <span className="text-emerald-600">Paid: ETB {etb(g.paidAmount)}</span>
                     <span className="text-rose-500">Due: ETB {etb(g.pendingAmount)}</span>
                   </div>
@@ -181,7 +181,7 @@ export default function FinancialOversight() {
           </div>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          <table className="w-full text-left text-sm min-w-[400px]">
             <thead>
               <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
                 <th className="pb-3 font-semibold">Grade</th>

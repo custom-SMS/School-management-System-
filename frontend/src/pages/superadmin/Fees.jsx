@@ -255,7 +255,7 @@ export default function SuperAdminFees() {
         <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="mb-4 text-xl font-bold text-slate-900">Configured Grades</h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full text-left text-sm min-w-[500px]">
               <thead>
                 <tr className="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
                   <th className="rounded-l-lg px-4 py-3 font-semibold">Grade</th>
@@ -315,36 +315,36 @@ export default function SuperAdminFees() {
       </div>
 
       {/* Generate invoices */}
-      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="mt-6 rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-sm">
         <h2 className="text-xl font-bold text-slate-900">Generate Monthly Invoices</h2>
         <p className="mt-1 text-sm text-slate-500">
           Creates an unpaid monthly tuition invoice for every student based on the grade fee above.
           Students already invoiced for the selected month are skipped.
         </p>
-        <form className="mt-5 flex flex-wrap items-end gap-4" onSubmit={handleGenerate}>
-          <div>
+        <form className="mt-5 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-end gap-4" onSubmit={handleGenerate}>
+          <div className="w-full sm:w-auto">
             <label className="mb-1.5 block text-sm font-semibold text-slate-700">Month</label>
             <select
               value={genMonth}
               onChange={(e) => setGenMonth(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
             >
               {months.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          <div>
+          <div className="w-full sm:w-auto">
             <label className="mb-1.5 block text-sm font-semibold text-slate-700">Due Date</label>
             <input
               type="date"
               value={genDueDate}
               onChange={(e) => setGenDueDate(e.target.value)}
-              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-300 focus:bg-white focus:ring-4 focus:ring-slate-900/5"
             />
           </div>
           <button
             type="submit"
             disabled={generating}
-            className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            className="w-full sm:w-auto rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
           >
             {generating ? 'Generating…' : 'Generate Invoices'}
           </button>

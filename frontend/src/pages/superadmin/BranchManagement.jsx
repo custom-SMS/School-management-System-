@@ -251,7 +251,7 @@ export default function BranchManagement() {
           </button>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-x-auto">
-          <table className="w-full text-sm text-left">
+          <table className="w-full text-sm text-left min-w-[500px]">
             <thead>
               <tr className="border-b border-slate-100 text-xs uppercase tracking-wide text-slate-400">
                 <th className="px-4 py-3">User</th>
@@ -279,7 +279,7 @@ export default function BranchManagement() {
                   <td className="px-4 py-3 text-slate-600">{sc.branch?.name || '—'}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => removeScope(sc.id)}
-                      className="text-xs font-semibold text-rose-600 hover:underline">Remove</button>
+                      className="text-xs font-semibold text-rose-600 hover:underline p-1">Remove</button>
                   </td>
                 </tr>
               ))}
@@ -291,8 +291,8 @@ export default function BranchManagement() {
 
       {/* ── Modals ─────────────────────────────────────────────────── */}
       {modal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-3 sm:p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md max-h-[90vh] overflow-y-auto rounded-2xl bg-white p-5 sm:p-6 shadow-2xl">
 
             {/* School modal */}
             {modal === 'school' && (

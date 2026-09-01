@@ -205,14 +205,14 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
 
       {/* ── Sidebar ── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-[#203e4f] text-[#cbe1eb] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex h-screen w-72 max-w-[85vw] flex-col bg-[#203e4f] text-[#cbe1eb] shadow-2xl transition-transform duration-300 ease-in-out lg:sticky lg:top-0 lg:z-auto lg:w-64 lg:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Top School Branding Header */}
         <div className="flex flex-col items-center pt-6 pb-5 px-4 border-b border-white/10 relative">
           <button
-            className="text-[#9bbcc9] hover:text-white lg:hidden absolute top-4 right-4"
+            className="p-2 text-[#9bbcc9] hover:text-white lg:hidden absolute top-4 right-4 rounded-xl hover:bg-white/10 transition"
             onClick={() => setSidebarOpen(false)}
             aria-label="Close menu"
           >
@@ -338,22 +338,22 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
         <MaintenanceBanner />
 
         {/* Top Header Bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/90 backdrop-blur-md px-4 sm:px-6 lg:px-8 shadow-xs">
-          <div className="flex min-w-0 items-center gap-3">
+        <header className="sticky top-0 z-40 flex h-16 shrink-0 items-center justify-between border-b border-[#d8e6ed] bg-[#e7eff3]/95 backdrop-blur-md px-3 sm:px-6 lg:px-8 shadow-xs">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <button
-              className="text-[#203e4f] hover:text-black lg:hidden"
+              className="p-1.5 -ml-1 text-[#203e4f] hover:text-black hover:bg-black/5 rounded-xl lg:hidden transition"
               onClick={() => setSidebarOpen(true)}
               aria-label="Open menu"
             >
               <MenuIcon />
             </button>
-            <span className="hidden sm:inline-flex"><SystemIcon /></span>
-            <h1 className="truncate text-lg sm:text-2xl font-extrabold text-[#203e4f] tracking-tight">
+            <span className="hidden sm:inline-flex text-[#203e4f]"><SystemIcon /></span>
+            <h1 className="truncate text-base sm:text-2xl font-extrabold text-[#203e4f] tracking-tight max-w-[140px] xs:max-w-[200px] sm:max-w-none">
               {pageTitle ? `Welcome ${pageTitle}` : `Welcome ${user?.name || 'Super Admin'} !`}
             </h1>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-4 flex-wrap sm:flex-nowrap">
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
             {/* Branch Switcher — desktop only; sidebar handles mobile */}
             {canSwitchBranch && (
               <div className="hidden md:flex items-center gap-1 sm:gap-2">
@@ -429,7 +429,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
                 )}
               </button>
               {notificationsOpen && (
-                <div className="absolute right-0 top-full z-50 mt-3 w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
+                <div className="absolute right-0 top-full z-50 mt-3 w-[calc(100vw-2rem)] max-w-xs sm:w-80 rounded-2xl border border-[#d2e2eb] bg-white p-4 shadow-2xl">
                   <div className="mb-3 flex items-center justify-between border-b border-slate-100 pb-3">
                     <span className="text-sm font-black text-[#203e4f]">Notifications</span>
                     <div className="flex items-center gap-2">
@@ -460,21 +460,21 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
               )}
             </div>
 
-            {headerAction && <div className="ml-2 border-l border-[#d8e6ed] pl-2 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
+            {headerAction && <div className="ml-1 sm:ml-2 border-l border-[#d8e6ed] pl-1.5 sm:pl-4 shrink-0 flex items-center whitespace-nowrap">{headerAction}</div>}
           </div>
         </header>
 
         {/* Historical View Banner */}
         {isViewingHistory && (
-          <div className="flex items-center justify-between gap-3 bg-amber-50 border-b border-amber-200 px-4 sm:px-6 lg:px-8 py-2">
-            <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center justify-between gap-3 bg-amber-50 border-b border-amber-200 px-3 sm:px-6 lg:px-8 py-2">
+            <div className="flex items-center gap-2 text-xs sm:text-sm">
               <span className="text-amber-500 text-base">🕐</span>
               <span className="font-bold text-amber-800">Historical View:</span>
-              <span className="text-amber-700">You are viewing data for <strong>{selectedYear?.year}</strong>. The live active year is <strong>{activeYear?.year}</strong>. Changes are read-only.</span>
+              <span className="text-amber-700">Viewing <strong>{selectedYear?.year}</strong> (read-only).</span>
             </div>
             <button
               onClick={resetViewYear}
-              className="shrink-0 text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-3 py-1 rounded-full transition"
+              className="shrink-0 text-xs font-bold text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 border border-amber-300 px-2.5 py-1 rounded-full transition"
             >
               Return to Live Year
             </button>
@@ -482,7 +482,7 @@ export default function SuperAdminLayout({ children, pageTitle, headerAction }) 
         )}
 
         {/* Page Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <div className="flex-1 w-full min-w-0 overflow-y-auto p-3.5 sm:p-6 lg:p-8">
           {children}
         </div>
       </main>

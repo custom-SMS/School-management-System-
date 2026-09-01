@@ -201,31 +201,33 @@ export default function UserManagement() {
       </div>
 
       {/* Filters */}
-      <div className="sticky top-16 z-40 flex flex-wrap gap-3 mb-4 bg-slate-50/90 py-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 mb-4 bg-slate-50/90 py-2.5 px-3 rounded-xl border border-slate-200/80">
         <input
           type="text"
           placeholder="Search by name or email…"
           value={search}
           onChange={handleSearchChange}
-          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-72"
+          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-72 bg-white"
         />
-        <select value={filterRole} onChange={e => { setFilterRole(e.target.value); setPage(1); }}
-          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
-          <option value="">All Roles</option>
-          {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-        </select>
-        {(search || filterRole) && (
-          <button onClick={() => { setSearch(''); setFilterRole(''); setPage(1); }}
-            className="text-sm font-bold text-red-600 hover:text-red-800 px-3">Clear Filters</button>
-        )}
-        <span className="ml-auto text-xs font-semibold text-slate-400 self-center">
+        <div className="flex items-center gap-2 flex-wrap">
+          <select value={filterRole} onChange={e => { setFilterRole(e.target.value); setPage(1); }}
+            className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            <option value="">All Roles</option>
+            {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          {(search || filterRole) && (
+            <button onClick={() => { setSearch(''); setFilterRole(''); setPage(1); }}
+              className="text-sm font-bold text-red-600 hover:text-red-800 px-2 py-1">Clear Filters</button>
+          )}
+        </div>
+        <span className="sm:ml-auto text-xs font-semibold text-slate-400">
           {total > 0 ? `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total} users` : '0 users'}
         </span>
       </div>
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
+          <table className="w-full text-left text-sm whitespace-nowrap min-w-[650px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">User</th>

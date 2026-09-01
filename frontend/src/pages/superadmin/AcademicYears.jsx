@@ -395,11 +395,11 @@ export default function AcademicYears() {
 
       {/* Active year + semester banner */}
       {activeYear && (
-        <div className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 px-6 py-4 space-y-4">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 p-4 sm:px-6 sm:py-4 space-y-4">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                <div className="w-3 h-3 bg-emerald-500 rounded-full ring-4 ring-emerald-200 shrink-0"></div>
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-3 h-3 bg-emerald-500 rounded-full ring-4 ring-emerald-200 shrink-0 mt-1 sm:mt-0"></div>
                 <div>
                   <div className="text-sm font-bold text-emerald-900">Currently Active: <span className="text-emerald-700">{activeYear.year}</span></div>
                   <div className="text-xs text-emerald-700 mt-0.5">
@@ -409,7 +409,7 @@ export default function AcademicYears() {
                 </div>
               </div>
               {activeSemester && (
-                <div className="ml-7 flex items-center gap-2">
+                <div className="sm:ml-6 flex items-center gap-2">
                   <div className="w-2 h-2 bg-violet-500 rounded-full shrink-0"></div>
                   <span className="text-xs font-bold text-violet-800">
                     Active Semester: {activeSemester.name}
@@ -421,21 +421,21 @@ export default function AcademicYears() {
             </div>
 
             {/* Year-End Operations */}
-            <div className="flex flex-col gap-2 p-3 bg-white/60 rounded-lg border border-emerald-200/50">
-              <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Year-End Operations</div>
+            <div className="flex flex-col gap-2 p-3 bg-white/70 rounded-lg border border-emerald-200/60 w-full lg:w-auto">
+              <div className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">Year-End Operations</div>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => handleArchiveReportCards(activeYear)}
                   disabled={archiving}
-                  className="text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded transition disabled:opacity-50 shadow-sm"
+                  className="text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-1.5 rounded-lg transition disabled:opacity-50 shadow-xs"
                 >
                   {archiving ? 'Archiving...' : 'Archive Report Cards'}
                 </button>
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
                   <select
                     value={promoteTargetYearId}
                     onChange={(e) => setPromoteTargetYearId(e.target.value)}
-                    className="text-xs border border-slate-300 rounded px-2 py-1.5 bg-white w-36 shadow-sm outline-none focus:ring-1 focus:ring-blue-500"
+                    className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white w-full sm:w-36 shadow-xs outline-none focus:ring-1 focus:ring-blue-500"
                   >
                     <option value="" disabled>Select Target Year...</option>
                     {years.filter(y => y.id !== activeYear.id).map(y => (
@@ -445,7 +445,7 @@ export default function AcademicYears() {
                   <button
                     onClick={() => handleBulkPromote(activeYear, promoteTargetYearId)}
                     disabled={promoting}
-                    className="text-xs font-bold bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1.5 rounded transition disabled:opacity-50 shadow-sm"
+                    className="text-xs font-bold bg-blue-100 text-blue-800 hover:bg-blue-200 px-3 py-1.5 rounded-lg transition disabled:opacity-50 shadow-xs whitespace-nowrap"
                   >
                     {promoting ? 'Promoting...' : 'Bulk Promote'}
                   </button>
@@ -502,8 +502,8 @@ export default function AcademicYears() {
             years.map(y => (
               <div key={y.id} className={`bg-white border rounded-xl shadow-sm overflow-hidden transition ${y.isActive ? 'border-emerald-300' : 'border-slate-200'}`}>
                 {/* Year header row */}
-                <div className={`flex items-center justify-between px-5 py-4 ${y.isActive ? 'bg-emerald-50/60' : 'bg-slate-50/60'}`}>
-                  <div className="flex items-center gap-3">
+                <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 py-3.5 sm:px-5 sm:py-4 ${y.isActive ? 'bg-emerald-50/60' : 'bg-slate-50/60'}`}>
+                  <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                     <button
                       onClick={() => setExpandedYearId(expandedYearId === y.id ? null : y.id)}
                       className="text-slate-400 hover:text-slate-700 text-lg font-bold transition w-6 text-center"
@@ -520,7 +520,7 @@ export default function AcademicYears() {
                       {y.registrationOpen ? '● Reg. OPEN' : '○ Reg. CLOSED'}
                     </span>
                   </div>
-                  <div className="inline-flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2 pl-8 sm:pl-0">
                     <button
                       onClick={() => openEditPeriod(y)}
                       className="text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 px-3 py-1.5 rounded-lg transition"
@@ -567,21 +567,23 @@ export default function AcademicYears() {
                 {expandedYearId === y.id && (
                   <div className="border-t border-slate-100 divide-y divide-slate-100">
                     {(!y.semesters || y.semesters.length === 0) ? (
-                      <div className="px-8 py-4 text-sm text-slate-400 italic">No semesters found for this year.</div>
+                      <div className="px-5 sm:px-8 py-4 text-sm text-slate-400 italic">No semesters found for this year.</div>
                     ) : (
                       y.semesters.map(sem => {
                         const isGloballyActive = activeSemester?.id === sem.id;
                         return (
-                          <div key={sem.id} className={`flex items-center justify-between px-8 py-3 ${isGloballyActive ? 'bg-violet-50/50' : ''}`}>
-                            <div className="flex items-center gap-3">
-                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${isGloballyActive ? 'bg-violet-500 ring-2 ring-violet-200' : 'bg-slate-300'}`}></div>
+                          <div key={sem.id} className={`flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-5 sm:px-8 py-3 ${isGloballyActive ? 'bg-violet-50/50' : ''}`}>
+                            <div className="flex items-start sm:items-center gap-3">
+                              <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 sm:mt-0 ${isGloballyActive ? 'bg-violet-500 ring-2 ring-violet-200' : 'bg-slate-300'}`}></div>
                               <div>
-                                <span className="font-bold text-sm text-slate-800">{sem.name}</span>
-                                {isGloballyActive && (
-                                  <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">
-                                    ✦ Globally Active
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="font-bold text-sm text-slate-800">{sem.name}</span>
+                                  {isGloballyActive && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700">
+                                      ✦ Globally Active
+                                    </span>
+                                  )}
+                                </div>
                                 <div className="text-xs text-slate-400 mt-0.5">
                                   {sem.startDate || sem.endDate
                                     ? `${fmtDate(sem.startDate)} → ${fmtDate(sem.endDate)}`
@@ -590,7 +592,7 @@ export default function AcademicYears() {
                                 </div>
                               </div>
                             </div>
-                            <div className="inline-flex items-center gap-2">
+                            <div className="flex items-center gap-2 pl-5 sm:pl-0">
                               <button
                                 onClick={() => openEditSemester(sem)}
                                 className="text-xs font-bold text-slate-500 hover:text-slate-800 bg-slate-100 px-2.5 py-1.5 rounded-lg transition"

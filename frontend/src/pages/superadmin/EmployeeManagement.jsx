@@ -263,13 +263,13 @@ export default function EmployeeManagement() {
         </button>
       </div>
 
-      <div className="sticky top-16 z-40 flex flex-wrap gap-3 mb-6 bg-slate-50/90 py-2 -mx-4 px-4 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8 backdrop-blur-sm">
+      <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3 mb-6 bg-slate-50/90 py-2.5 px-3 rounded-xl border border-slate-200/80">
         <input
           type="text"
           placeholder="Search employees..."
           value={search}
           onChange={handleSearchChange}
-          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 min-w-[200px]"
+          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-64 bg-white"
         />
         <select value={filterRole} onChange={handleRoleFilterChange}
           className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
@@ -280,7 +280,7 @@ export default function EmployeeManagement() {
 
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm whitespace-nowrap">
+          <table className="w-full text-left text-sm whitespace-nowrap min-w-[650px]">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-6 py-4 font-bold text-slate-500 uppercase tracking-wider text-xs">Employee</th>
