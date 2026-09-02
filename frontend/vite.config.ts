@@ -22,7 +22,7 @@ export default defineConfig({
         name: 'School Management System',
         short_name: 'SMS',
         description: 'A comprehensive school management system',
-        theme_color: '#863bff',
+        theme_color: '#203e4f',
         background_color: '#ffffff',
         display: 'standalone',
         icons: [
