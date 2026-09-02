@@ -151,8 +151,13 @@ app.use((err, req, res, next) => {
 
 // Start server only when executed directly (not when required by tests)
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Server running on port ${PORT} bound to 0.0.0.0`);
+  });
+
+  server.on('error', (err) => {
+    console.error('Server failed to bind to port:', err);
+    process.exit(1);
   });
 }
 
