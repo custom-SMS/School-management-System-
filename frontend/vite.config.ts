@@ -20,10 +20,10 @@ export default defineConfig({
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
       manifest: {
         name: 'School Management System',
-        short_name: 'SMS',
-        description: 'A comprehensive school management system',
+        short_name: 'School Portal',
+        description: 'Comprehensive School Management System',
         theme_color: '#203e4f',
-        background_color: '#ffffff',
+        background_color: '#203e4f',
         display: 'standalone',
         icons: [
           {
