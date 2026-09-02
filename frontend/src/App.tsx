@@ -7,6 +7,7 @@ import {
 
 import ProtectedRoute from "./components/ProtectedRoute";
 import { ToastContainer } from "react-toastify";
+import PWAInstallPrompt from "./components/PWAInstallPrompt";
 
 
 // General
@@ -847,6 +848,7 @@ function App() {
                 }
               />
             </Routes>
+            <PWAInstallPrompt />
       </AcademicYearProvider>
     </Router>
   );
