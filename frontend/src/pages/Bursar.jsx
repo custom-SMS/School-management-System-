@@ -242,7 +242,7 @@ export default function Bursar() {
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 rounded-4xl border border-white/50 bg-white/75 px-6 py-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur-xl sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-indigo-600">Finance</p>
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[#203e4f]">Finance</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-slate-900">Bursar (Fee Management)</h1>
           <p className="mt-2 text-sm text-slate-500">Record payments and verify transaction references.</p>
         </div>
@@ -251,7 +251,7 @@ export default function Bursar() {
         <div className="mb-8 flex border-b border-slate-200">
           <button
             onClick={() => setActiveTab('payments')}
-            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'payments' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-6 py-3 text-sm font-bold border-b-2 transition duration-200 ${activeTab === 'payments' ? 'border-[#203e4f] text-[#203e4f]' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Direct Payments & Defaulters
           </button>
@@ -260,7 +260,7 @@ export default function Bursar() {
               setActiveTab('verifications');
               fetchPendingPayments();
             }}
-            className={`px-6 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'verifications' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-6 py-3 text-sm font-bold border-b-2 transition duration-200 ${activeTab === 'verifications' ? 'border-[#203e4f] text-[#203e4f]' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Bank Verifications Queue ({pendingPayments.length})
           </button>
@@ -279,7 +279,7 @@ export default function Bursar() {
                   <select value={generateMonth} onChange={(e) => setGenerateMonth(e.target.value)} className="rounded-2xl border border-amber-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10">
                     {months.map((m) => <option key={`gen-${m}`} value={m}>{m}</option>)}
                   </select>
-                  <button onClick={handleGenerateInvoices} disabled={generating} className="rounded-2xl bg-amber-600 px-5 py-2.5 font-semibold text-white shadow-lg shadow-amber-500/20 transition hover:-translate-y-0.5 disabled:opacity-50">
+                  <button onClick={handleGenerateInvoices} disabled={generating} className="rounded-xl bg-[#203e4f] px-5 py-2.5 font-bold text-white shadow-xs transition hover:bg-[#172d3a] disabled:opacity-50">
                     {generating ? 'Generating…' : 'Generate Invoices'}
                   </button>
                 </div>

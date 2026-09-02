@@ -57,6 +57,7 @@ export default function ParentLayout({ children, kids = [], childId, onSelectChi
     { to: '/parent/dashboard', label: t('overview'), icon: <DashboardIcon /> },
     { to: '/parent/notifications', label: t('notifications'), icon: <BellIcon /> },
     { to: '/parent/academics', label: t('academics'), icon: <AcademicsIcon /> },
+    { to: '/parent/coursework', label: 'Coursework', icon: <AcademicsIcon /> },
     { to: '/parent/attendance', label: t('attendance'), icon: <CalendarIcon /> },
     { to: '/parent/finance', label: t('finance'), icon: <FinanceIcon /> },
   ];

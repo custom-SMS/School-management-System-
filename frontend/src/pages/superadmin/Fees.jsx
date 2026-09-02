@@ -243,7 +243,7 @@ export default function SuperAdminFees() {
               <button
                 type="submit"
                 disabled={saving || !grade}
-                className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                className="w-full rounded-xl bg-[#203e4f] py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
               >
                 {saving ? 'Saving…' : isEditing ? `Update Fee for ${grade}` : 'Save Fee Structure'}
               </button>
@@ -282,14 +282,14 @@ export default function SuperAdminFees() {
                           <div className="flex items-center justify-end gap-2">
                             <button
                               onClick={() => { handleGradeChange(s.grade); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                              className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-500"
+                              className="rounded-xl bg-[#203e4f] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#172d3a] transition shadow-xs"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => handleDelete(s.id, s.grade)}
                               disabled={deletingId === s.id}
-                              className="rounded-xl bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-rose-500 disabled:opacity-50"
+                              className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 hover:bg-rose-100 transition disabled:opacity-50"
                             >
                               {deletingId === s.id ? '…' : 'Delete'}
                             </button>
@@ -344,7 +344,7 @@ export default function SuperAdminFees() {
           <button
             type="submit"
             disabled={generating}
-            className="w-full sm:w-auto rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            className="w-full sm:w-auto rounded-xl bg-[#203e4f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
           >
             {generating ? 'Generating…' : 'Generate Invoices'}
           </button>

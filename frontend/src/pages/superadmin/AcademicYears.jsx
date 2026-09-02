@@ -356,8 +356,8 @@ export default function AcademicYears() {
                   className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setEditYear(null)} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-                <button type="submit" disabled={savingPeriod} className="rounded-lg bg-emerald-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-800 disabled:opacity-60">{savingPeriod ? 'Saving…' : 'Save Period'}</button>
+                <button type="button" onClick={() => setEditYear(null)} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+                <button type="submit" disabled={savingPeriod} className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition disabled:opacity-60">{savingPeriod ? 'Saving…' : 'Save Period'}</button>
               </div>
             </form>
           </div>
@@ -385,8 +385,8 @@ export default function AcademicYears() {
                   className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setEditSemester(null)} className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50">Cancel</button>
-                <button type="submit" disabled={savingSem} className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-60">{savingSem ? 'Saving…' : 'Save Dates'}</button>
+                <button type="button" onClick={() => setEditSemester(null)} className="rounded-xl border border-slate-300 px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition">Cancel</button>
+                <button type="submit" disabled={savingSem} className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition disabled:opacity-60">{savingSem ? 'Saving…' : 'Save Dates'}</button>
               </div>
             </form>
           </div>
@@ -486,7 +486,7 @@ export default function AcademicYears() {
               📅 Semester 1 & 2 will be automatically created for this year.
             </div>
             <button type="submit" disabled={creating}
-              className="w-full bg-emerald-900 text-white font-bold py-2.5 rounded-lg hover:bg-emerald-800 transition  disabled:opacity-60 text-sm">
+              className="w-full bg-[#203e4f] text-white font-bold py-2.5 rounded-xl hover:bg-[#172d3a] transition shadow-xs disabled:opacity-60 text-sm">
               {creating ? 'Creating…' : '+ Create Academic Year'}
             </button>
           </form>
@@ -547,14 +547,14 @@ export default function AcademicYears() {
                         <button
                           disabled={actionId === y.id}
                           onClick={() => handlePrepareStructure(y)}
-                          className="text-xs font-bold text-violet-700 hover:text-violet-900 bg-violet-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+                          className="text-xs font-bold text-[#3b6b82] hover:text-[#203e4f] bg-[#eaf2f6] px-3 py-1.5 rounded-xl transition disabled:opacity-40"
                         >
                           {actionId === y.id ? '…' : 'Prepare Structure'}
                         </button>
                         <button
                           disabled={actionId === y.id}
                           onClick={() => handleActivate(y.id, y.year)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+                          className="text-xs font-bold text-[#203e4f] hover:text-[#172d3a] bg-[#eaf2f6] px-3 py-1.5 rounded-xl transition disabled:opacity-40"
                         >
                           {actionId === y.id ? '…' : 'Set Active Year'}
                         </button>

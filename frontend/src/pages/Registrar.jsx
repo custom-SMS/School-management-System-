@@ -289,7 +289,7 @@ export default function Registrar() {
           </button>
           <button
             onClick={() => setActiveTab('promotion')}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'promotion' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-5 py-3 text-sm font-bold border-b-2 transition duration-200 ${activeTab === 'promotion' ? 'border-[#203e4f] text-[#203e4f]' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Promotion Board
           </button>
@@ -299,7 +299,7 @@ export default function Registrar() {
                 setActiveTab('permissions');
                 fetchPermissionsMatrix();
               }}
-              className={`px-5 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'permissions' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+              className={`px-5 py-3 text-sm font-bold border-b-2 transition duration-200 ${activeTab === 'permissions' ? 'border-[#203e4f] text-[#203e4f]' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
             >
               Role Permissions Matrix
             </button>
@@ -309,7 +309,7 @@ export default function Registrar() {
               setActiveTab('audit-logs');
               fetchAuditLogs();
             }}
-            className={`px-5 py-3 text-sm font-semibold border-b-2 transition duration-200 ${activeTab === 'audit-logs' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
+            className={`px-5 py-3 text-sm font-bold border-b-2 transition duration-200 ${activeTab === 'audit-logs' ? 'border-[#203e4f] text-[#203e4f]' : 'border-transparent text-slate-500 hover:text-slate-950'}`}
           >
             Audit Trail
           </button>
@@ -344,7 +344,7 @@ export default function Registrar() {
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Monthly Tuition (ETB)</label>
                   <input type="number" required placeholder="e.g. 500" value={feeAmount} onChange={e => setFeeAmount(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-500/10"/>
                 </div>
-                <button type="submit" className="w-full rounded-2xl bg-linear-to-r from-emerald-600 to-teal-600 px-4 py-3 font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:-translate-y-0.5">
+                <button type="submit" className="w-full rounded-xl bg-[#203e4f] px-4 py-3 font-bold text-white shadow-xs transition hover:bg-[#172d3a]">
                   Set Grade Fee
                 </button>
               </form>

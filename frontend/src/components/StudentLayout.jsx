@@ -62,6 +62,7 @@ export default function StudentLayout({ children, searchPlaceholder }) {
     { to: '/student/dashboard', label: t('dashboard'), icon: <DashboardIcon /> },
     { to: '/student/attendance', label: t('attendance'), icon: <CalendarIcon /> },
     { to: '/student/academics', label: t('academics'), icon: <AcademicsIcon /> },
+    { to: '/student/coursework', label: 'Coursework', icon: <AcademicsIcon /> },
     { to: '/student/finance', label: t('finance'), icon: <FinanceIcon /> },
   ];
   const { branding, notifications: publicNotifications, logoUrl, formatDateTime } = useSettings();

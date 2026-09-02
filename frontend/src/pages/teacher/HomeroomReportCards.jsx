@@ -146,7 +146,7 @@ export default function HomeroomReportCards() {
           <button
             onClick={handleSubmitToAdmin}
             disabled={submitting || selected.size === 0}
-            className="ml-auto rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
+            className="ml-auto rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white shadow-xs transition hover:bg-[#172d3a] disabled:opacity-40"
           >
             {submitting ? 'Submitting…' : `Submit ${selected.size > 0 ? selected.size : ''} to Branch Admin`}
           </button>

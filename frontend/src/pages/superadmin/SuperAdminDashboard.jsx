@@ -62,9 +62,9 @@ export default function SuperAdminDashboard() {
   if (error) {
     return (
       <SuperAdminLayout pageTitle="Governance Console">
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center shadow-xs">
-          <p className="text-sm font-bold text-red-600">⚠ {error}</p>
-          <button onClick={() => window.location.reload()} className="mt-4 rounded-full bg-red-600 px-5 py-2 text-xs font-extrabold text-white hover:bg-red-700 transition">Retry</button>
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center shadow-xs">
+          <p className="text-sm font-bold text-rose-600">⚠ {error}</p>
+          <button onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-[#203e4f] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#172d3a] transition shadow-xs">Retry</button>
         </div>
       </SuperAdminLayout>
     );

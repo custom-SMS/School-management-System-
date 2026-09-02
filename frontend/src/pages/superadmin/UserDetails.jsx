@@ -78,11 +78,11 @@ function ResetPasswordModal({ user, onClose, onSave }) {
           </div>
           <div className="flex gap-3 pt-2">
             <button type="button" onClick={onClose}
-              className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-lg hover:bg-slate-50 transition text-sm">
+              className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition text-sm disabled:opacity-60">
+              className="flex-1 bg-[#203e4f] text-white font-bold py-2.5 rounded-xl hover:bg-[#172d3a] transition text-sm disabled:opacity-60 shadow-xs">
               {saving ? 'Resetting…' : 'Reset Password'}
             </button>
           </div>
@@ -216,7 +216,7 @@ export default function UserDetails() {
 
         <SectionCard title="Account Overview" description="Core account information visible to super admin.">
           <div className="flex flex-col gap-6 md:flex-row md:items-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-indigo-100 text-lg font-black text-indigo-700">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#203e4f] text-lg font-black text-white shadow-xs">
               {initials}
             </div>
 

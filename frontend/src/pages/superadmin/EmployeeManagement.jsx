@@ -118,7 +118,7 @@ function EmployeeModal({ employee, branches, onClose, onSave }) {
           
           <div className="flex gap-3 pt-4">
             <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-50 transition text-sm">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition text-sm disabled:opacity-60">
+            <button type="submit" disabled={saving} className="flex-1 bg-[#203e4f] text-white font-bold py-3 rounded-xl hover:bg-[#172d3a] transition text-sm disabled:opacity-60">
               {saving ? 'Saving...' : 'Save Employee'}
             </button>
           </div>
@@ -257,7 +257,7 @@ export default function EmployeeManagement() {
         </div>
         <button
           onClick={() => { setEditingEmployee(null); setShowModal(true); }}
-          className="bg-indigo-600 text-white font-bold py-2.5 px-5 rounded-xl hover:bg-indigo-700 transition shadow-sm"
+          className="bg-[#203e4f] text-white font-bold py-2.5 px-5 rounded-xl hover:bg-[#172d3a] transition shadow-xs"
         >
           + Add Employee
         </button>
@@ -299,7 +299,7 @@ export default function EmployeeManagement() {
                 <tr key={emp.id} className="hover:bg-slate-50 transition">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#203e4f] text-white flex items-center justify-center text-xs font-black shrink-0">
                         {emp.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)}
                       </div>
                       <div>
@@ -334,7 +334,7 @@ export default function EmployeeManagement() {
                       </button>
                       <button
                         onClick={() => { setEditingEmployee(emp); setShowModal(true); }}
-                        className="text-xs font-bold text-indigo-600 hover:text-indigo-900 transition"
+                        className="text-xs font-bold text-[#3b6b82] hover:text-[#203e4f] transition"
                       >
                         Edit
                       </button>
@@ -388,9 +388,9 @@ export default function EmployeeManagement() {
                     <button
                       key={item}
                       onClick={() => setPage(item)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
                         page === item
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-[#203e4f] text-white shadow-xs'
                           : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                       }`}
                     >

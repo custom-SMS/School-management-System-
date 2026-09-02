@@ -426,7 +426,7 @@ export default function Payments() {
                       <button
                         onClick={() => recordCash(f)}
                         disabled={payingId === f.id}
-                        className="rounded-lg bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                        className="rounded-xl bg-[#203e4f] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
                       >
                         {payingId === f.id ? 'Recording…' : 'Record Cash Payment'}
                       </button>

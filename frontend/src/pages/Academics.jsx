@@ -337,7 +337,7 @@ if (!result) return;
       headerAction={
         <button
           onClick={() => openModal('subject')}
-          className="flex items-center gap-1.5 shrink-0 rounded-lg bg-black px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white transition hover:bg-gray-800"
+          className="flex items-center gap-1.5 shrink-0 rounded-xl bg-[#203e4f] px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs"
         >
           <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v14m-7-7h14" />
@@ -444,13 +444,13 @@ if (!result) return;
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900"
+                    className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs"
                   >
                     Create Subject
                   </button>
@@ -542,13 +542,13 @@ if (!result) return;
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                    className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900"
+                    className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs"
                   >
                     Create Class
                   </button>

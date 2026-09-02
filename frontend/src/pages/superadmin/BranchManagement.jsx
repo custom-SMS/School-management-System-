@@ -207,7 +207,7 @@ export default function BranchManagement() {
               Branches — <span className="text-indigo-700">{activeSchool.name}</span>
             </h2>
             <button onClick={() => openModal('branch', { schoolId: activeSchool.id })}
-              className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-bold text-white hover:bg-indigo-500">
+              className="rounded-xl bg-[#203e4f] px-4 py-2 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs">
               + Add Branch
             </button>
           </div>
@@ -223,7 +223,7 @@ export default function BranchManagement() {
                     {b.address && <div className="text-xs text-slate-400">{b.address}</div>}
                   </div>
                   <button onClick={(e) => { e.stopPropagation(); openModal('branch', b); }}
-                    className="text-xs font-semibold text-blue-600 hover:underline">Edit</button>
+                    className="text-xs font-semibold text-[#3b6b82] hover:underline">Edit</button>
                   <button onClick={(e) => { e.stopPropagation(); deleteBranch(b.id, b.name); }}
                     className="text-xs font-semibold text-red-600 hover:underline">
                     Delete
@@ -246,7 +246,7 @@ export default function BranchManagement() {
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Admin Scope Assignments</h2>
           <button onClick={() => openModal('scope', {})}
-            className="rounded-xl bg-violet-600 px-4 py-2 text-sm font-bold text-white hover:bg-violet-500">
+            className="rounded-xl bg-[#3b6b82] px-4 py-2 text-sm font-bold text-white hover:bg-[#203e4f] transition shadow-xs">
             + Assign Scope
           </button>
         </div>
@@ -305,12 +305,12 @@ export default function BranchManagement() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-slate-300 focus:bg-white" />
                   </div>
                 ))}
-                <div className="mt-4 flex gap-2">
+                <div className="flex gap-3 pt-2">
                   <button onClick={saveSchool} disabled={saving}
-                    className="flex-1 rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Save'}
+                    className="flex-1 rounded-xl bg-[#203e4f] py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition disabled:opacity-50">
+                    {saving ? 'Saving…' : 'Save School'}
                   </button>
-                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
+                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
                 </div>
               </>
             )}
@@ -336,12 +336,12 @@ export default function BranchManagement() {
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:border-slate-300 focus:bg-white" />
                   </div>
                 ))}
-                <div className="mt-4 flex gap-2">
+                <div className="flex gap-3 pt-2">
                   <button onClick={saveBranch} disabled={saving}
-                    className="flex-1 rounded-xl bg-indigo-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Save'}
+                    className="flex-1 rounded-xl bg-[#203e4f] py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition disabled:opacity-50">
+                    {saving ? 'Saving…' : 'Save Branch'}
                   </button>
-                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
+                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
                 </div>
               </>
             )}
@@ -382,12 +382,12 @@ export default function BranchManagement() {
                     ))}
                   </select>
                 </div>
-                <div className="mt-4 flex gap-2">
+                <div className="flex gap-3 pt-2">
                   <button onClick={saveScope} disabled={saving || !form.userId || !form.scopeType || !form.branchId}
-                    className="flex-1 rounded-xl bg-violet-600 py-2.5 text-sm font-bold text-white disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Assign Scope'}
+                    className="flex-1 rounded-xl bg-[#203e4f] py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition disabled:opacity-50">
+                    {saving ? 'Saving…' : 'Save Assignment'}
                   </button>
-                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600">Cancel</button>
+                  <button onClick={closeModal} className="flex-1 rounded-xl border border-slate-200 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">Cancel</button>
                 </div>
               </>
             )}

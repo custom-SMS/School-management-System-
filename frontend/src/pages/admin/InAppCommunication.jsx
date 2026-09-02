@@ -284,7 +284,7 @@ export default function InAppCommunication() {
             <button
               onClick={handleSendInApp}
               disabled={sendingInApp || selectedIds.size === 0 || !inAppMessage.trim()}
-              className="w-full rounded-xl bg-black py-3 px-4 text-sm font-bold text-white shadow-md transition-transform active:scale-[0.98] hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full rounded-xl bg-[#203e4f] py-3 px-4 text-sm font-bold text-white shadow-xs transition-transform active:scale-[0.98] hover:bg-[#172d3a] disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {sendingInApp ? 'Sending…' : `Send In-App Notice to ${selectedIds.size} Student(s)`}
             </button>

@@ -116,7 +116,7 @@ export default function SystemNotifications() {
             <button
               type="submit"
               disabled={sending}
-              className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+              className="w-full rounded-xl bg-[#203e4f] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
             >
               {sending ? 'Sending…' : 'Send Broadcast'}
             </button>

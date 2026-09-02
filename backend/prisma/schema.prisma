@@ -31,6 +31,27 @@ enum AssignmentType {
   HomeRoomTeacher
 }
 
+enum CourseworkStatus {
+  Draft
+  Published
+  Closed
+}
+
+enum MaterialType {
+  LectureNote
+  Worksheet
+  Syllabus
+  ReferenceBook
+  PastExam
+  Other
+}
+
+enum SubmissionStatus {
+  Submitted
+  Late
+  Graded
+}
+
 // ─── School ───────────────────────────────────────────────────────────────────
 
 model School {
@@ -69,6 +90,8 @@ model Branch {
   feeStructures     FeeStructure[]
   gradingStructures GradingStructure[]
   subjects          Subject[]
+  courseworks       Coursework[]      @relation("BranchCoursework")
+  studyMaterials    StudyMaterial[]   @relation("BranchMaterials")
 
   @@unique([schoolId, code])
 }
@@ -231,6 +254,7 @@ model Student {
   attendanceRecords AttendanceRecord[]
   enrollments       Enrollment[]
   reportCards       ReportCard[]
+  submissions       CourseSubmission[]  @relation("StudentSubmissions")
 
   @@index([userId])
   @@index([branchId])
@@ -310,6 +334,8 @@ model Teacher {
   assignments      TeacherAssignment[]
   homeroomSections Section[]
   classSubjects    ClassSubject[]
+  courseworks      Coursework[]      @relation("TeacherCoursework")
+  studyMaterials   StudyMaterial[]   @relation("TeacherMaterials")
 
   @@index([userId])
   @@index([branchId])
@@ -358,12 +384,14 @@ model Class {
 
   students      Student[]           @relation("ClassStudents")
   attendances   Attendance[]
-  grades       Grade[]
+  grades        Grade[]
   assignments   TeacherAssignment[]
   sections      Section[]
   timetables    Timetable[]
   classSubjects ClassSubject[]
   promotedReportCards ReportCard[]  @relation("PromotedToClass")
+  courseworks   Coursework[]        @relation("ClassCoursework")
+  studyMaterials StudyMaterial[]    @relation("ClassMaterials")
 
   @@unique([branchId, name, stream, academicYearId])
   @@index([academicYearId])
@@ -747,4 +775,93 @@ model AttendanceUnlockRequest {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 }
+
+// ─── Coursework ───────────────────────────────────────────────────────────────
+// Teacher-created homework / project / quiz definitions
+
+model Coursework {
+  id          String           @id @default(uuid())
+  title       String
+  description String?
+  subject     String
+  grade       String           // grade level this applies to (e.g. "Grade 9")
+  dueDate     DateTime?
+  points      Int              @default(100)
+  status      CourseworkStatus @default(Draft)
+  attachmentUrl String?        // Cloudinary URL for instruction sheet / rubric
+  attachmentName String?
+
+  teacherId   String
+  teacher     Teacher          @relation("TeacherCoursework", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId     String?
+  class       Class?           @relation("ClassCoursework", fields: [classId], references: [id], onDelete: SetNull)
+  branchId    String?
+  branch      Branch?          @relation("BranchCoursework", fields: [branchId], references: [id], onDelete: SetNull)
+
+  submissions CourseSubmission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([teacherId])
+  @@index([branchId])
+  @@index([grade])
+}
+
+// ─── StudyMaterial ────────────────────────────────────────────────────────────
+// Lecture notes, worksheets, reference PDFs uploaded by teachers
+
+model StudyMaterial {
+  id           String       @id @default(uuid())
+  title        String
+  description  String?
+  subject      String
+  grade        String
+  type         MaterialType @default(Other)
+  fileUrl      String       // Cloudinary URL
+  fileName     String
+  fileSize     Int?         // in bytes
+  downloadCount Int         @default(0)
+
+  teacherId    String
+  teacher      Teacher      @relation("TeacherMaterials", fields: [teacherId], references: [id], onDelete: Cascade)
+  classId      String?
+  class        Class?       @relation("ClassMaterials", fields: [classId], references: [id], onDelete: SetNull)
+  branchId     String?
+  branch       Branch?      @relation("BranchMaterials", fields: [branchId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@index([teacherId])
+  @@index([branchId])
+  @@index([grade])
+}
+
+// ─── CourseSubmission ─────────────────────────────────────────────────────────
+// Student homework / project upload for a Coursework assignment
+
+model CourseSubmission {
+  id            String           @id @default(uuid())
+  courseworkId  String
+  coursework    Coursework       @relation(fields: [courseworkId], references: [id], onDelete: Cascade)
+  studentId     String
+  student       Student          @relation("StudentSubmissions", fields: [studentId], references: [id], onDelete: Cascade)
+
+  fileUrl       String?          // Cloudinary URL
+  fileName      String?
+  text          String?          // Optional text answer
+  status        SubmissionStatus @default(Submitted)
+  score         Float?
+  feedback      String?
+  gradedAt      DateTime?
+
+  submittedAt   DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  @@unique([courseworkId, studentId])
+  @@index([courseworkId])
+  @@index([studentId])
+}
+
 

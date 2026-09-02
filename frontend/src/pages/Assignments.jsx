@@ -267,7 +267,7 @@ export default function Assignments() {
             <button
               type="submit"
               disabled={submitting || !teacherId || !sectionId || (assignmentType === 'SubjectTeacher' && !subjectId)}
-              className="w-full rounded-lg bg-black py-3 text-sm font-bold text-white transition hover:bg-gray-800 disabled:opacity-50"
+              className="w-full rounded-xl bg-[#203e4f] py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
             >
               {submitting ? 'Saving…' : 'Save Assignment'}
             </button>
@@ -316,9 +316,9 @@ export default function Assignments() {
             </div>
           </div>
 
-          <div className="rounded-xl bg-black p-6 text-white">
+          <div className="rounded-2xl bg-[#203e4f] p-6 text-white shadow-md">
             <h3 className="mb-2 font-bold">Assignment Details</h3>
-            <p className="text-sm text-gray-300">This page allows you to create or delete teacher assignments.</p>
+            <p className="text-sm text-[#9bbcc9]">This page allows you to create or delete teacher assignments.</p>
           </div>
         </div>
       </div>

@@ -616,7 +616,7 @@ export default function StudentRegistrationWizard() {
                         ['National ID Uploaded', docs['National ID / Kebele ID']?.status === 'done' ? 'Yes' : 'No'],
                         ['Student Photo Uploaded', docs['Student Photo']?.status === 'done' ? 'Yes' : 'No'],
                       ]} />
-                      <label className="flex items-start gap-3 rounded-2xl bg-slate-900 p-5 text-sm text-white">
+                      <label className="flex items-start gap-3 rounded-2xl bg-[#203e4f] p-5 text-sm text-white shadow-md">
                         <input type="checkbox" checked={form.consent} onChange={(e) => set('consent', e.target.checked)} className="mt-0.5 h-4 w-4" />
                         <span>I verify that all the information provided in this application is accurate and true. I understand that any false information may lead to cancellation of the registration.</span>
                       </label>
@@ -639,7 +639,7 @@ export default function StudentRegistrationWizard() {
                   <button
                     onClick={handleSubmit}
                     disabled={submitting || !form.consent || registrationClosed}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
+                    className="flex items-center gap-2 rounded-xl bg-[#203e4f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-40"
                   >
                     {submitting ? (isEditMode ? 'Saving…' : 'Submitting…') : (isEditMode ? 'Save Changes' : 'Submit Registration')} →
                   </button>
@@ -647,7 +647,7 @@ export default function StudentRegistrationWizard() {
                   
                   <button
                     onClick={() => canProceed() ? setStepIdx((i) => i + 1) : toast.error('Please complete the required fields.')}
-                    className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800"
+                    className="flex items-center gap-2 rounded-xl bg-[#203e4f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs"
                   >
                     Next Step →
                   </button>

@@ -212,21 +212,21 @@ export default function Analytics() {
           )}
         </section>
 
-        <section className="rounded-2xl bg-slate-900 p-6 text-white shadow-sm">
+        <section className="rounded-2xl bg-[#203e4f] p-6 text-white shadow-md">
           <h2 className="text-xl font-bold">Urgent Actions</h2>
           <div className="mt-5 space-y-3">
-            <div className="rounded-xl bg-white/5 p-4">
+            <div className="rounded-xl bg-white/10 p-4">
               <div className="flex items-center gap-2 font-bold"><span className="text-rose-400">!</span> {defaulters.length} Defaulting Account{defaulters.length === 1 ? '' : 's'}</div>
-              <p className="mt-1 text-sm text-slate-400">Unpaid for {targetMonth}</p>
+              <p className="mt-1 text-sm text-[#9bbcc9]">Unpaid for {targetMonth}</p>
             </div>
-            <div className="rounded-xl bg-white/5 p-4">
+            <div className="rounded-xl bg-white/10 p-4">
               <div className="flex items-center gap-2 font-bold">
                 <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M2 7h20v10H2V7zm2 2v6h16V9H4z" /></svg> ETB {etb(totalArrears)} Outstanding
               </div>
-              <p className="mt-1 text-sm text-slate-400">Estimated arrears for {targetMonth}</p>
+              <p className="mt-1 text-sm text-[#9bbcc9]">Estimated arrears for {targetMonth}</p>
             </div>
           </div>
-          <button className="mt-6 w-full rounded-xl bg-white py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100">
+          <button className="mt-6 w-full rounded-xl bg-white py-3 text-sm font-bold text-[#203e4f] transition hover:bg-slate-100 shadow-xs">
             Review Critical List
           </button>
         </section>
@@ -240,7 +240,7 @@ export default function Analytics() {
             <span className="text-slate-400">Filter by:</span>
             <div className="flex rounded-lg border border-slate-200 p-1 font-semibold">
               {[['all', 'All'], ['critical', 'Critical'], ['moderate', 'Moderate']].map(([k, label]) => (
-                <button key={k} onClick={() => setFilter(k)} className={`rounded-md px-2 py-1.5 text-xs sm:px-3 sm:text-sm transition ${filter === k ? 'bg-slate-900 text-white' : 'text-slate-500'}`}>
+                <button key={k} onClick={() => setFilter(k)} className={`rounded-md px-2 py-1.5 text-xs sm:px-3 sm:text-sm font-bold transition ${filter === k ? 'bg-[#203e4f] text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}>
                   {label}
                 </button>
               ))}

@@ -556,7 +556,7 @@ export default function Sections() {
 
                   onClick={() => setShowModal(false)}
 
-                  className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
 
                 >
 
@@ -570,7 +570,7 @@ export default function Sections() {
 
                   disabled={saving}
 
-                  className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50"
+                  className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs disabled:opacity-50"
 
                 >
 
@@ -784,25 +784,25 @@ export default function Sections() {
 
                   <button
 
-                    type="button"
+                  type="button"
 
-                    onClick={() => { setShowEditModal(false); setPendingConfirm(false); }}
+                  onClick={() => { setShowEditModal(false); setPendingConfirm(false); }}
 
-                    className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                  className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition"
 
-                  >
+                >
 
-                    Cancel
+                  Cancel
 
-                  </button>
+                </button>
 
-                  <button
+                <button
 
-                    type="submit"
+                  type="submit"
 
-                    disabled={saving || editingLoading || pendingConfirm}
+                  disabled={saving || editingLoading || pendingConfirm}
 
-                    className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50"
+                  className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs disabled:opacity-50"
 
                   >
 
@@ -882,7 +882,7 @@ export default function Sections() {
 
               disabled={!selectedClassId}
 
-              className="rounded-lg flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-black px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:bg-slate-800 disabled:opacity-50"
+              className="rounded-xl flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-[#203e4f] px-4 py-2 text-sm font-bold text-white shadow-xs transition hover:bg-[#172d3a] disabled:opacity-50"
 
             >
 

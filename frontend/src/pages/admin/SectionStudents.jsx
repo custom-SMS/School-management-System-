@@ -129,7 +129,7 @@ export default function SectionStudents() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving || loading}
-                className="rounded-lg bg-black px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-gray-900 disabled:opacity-50"
+                className="rounded-xl bg-[#203e4f] px-4 py-2.5 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Save Students'}
               </button>

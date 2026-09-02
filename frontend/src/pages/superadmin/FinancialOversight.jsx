@@ -45,9 +45,9 @@ export default function FinancialOversight() {
   if (error) {
     return (
       <SuperAdminLayout pageTitle="Financial Oversight">
-        <div className="rounded-xl border border-red-200 bg-red-50 p-8 text-center mt-6">
-          <p className="text-sm font-bold text-red-600">⚠ Failed to load financial data.</p>
-          <button onClick={() => window.location.reload()} className="mt-4 rounded-lg bg-red-600 px-4 py-2 text-xs font-bold text-white hover:bg-red-700 transition">Retry</button>
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 p-8 text-center mt-6">
+          <p className="text-sm font-bold text-rose-600">⚠ Failed to load financial data.</p>
+          <button onClick={() => window.location.reload()} className="mt-4 rounded-xl bg-[#203e4f] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#172d3a] transition shadow-xs">Retry</button>
         </div>
       </SuperAdminLayout>
     );

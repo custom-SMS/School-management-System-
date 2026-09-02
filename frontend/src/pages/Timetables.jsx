@@ -402,7 +402,7 @@ export default function Timetables() {
                 <input type="text" placeholder="e.g. Room 204B" value={formRoom} onChange={e => setFormRoom(e.target.value)} className={inputClass} />
               </div>
 
-              <button type="submit" className="w-full mt-2 rounded-lg bg-black py-2.5 font-bold text-white hover:bg-slate-800 transition shadow-sm">
+              <button type="submit" className="w-full mt-2 rounded-xl bg-[#203e4f] py-2.5 font-bold text-white hover:bg-[#172d3a] transition shadow-xs">
                 Schedule Slot
               </button>
             </form>

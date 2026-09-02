@@ -108,16 +108,16 @@ export default function AttendanceGovernance() {
         <div className="flex gap-2">
           {['', 'locked', 'open'].map(v => (
             <button key={v} onClick={() => setFilterStatus(v)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
                 filterStatus === v
-                  ? v === 'locked' ? 'bg-red-600 text-white' : v === 'open' ? 'bg-emerald-600 text-white' : 'bg-slate-900 text-white'
+                  ? v === 'locked' ? 'bg-red-600 text-white' : v === 'open' ? 'bg-emerald-600 text-white' : 'bg-[#203e4f] text-white shadow-xs'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}>
               {v === '' ? 'All' : v === 'locked' ? '🔒 Locked' : '🔓 Open'}
             </button>
           ))}
         </div>
-        <button onClick={() => fetchSessions(pagination.page)} className="ml-auto text-xs font-bold text-indigo-600 hover:text-indigo-900 flex items-center gap-1.5 bg-indigo-50 px-3 py-2 rounded-lg">
+        <button onClick={() => fetchSessions(pagination.page)} className="ml-auto text-xs font-bold text-[#203e4f] hover:text-[#172d3a] flex items-center gap-1.5 bg-[#eaf2f6] border border-[#d8e5ec] px-3.5 py-2 rounded-xl transition">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
           Refresh
         </button>
@@ -167,7 +167,7 @@ export default function AttendanceGovernance() {
                         <button
                           disabled={unlockingId === s._id}
                           onClick={() => handleUnlock(s)}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-900 bg-indigo-50 px-3 py-1.5 rounded-lg transition disabled:opacity-40"
+                          className="text-xs font-bold text-[#203e4f] hover:text-[#172d3a] bg-[#eaf2f6] px-3.5 py-1.5 rounded-xl transition disabled:opacity-40"
                         >
                           {unlockingId === s._id ? 'Unlocking…' : 'Approve Unlock'}
                         </button>

@@ -150,7 +150,7 @@ export default function Fees() {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full rounded-xl bg-slate-900 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                className="w-full rounded-xl bg-[#203e4f] py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
               >
                 {saving ? 'Saving…' : 'Save Fee Structure'}
               </button>
@@ -191,7 +191,7 @@ export default function Fees() {
                               setDescription(s.description || 'Monthly Tuition');
                               window.scrollTo({ top: 0, behavior: 'smooth' });
                             }}
-                            className="rounded-xl bg-indigo-600 px-3 py-1 text-sm font-semibold text-white hover:bg-indigo-500"
+                            className="rounded-xl bg-[#203e4f] px-3.5 py-1.5 text-xs font-bold text-white hover:bg-[#172d3a] transition shadow-xs"
                           >
                             Edit
                           </button>
@@ -238,7 +238,7 @@ export default function Fees() {
           <button
             type="submit"
             disabled={generating}
-            className="rounded-xl bg-slate-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+            className="rounded-xl bg-[#203e4f] px-6 py-3 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
           >
             {generating ? 'Generating…' : 'Generate Invoices'}
           </button>

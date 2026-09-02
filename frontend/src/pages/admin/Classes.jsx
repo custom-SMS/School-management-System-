@@ -235,8 +235,8 @@ export default function Classes() {
                 )}
               </div> */}
               <div className="flex justify-end gap-3 mt-2">
-                <button type="button" onClick={() => setShowModal(false)} className="rounded-lg border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={saving} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">
+                <button type="button" onClick={() => setShowModal(false)} className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" disabled={saving} className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs disabled:opacity-50">
                   {saving ? (editingClassId ? 'Saving…' : 'Creating…') : (editingClassId ? 'Save Changes' : 'Create Class')}
                 </button>
               </div>
@@ -254,7 +254,7 @@ export default function Classes() {
           <button
             onClick={openCreateModal}
             disabled={availableClassOptions.length === 0}
-            className="px-4 py-2 flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-black text-white text-sm font-bold rounded-lg hover:bg-slate-800 transition shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 flex items-center gap-2 flex-nowrap whitespace-nowrap shrink-0 bg-[#203e4f] text-white text-sm font-bold rounded-xl hover:bg-[#172d3a] transition shadow-xs disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + New Class
           </button>
@@ -289,7 +289,7 @@ export default function Classes() {
                   <td className="px-6 py-4">{c.sections?.length || 0}</td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex justify-end gap-2">
-                      <button onClick={() => handleEditClick(c)} className="text-xs font-bold text-black hover:text-slate-900 bg-slate-100 px-3 py-1 rounded-md">Edit</button>
+                      <button onClick={() => handleEditClick(c)} className="text-xs font-bold text-[#203e4f] hover:text-[#172d3a] bg-[#eaf2f6] px-3.5 py-1.5 rounded-lg transition">Edit</button>
                       <button
                         onClick={() => handleDeleteClass(c)}
                         disabled={deletingClassId === c.id}

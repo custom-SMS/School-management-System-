@@ -54,8 +54,8 @@ function ResetPasswordModal({ user, onClose, onSave }) {
               className="w-full border border-slate-200 rounded-lg px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
           </div>
           <div className="flex gap-3 pt-2">
-            <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-lg hover:bg-slate-50 transition text-sm">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-lg hover:bg-indigo-700 transition text-sm disabled:opacity-60">
+            <button type="button" onClick={onClose} className="flex-1 border border-slate-200 text-slate-700 font-bold py-2.5 rounded-xl hover:bg-slate-50 transition text-sm">Cancel</button>
+            <button type="submit" disabled={saving} className="flex-1 bg-[#203e4f] text-white font-bold py-2.5 rounded-xl hover:bg-[#172d3a] transition text-sm disabled:opacity-60">
               {saving ? 'Resetting…' : 'Reset Password'}
             </button>
           </div>
@@ -192,9 +192,9 @@ export default function UserManagement() {
           const count = roleCounts[role] || 0;
           return (
             <button key={role} onClick={() => handleRoleFilterChange(role)}
-              className={`rounded-xl border p-3 text-left transition hover:shadow-sm ${filterRole === role ? 'border-indigo-500 bg-indigo-50' : 'border-slate-200 bg-white'}`}>
-              <div className="text-2xl font-black text-slate-900">{count}</div>
-              <div className={`text-xs font-bold mt-1 ${filterRole === role ? 'text-indigo-700' : 'text-slate-500'}`}>{displayRole(role)}</div>
+              className={`rounded-xl border p-3 text-left transition hover:shadow-xs ${filterRole === role ? 'border-[#203e4f] bg-[#eaf2f6] text-[#203e4f]' : 'border-slate-200 bg-white'}`}>
+              <div className="text-2xl font-black text-[#203e4f]">{count}</div>
+              <div className={`text-xs font-bold mt-1 ${filterRole === role ? 'text-[#203e4f]' : 'text-slate-500'}`}>{displayRole(role)}</div>
             </button>
           );
         })}
@@ -207,11 +207,11 @@ export default function UserManagement() {
           placeholder="Search by name or email…"
           value={search}
           onChange={handleSearchChange}
-          className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-72 bg-white"
+          className="border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[#3b6b82] w-full sm:w-72 bg-white"
         />
         <div className="flex items-center gap-2 flex-wrap">
           <select value={filterRole} onChange={e => { setFilterRole(e.target.value); setPage(1); }}
-            className="border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500 bg-white">
+            className="border border-slate-200 rounded-xl px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-[#3b6b82] bg-white">
             <option value="">All Roles</option>
             {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
           </select>
@@ -246,7 +246,7 @@ export default function UserManagement() {
                 <tr key={u.id} className="hover:bg-slate-50 transition">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black shrink-0">
+                      <div className="w-9 h-9 rounded-xl bg-[#203e4f] text-white flex items-center justify-center text-xs font-black shrink-0">
                         {u.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2)}
                       </div>
                       <div>
@@ -346,9 +346,9 @@ export default function UserManagement() {
                     <button
                       key={item}
                       onClick={() => setPage(item)}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-lg transition ${
+                      className={`px-3 py-1.5 text-xs font-bold rounded-xl transition ${
                         page === item
-                          ? 'bg-indigo-600 text-white shadow-sm'
+                          ? 'bg-[#203e4f] text-white shadow-xs'
                           : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-100'
                       }`}
                     >

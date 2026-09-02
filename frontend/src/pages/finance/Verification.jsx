@@ -51,7 +51,7 @@ export default function Verification() {
         <section className="rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
             <h2 className="text-lg font-bold text-slate-900">Pending Slips</h2>
-            <span className="rounded-md bg-slate-900 px-2.5 py-1 text-xs font-bold text-white">{slips.length} NEW</span>
+            <span className="rounded-md bg-[#203e4f] px-2.5 py-1 text-xs font-bold text-white shadow-xs">{slips.length} NEW</span>
           </div>
           <div className="max-h-[70vh] divide-y divide-slate-100 overflow-y-auto">
             {slips.map((s) => {
@@ -60,7 +60,7 @@ export default function Verification() {
                 <button
                   key={s.id}
                   onClick={() => setActiveId(s.id)}
-                  className={`flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition ${isActive ? 'border-l-4 border-slate-900 bg-slate-50' : 'border-l-4 border-transparent hover:bg-slate-50'}`}
+                  className={`flex w-full items-center justify-between gap-3 px-5 py-4 text-left transition ${isActive ? 'border-l-4 border-[#203e4f] bg-[#eaf2f6]' : 'border-l-4 border-transparent hover:bg-slate-50'}`}
                 >
                   <div className="min-w-0">
                     <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -103,7 +103,7 @@ export default function Verification() {
             <button
               disabled={!active || working}
               onClick={() => decide('Verified')}
-              className="flex items-center gap-2 rounded-xl bg-slate-900 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-40"
+              className="flex items-center gap-2 rounded-xl bg-[#203e4f] px-6 py-2.5 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-40"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z" /></svg>
               {working ? 'Processing…' : 'Approve & Next'}

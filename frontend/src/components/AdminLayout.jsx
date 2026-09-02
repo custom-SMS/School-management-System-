@@ -110,6 +110,7 @@ const navItems = [
   { to: '/admin/grades', label: 'Gradebook', icon: <GradeIcon /> },
   { to: '/admin/assignments', label: 'Assignments', icon: <AssignmentIcon /> },
   { to: '/admin/timetables', label: 'Timetables', icon: <TimetableIcon /> },
+  { to: '/admin/academic-oversight', label: 'Academic Oversight', icon: <ReportIcon /> },
   { to: '/admin/report-cards', label: 'Report Cards', icon: <ReportCardIcon /> },
   { to: '/admin/academic-reports', label: 'Academic Reports', icon: <ReportIcon />, permission: 'generate_reports' },
   { to: '/admin/notifications', label: 'Announcements', icon: <BellIcon /> },

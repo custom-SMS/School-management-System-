@@ -202,7 +202,7 @@ export default function Teachers() {
     <AdminLayout pageTitle="System Management" headerAction={
       <button
         onClick={openCreateModal}
-        className="flex items-center gap-1.5 shrink-0 rounded-lg bg-black px-2.5 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-bold text-white transition hover:bg-gray-800"
+        className="flex items-center gap-1.5 shrink-0 rounded-xl bg-[#203e4f] px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs"
       >
         <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 5v14m-7-7h14"/></svg>
         <span className="hidden sm:inline">Add Staff</span>
@@ -228,8 +228,8 @@ export default function Teachers() {
               <div><label className="mb-1 block text-sm font-semibold text-gray-700">Password (optional)</label>
                 <input type="text" placeholder="Leave blank to auto-generate" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} className="w-full rounded-lg border border-gray-300 p-3 text-sm focus:border-black focus:outline-none" /></div>
               <div className="mt-6 flex justify-end gap-3">
-                <button type="button" onClick={() => { setShowForm(false); setEditingTeacherId(''); setFormData(initialForm); }} className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={loading} className="rounded-lg bg-black px-5 py-2.5 text-sm font-semibold text-white hover:bg-gray-900 disabled:opacity-50">{loading ? 'Saving…' : (editingTeacherId ? 'Save Changes' : 'Register Teacher')}</button>
+                <button type="button" onClick={() => { setShowForm(false); setEditingTeacherId(''); setFormData(initialForm); }} className="rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" disabled={loading} className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#172d3a] transition shadow-xs disabled:opacity-50">{loading ? 'Saving…' : (editingTeacherId ? 'Save Changes' : 'Register Teacher')}</button>
               </div>
             </form>
           </div>

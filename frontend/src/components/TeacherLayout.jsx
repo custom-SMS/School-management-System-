@@ -78,6 +78,7 @@ const navItems = [
   { to: '/teacher/attendance', label: 'Attendance', icon: 'attendance' },
   { to: '/teacher/grades', label: 'Grades', icon: 'grades' },
   { to: '/teacher/timetable', label: 'Timetable', icon: 'timetable' },
+  { to: '/teacher/coursework', label: 'Coursework', icon: 'grades' },
   { to: '/teacher/homeroom', label: 'Homeroom', icon: 'classes' },
   { to: '/teacher/registration', label: 'Student Registration', icon: 'settings' },
 ];

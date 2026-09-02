@@ -98,6 +98,8 @@ app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/employees', require('./routes/employeeRoutes'));
 app.use('/api/email', require('./routes/email'));
 app.use('/api/settings', require('./routes/settingsRoutes'));
+app.use('/api/coursework', require('./routes/courseWorkRoutes'));
+
 
 
 // Serve uploaded documents statically.

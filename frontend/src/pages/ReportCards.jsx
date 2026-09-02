@@ -566,7 +566,7 @@ export default function ReportCards() {
                     type="button"
                     onClick={() => setSelectedSemesterId(s.id)}
                     className={`relative flex-1 rounded-xl border px-4 py-3 text-sm font-bold transition ${selectedSemesterId === s.id
-                      ? 'border-indigo-600 bg-black text-white shadow-sm ring-2 ring-indigo-600/20'
+                      ? 'border-[#203e4f] bg-[#203e4f] text-white shadow-xs'
                       : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300 hover:bg-white'
                       }`}
                   >
@@ -584,7 +584,7 @@ export default function ReportCards() {
           <button
             onClick={handleCompile}
             disabled={!selectedYear || busy === 'compile'}
-            className="flex items-center gap-2 rounded-xl bg-black px-5 py-3 text-sm font-bold text-white shadow-sm shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-[#203e4f] px-5 py-3 text-sm font-bold text-white shadow-xs transition hover:bg-[#172d3a] disabled:opacity-50"
           >
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2zm1 14.5-4.5-4.5 1.41-1.41L13 13.67l6.09-6.08 1.41 1.41L13 16.5z" />
@@ -612,7 +612,7 @@ export default function ReportCards() {
                   setSelectedClassId(e.target.value);
                   setSelectedSectionId('');
                 }}
-                className="min-w-[150px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-600/20 cursor-pointer"
+                className="min-w-[150px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-[#3b6b82] focus:bg-white focus:ring-2 focus:ring-[#3b6b82]/20 cursor-pointer"
               >
                 {rawClasses.length === 0 ? (
                   <option value="">No classes available</option>
@@ -633,7 +633,7 @@ export default function ReportCards() {
                 value={selectedSectionId}
                 onChange={(e) => setSelectedSectionId(e.target.value)}
                 disabled={availableSections.length === 0}
-                className="min-w-[140px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-indigo-600 focus:bg-white focus:ring-2 focus:ring-indigo-600/20 cursor-pointer disabled:opacity-50"
+                className="min-w-[140px] rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-sm font-bold text-slate-800 outline-none transition focus:border-[#3b6b82] focus:bg-white focus:ring-2 focus:ring-[#3b6b82]/20 cursor-pointer disabled:opacity-50"
               >
                 <option value="">All Sections</option>
                 {availableSections.map((sec) => (
@@ -702,7 +702,7 @@ export default function ReportCards() {
                         <button
                           title="Download PDF"
                           onClick={() => handlePrintSingleClassCard(rc)}
-                          className="rounded-lg bg-indigo-50 px-2.5 py-1.5 text-xs font-bold text-indigo-700 hover:bg-indigo-100 transition"
+                          className="rounded-lg bg-[#eaf2f6] px-2.5 py-1.5 text-xs font-bold text-[#203e4f] hover:bg-[#d8e5ec] transition"
                         >
                           PDF
                         </button>
@@ -995,13 +995,13 @@ export default function ReportCards() {
                   <button
                     onClick={handleSaveComments}
                     disabled={busy === 'comments'}
-                    className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                    className="rounded-xl bg-[#203e4f] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#172d3a] shadow-xs disabled:opacity-50"
                   >
                     {busy === 'comments' ? 'Saving…' : 'Save Comments'}
                   </button>
                   <button
                     onClick={handleDownload}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700"
+                    className="flex items-center gap-2 rounded-xl bg-[#3b6b82] px-5 py-2.5 text-sm font-bold text-white transition hover:bg-[#203e4f] shadow-xs"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />

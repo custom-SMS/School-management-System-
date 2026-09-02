@@ -52,6 +52,7 @@ import Registrar from "./pages/Registrar";
 import SmsCommunication from "./pages/admin/SmsCommunication";
 import AdminNotifications from "./pages/admin/AdminNotifications";
 import InAppCommunication from "./pages/admin/InAppCommunication";
+import AcademicOversight from "./pages/admin/AcademicOversight";
 
 // Finance (Cashier)
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
@@ -77,6 +78,7 @@ import TeacherNotifications from "./pages/teacher/TeacherNotifications";
 import Homeroom from "./pages/teacher/Homeroom";
 import HomeroomReportCards from "./pages/teacher/HomeroomReportCards";
 import HomeroomGradeReview from "./pages/teacher/HomeroomGradeReview";
+import TeacherCourseWork from "./pages/teacher/TeacherCourseWork";
 
 // Student
 import StudentDashboard from "./pages/student/StudentDashboard";
@@ -87,6 +89,7 @@ import SubjectResultDetails from "./pages/student/SubjectResultDetails";
 import StudentFinance from "./pages/student/StudentFinance";
 import StudentPayment from "./pages/student/StudentPayment";
 import StudentFees from "./pages/StudentFees";
+import StudentCourseWork from "./pages/student/StudentCourseWork";
 
 // Parent
 import ParentDashboard from "./pages/parent/ParentDashboard";
@@ -96,6 +99,7 @@ import ParentAttendance from "./pages/parent/ParentAttendance";
 import ParentFinance from "./pages/parent/ParentFinance";
 import ParentPayment from "./pages/parent/ParentPayment";
 import ParentNotifications from "./pages/parent/ParentNotifications";
+import ParentCourseWork from "./pages/parent/ParentCourseWork";
 import { AcademicYearProvider } from "./context/AcademicYearContext";
 
 function App() {
@@ -668,6 +672,15 @@ function App() {
                 }
               />
 
+              <Route
+                path="/teacher/coursework"
+                element={
+                  <ProtectedRoute allowedRoles={["Teacher", "SuperAdmin"]}>
+                    <TeacherCourseWork />
+                  </ProtectedRoute>
+                }
+              />
+
               {/* ========================================================
               STUDENT / PARENT ROUTES
               ======================================================== */}
@@ -752,6 +765,24 @@ function App() {
               />
 
               <Route
+                path="/student/coursework"
+                element={
+                  <ProtectedRoute allowedRoles={["Student", "Parent", "SuperAdmin"]}>
+                    <StudentCourseWork />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
+                path="/admin/academic-oversight"
+                element={
+                  <ProtectedRoute allowedRoles={["Admin", "SuperAdmin"]}>
+                    <AcademicOversight />
+                  </ProtectedRoute>
+                }
+              />
+
+              <Route
                 path="/parent/dashboard"
                 element={
                   <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
@@ -764,6 +795,14 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
                     <ParentAcademics />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/parent/coursework"
+                element={
+                  <ProtectedRoute allowedRoles={["Parent", "SuperAdmin"]}>
+                    <ParentCourseWork />
                   </ProtectedRoute>
                 }
               />
