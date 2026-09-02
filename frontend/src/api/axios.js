@@ -52,16 +52,26 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    if (status === 401 && !onLoginPage) {
+    const isAuthError =
+      status === 401 ||
+      (status === 400 && error.response?.data?.message?.toLowerCase().includes('token')) ||
+      (status === 403 && error.response?.data?.message?.toLowerCase().includes('token'));
+
+    if (isAuthError && !onLoginPage) {
       localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      localStorage.removeItem('superAdminYearViewId');
+      if (lastToastId) toast.dismiss(lastToastId);
+      lastToastId = toast.info('Your session has expired. Please sign in again.');
       window.location.assign('/login');
+      return Promise.reject(error);
     } else if (!skip && status >= 500) {
       if (lastToastId) toast.dismiss(lastToastId);
       lastToastId = toast.error('Server error. Please try again later.');
     } else if (!error.response && error.code !== 'ERR_CANCELED') {
       if (lastToastId) toast.dismiss(lastToastId);
       lastToastId = toast.error('Network error. Please check your connection.');
-    } else if (!skip && status >= 400 && status !== 401) {
+    } else if (!skip && status >= 400 && !isAuthError) {
       // Don't show toast for 400 if it's already handled, but for GET requests it's useful
       if (error.config?.method === 'get') {
          if (lastToastId) toast.dismiss(lastToastId);

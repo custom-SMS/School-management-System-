@@ -35,7 +35,7 @@ const verifyToken = (req, res, next) => {
     req.user = verified; // { _id, role, scopeType, schoolId, branchId, levelId }
     attachAcademicYearContext(req, res, next);
   } catch (err) {
-    res.status(400).json({ message: 'Invalid or Expired Token' });
+    res.status(401).json({ message: 'Invalid or Expired Token' });
   }
 };
 
