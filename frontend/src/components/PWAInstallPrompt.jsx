@@ -7,12 +7,16 @@ export default function PWAInstallPrompt() {
   const [showIOSTip, setShowIOSTip] = useState(false);
 
   useEffect(() => {
-    // Check if already installed / standalone
+    // Check if already installed / standalone or flag is set
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      window.matchMedia('(display-mode: minimal-ui)').matches ||
       window.navigator.standalone === true;
 
-    if (isStandalone) return;
+    const alreadyInstalled = localStorage.getItem('pwa_installed') === 'true';
+
+    if (isStandalone || alreadyInstalled) return;
 
     // Detect iOS Safari
     const userAgent = window.navigator.userAgent.toLowerCase();
@@ -24,7 +28,6 @@ export default function PWAInstallPrompt() {
 
     if (isIOSSafari) {
       setIsIOS(true);
-      // Check if previously dismissed
       const dismissed = localStorage.getItem('pwa_ios_dismissed');
       if (!dismissed) {
         setShowPrompt(true);
@@ -36,15 +39,23 @@ export default function PWAInstallPrompt() {
       e.preventDefault();
       setDeferredPrompt(e);
       const dismissed = localStorage.getItem('pwa_prompt_dismissed');
-      if (!dismissed) {
+      if (!dismissed && !alreadyInstalled && !isStandalone) {
         setShowPrompt(true);
       }
     };
 
+    const handleAppInstalled = () => {
+      localStorage.setItem('pwa_installed', 'true');
+      setShowPrompt(false);
+      setDeferredPrompt(null);
+    };
+
     window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
   }, []);
 
@@ -59,6 +70,7 @@ export default function PWAInstallPrompt() {
     deferredPrompt.prompt();
     const { outcome } = await deferredPrompt.userChoice;
     if (outcome === 'accepted') {
+      localStorage.setItem('pwa_installed', 'true');
       setShowPrompt(false);
     }
     setDeferredPrompt(null);
